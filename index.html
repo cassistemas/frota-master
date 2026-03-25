@@ -734,11 +734,11 @@ let obj = {
 }
 
 // SE ESTIVER EDITANDO MANTÉM OS ANEXOS
-if(idx !== '' && db.multas[idx].arquivos){
-obj.arquivos = db.multas[idx].arquivos
+if(idx !== '' && db.multas[idx] && db.multas[idx].arquivos){
+    obj.arquivos = [...db.multas[idx].arquivos];
 }
 const files = document.getElementById("muarquivos").files
-const LIMITE_MB = 2;
+const LIMITE_MB = 0.7;
 
 for(let file of files){
     if(file.size > LIMITE_MB * 1024 * 1024){
@@ -924,6 +924,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
     if(!dropArea || !inputFile) return;
 
+    dropArea.addEventListener("click", () => inputFile.click());
+
+    dropArea.addEventListener("dragover", e => {
+        e.preventDefault();
+        dropArea.style.background = "#e0f2fe";
+    });
+
     dropArea.addEventListener("dragleave", () => {
         dropArea.style.background = "#f8fafc";
     });
@@ -941,54 +948,32 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
 });
-
-// Clique abre seletor
-dropArea.onclick = () => inputFile.click();
-
-// Quando arrasta em cima
-dropArea.addEventListener("dragover", e => {
-    e.preventDefault();
-    dropArea.style.background = "#e0f2fe";
-});
-
-// Quando sai da área
-dropArea.addEventListener("dragleave", () => {
-    dropArea.style.background = "#f8fafc";
-});
-
-// Quando solta o arquivo
-dropArea.addEventListener("drop", e => {
-    e.preventDefault();
-    dropArea.style.background = "#f8fafc";
-
-    inputFile.files = e.dataTransfer.files;
-    mostrarPreviewArquivos(inputFile.files);
-});
-
-// Quando seleciona pelo clique
-inputFile.addEventListener("change", () => {
-    mostrarPreviewArquivos(inputFile.files);
-});
+    
 function mostrarPreviewArquivos(files){
 
     let preview = document.getElementById("previewArquivos");
+    if(!preview) return;
+
     preview.innerHTML = "";
+
+    if(!files || files.length === 0) return;
 
     for(let file of files){
 
         let item = document.createElement("div");
-        item.style = "font-size:13px;margin-bottom:5px;";
+        item.style = "font-size:13px;margin-bottom:5px;display:flex;align-items:center;gap:10px;";
 
-        // Se for imagem mostra miniatura
         if(file.type.startsWith("image/")){
             let img = document.createElement("img");
             img.src = URL.createObjectURL(file);
-            img.style = "width:60px;height:60px;object-fit:cover;border-radius:6px;margin-right:10px;";
+            img.style = "width:60px;height:60px;object-fit:cover;border-radius:6px;";
             item.appendChild(img);
         }
 
-        item.innerHTML += `📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+        let info = document.createElement("span");
+        info.innerText = `📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
 
+        item.appendChild(info);
         preview.appendChild(item);
     }
 }
