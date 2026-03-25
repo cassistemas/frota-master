@@ -924,10 +924,21 @@ window.addEventListener("DOMContentLoaded", () => {
 
     if(!dropArea || !inputFile) return;
 
+    // Clique abre seletor
+    dropArea.onclick = () => inputFile.click();
+
+    // Arrastando em cima
+    dropArea.addEventListener("dragover", e => {
+        e.preventDefault();
+        dropArea.style.background = "#e0f2fe";
+    });
+
+    // Sai da área
     dropArea.addEventListener("dragleave", () => {
         dropArea.style.background = "#f8fafc";
     });
 
+    // Solta arquivo
     dropArea.addEventListener("drop", e => {
         e.preventDefault();
         dropArea.style.background = "#f8fafc";
@@ -936,39 +947,13 @@ window.addEventListener("DOMContentLoaded", () => {
         mostrarPreviewArquivos(inputFile.files);
     });
 
+    // Seleção manual
     inputFile.addEventListener("change", () => {
         mostrarPreviewArquivos(inputFile.files);
     });
 
 });
-
-// Clique abre seletor
-dropArea.onclick = () => inputFile.click();
-
-// Quando arrasta em cima
-dropArea.addEventListener("dragover", e => {
-    e.preventDefault();
-    dropArea.style.background = "#e0f2fe";
-});
-
-// Quando sai da área
-dropArea.addEventListener("dragleave", () => {
-    dropArea.style.background = "#f8fafc";
-});
-
-// Quando solta o arquivo
-dropArea.addEventListener("drop", e => {
-    e.preventDefault();
-    dropArea.style.background = "#f8fafc";
-
-    inputFile.files = e.dataTransfer.files;
-    mostrarPreviewArquivos(inputFile.files);
-});
-
-// Quando seleciona pelo clique
-inputFile.addEventListener("change", () => {
-    mostrarPreviewArquivos(inputFile.files);
-});
+    
 function mostrarPreviewArquivos(files){
 
     let preview = document.getElementById("previewArquivos");
