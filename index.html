@@ -903,7 +903,16 @@ auth.onAuthStateChanged(user => {
 });
 
 function logout(){
-    auth.signOut();
+    auth.signOut().then(() => {
+
+        // Esconde sistema
+        document.getElementById("sistema").style.display = "none";
+        document.getElementById("sistemaMain").style.display = "none";
+
+        // Mostra login
+        document.getElementById("loginTela").style.display = "flex";
+
+    });
 }
 
 window.addEventListener("DOMContentLoaded", () => {
