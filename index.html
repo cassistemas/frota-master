@@ -604,8 +604,6 @@ function escutarDados(modulo){
 
 }
 
-function renderTudo(){
-
 function renderTudo() {
     // ... (mantenha os códigos de veículos e motoristas que você já tem)
 
@@ -629,8 +627,8 @@ function renderTudo() {
     }
     
     atualizarDashboard();
-}
-
+    renderDashboard()
+    
     const vOpt = '<option value="">Veículo...</option>' + db.veiculos.map(v=>`<option value="${v.vplaca}">${v.vplaca}</option>`).join('');
     const mOpt = '<option value="">Motorista...</option>' + db.motoristas.map(m=>`<option value="${m.motNome}">${m.motNome}</option>`).join('');
     const fOpt = '<option value="">Fornecedor...</option>' + db.fornecedores.map(f=>`<option value="${f.fnome}">${f.fnome}</option>`).join('');
