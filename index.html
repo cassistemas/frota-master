@@ -753,7 +753,6 @@ ${renderPaginacao('manutencoes', pagMan.totalPaginas)}
 `;((m,i)=>`<tr><td>${m.mveiculo}</td><td>${m.mdata}</td><td>${m.mkm}</td><td><b>${m.mvalor}</b></td><td>${m.mfornecedor || '---'}</td><td>${m.mservico}</td>${btnSet('manutencoes',i)}</tr>`).join('');
     document.getElementById('listaLicencas').innerHTML = db.licencas.map((le,i)=>`<tr><td>${le.leveiculo}</td><td>${formatarVencimento(le.venciv)}</td><td>${formatarVencimento(le.vencipp)}</td>${btnSet('licencas',i)}</tr>`).join('');
     document.getElementById('listaRevisoes').innerHTML = db.revisoes.map((r,i)=>`<tr><td>${r.rveiculo}</td><td>${r.rtipo}</td><td>${r.rkm} KM</td>${btnSet('revisoes',i)}</tr>`).join('');
-    const pagF = paginarDados(db.fornecedores, 'fornecedores');
 
 const pagF = paginarDados(db.fornecedores, 'fornecedores');
 
