@@ -153,6 +153,7 @@ Criar Conta
 </thead>
 <tbody id="listaMultas"></tbody>
 </table>
+<div id="paginacaoMultas"></div>
         </div>
     </div>
 
@@ -195,6 +196,7 @@ Criar Conta
 <th>P. Líquido</th>
 <th>M³</th>
 <th>Ações</th></tr></thead><tbody id="listaVeiculos"></tbody></table>
+<div id="paginacaoVeiculos"></div>
         </div>
     </div>
 
@@ -416,6 +418,7 @@ Criar Conta
         </div>
     </div>
 </div>
+<script src="paginacao.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -542,6 +545,9 @@ function salvar(mod,campos,idCampo){
     else db[mod][idx]=obj
     
     limparForm(mod, campos, idCampo);
+    if(typeof PAGINACAO !== 'undefined'){
+    PAGINACAO.paginas[mod] = 1;
+}
     salvarNuvem()
 }
 
@@ -561,7 +567,18 @@ function editar(mod,i){
     window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
-function deletar(mod,i){ if(confirm('Excluir registro?')){db[mod].splice(i,1); salvarNuvem()} }
+function deletar(mod,i){
+    if(confirm('Excluir registro?')){
+        db[mod].splice(i,1);
+
+        // RESET PAGINA
+        if(typeof PAGINACAO !== 'undefined'){
+            PAGINACAO.paginas[mod] = 1;
+        }
+
+        salvarNuvem();
+    }
+}
 
 function filtrarTabela(idTabela, termo) {
     let trs = document.getElementById(idTabela).getElementsByTagName('tr');
@@ -618,19 +635,9 @@ function renderTudo(){
 
     const btnSet = (m,i) => `<td><button class="btn-edit" onclick="editar('${m}',${i})">✎</button><button class="btn-del" onclick="deletar('${m}',${i})">✕</button></td>`;
     
-    document.getElementById('listaVeiculos').innerHTML =
-db.veiculos.map((v,i)=>`
-<tr>
-<td><b>${v.vplaca}</b></td>
-<td>${v.vmodelo}</td>
-<td>${v.vkm} KM</td>
-<td>${v.vmotorista}</td>
-<td>${v.vtara || '--'} Kg</td>
-<td>${v.vpliquido || '--'} Kg</td>
-<td>${v.vm3 || '--'} m³</td>
-${btnSet('veiculos',i)}
-</tr>
-`).join('');
+    renderModulo('veiculos');
+    renderModulo('multas');
+
     document.getElementById('listaMotoristas').innerHTML = db.motoristas.map((m,i)=>`
 <tr>
 <td>${m.motNome}</td>
@@ -641,27 +648,7 @@ ${btnSet('veiculos',i)}
 ${btnSet('motoristas',i)}
 </tr>
 `).join('');
-   document.getElementById('listaMultas').innerHTML = db.multas.map((mu,i)=>`
-<tr>
-<td>${mu.muveiculo}</td>
-<td>${mu.mumotorista}</td>
-<td><b>${mu.muait || '---'}</b></td>
-<td>${mu.mudata}</td>
-<td>${formatarVencimento(mu.muvenc)}</td>
-<td>
-<b>${mu.muvalor}</b><br>
-<span style="font-size:12px;color:#64748b">
-📎 ${(mu.arquivos?.length || 0)} anexos
-</span>
-</td>
-<td><span class="badge ${mu.mustatus=='Pago'?'bg-success':'bg-danger'}">${mu.mustatus}</span></td>
-<td>
-<button class="btn-edit" onclick="editar('multas',${i})">✎</button>
-<button class="btn-del" onclick="deletar('multas',${i})">✕</button>
-<button class="btn btn-sm btn-secondary" onclick="verAnexos(${i})">📎</button>
-</td>
-</tr>
-`).join('');
+   
     document.getElementById('listaSeguros').innerHTML = db.seguros.map((s,i)=>`<tr><td>${s.sveiculo}</td><td>${s.sseguradora}</td><td>${formatarVencimento(s.svencimento)}</td>${btnSet('seguros',i)}</tr>`).join('');
     document.getElementById('listaLicenciamento').innerHTML = db.licenciamento.map((l,i)=>`<tr><td>${l.lveiculo}</td><td>${formatarVencimento(l.lvencimento)}</td><td><b>${l.lvalor}</b></td>${btnSet('licenciamento',i)}</tr>`).join('');
     document.getElementById('listaTacografo').innerHTML = db.tacografo.map((t,i)=>`<tr><td>${t.tveiculo}</td><td>${formatarVencimento(t.tvencimento)}</td><td><b>${t.tvalor}</b></td>${btnSet('tacografo',i)}</tr>`).join('');
@@ -670,7 +657,7 @@ ${btnSet('motoristas',i)}
     document.getElementById('listaRevisoes').innerHTML = db.revisoes.map((r,i)=>`<tr><td>${r.rveiculo}</td><td>${r.rtipo}</td><td>${r.rkm} KM</td>${btnSet('revisoes',i)}</tr>`).join('');
     document.getElementById('listaFornecedores').innerHTML = db.fornecedores.map((f,i)=>`<tr><td><b>${f.fnome}</b></td><td>${f.fresp}</td><td>${f.fcnpj}</td><td>${f.ftel}</td>${btnSet('fornecedores',i)}</tr>`).join('');
 
-    renderDashboard();
+    ativarPaginacao();
 }
 
 function renderDashboard(){
