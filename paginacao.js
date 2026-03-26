@@ -3,7 +3,7 @@
 // ==========================
 
 const PAGINACAO = {
-    itensPorPagina: 10,
+    itensPorPagina: 15,
     paginas: {},
 };
 
