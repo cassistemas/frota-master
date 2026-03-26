@@ -626,7 +626,6 @@ function renderTudo() {
         `).join('');
     }
     
-    atualizarDashboard();
     renderDashboard()
     
     const vOpt = '<option value="">Veículo...</option>' + db.veiculos.map(v=>`<option value="${v.vplaca}">${v.vplaca}</option>`).join('');
