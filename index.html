@@ -420,7 +420,6 @@ Criar Conta
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
-<script>
 const firebaseConfig = {
   apiKey: "AIzaSyCM4rujKma6_ggBuET2DkDdCnTt-LcjRXY",
   authDomain: "frotamastercarlos.firebaseapp.com",
@@ -428,168 +427,32 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+
 const auth = firebase.auth();
 const dbCloud = firebase.firestore();
+const MAP={
+    veiculos:'FM_V',
+    motoristas:'FM_M',
+    multas:'FM_MU', 
+    manutencoes:'FM_MAN',
+    revisoes:'FM_R',
+    seguros:'FM_SEG',
+    licenciamento:'FM_L',
+    tacografo:'FM_TAC',
+    licencas:'FM_LE',
+    fornecedores:'FM_F'
+}
+let db={}
+let chart
 
-// Inicialização do Banco de Dados Local
-let db = {
-    veiculos: [], motoristas: [], multas: [], manutencoes: [],
-    revisoes: [], seguros: [], licenciamento: [], tacografo: [],
-    licencas: [], fornecedores: []
-};
-
+Object.keys(MAP).forEach(k=>{
+    db[k] = []
+})
 const ID_MAP_INDEX = {
-    veiculos:'v_idx', motoristas:'m_idx', seguros:'s_idx', manutencoes:'man_idx',
-    revisoes:'r_idx', fornecedores:'f_idx', licenciamento:'l_idx',
-    tacografo:'t_idx', licencas:'le_idx', multas:'mu_idx'
-};
-
-// --- FUNÇÕES DE INTERFACE ---
-
-function fazerLogin() {
-    // Para fins de teste e desenvolvimento, entra direto.
-    // Se quiser usar Firebase Auth, adicione a lógica aqui.
-    document.getElementById('loginTela').style.display = 'none';
-    document.getElementById('sistema').style.display = 'block';
-    document.getElementById('sistemaMain').style.display = 'block';
-    carregarDados();
+    veiculos:'v_idx',motoristas:'m_idx',seguros:'s_idx',manutencoes:'man_idx',
+    revisoes:'r_idx',fornecedores:'f_idx',licenciamento:'l_idx',
+    tacografo:'t_idx',licencas:'le_idx',multas:'mu_idx'
 }
-
-function navegar(id, el) {
-    document.querySelectorAll('.main > div').forEach(d => d.classList.add('hidden'));
-    document.getElementById(id).classList.remove('hidden');
-    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
-    el.classList.add('active');
-    renderTudo();
-}
-
-// --- FUNÇÕES DE DADOS ---
-
-function salvarNuvem() {
-    Object.keys(db).forEach(mod => {
-        dbCloud.collection("frota").doc(mod).set({ dados: db[mod] }, { merge: true });
-    });
-}
-
-function carregarDados() {
-    Object.keys(db).forEach(mod => {
-        dbCloud.collection("frota").doc(mod).get().then(doc => {
-            if (doc.exists) {
-                db[mod] = doc.data().dados || [];
-                renderTudo();
-            }
-        });
-    });
-}
-
-function salvar(mod, campos, idCampo) {
-    let obj = {};
-    let idx = document.getElementById(idCampo).value;
-    campos.forEach(c => obj[c] = document.getElementById(c).value);
-
-    if (idx === '') db[mod].push(obj);
-    else db[mod][idx] = obj;
-
-    limparForm(mod, campos, idCampo);
-    salvarNuvem();
-    renderTudo();
-}
-
-// Função específica para Multas (Corrige o seu erro anterior)
-function salvarMulta() {
-    const campos = ['muveiculo','mumotorista','muinfracao','muait','mudata','muvenc','muvalor','mustatus'];
-    salvar('multas', campos, 'mu_idx');
-}
-
-function editar(mod, i) {
-    let item = db[mod][i];
-    Object.keys(item).forEach(k => {
-        let el = document.getElementById(k);
-        if (el) el.value = item[k];
-    });
-    document.getElementById(ID_MAP_INDEX[mod]).value = i;
-    const btnCancel = document.getElementById('btn_cancel_' + mod);
-    if (btnCancel) btnCancel.style.display = 'inline-block';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function deletar(mod, i) {
-    if (confirm('Excluir registro?')) {
-        db[mod].splice(i, 1);
-        salvarNuvem();
-        renderTudo();
-    }
-}
-
-function limparForm(mod, campos, idCampo) {
-    campos.forEach(c => {
-        const el = document.getElementById(c);
-        if (el) el.value = '';
-    });
-    document.getElementById(idCampo).value = '';
-    const btnCancel = document.getElementById('btn_cancel_' + mod);
-    if (btnCancel) btnCancel.style.display = 'none';
-}
-
-// --- UTILITÁRIOS E RENDER ---
-
-function formatarVencimento(dataStr) {
-    if (!dataStr) return '<span class="text-muted">---</span>';
-    const hoje = new Date();
-    const venc = new Date(dataStr);
-    hoje.setHours(0,0,0,0);
-    venc.setHours(0,0,0,0);
-
-    const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return `<span class="status-vencido">Vencido (${Math.abs(diff)}d)</span>`;
-    if (diff <= 30) return `<span class="status-atencao">Vence em ${diff}d</span>`;
-    return `<span class="status-ok">${venc.toLocaleDateString('pt-BR')}</span>`;
-}
-
-function renderTudo() {
-    // Atualiza Tabela de Multas
-    const listaM = document.getElementById('listaMultas');
-    if (listaM) {
-        listaM.innerHTML = db.multas.map((m, i) => `
-            <tr>
-                <td>${m.muveiculo}</td>
-                <td>${m.mumotorista}</td>
-                <td>${m.muait}</td>
-                <td>${m.mudata}</td>
-                <td>${formatarVencimento(m.muvenc)}</td>
-                <td>${m.muvalor}</td>
-                <td>${m.mustatus}</td>
-                <td>
-                    <button class="btn-edit" onclick="editar('multas',${i})">Edit</button>
-                    <button class="btn-del" onclick="deletar('multas',${i})">Del</button>
-                </td>
-            </tr>
-        `).join('');
-    }
-    
-    // Atualiza selects de veículos nos formulários
-    const selects = ['muveiculo', 'mveiculo', 'lveiculo', 'tveiculo', 'sveiculo', 'leveiculo', 'rveiculo'];
-    const options = '<option value="">Selecione...</option>' + db.veiculos.map(v => `<option value="${v.vplaca}">${v.vplaca}</option>`).join('');
-    selects.forEach(s => { const el = document.getElementById(s); if(el) el.innerHTML = options; });
-
-    atualizarDashboard();
-}
-
-function atualizarDashboard() {
-    document.getElementById('d_vei').innerText = db.veiculos.length;
-    document.getElementById('d_multas_count').innerText = db.multas.filter(m => m.mustatus !== 'Pago').length;
-}
-
-// Máscaras (mantenha as que você já tem abaixo se desejar)
-function mascaraMoeda(i) {
-    let v = i.value.replace(/\D/g,'');
-    v = (v/100).toFixed(2) + '';
-    v = v.replace(".", ",");
-    v = v.replace(/(\d)(\d{3})(\d{3}),/g, "$1.$2.$3,");
-    v = v.replace(/(\d)(\d{3}),/g, "$1.$2,");
-    i.value = "R$ " + v;
-}
-</script>
 
 function exportarExcel(modulo) {
     const dados = db[modulo];
@@ -921,53 +784,10 @@ reader.readAsDataURL(file)
 }
 
 }
-async function importarBackup(event){
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = async (ev) => {
-        try {
-            const backup = JSON.parse(ev.target.result);
-
-            // 🔥 garante db existente
-            if (!window.db) window.db = {};
-
-            // 🔥 percorre todos módulos do sistema
-            for (let mod of Object.keys(MAP)) {
-
-                let dados = [];
-
-                // ✔ caso 1: array direto
-                if (backup[mod] && Array.isArray(backup[mod])) {
-                    dados = backup[mod];
-                }
-
-                // ✔ caso 2: formato Firebase {dados:[]}
-                else if (backup[mod] && backup[mod].dados) {
-                    dados = backup[mod].dados;
-                }
-
-                // atualiza memória local
-                db[mod] = dados;
-
-                // salva corretamente no Firebase
-                await dbCloud.collection("frota").doc(mod).set({
-                    dados: dados
-                }, { merge: true });
-            }
-
-            alert("✅ Backup restaurado com sucesso!");
-            location.reload();
-
-        } catch (err) {
-            console.error(err);
-            alert("❌ Erro ao importar: " + err.message);
-        }
-    };
-
-    reader.readAsText(file);
+function importarBackup(event){
+    const reader=new FileReader();
+    reader.onload=ev=>{ db=JSON.parse(ev.target.result); salvarNuvem(); location.reload(); };
+    reader.readAsText(event.target.files[0]);
 }
 function salvarRegistroMulta(obj,idx){
 
