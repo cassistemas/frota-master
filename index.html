@@ -444,6 +444,11 @@ const MAP={
 }
 let db={}
 let chart
+    const paginacao = {
+    multas: { pagina: 1, limite: 10 },
+    manutencoes: { pagina: 1, limite: 10 },
+    fornecedores: { pagina: 1, limite: 10 }
+};
 
 Object.keys(MAP).forEach(k=>{
     db[k] = []
@@ -542,6 +547,7 @@ function salvar(mod,campos,idCampo){
     else db[mod][idx]=obj
     
     limparForm(mod, campos, idCampo);
+    if(paginacao[mod]) paginacao[mod].pagina = 1;
     salvarNuvem()
 }
 
@@ -567,6 +573,44 @@ function filtrarTabela(idTabela, termo) {
     let trs = document.getElementById(idTabela).getElementsByTagName('tr');
     termo = termo.toLowerCase();
     for (let tr of trs) tr.style.display = tr.innerText.toLowerCase().includes(termo) ? '' : 'none';
+}
+function paginarDados(lista, modulo){
+    const { pagina, limite } = paginacao[modulo];
+    const inicio = (pagina - 1) * limite;
+    const fim = inicio + limite;
+
+    return {
+        dados: lista.slice(inicio, fim),
+        totalPaginas: Math.ceil(lista.length / limite)
+    };
+}
+
+function mudarPagina(modulo, direcao){
+    let pag = paginacao[modulo];
+
+    pag.pagina += direcao;
+
+    if(pag.pagina < 1) pag.pagina = 1;
+
+    const total = Math.ceil(db[modulo].length / pag.limite) || 1;
+
+    if(pag.pagina > total) pag.pagina = total;
+
+    renderTudo();
+}
+
+function renderPaginacao(modulo, totalPaginas){
+    return `
+    <div class="d-flex justify-content-end mt-2 gap-2">
+        <button class="btn btn-sm btn-secondary"
+            onclick="mudarPagina('${modulo}', -1)">⬅️</button>
+
+        <span>Página ${paginacao[modulo].pagina} de ${totalPaginas || 1}</span>
+
+        <button class="btn btn-sm btn-secondary"
+            onclick="mudarPagina('${modulo}', 1)">➡️</button>
+    </div>
+    `;
 }
 
 function formatarVencimento(dataStr) {
@@ -641,7 +685,14 @@ ${btnSet('veiculos',i)}
 ${btnSet('motoristas',i)}
 </tr>
 `).join('');
-   document.getElementById('listaMultas').innerHTML = db.multas.map((mu,i)=>`
+const pagMultas = paginarDados(db.multas, 'multas');
+
+document.getElementById('listaMultas').innerHTML =
+pagMultas.dados.map((mu,i)=>{
+
+const indexReal = (paginacao.multas.pagina - 1) * paginacao.multas.limite + i;
+
+return `
 <tr>
 <td>${mu.muveiculo}</td>
 <td>${mu.mumotorista}</td>
@@ -656,19 +707,78 @@ ${btnSet('motoristas',i)}
 </td>
 <td><span class="badge ${mu.mustatus=='Pago'?'bg-success':'bg-danger'}">${mu.mustatus}</span></td>
 <td>
-<button class="btn-edit" onclick="editar('multas',${i})">✎</button>
-<button class="btn-del" onclick="deletar('multas',${i})">✕</button>
-<button class="btn btn-sm btn-secondary" onclick="verAnexos(${i})">📎</button>
+<button class="btn-edit" onclick="editar('multas',${indexReal})">✎</button>
+<button class="btn-del" onclick="deletar('multas',${indexReal})">✕</button>
+<button class="btn btn-sm btn-secondary" onclick="verAnexos(${indexReal})">📎</button>
 </td>
 </tr>
-`).join('');
+`;
+}).join('');
+
+document.getElementById('listaMultas').innerHTML += `
+<tr><td colspan="8">
+${renderPaginacao('multas', pagMultas.totalPaginas)}
+</td></tr>
+`;
     document.getElementById('listaSeguros').innerHTML = db.seguros.map((s,i)=>`<tr><td>${s.sveiculo}</td><td>${s.sseguradora}</td><td>${formatarVencimento(s.svencimento)}</td>${btnSet('seguros',i)}</tr>`).join('');
     document.getElementById('listaLicenciamento').innerHTML = db.licenciamento.map((l,i)=>`<tr><td>${l.lveiculo}</td><td>${formatarVencimento(l.lvencimento)}</td><td><b>${l.lvalor}</b></td>${btnSet('licenciamento',i)}</tr>`).join('');
     document.getElementById('listaTacografo').innerHTML = db.tacografo.map((t,i)=>`<tr><td>${t.tveiculo}</td><td>${formatarVencimento(t.tvencimento)}</td><td><b>${t.tvalor}</b></td>${btnSet('tacografo',i)}</tr>`).join('');
-    document.getElementById('listaManutencao').innerHTML = db.manutencoes.map((m,i)=>`<tr><td>${m.mveiculo}</td><td>${m.mdata}</td><td>${m.mkm}</td><td><b>${m.mvalor}</b></td><td>${m.mfornecedor || '---'}</td><td>${m.mservico}</td>${btnSet('manutencoes',i)}</tr>`).join('');
+    const pagMan = paginarDados(db.manutencoes, 'manutencoes');
+
+document.getElementById('listaManutencao').innerHTML =
+pagMan.dados.map((m,i)=>{
+
+const indexReal = (paginacao.manutencoes.pagina - 1) * paginacao.manutencoes.limite + i;
+
+return `
+<tr>
+<td>${m.mveiculo}</td>
+<td>${m.mdata}</td>
+<td>${m.mkm}</td>
+<td><b>${m.mvalor}</b></td>
+<td>${m.mfornecedor || '---'}</td>
+<td>${m.mservico}</td>
+<td>
+<button class="btn-edit" onclick="editar('manutencoes',${indexReal})">✎</button>
+<button class="btn-del" onclick="deletar('manutencoes',${indexReal})">✕</button>
+</td>
+</tr>
+`;
+}).join('');
+
+document.getElementById('listaManutencao').innerHTML += `
+<tr><td colspan="7">
+${renderPaginacao('manutencoes', pagMan.totalPaginas)}
+</td></tr>
+`;((m,i)=>`<tr><td>${m.mveiculo}</td><td>${m.mdata}</td><td>${m.mkm}</td><td><b>${m.mvalor}</b></td><td>${m.mfornecedor || '---'}</td><td>${m.mservico}</td>${btnSet('manutencoes',i)}</tr>`).join('');
     document.getElementById('listaLicencas').innerHTML = db.licencas.map((le,i)=>`<tr><td>${le.leveiculo}</td><td>${formatarVencimento(le.venciv)}</td><td>${formatarVencimento(le.vencipp)}</td>${btnSet('licencas',i)}</tr>`).join('');
     document.getElementById('listaRevisoes').innerHTML = db.revisoes.map((r,i)=>`<tr><td>${r.rveiculo}</td><td>${r.rtipo}</td><td>${r.rkm} KM</td>${btnSet('revisoes',i)}</tr>`).join('');
-    document.getElementById('listaFornecedores').innerHTML = db.fornecedores.map((f,i)=>`<tr><td><b>${f.fnome}</b></td><td>${f.fresp}</td><td>${f.fcnpj}</td><td>${f.ftel}</td>${btnSet('fornecedores',i)}</tr>`).join('');
+    const pagF = paginarDados(db.fornecedores, 'fornecedores');
+
+document.getElementById('listaFornecedores').innerHTML =
+pagF.dados.map((f,i)=>{
+
+const indexReal = (paginacao.fornecedores.pagina - 1) * paginacao.fornecedores.limite + i;
+
+return `
+<tr>
+<td><b>${f.fnome}</b></td>
+<td>${f.fresp}</td>
+<td>${f.fcnpj}</td>
+<td>${f.ftel}</td>
+<td>
+<button class="btn-edit" onclick="editar('fornecedores',${indexReal})">✎</button>
+<button class="btn-del" onclick="deletar('fornecedores',${indexReal})">✕</button>
+</td>
+</tr>
+`;
+}).join('');
+
+document.getElementById('listaFornecedores').innerHTML += `
+<tr><td colspan="5">
+${renderPaginacao('fornecedores', pagF.totalPaginas)}
+</td></tr>
+`;((f,i)=>`<tr><td><b>${f.fnome}</b></td><td>${f.fresp}</td><td>${f.fcnpj}</td><td>${f.ftel}</td>${btnSet('fornecedores',i)}</tr>`).join('');
 
     renderDashboard();
 }
