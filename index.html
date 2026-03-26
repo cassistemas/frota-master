@@ -755,8 +755,32 @@ ${renderPaginacao('manutencoes', pagMan.totalPaginas)}
     document.getElementById('listaRevisoes').innerHTML = db.revisoes.map((r,i)=>`<tr><td>${r.rveiculo}</td><td>${r.rtipo}</td><td>${r.rkm} KM</td>${btnSet('revisoes',i)}</tr>`).join('');
     const pagF = paginarDados(db.fornecedores, 'fornecedores');
 
+const pagF = paginarDados(db.fornecedores, 'fornecedores');
+
 document.getElementById('listaFornecedores').innerHTML =
 pagF.dados.map((f,i)=>{
+
+const indexReal = (paginacao.fornecedores.pagina - 1) * paginacao.fornecedores.limite + i;
+
+return `
+<tr>
+<td><b>${f.fnome}</b></td>
+<td>${f.fresp}</td>
+<td>${f.fcnpj}</td>
+<td>${f.ftel}</td>
+<td>
+<button class="btn-edit" onclick="editar('fornecedores',${indexReal})">✎</button>
+<button class="btn-del" onclick="deletar('fornecedores',${indexReal})">✕</button>
+</td>
+</tr>
+`;
+}).join('');
+
+document.getElementById('listaFornecedores').innerHTML += `
+<tr><td colspan="5">
+${renderPaginacao('fornecedores', pagF.totalPaginas)}
+</td></tr>
+`;
 
 const indexReal = (paginacao.fornecedores.pagina - 1) * paginacao.fornecedores.limite + i;
 
