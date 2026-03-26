@@ -784,10 +784,53 @@ reader.readAsDataURL(file)
 }
 
 }
-function importarBackup(event){
-    const reader=new FileReader();
-    reader.onload=ev=>{ db=JSON.parse(ev.target.result); salvarNuvem(); location.reload(); };
-    reader.readAsText(event.target.files[0]);
+async function importarBackup(event){
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = async (ev) => {
+        try {
+            const backup = JSON.parse(ev.target.result);
+
+            // 🔥 garante db existente
+            if (!window.db) window.db = {};
+
+            // 🔥 percorre todos módulos do sistema
+            for (let mod of Object.keys(MAP)) {
+
+                let dados = [];
+
+                // ✔ caso 1: array direto
+                if (backup[mod] && Array.isArray(backup[mod])) {
+                    dados = backup[mod];
+                }
+
+                // ✔ caso 2: formato Firebase {dados:[]}
+                else if (backup[mod] && backup[mod].dados) {
+                    dados = backup[mod].dados;
+                }
+
+                // atualiza memória local
+                db[mod] = dados;
+
+                // salva corretamente no Firebase
+                await dbCloud.collection("frota").doc(mod).set({
+                    dados: dados
+                }, { merge: true });
+            }
+
+            alert("✅ Backup restaurado com sucesso!");
+            location.reload();
+
+        } catch (err) {
+            console.error(err);
+            alert("❌ Erro ao importar: " + err.message);
+        }
+    };
+
+    reader.readAsText(file);
 }
 function salvarRegistroMulta(obj,idx){
 
