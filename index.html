@@ -3,53 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Frota Master</title>
-    <script>
-        let currentPage = 1;
-        const recordsPerPage = 25;
-        let records = []; // Assuming records are fetched and stored here
-
-        function renderTudo() {
-            // Logic to render the records based on currentPage
-            const start = (currentPage - 1) * recordsPerPage;
-            const end = start + recordsPerPage;
-            const paginatedRecords = records.slice(start, end);
-
-            // Render the paginatedRecords to the table (this is pseudo-code)
-            // renderToTable(paginatedRecords);
-
-            renderPaginationControls();
-        }
-
-        function renderPaginationControls() {
-            const totalPages = Math.ceil(records.length / recordsPerPage);
-            const paginationDiv = document.getElementById('paginationControls');
-            paginationDiv.innerHTML = '';
-
-            for (let i = 1; i <= totalPages; i++) {
-                const button = document.createElement('button');
-                button.innerText = i;
-                button.onclick = () => changePage(i);
-                paginationDiv.appendChild(button);
-            }
-        }
-
-        function changePage(page) {
-            currentPage = page;
-            renderTudo();
-        }
-    </script>
+    <title>Document</title>
 </head>
 <body>
+<div id="data-container"></div>
+<script>
+  function renderTable(data) {
+    const table = document.createElement('table');
+    const header = table.createTHead();
+    const row = header.insertRow();
 
-    <h1>Welcome to Frota Master</h1>
-    <table id="data-table">
-        <!-- Rows will be populated here -->
-    </table>
-    <div id="paginationControls"></div>
+    // Create table headers
+    for (const key in data[0]) {
+      const th = document.createElement('th');
+      th.appendChild(document.createTextNode(key));
+      row.appendChild(th);
+    }
 
-    <script>
-        renderTudo(); // Initial call to render records
-    </script>
+    // Create table body
+    const tbody = document.createElement('tbody');
+    data.forEach(item => {
+      const row = tbody.insertRow();
+      for (const key in item) {
+        const cell = row.insertCell();
+        cell.appendChild(document.createTextNode(item[key]));
+      }
+    });
+    table.appendChild(tbody);
+    document.getElementById('data-container').appendChild(table);
+  }
+
+  async function loadData() {
+    try {
+      const response = await fetch('data.json'); // replace with your data source
+      const data = await response.json();
+      renderTable(data);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
+  }
+
+  // Load data when the document is ready
+  document.addEventListener('DOMContentLoaded', loadData);
+</script>
 </body>
 </html>
