@@ -45,6 +45,9 @@
         <input id="loginPass" type="password" class="form-control mb-3" placeholder="Senha">
 
         <button class="btn btn-primary w-100" onclick="fazerLogin()">Entrar</button>
+        <button class="btn btn-secondary w-100 mt-2" onclick="cadastrarUsuario()">
+Criar Conta
+</button>
 
         <div id="loginErro" style="color:red;margin-top:10px;"></div>
     </div>
@@ -701,20 +704,6 @@ ${btnSet('motoristas',i)}
     ativarPaginacao();
 }
 
-function navegar(id,el){
-    document.querySelectorAll('.main>div').forEach(d=>d.classList.add('hidden'))
-    document.getElementById(id).classList.remove('hidden')
-
-    document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'))
-    el.classList.add('active')
-
-    if(id === 'dashboard'){
-        renderDashboard(); // 🔥 garante atualização correta
-    }
-
-    renderTudo()
-}
-
 function renderDashboard(){
     if(!document.getElementById('d_vei')) return;
     document.getElementById('d_vei').innerText = db.veiculos.length;
@@ -922,37 +911,16 @@ document.getElementById("modalAnexos").style.display="none"
 
 function fazerLogin(){
 
-    async function fazerLogin(){
-
     let email = document.getElementById("loginUser").value;
     let senha = document.getElementById("loginPass").value;
 
-    try{
-
-        const userCredential = await auth.signInWithEmailAndPassword(email, senha);
-        const user = userCredential.user;
-
-        // 🔍 Buscar usuário autorizado
-        const snapshot = await dbCloud.collection("usuarios")
-            .where("email", "==", email)
-            .get();
-
-        if(snapshot.empty){
-            alert("Acesso não autorizado!");
-            await auth.signOut();
-            return;
-        }
-
-        let dados = snapshot.docs[0].data();
-
-        // 🔐 salva tipo
-        localStorage.setItem("tipoUsuario", dados.tipo);
-
+    auth.signInWithEmailAndPassword(email, senha)
+    .then(() => {
         iniciarSistema();
-
-    }catch(erro){
+    })
+    .catch((erro) => {
         document.getElementById("loginErro").innerText = erro.message;
-    }
+    });
 }
 
 function cadastrarUsuario(){
