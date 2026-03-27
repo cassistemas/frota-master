@@ -75,6 +75,42 @@ Criar Conta
 
     <div id="dashboard">
         <h2 class="fw-bold mb-4">Painel de Controle</h2>
+        <div class="glass-container">
+    <div class="row g-2">
+
+        <div class="col-md-2">
+            <label>Data Inicial</label>
+            <input type="date" id="filtroDataIni" class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <label>Data Final</label>
+            <input type="date" id="filtroDataFim" class="form-control">
+        </div>
+
+        <div class="col-md-3">
+            <label>Placa</label>
+            <select id="filtroPlaca" class="form-select">
+                <option value="">Todas</option>
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <label>Tipo</label>
+            <select id="filtroTipo" class="form-select">
+                <option value="">Todos</option>
+                <option value="multas">Multas</option>
+                <option value="manutencoes">Manutenções</option>
+            </select>
+        </div>
+
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-primary w-100" onclick="aplicarFiltroDashboard()">🔎 Filtrar</button>
+            <button class="btn btn-secondary w-100 mt-1" onclick="limparFiltroDashboard()">Limpar</button>
+        </div>
+
+    </div>
+</div>
         <div class="row g-3 mb-4">
             <div class="col-md-3"><div class="stat-card"><h6>Veículos</h6><h3 id="d_vei">0</h3></div></div>
             <div class="col-md-3"><div class="stat-card" style="border-left-color: var(--danger)"><h6>Alertas</h6><h3 id="d_alertas">0</h3></div></div>
@@ -624,6 +660,13 @@ function escutarDados(modulo){
 
 function renderTudo(){
 
+    let filtroPlaca = document.getElementById("filtroPlaca");
+
+if(filtroPlaca){
+    filtroPlaca.innerHTML = '<option value="">Todas</option>' +
+        db.veiculos.map(v => `<option value="${v.vplaca}">${v.vplaca}</option>`).join('');
+}
+
     const vOpt = '<option value="">Veículo...</option>' + db.veiculos.map(v=>`<option value="${v.vplaca}">${v.vplaca}</option>`).join('');
     const mOpt = '<option value="">Motorista...</option>' + db.motoristas.map(m=>`<option value="${m.motNome}">${m.motNome}</option>`).join('');
     const fOpt = '<option value="">Fornecedor...</option>' + db.fornecedores.map(f=>`<option value="${f.fnome}">${f.fnome}</option>`).join('');
@@ -988,6 +1031,123 @@ function excluirAnexo(i, index){
 
     // Atualiza o modal na hora
     verAnexos(i);
+}
+
+function aplicarFiltroDashboard(){
+
+    let dataIni = document.getElementById("filtroDataIni").value;
+    let dataFim = document.getElementById("filtroDataFim").value;
+    let placa = document.getElementById("filtroPlaca").value;
+    let tipo = document.getElementById("filtroTipo").value;
+
+    // ✅ PASSO MAIS IMPORTANTE
+    // Se não tiver nenhum filtro → volta pro dashboard normal
+    if(!dataIni && !dataFim && !placa && !tipo){
+        renderDashboard();
+        return;
+    }
+
+    let dados = [];
+
+    // 🔴 MULTAS
+    if(tipo === '' || tipo === 'multas'){
+        db.multas.forEach(m => {
+            dados.push({
+                tipo: 'Multa',
+                placa: m.muveiculo,
+                data: m.mudata,
+                valor: moedaParaFloat(m.muvalor)
+            });
+        });
+    }
+
+    // 🟡 MANUTENÇÕES
+    if(tipo === '' || tipo === 'manutencoes'){
+        db.manutencoes.forEach(m => {
+            dados.push({
+                tipo: 'Manutenção',
+                placa: m.mveiculo,
+                data: m.mdata,
+                valor: moedaParaFloat(m.mvalor)
+            });
+        });
+    }
+
+    // 🔍 APLICAR FILTRO
+    dados = dados.filter(d => {
+
+        let ok = true;
+
+        if(placa && d.placa !== placa) ok = false;
+
+        if(dataIni){
+            ok = ok && (new Date(d.data) >= new Date(dataIni));
+        }
+
+        if(dataFim){
+            ok = ok && (new Date(d.data) <= new Date(dataFim));
+        }
+
+        return ok;
+    });
+
+    atualizarDashboardFiltrado(dados);
+}
+
+function atualizarDashboardFiltrado(dados){
+
+    let total = dados.reduce((soma, d) => soma + d.valor, 0);
+    document.getElementById('d_val').innerText = floatParaMoeda(total);
+
+    let multas = dados.filter(d => d.tipo === 'Multa').length;
+    document.getElementById('d_multas_count').innerText = multas;
+
+    // AGRUPAR POR VEÍCULO
+    let agrupado = {};
+
+    dados.forEach(d => {
+        agrupado[d.placa] = (agrupado[d.placa] || 0) + d.valor;
+    });
+
+    // ATUALIZAR GRÁFICO
+    if(chart) chart.destroy();
+
+    let ctx = document.getElementById('graficoCustos');
+
+    if(ctx){
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(agrupado),
+                datasets: [{
+                    label: 'Valor R$',
+                    data: Object.values(agrupado),
+                    backgroundColor: '#3b82f6'
+                }]
+            }
+        });
+    }
+
+    // LISTA
+    let lista = dados.map(d => `
+        <div class="alerta-item">
+            <b>${d.placa}</b> - ${d.tipo} (${d.data})
+        </div>
+    `).join('');
+
+    document.getElementById('listaAlertasRapidos').innerHTML =
+        lista || '<div class="text-muted">Sem dados</div>';
+}
+
+function limparFiltroDashboard(){
+
+    document.getElementById("filtroDataIni").value = "";
+    document.getElementById("filtroDataFim").value = "";
+    document.getElementById("filtroPlaca").value = "";
+    document.getElementById("filtroTipo").value = "";
+
+    // 🔥 volta ao normal (com alertas)
+    renderDashboard();
 }
 
 </script>
