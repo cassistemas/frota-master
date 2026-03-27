@@ -45,6 +45,9 @@
         <input id="loginPass" type="password" class="form-control mb-3" placeholder="Senha">
 
         <button class="btn btn-primary w-100" onclick="fazerLogin()">Entrar</button>
+        <button class="btn btn-secondary w-100 mt-2" onclick="cadastrarUsuario()">
+Criar Conta
+</button>
 
         <div id="loginErro" style="color:red;margin-top:10px;"></div>
     </div>
@@ -65,7 +68,6 @@
     <a onclick="navegar('revisoes',this)">⏱ Revisões KM</a>
     <a onclick="navegar('fornecedores',this)">🏭 Fornecedores</a>
     <a onclick="navegar('relatorios',this)">📂 Relatórios & Backup</a>
-    <a onclick="navegar('admin',this)">👑 Admin</a>
     <a onclick="logout()">🚪 Sair</a>
 </div>
 
@@ -452,45 +454,6 @@
         </div>
     </div>
 </div>
-<div id="admin" class="hidden">
-    <h3>👑 Painel Admin</h3>
-
-    <div class="glass-container">
-        <div class="row g-2">
-            <div class="col-md-4">
-                <input id="admEmail" class="form-control" placeholder="Email">
-            </div>
-
-            <div class="col-md-3">
-                <select id="admTipo" class="form-select">
-                    <option value="user">Usuário</option>
-                    <option value="admin">Admin</option>
-                </select>
-            </div>
-
-            <div class="col-md-3">
-                <input id="admEmpresa" class="form-control" placeholder="Empresa">
-            </div>
-
-            <div class="col-md-2">
-                <button class="btn btn-dark w-100" onclick="salvarUsuarioAdmin()">Salvar</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="glass-container">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Email</th>
-                    <th>Tipo</th>
-                    <th>Empresa</th>
-                </tr>
-            </thead>
-            <tbody id="listaUsuarios"></tbody>
-        </table>
-    </div>
-</div>
 <script src="paginacao.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -520,7 +483,6 @@ const MAP={
 }
 let db={}
 let chart
-let usuarioLogado = null;
 
 Object.keys(MAP).forEach(k=>{
     db[k] = []
@@ -530,7 +492,6 @@ const ID_MAP_INDEX = {
     revisoes:'r_idx',fornecedores:'f_idx',licenciamento:'l_idx',
     tacografo:'t_idx',licencas:'le_idx',multas:'mu_idx'
 }
-
 
 function exportarExcel(modulo) {
     const dados = db[modulo];
@@ -584,16 +545,11 @@ function floatParaMoeda(v) {
 
 function salvarNuvem(){
 
-    const empresa = usuarioLogado.empresa;
-
     Object.keys(db).forEach(mod => {
 
-        dbCloud
-        .collection("empresas")
-        .doc(empresa)
-        .collection("dados")
-        .doc(mod)
-        .set({ dados: db[mod] }, { merge: true });
+        dbCloud.collection("frota").doc(mod).set({
+    dados: db[mod]
+}, { merge: true });
 
     });
 
@@ -686,19 +642,11 @@ function iniciarSistema(){
         escutarDados(mod);
     });
 
-if(usuarioLogado.tipo !== 'admin'){
-    document.querySelector('[onclick*="admin"]').style.display = 'none';
 }
 
 function escutarDados(modulo){
 
-    const empresa = usuarioLogado.empresa;
-
-    dbCloud
-    .collection("empresas")
-    .doc(empresa)
-    .collection("dados")
-    .doc(modulo)
+    dbCloud.collection("frota").doc(modulo)
     .onSnapshot(doc => {
 
         if(doc.exists){
@@ -975,20 +923,24 @@ function fazerLogin(){
     });
 }
 
-auth.onAuthStateChanged(async user => {
+function cadastrarUsuario(){
+
+    let email = document.getElementById("loginUser").value;
+    let senha = document.getElementById("loginPass").value;
+
+    auth.createUserWithEmailAndPassword(email, senha)
+    .then(() => {
+        alert("Usuário criado com sucesso!");
+    })
+    .catch((erro) => {
+        alert(erro.message);
+    });
+}
+
+auth.onAuthStateChanged(user => {
 
     if(user){
-
-        const doc = await dbCloud.collection("usuarios").doc(user.uid).get();
-
-        if(doc.exists){
-            usuarioLogado = doc.data();
-            iniciarSistema();
-        }else{
-            alert("Usuário sem permissão!");
-            logout();
-        }
-
+        iniciarSistema();
     }
 
 });
@@ -1197,11 +1149,6 @@ function limparFiltroDashboard(){
     // 🔥 volta ao normal (com alertas)
     renderDashboard();
 }
-
-setInterval(() => {
-    salvarNuvem();
-    console.log("Backup automático salvo");
-}, 30000);
 
 </script>
 <!-- MODAL DE ANEXOS -->
