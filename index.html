@@ -677,8 +677,8 @@ function formatarVencimento(dataStr) {
 
 function iniciarSistema(){
 
-    if(usuarioLogado.tipo === "admin"){
-    escutarUsuarios();
+ if(!usuarioLogado.tipo){
+    usuarioLogado.tipo = "admin";
 }
     document.getElementById("loginTela").style.display="none";
     document.getElementById("sistema").style.display="block";
@@ -961,35 +961,17 @@ function fazerLogin(){
     let email = document.getElementById("loginUser").value;
     let senha = document.getElementById("loginPass").value;
 
+    if(!email || !senha){
+        document.getElementById("loginErro").innerText = "Preencha email e senha";
+        return;
+    }
+
     auth.signInWithEmailAndPassword(email, senha)
     .then(() => {
         iniciarSistema();
     })
     .catch((erro) => {
         document.getElementById("loginErro").innerText = erro.message;
-    });
-}
-
-function cadastrarUsuario(){
-
-    let email = document.getElementById("loginUser").value;
-    let senha = document.getElementById("loginPass").value;
-
-    auth.createUserWithEmailAndPassword(email, senha)
-    .then((userCredential) => {
-
-        let uid = userCredential.user.uid;
-
-        dbCloud.collection("usuarios").doc(uid).set({
-            email: email,
-            tipo: "user"
-        });
-
-        alert("Usuário criado com sucesso!");
-
-    })
-    .catch((erro) => {
-        alert(erro.message);
     });
 }
 
@@ -1068,16 +1050,31 @@ auth.onAuthStateChanged(user => {
         .get()
         .then(doc => {
 
-            usuarioLogado = doc.data();
+            if(doc.exists){
+                usuarioLogado = doc.data();
+            } else {
+
+                // 🔥 cria usuário automaticamente
+                usuarioLogado = {
+                    email: user.email,
+                    tipo: "admin"
+                };
+
+                dbCloud.collection("usuarios")
+                .doc(user.uid)
+                .set(usuarioLogado);
+            }
 
             iniciarSistema();
 
+        })
+        .catch(err => {
+            console.error("Erro ao carregar usuário:", err);
         });
 
     }
 
 });
-
 window.addEventListener("DOMContentLoaded", () => {
 
     const dropArea = document.getElementById("dropArea");
