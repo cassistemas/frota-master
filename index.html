@@ -1066,11 +1066,17 @@ function criarUsuarioAdmin(){
     })
     .then(() => {
 
-        alert("Usuário criado com sucesso!");
+    alert("Usuário criado com sucesso!");
 
-        return auth2.signOut();
+    // 🔥 LIMPAR CAMPOS
+    document.getElementById("admEmail").value = "";
+    document.getElementById("admSenha").value = "";
+    document.getElementById("admTipo").value = "user";
 
-    })
+    return auth2.signOut();
+
+})
+
     .then(() => {
         return secondaryApp.delete();
     })
