@@ -68,7 +68,7 @@ Criar Conta
     <a onclick="navegar('revisoes',this)">⏱ Revisões KM</a>
     <a onclick="navegar('fornecedores',this)">🏭 Fornecedores</a>
     <a onclick="navegar('relatorios',this)">📂 Relatórios & Backup</a>
-    <a onclick="navegar('admin',this)">👑 Usuários (Admin)</a>
+    <a id="menuAdmin" onclick="navegar('admin',this)">👑 Usuários (Admin)</a>
     <a onclick="logout()">🚪 Sair</a>
 </div>
 
@@ -448,7 +448,7 @@ Criar Conta
         </div>
     </div>
 
-   <div id="admin" class="hidden">
+   <div id="admin" class="hidden" style="display:none">
     <h3>👑 Gerenciamento de Usuários</h3>
 
     <div class="glass-container">
@@ -599,6 +599,13 @@ function salvarNuvem(){
 }
 
 function navegar(id,el){
+
+    // 🔐 bloqueio de segurança
+    if(id === "admin" && usuarioLogado.tipo !== "admin"){
+        alert("Acesso restrito!");
+        return;
+    }
+
     document.querySelectorAll('.main>div').forEach(d=>d.classList.add('hidden'))
     document.getElementById(id).classList.remove('hidden')
     document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'))
@@ -676,6 +683,12 @@ function formatarVencimento(dataStr) {
 }
 
 function iniciarSistema(){
+
+// 🔐 controle de acesso
+if(usuarioLogado.tipo !== "admin"){
+    let menu = document.getElementById("menuAdmin");
+    if(menu) menu.style.display = "none";
+}
 
  if(!usuarioLogado.tipo){
     usuarioLogado.tipo = "admin";
@@ -1053,8 +1066,6 @@ auth.onAuthStateChanged(user => {
             if(doc.exists){
                 usuarioLogado = doc.data();
             } else {
-
-                // 🔥 cria usuário automaticamente
                 usuarioLogado = {
                     email: user.email,
                     tipo: "admin"
@@ -1065,16 +1076,19 @@ auth.onAuthStateChanged(user => {
                 .set(usuarioLogado);
             }
 
+            // 🔥 GARANTE ADMIN
+            if(!usuarioLogado.tipo){
+                usuarioLogado.tipo = "admin";
+            }
+
             iniciarSistema();
 
-        })
-        .catch(err => {
-            console.error("Erro ao carregar usuário:", err);
         });
 
     }
 
 });
+
 window.addEventListener("DOMContentLoaded", () => {
 
     const dropArea = document.getElementById("dropArea");
