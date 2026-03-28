@@ -45,7 +45,7 @@
         <input id="loginPass" type="password" class="form-control mb-3" placeholder="Senha">
 
         <button class="btn btn-primary w-100" onclick="fazerLogin()">Entrar</button>
-        <button class="btn btn-secondary w-100 mt-2" onclick="cadastrarUsuario()">
+        <button class="btn btn-secondary w-100 mt-2" onclick="cadastrarUsuario()" style="display:none;">
 Criar Conta
 </button>
 
@@ -979,12 +979,20 @@ function fazerLogin(){
 
 function cadastrarUsuario(){
 
-   function cadastrarUsuario(){
+    let email = document.getElementById("loginUser").value;
+    let senha = document.getElementById("loginPass").value;
 
-    alert("Cadastro desativado. Fale com o administrador.");
-    return;
+    auth.createUserWithEmailAndPassword(email, senha)
+    .then((userCredential) => {
 
-}
+        let uid = userCredential.user.uid;
+
+        dbCloud.collection("usuarios").doc(uid).set({
+            email: email,
+            tipo: "user"
+        });
+
+        alert("Usuário criado com sucesso!");
 
     })
     .catch((erro) => {
