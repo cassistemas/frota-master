@@ -448,7 +448,7 @@ Criar Conta
         </div>
     </div>
 
-   <div id="admin" class="hidden" style="display:none">
+   <div id="admin" class="hidden">
     <h3>👑 Gerenciamento de Usuários</h3>
 
     <div class="glass-container">
@@ -601,10 +601,10 @@ function salvarNuvem(){
 function navegar(id,el){
 
     // 🔐 bloqueio de segurança
-    if(id === "admin" && usuarioLogado.tipo !== "admin"){
-        alert("Acesso restrito!");
-        return;
-    }
+    if(id === "admin" && (!usuarioLogado || usuarioLogado.tipo !== "admin")){
+    alert("Acesso restrito!");
+    return;
+}
 
     document.querySelectorAll('.main>div').forEach(d=>d.classList.add('hidden'))
     document.getElementById(id).classList.remove('hidden')
@@ -684,15 +684,24 @@ function formatarVencimento(dataStr) {
 
 function iniciarSistema(){
 
-// 🔐 controle de acesso
-if(usuarioLogado.tipo !== "admin"){
-    let menu = document.getElementById("menuAdmin");
-    if(menu) menu.style.display = "none";
-}
+    // 🔥 garante tipo salvo
+    if(!usuarioLogado.tipo){
+        usuarioLogado.tipo = "admin";
 
- if(!usuarioLogado.tipo){
-    usuarioLogado.tipo = "admin";
-}
+        dbCloud.collection("usuarios")
+        .doc(auth.currentUser.uid)
+        .set(usuarioLogado, { merge: true });
+    }
+
+    // 🔐 controle de acesso
+    let menu = document.getElementById("menuAdmin");
+
+    if(usuarioLogado.tipo !== "admin"){
+        if(menu) menu.style.display = "none";
+    } else {
+        if(menu) menu.style.display = "block";
+    }
+
     document.getElementById("loginTela").style.display="none";
     document.getElementById("sistema").style.display="block";
     document.getElementById("sistemaMain").style.display="block";
@@ -701,6 +710,8 @@ if(usuarioLogado.tipo !== "admin"){
         escutarDados(mod);
     });
 
+    // 🔥 IMPORTANTE: carregar lista usuários
+    escutarUsuarios();
 }
 
 function escutarDados(modulo){
@@ -979,10 +990,9 @@ function fazerLogin(){
         return;
     }
 
+    document.getElementById("loginErro").innerText = "Entrando...";
+
     auth.signInWithEmailAndPassword(email, senha)
-    .then(() => {
-        iniciarSistema();
-    })
     .catch((erro) => {
         document.getElementById("loginErro").innerText = erro.message;
     });
@@ -1027,22 +1037,47 @@ function criarUsuarioAdmin(){
     let senha = document.getElementById("admSenha").value;
     let tipo = document.getElementById("admTipo").value;
 
-    let auth2 = firebase.auth();
+    if(!email || !senha){
+        alert("Preencha email e senha");
+        return;
+    }
+
+    let secondaryApp;
+
+    // 🔥 evita erro de app duplicado
+    try {
+        secondaryApp = firebase.app("Secondary");
+    } catch (e) {
+        secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
+    }
+
+    const auth2 = secondaryApp.auth();
 
     auth2.createUserWithEmailAndPassword(email, senha)
     .then(userCredential => {
 
         let uid = userCredential.user.uid;
 
-        dbCloud.collection("usuarios").doc(uid).set({
+        return dbCloud.collection("usuarios").doc(uid).set({
             email: email,
             tipo: tipo
         });
 
-        alert("Usuário criado!");
+    })
+    .then(() => {
+
+        alert("Usuário criado com sucesso!");
+
+        return auth2.signOut();
 
     })
-    .catch(e => alert(e.message));
+    .then(() => {
+        return secondaryApp.delete();
+    })
+    .catch(e => {
+        console.error(e);
+        alert("Erro: " + e.message);
+    });
 }
 
 function alterarTipoUsuario(uid, tipo){
