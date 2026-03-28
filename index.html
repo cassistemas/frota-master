@@ -585,13 +585,9 @@ function floatParaMoeda(v) {
 
 function salvarNuvem(){
 
-    let uid = auth.currentUser.uid;
-
     Object.keys(db).forEach(mod => {
 
-        dbCloud.collection("dados")
-        .doc(uid)
-        .collection("frota")
+        dbCloud.collection("frota")
         .doc(mod)
         .set({
             dados: db[mod]
@@ -695,11 +691,7 @@ function iniciarSistema(){
 
 function escutarDados(modulo){
 
-    let uid = auth.currentUser.uid;
-
-    dbCloud.collection("dados")
-    .doc(uid)
-    .collection("frota")
+    dbCloud.collection("frota")
     .doc(modulo)
     .onSnapshot(doc => {
 
