@@ -41,7 +41,7 @@
     <div style="background:white;padding:40px;border-radius:12px;width:350px;text-align:center;">
         <h3 class="fw-bold mb-4">Frota Master Login</h3>
 
-        <input id="loginUser" class="form-control mb-3" placeholder="Usuário">
+        <input id="loginUser" class="form-control mb-3" placeholder="Email">
         <input id="loginPass" type="password" class="form-control mb-3" placeholder="Senha">
 
         <button class="btn btn-primary w-100" onclick="fazerLogin()">Entrar</button>
@@ -68,6 +68,7 @@ Criar Conta
     <a onclick="navegar('revisoes',this)">⏱ Revisões KM</a>
     <a onclick="navegar('fornecedores',this)">🏭 Fornecedores</a>
     <a onclick="navegar('relatorios',this)">📂 Relatórios & Backup</a>
+    <a onclick="navegar('admin',this)">👑 Usuários (Admin)</a>
     <a onclick="logout()">🚪 Sair</a>
 </div>
 
@@ -446,6 +447,44 @@ Criar Conta
         </div>
     </div>
 
+   <div id="admin" class="hidden">
+    <h3>👑 Gerenciamento de Usuários</h3>
+
+    <div class="glass-container">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <input id="admEmail" class="form-control" placeholder="Email">
+            </div>
+            <div class="col-md-4">
+                <input id="admSenha" type="password" class="form-control" placeholder="Senha">
+            </div>
+            <div class="col-md-4">
+                <select id="admTipo" class="form-select">
+                    <option value="user">Usuário</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+
+            <div class="col-md-12 text-end">
+                <button class="btn btn-dark" onclick="criarUsuarioAdmin()">Criar Usuário</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Tipo</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="listaUsuarios"></tbody>
+        </table>
+    </div>
+</div>
+
     <div id="relatorios" class="hidden">
         <h3>📂 Relatórios e Backup</h3>
         <div class="row">
@@ -483,6 +522,7 @@ const MAP={
 }
 let db={}
 let chart
+let usuarioLogado = null;
 
 Object.keys(MAP).forEach(k=>{
     db[k] = []
@@ -545,11 +585,17 @@ function floatParaMoeda(v) {
 
 function salvarNuvem(){
 
+    let uid = auth.currentUser.uid;
+
     Object.keys(db).forEach(mod => {
 
-        dbCloud.collection("frota").doc(mod).set({
-    dados: db[mod]
-}, { merge: true });
+        dbCloud.collection("dados")
+        .doc(uid)
+        .collection("frota")
+        .doc(mod)
+        .set({
+            dados: db[mod]
+        }, { merge: true });
 
     });
 
@@ -634,6 +680,9 @@ function formatarVencimento(dataStr) {
 
 function iniciarSistema(){
 
+    if(usuarioLogado.tipo === "admin"){
+    escutarUsuarios();
+}
     document.getElementById("loginTela").style.display="none";
     document.getElementById("sistema").style.display="block";
     document.getElementById("sistemaMain").style.display="block";
@@ -646,7 +695,12 @@ function iniciarSistema(){
 
 function escutarDados(modulo){
 
-    dbCloud.collection("frota").doc(modulo)
+    let uid = auth.currentUser.uid;
+
+    dbCloud.collection("dados")
+    .doc(uid)
+    .collection("frota")
+    .doc(modulo)
     .onSnapshot(doc => {
 
         if(doc.exists){
@@ -925,38 +979,103 @@ function fazerLogin(){
 
 function cadastrarUsuario(){
 
-    let email = document.getElementById("loginUser").value;
-    let senha = document.getElementById("loginPass").value;
+   function cadastrarUsuario(){
 
-    auth.createUserWithEmailAndPassword(email, senha)
-    .then(() => {
-        alert("Usuário criado com sucesso!");
+    alert("Cadastro desativado. Fale com o administrador.");
+    return;
+
+}
+
     })
     .catch((erro) => {
         alert(erro.message);
     });
 }
 
+function escutarUsuarios(){
+
+    dbCloud.collection("usuarios")
+    .onSnapshot(snapshot => {
+
+        let html = "";
+
+        snapshot.forEach(doc => {
+
+            let u = doc.data();
+
+            html += `
+            <tr>
+                <td>${u.email}</td>
+                <td>
+                    <select onchange="alterarTipoUsuario('${doc.id}', this.value)">
+                        <option value="user" ${u.tipo === 'user' ? 'selected' : ''}>Usuário</option>
+                        <option value="admin" ${u.tipo === 'admin' ? 'selected' : ''}>Admin</option>
+                    </select>
+                </td>
+                <td>
+                    <button class="btn btn-danger btn-sm" onclick="excluirUsuario('${doc.id}')">Excluir</button>
+                </td>
+            </tr>
+            `;
+        });
+
+        document.getElementById("listaUsuarios").innerHTML = html;
+
+    });
+
+}
+
+function criarUsuarioAdmin(){
+
+    let email = document.getElementById("admEmail").value;
+    let senha = document.getElementById("admSenha").value;
+    let tipo = document.getElementById("admTipo").value;
+
+    let auth2 = firebase.auth();
+
+    auth2.createUserWithEmailAndPassword(email, senha)
+    .then(userCredential => {
+
+        let uid = userCredential.user.uid;
+
+        dbCloud.collection("usuarios").doc(uid).set({
+            email: email,
+            tipo: tipo
+        });
+
+        alert("Usuário criado!");
+
+    })
+    .catch(e => alert(e.message));
+}
+
+function alterarTipoUsuario(uid, tipo){
+    dbCloud.collection("usuarios").doc(uid).update({ tipo });
+}
+
+function excluirUsuario(uid){
+    if(!confirm("Excluir usuário?")) return;
+    dbCloud.collection("usuarios").doc(uid).delete();
+}
+
 auth.onAuthStateChanged(user => {
 
     if(user){
-        iniciarSistema();
+
+        dbCloud.collection("usuarios")
+        .doc(user.uid)
+        .get()
+        .then(doc => {
+
+            usuarioLogado = doc.data();
+
+            iniciarSistema();
+
+        });
+
     }
 
 });
-
-function logout(){
-    auth.signOut().then(() => {
-
-        // Esconde sistema
-        document.getElementById("sistema").style.display = "none";
-        document.getElementById("sistemaMain").style.display = "none";
-
-        // Mostra login
-        document.getElementById("loginTela").style.display = "flex";
-
-    });
-}
 
 window.addEventListener("DOMContentLoaded", () => {
 
