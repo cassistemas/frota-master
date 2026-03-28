@@ -444,6 +444,7 @@ Criar Conta
                 <button class="btn-excel" onclick="exportarExcel('fornecedores')">📥 Exportar Excel</button>
             </div>
             <table class="table"><thead><tr><th>Empresa</th><th>Responsável</th><th>CNPJ</th><th>Telefone</th><th>Ações</th></tr></thead><tbody id="listaFornecedores"></tbody></table>
+<div id="paginacaoFornecedores"></div>
         </div>
     </div>
 
@@ -1267,6 +1268,33 @@ function limparFiltroDashboard(){
 
     // 🔥 volta ao normal (com alertas)
     renderDashboard();
+}
+
+function logout(){
+
+    auth.signOut()
+    .then(() => {
+
+        // 🔥 limpa variável
+        usuarioLogado = null;
+
+        // 🔥 limpa dados locais
+        db = {};
+        Object.keys(MAP).forEach(k => db[k] = []);
+
+        // 🔥 esconde sistema
+        document.getElementById("sistema").style.display = "none";
+        document.getElementById("sistemaMain").style.display = "none";
+
+        // 🔥 mostra login
+        document.getElementById("loginTela").style.display = "flex";
+
+    })
+    .catch(err => {
+        console.error("Erro ao sair:", err);
+        alert("Erro ao sair");
+    });
+
 }
 
 </script>
