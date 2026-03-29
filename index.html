@@ -102,6 +102,13 @@ Criar Conta
             </select>
         </div>
 
+      <div class="col-md-3">
+    <label>Motorista</label>
+    <select id="filtroMotorista" class="form-select">
+        <option value="">Todos</option>
+    </select>
+</div>
+
         <div class="col-md-2">
             <label>Tipo</label>
             <select id="filtroTipo" class="form-select">
@@ -762,6 +769,13 @@ function renderTudo(){
 
     let filtroPlaca = document.getElementById("filtroPlaca");
 
+let filtroMotorista = document.getElementById("filtroMotorista");
+
+if(filtroMotorista){
+    filtroMotorista.innerHTML = '<option value="">Todos</option>' +
+        db.motoristas.map(m => `<option value="${m.motNome}">${m.motNome}</option>`).join('');
+}
+
 if(filtroPlaca){
     filtroPlaca.innerHTML = '<option value="">Todas</option>' +
         db.veiculos.map(v => `<option value="${v.vplaca}">${v.vplaca}</option>`).join('');
@@ -1255,6 +1269,8 @@ function aplicarFiltroDashboard(){
     let dataFim = document.getElementById("filtroDataFim").value;
     let placa = document.getElementById("filtroPlaca").value;
     let tipo = document.getElementById("filtroTipo").value;
+    let motorista = document.getElementById("filtroMotorista").value;
+
 
     // ✅ PASSO MAIS IMPORTANTE
     // Se não tiver nenhum filtro → volta pro dashboard normal
@@ -1268,25 +1284,31 @@ function aplicarFiltroDashboard(){
     // 🔴 MULTAS
     if(tipo === '' || tipo === 'multas'){
         db.multas.forEach(m => {
-            dados.push({
-                tipo: 'Multa',
-                placa: m.muveiculo,
-                data: m.mudata,
-                valor: moedaParaFloat(m.muvalor)
-            });
-        });
+    dados.push({
+        tipo: 'Multa',
+        placa: m.muveiculo,
+        motorista: m.mumotorista,
+        data: m.mudata,
+        valor: moedaParaFloat(m.muvalor)
+    });
+});
     }
 
     // 🟡 MANUTENÇÕES
     if(tipo === '' || tipo === 'manutencoes'){
         db.manutencoes.forEach(m => {
-            dados.push({
-                tipo: 'Manutenção',
-                placa: m.mveiculo,
-                data: m.mdata,
-                valor: moedaParaFloat(m.mvalor)
-            });
-        });
+
+    let vei = db.veiculos.find(v => v.vplaca === m.mveiculo);
+
+    dados.push({
+        tipo: 'Manutenção',
+        placa: m.mveiculo,
+        motorista: vei ? vei.vmotorista : '',
+        data: m.mdata,
+        valor: moedaParaFloat(m.mvalor)
+    });
+
+});
     }
 
     // 🔍 APLICAR FILTRO
@@ -1295,6 +1317,8 @@ function aplicarFiltroDashboard(){
         let ok = true;
 
         if(placa && d.placa !== placa) ok = false;
+
+        if(motorista && d.motorista !== motorista) ok = false;
 
         if(dataIni){
             ok = ok && (new Date(d.data) >= new Date(dataIni));
@@ -1361,6 +1385,7 @@ function limparFiltroDashboard(){
     document.getElementById("filtroDataFim").value = "";
     document.getElementById("filtroPlaca").value = "";
     document.getElementById("filtroTipo").value = "";
+    document.getElementById("filtroMotorista").value = "";
 
     // 🔥 volta ao normal (com alertas)
     renderDashboard();
