@@ -1384,6 +1384,11 @@ function logout(){
 
         // 🔥 mostra login
         document.getElementById("loginTela").style.display = "flex";
+    
+      // 🔥 LIMPAR CAMPOS DE LOGIN
+document.getElementById("loginUser").value = "";
+document.getElementById("loginPass").value = "";
+document.getElementById("loginErro").innerText = "";
 
     })
     .catch(err => {
