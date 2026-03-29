@@ -70,6 +70,12 @@ Criar Conta
     <a onclick="navegar('relatorios',this)">📂 Relatórios & Backup</a>
     <a id="menuAdmin" onclick="navegar('admin',this)">👑 Usuários (Admin)</a>
     <a onclick="logout()">🚪 Sair</a>
+    <div id="nomeUsuario" style="
+    text-align:center;
+    font-size:13px;
+    margin-bottom:15px;
+    color:#94a3b8;
+"></div>
 </div>
 
 <div class="main" id="sistemaMain" style="display:none">
@@ -453,18 +459,24 @@ Criar Conta
 
     <div class="glass-container">
         <div class="row g-3">
-            <div class="col-md-4">
-                <input id="admEmail" class="form-control" placeholder="Email">
-            </div>
-            <div class="col-md-4">
-                <input id="admSenha" type="password" class="form-control" placeholder="Senha">
-            </div>
-            <div class="col-md-4">
-                <select id="admTipo" class="form-select">
-                    <option value="user">Usuário</option>
-                    <option value="admin">Admin</option>
-                </select>
-            </div>
+        <div class="col-md-4">
+    <input id="admNome" class="form-control mb-2" placeholder="Nome">
+    <input id="admEmail" class="form-control mb-2" placeholder="Email">
+</div>
+
+<div class="col-md-4">
+    <input id="admSenha" type="password" class="form-control mb-2" placeholder="Senha">
+
+    <select id="admTipo" class="form-select">
+        <option value="user">Usuário</option>
+        <option value="admin">Admin</option>
+    </select>
+</div>
+
+<div class="col-md-4">
+    <label class="fw-bold">Permissões de acesso:</label>
+    <div id="listaPermissoes"></div>
+</div>
 
             <div class="col-md-12 text-end">
                 <button class="btn btn-dark" onclick="criarUsuarioAdmin()">Criar Usuário</button>
@@ -520,7 +532,8 @@ const MAP={
     tacografo:'FM_TAC',
     licencas:'FM_LE',
     fornecedores:'FM_F'
-}
+};
+const MODULOS = Object.keys(MAP);
 let db={}
 let chart
 let usuarioLogado = null;
@@ -599,6 +612,18 @@ function salvarNuvem(){
 }
 
 function navegar(id,el){
+
+     // 🔐 bloqueio por permissão
+if(usuarioLogado.tipo !== "admin"){
+
+    let p = usuarioLogado.permissoes || {};
+
+    if(p[id] === false){
+        alert("Acesso negado!");
+        return;
+    }
+
+}
 
     // 🔐 bloqueio de segurança
     if(id === "admin" && (!usuarioLogado || usuarioLogado.tipo !== "admin")){
@@ -705,6 +730,8 @@ function iniciarSistema(){
     document.getElementById("loginTela").style.display="none";
     document.getElementById("sistema").style.display="block";
     document.getElementById("sistemaMain").style.display="block";
+    document.getElementById("nomeUsuario").innerText =
+    "👤 " + (usuarioLogado.nome || usuarioLogado.email);
 
     Object.keys(MAP).forEach(mod=>{
         escutarDados(mod);
@@ -712,6 +739,8 @@ function iniciarSistema(){
 
     // 🔥 IMPORTANTE: carregar lista usuários
     escutarUsuarios();
+   aplicarPermissoes();
+   carregarPermissoesAdmin();
 }
 
 function escutarDados(modulo){
@@ -1011,7 +1040,7 @@ function escutarUsuarios(){
 
             html += `
             <tr>
-                <td>${u.email}</td>
+                <td><b>${u.nome || '---'}</b><br><small>${u.email}</small></td>
                 <td>
                     <select onchange="alterarTipoUsuario('${doc.id}', this.value)">
                         <option value="user" ${u.tipo === 'user' ? 'selected' : ''}>Usuário</option>
@@ -1032,15 +1061,22 @@ function escutarUsuarios(){
 }
 
 function criarUsuarioAdmin(){
-
+ 
+    let nome = document.getElementById("admNome").value;
     let email = document.getElementById("admEmail").value;
     let senha = document.getElementById("admSenha").value;
     let tipo = document.getElementById("admTipo").value;
+   let permissoes = {};
 
-    if(!email || !senha){
-        alert("Preencha email e senha");
-        return;
-    }
+MODULOS.forEach(mod => {
+    let el = document.getElementById("perm_" + mod);
+    permissoes[mod] = el ? el.checked : false;
+});
+
+   if(!nome || !email || !senha){
+    alert("Preencha nome, email e senha");
+    return;
+}
 
     let secondaryApp;
 
@@ -1059,9 +1095,11 @@ function criarUsuarioAdmin(){
         let uid = userCredential.user.uid;
 
         return dbCloud.collection("usuarios").doc(uid).set({
-            email: email,
-            tipo: tipo
-        });
+    nome: nome,
+    email: email,
+    tipo: tipo,
+    permissoes: permissoes // 🔥 aqui salva
+});
 
     })
     .then(() => {
@@ -1069,6 +1107,7 @@ function criarUsuarioAdmin(){
     alert("Usuário criado com sucesso!");
 
     // 🔥 LIMPAR CAMPOS
+    document.getElementById("admNome").value = "";
     document.getElementById("admEmail").value = "";
     document.getElementById("admSenha").value = "";
     document.getElementById("admTipo").value = "user";
@@ -1106,6 +1145,11 @@ auth.onAuthStateChanged(user => {
 
             if(doc.exists){
                 usuarioLogado = doc.data();
+
+// 🔥 fallback
+if(!usuarioLogado.nome){
+    usuarioLogado.nome = usuarioLogado.email;
+}
             } else {
                 usuarioLogado = {
                     email: user.email,
@@ -1345,6 +1389,50 @@ function logout(){
     .catch(err => {
         console.error("Erro ao sair:", err);
         alert("Erro ao sair");
+    });
+
+}
+
+function aplicarPermissoes(){
+
+    if(!usuarioLogado || usuarioLogado.tipo === "admin") return;
+
+    let p = usuarioLogado.permissoes || {};
+
+    document.querySelectorAll(".sidebar a").forEach(a => {
+
+        let onclick = a.getAttribute("onclick");
+        if(!onclick) return;
+
+        MODULOS.forEach(mod => {
+
+            if(onclick.includes(`'${mod}'`) && !p[mod]){
+                a.style.display = "none";
+            }
+
+        });
+
+    });
+
+}
+
+function carregarPermissoesAdmin(){
+
+    let container = document.getElementById("listaPermissoes");
+
+    if(!container) return;
+
+    container.innerHTML = "";
+
+    MODULOS.forEach(mod => {
+
+        container.innerHTML += `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="perm_${mod}">
+                <label class="form-check-label">${mod.toUpperCase()}</label>
+            </div>
+        `;
+
     });
 
 }
