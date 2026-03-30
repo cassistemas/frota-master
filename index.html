@@ -59,6 +59,7 @@ Criar Conta
     <a onclick="navegar('dashboard',this)" class="active">📊 Dashboard</a>
     <a onclick="navegar('veiculos',this)">🚗 Veículos</a>
     <a onclick="navegar('motoristas',this)">👥 Motoristas</a>
+    <a onclick="navegar('ferias',this)">🏖 Férias</a>
     <a onclick="navegar('multas',this)">🚫 Multas</a>
     <a onclick="navegar('seguros',this)">🛡 Seguros</a>
     <a onclick="navegar('licenciamento',this)">📜 Licenciamento</a>
@@ -294,6 +295,74 @@ Criar Conta
 </thead><tbody id="listaMotoristas"></tbody></table>
         </div>
     </div>
+
+<div id="ferias" class="hidden">
+    <h3>🏖 Controle de Férias</h3>
+
+    <div class="glass-container">
+        <input type="hidden" id="fe_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-4">
+                <select id="femotorista" class="form-select"></select>
+            </div>
+
+            <div class="col-md-4">
+                <input type="date" id="feinicio" class="form-control">
+            </div>
+
+            <div class="col-md-4">
+                <input type="date" id="fefim" class="form-control">
+            </div>
+
+            <div class="col-md-4">
+                <select id="festatus" class="form-select">
+                    <option value="Agendada">Agendada</option>
+                    <option value="Em andamento">Em andamento</option>
+                    <option value="Concluída">Concluída</option>
+                </select>
+            </div>
+
+            <div class="col-md-8">
+                <input id="feobs" class="form-control" placeholder="Observações">
+            </div>
+
+            <div class="col-md-12 text-end">
+                <button id="btn_cancel_ferias" class="btn btn-outline-secondary btn-cancelar"
+                    onclick="limparForm('ferias',['femotorista','feinicio','fefim','festatus','feobs'],'fe_idx')">
+                    Cancelar
+                </button>
+
+                <button class="btn btn-warning"
+                    onclick="salvar('ferias',['femotorista','feinicio','fefim','festatus','feobs'],'fe_idx')">
+                    Salvar
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="glass-container">
+        <input type="text" class="form-control search-box"
+            placeholder="🔎 Pesquisar..."
+            onkeyup="filtrarTabela('listaFerias', this.value)">
+
+        <table class="table mt-3">
+            <thead>
+                <tr>
+                    <th>Motorista</th>
+                    <th>Início</th>
+                    <th>Fim</th>
+                    <th>Status</th>
+                    <th>Obs</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="listaFerias"></tbody>
+        </table>
+    </div>
+</div>
     
     <div id="manutencoes" class="hidden">
         <h3>🔧 Manutenções</h3>
@@ -525,6 +594,7 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 const auth = firebase.auth();
 const dbCloud = firebase.firestore();
@@ -538,7 +608,8 @@ const MAP={
     licenciamento:'FM_L',
     tacografo:'FM_TAC',
     licencas:'FM_LE',
-    fornecedores:'FM_F'
+    fornecedores:'FM_F',
+    ferias:'FM_FE',
 };
 const MODULOS = Object.keys(MAP);
 let db={}
@@ -551,7 +622,8 @@ Object.keys(MAP).forEach(k=>{
 const ID_MAP_INDEX = {
     veiculos:'v_idx',motoristas:'m_idx',seguros:'s_idx',manutencoes:'man_idx',
     revisoes:'r_idx',fornecedores:'f_idx',licenciamento:'l_idx',
-    tacografo:'t_idx',licencas:'le_idx',multas:'mu_idx'
+    tacografo:'t_idx',licencas:'le_idx',multas:'mu_idx',
+    ferias:'fe_idx',
 }
 
 function exportarExcel(modulo) {
@@ -806,6 +878,31 @@ if(filtroPlaca){
 ${btnSet('motoristas',i)}
 </tr>
 `).join('');
+
+// ===== FÉRIAS =====
+
+// SELECT MOTORISTA
+if(document.getElementById('femotorista')){
+    document.getElementById('femotorista').innerHTML =
+        '<option value="">Motorista...</option>' +
+        db.motoristas.map(m=>`<option value="${m.motNome}">${m.motNome}</option>`).join('');
+}
+
+// LISTA
+document.getElementById('listaFerias').innerHTML =
+    db.ferias.map((f,i)=>`
+<tr>
+<td>${f.femotorista}</td>
+<td>${f.feinicio}</td>
+<td>${f.fefim}</td>
+<td><b>${f.festatus}</b></td>
+<td>${f.feobs || '--'}</td>
+<td>
+<button class="btn-edit" onclick="editar('ferias',${i})">✎</button>
+<button class="btn-del" onclick="deletar('ferias',${i})">✕</button>
+</td>
+</tr>
+`).join('');
    
     document.getElementById('listaSeguros').innerHTML = db.seguros.map((s,i)=>`<tr><td>${s.sveiculo}</td><td>${s.sseguradora}</td><td>${formatarVencimento(s.svencimento)}</td>${btnSet('seguros',i)}</tr>`).join('');
     document.getElementById('listaLicenciamento').innerHTML = db.licenciamento.map((l,i)=>`<tr><td>${l.lveiculo}</td><td>${formatarVencimento(l.lvencimento)}</td><td><b>${l.lvalor}</b></td>${btnSet('licenciamento',i)}</tr>`).join('');
@@ -829,6 +926,24 @@ function renderDashboard(){
     let multasPendentes = db.multas.filter(m=>m.mustatus !== 'Pago').length;
     document.getElementById('d_multas_count').innerText = multasPendentes;
     let alertas = [];
+    // ALERTA DE FÉRIAS
+db.ferias.forEach(f => {
+
+    if(!f.feinicio || !f.fefim) return;
+
+    const hoje = new Date();
+    const inicio = new Date(f.feinicio);
+    const fim = new Date(f.fefim);
+
+    if(hoje >= inicio && hoje <= fim){
+        alertas.push(`
+            <div class="alerta-item alerta-atencao">
+                🏖 ${f.femotorista} em férias
+            </div>
+        `);
+    }
+
+});
     const hoje = new Date();
     const analisar = (placa, tipo, data) => {
         if(!data) return;
