@@ -299,6 +299,13 @@ Criar Conta
 <div id="ferias" class="hidden">
     <h3>🏖 Controle de Férias</h3>
 
+    <!-- 🔥 BOTÃO RELATÓRIO -->
+    <div class="text-end mb-3">
+        <button class="btn btn-dark" onclick="gerarRelatorioFerias()">
+            📄 Gerar Relatório de Férias
+        </button>
+    </div>
+
     <div class="glass-container">
         <input type="hidden" id="fe_idx">
 
@@ -1559,6 +1566,75 @@ function aplicarPermissoes(){
 
     });
 
+}
+
+function gerarRelatorioFerias(){
+
+    if(!db.ferias || db.ferias.length === 0){
+        alert("Nenhum registro de férias encontrado!");
+        return;
+    }
+
+    let html = `
+    <html>
+    <head>
+        <title>Relatório de Férias</title>
+        <style>
+            body{font-family:Arial;padding:20px}
+            h2{text-align:center;margin-bottom:20px}
+            table{width:100%;border-collapse:collapse;margin-top:20px}
+            th,td{border:1px solid #ccc;padding:8px;text-align:left}
+            th{background:#f1f5f9}
+            .status{font-weight:bold}
+        </style>
+    </head>
+    <body>
+
+    <h2>📊 Relatório de Férias</h2>
+    <p><b>Data:</b> ${new Date().toLocaleDateString()}</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Motorista</th>
+                <th>Início</th>
+                <th>Fim</th>
+                <th>Status</th>
+                <th>Observações</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+
+    db.ferias.forEach(f => {
+
+        html += `
+        <tr>
+            <td>${f.femotorista}</td>
+            <td>${f.feinicio}</td>
+            <td>${f.fefim}</td>
+            <td class="status">${f.festatus}</td>
+            <td>${f.feobs || '--'}</td>
+        </tr>
+        `;
+
+    });
+
+    html += `
+        </tbody>
+    </table>
+
+    <script>
+        window.onload = () => window.print();
+    <\/script>
+
+    </body>
+    </html>
+    `;
+
+    let win = window.open('', '', 'width=900,height=700');
+    win.document.write(html);
+    win.document.close();
 }
 
 function carregarPermissoesAdmin(){
