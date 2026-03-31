@@ -394,6 +394,7 @@ Criar Conta
                 <button class="btn-excel" onclick="exportarExcel('manutencoes')">📥 Exportar Excel</button>
             </div>
             <table class="table"><thead><tr><th>Veículo</th><th>Data</th><th>KM</th><th>Valor</th><th>Fornecedor</th><th>Serviço</th><th>Ações</th></tr></thead><tbody id="listaManutencao"></tbody></table>
+<div id="paginacaoManutencoes"></div>
         </div>
     </div>
 
@@ -933,12 +934,54 @@ document.getElementById('listaFerias').innerHTML =
     document.getElementById('listaSeguros').innerHTML = db.seguros.map((s,i)=>`<tr><td>${s.sveiculo}</td><td>${s.sseguradora}</td><td>${formatarVencimento(s.svencimento)}</td>${btnSet('seguros',i)}</tr>`).join('');
     document.getElementById('listaLicenciamento').innerHTML = db.licenciamento.map((l,i)=>`<tr><td>${l.lveiculo}</td><td>${formatarVencimento(l.lvencimento)}</td><td><b>${l.lvalor}</b></td>${btnSet('licenciamento',i)}</tr>`).join('');
     document.getElementById('listaTacografo').innerHTML = db.tacografo.map((t,i)=>`<tr><td>${t.tveiculo}</td><td>${formatarVencimento(t.tvencimento)}</td><td><b>${t.tvalor}</b></td>${btnSet('tacografo',i)}</tr>`).join('');
-    document.getElementById('listaManutencao').innerHTML = db.manutencoes.map((m,i)=>`<tr><td>${m.mveiculo}</td><td>${formatarDataBR(m.mdata)}</td><td>${m.mkm}</td><td><b>${m.mvalor}</b></td><td>${m.mfornecedor || '---'}</td><td>${m.mservico}</td>${btnSet('manutencoes',i)}</tr>`).join('');
+    document.getElementById('listaManutencao').innerHTML = db.manutencoes.map((m,i)=>`<tr><td>${m.mveiculo}</td><td>${formatarDataBR(m.mdata)}</td><td>${m.mkm}</td><td><b>${m.mvalor}</b></td><td>${m.mfornecedor || '---'}</td><td>${m.mservico}</td>${btnSet('manutencoes',i)}</tr>`).join('');renderManutencoes();
     document.getElementById('listaLicencas').innerHTML = db.licencas.map((le,i)=>`<tr><td>${le.leveiculo}</td><td>${formatarVencimento(le.venciv)}</td><td>${formatarVencimento(le.vencipp)}</td>${btnSet('licencas',i)}</tr>`).join('');
     document.getElementById('listaRevisoes').innerHTML = db.revisoes.map((r,i)=>`<tr><td>${r.rveiculo}</td><td>${r.rtipo}</td><td>${r.rkm} KM</td>${btnSet('revisoes',i)}</tr>`).join('');
     document.getElementById('listaFornecedores').innerHTML = db.fornecedores.map((f,i)=>`<tr><td><b>${f.fnome}</b></td><td>${f.fresp}</td><td>${f.fcnpj}</td><td>${f.ftel}</td>${btnSet('fornecedores',i)}</tr>`).join('');
 
     ativarPaginacao();
+}
+
+function renderManutencoes(){
+
+    let dados = db.manutencoes;
+
+    let pagina = PAGINACAO.paginas.manutencoes || 1;
+    let porPagina = PAGINACAO.itensPorPagina.manutencoes || 5;
+
+    let inicio = (pagina - 1) * porPagina;
+    let fim = inicio + porPagina;
+
+    let dadosPagina = dados.slice(inicio, fim);
+
+    let html = dadosPagina.map((m,i)=>{
+
+        let indexReal = inicio + i;
+
+        return `
+        <tr>
+            <td>${m.mveiculo}</td>
+            <td>${formatarDataBR(m.mdata)}</td>
+            <td>${m.mkm}</td>
+            <td><b>${m.mvalor}</b></td>
+            <td>${m.mfornecedor || '---'}</td>
+            <td>${m.mservico}</td>
+            <td>
+                <button class="btn-edit" onclick="editar('manutencoes',${indexReal})">✎</button>
+                <button class="btn-del" onclick="deletar('manutencoes',${indexReal})">✕</button>
+            </td>
+        </tr>
+        `;
+
+    }).join('');
+
+    document.getElementById('listaManutencao').innerHTML = html;
+
+    renderPaginacaoControles(
+        'manutencoes',
+        dados.length,
+        'paginacaoManutencoes'
+    );
 }
 
 function renderDashboard(){
