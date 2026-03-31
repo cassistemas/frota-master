@@ -16,9 +16,46 @@ function formatarDataBR(data) {
 }
 
 const PAGINACAO = {
-    itensPorPagina: 15,
-    paginas: {},
+    paginas: {
+        veiculos: 1,
+        multas: 1,
+        manutencoes: 1
+    },
+    itensPorPagina: {
+        veiculos: 10,
+        multas: 10,
+        manutencoes: 5
+    }
 };
+
+function renderPaginacaoControles(modulo, totalItens, containerId){
+
+    let pagina = PAGINACAO.paginas[modulo] || 1;
+    let porPagina = PAGINACAO.itensPorPagina[modulo] || 5;
+
+    let totalPaginas = Math.ceil(totalItens / porPagina);
+
+    let html = '';
+
+    for(let i = 1; i <= totalPaginas; i++){
+        html += `
+            <button class="btn btn-sm ${i === pagina ? 'btn-primary' : 'btn-outline-primary'}"
+            onclick="irPagina('${modulo}', ${i})">
+            ${i}
+            </button>
+        `;
+    }
+
+    let container = document.getElementById(containerId);
+    if(container){
+        container.innerHTML = html;
+    }
+}
+
+function irPagina(modulo, pagina){
+    PAGINACAO.paginas[modulo] = pagina;
+    renderTudo();
+}
 
 function obterPagina(modulo) {
     if (!PAGINACAO.paginas[modulo]) PAGINACAO.paginas[modulo] = 1;
@@ -136,4 +173,5 @@ function renderModulo(modulo) {
 function ativarPaginacao(){
     renderModulo('veiculos');
     renderModulo('multas');
+    renderModulo('manutencoes');
 }
