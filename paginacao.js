@@ -22,9 +22,9 @@ const PAGINACAO = {
         manutencoes: 1
     },
     itensPorPagina: {
-        veiculos: 10,
-        multas: 10,
-        manutencoes: 5
+        veiculos: 15,
+        multas: 15,
+        manutencoes: 15
     }
 };
 
