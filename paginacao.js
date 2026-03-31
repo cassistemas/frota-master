@@ -2,6 +2,19 @@
 // PAGINAÇÃO GLOBAL
 // ==========================
 
+// ==========================
+// FORMATAÇÃO DE DATA BR
+// ==========================
+function formatarDataBR(data) {
+    if (!data) return '--';
+
+    // evita erro de fuso horário
+    const partes = data.split('-');
+    if (partes.length !== 3) return data;
+
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
 const PAGINACAO = {
     itensPorPagina: 15,
     paginas: {},
@@ -100,8 +113,8 @@ function renderModulo(modulo) {
             <td>${mu.muveiculo}</td>
             <td>${mu.mumotorista}</td>
             <td><b>${mu.muait || '---'}</b></td>
-            <td>${formatarDataBR(m.mudata)}</td>
-            <td>${formatarDataBR(m.muvenc)}</td>
+            <td>${formatarDataBR(mu.mudata)}</td>
+            <td>${formatarDataBR(mu.muvenc)}</td>
             <td><b>${mu.muvalor}</b></td>
             <td><span class="badge ${mu.mustatus=='Pago'?'bg-success':'bg-danger'}">${mu.mustatus}</span></td>
             <td>
