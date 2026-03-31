@@ -589,18 +589,6 @@ Criar Conta
         </div>
     </div>
 </div>
-<script>
-
-function formatarDataBR(data){
-    if(!data) return '--';
-    let partes = data.split('-');
-    if(partes.length !== 3) return data;
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
-}
-
-</script>
-
-<script src="paginacao.js"></script>
 <script src="paginacao.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -690,7 +678,6 @@ function mascaraCPF(i) {
 function moedaParaFloat(v) {
     if(!v) return 0;
     return parseFloat(v.replace("R$ ","").replace(/\./g,"").replace(",","."));
-
 }
 function floatParaMoeda(v) {
     return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -796,20 +783,14 @@ function filtrarTabela(idTabela, termo) {
     for (let tr of trs) tr.style.display = tr.innerText.toLowerCase().includes(termo) ? '' : 'none';
 }
 
-function formatarVencimento(dataStr){
-
+function formatarVencimento(dataStr) {
     if(!dataStr) return '<span class="text-muted">---</span>';
-
     const hoje = new Date();
     const venc = new Date(dataStr);
     const diff = (venc - hoje) / 86400000;
-
-    let dataFormatada = formatarDataBR(dataStr);
-
-    if(diff < 0) return `<span class="status-vencido">${dataFormatada}</span>`;
-    if(diff <= 15) return `<span class="status-atencao">${dataFormatada}</span>`;
-
-    return `<span class="status-ok">${dataFormatada}</span>`;
+    if(diff < 0) return `<span class="status-vencido">${dataStr}</span>`;
+    if(diff <= 15) return `<span class="status-atencao">${dataStr}</span>`;
+    return `<span class="status-ok">${dataStr}</span>`;
 }
 
 function iniciarSistema(){
@@ -919,8 +900,8 @@ document.getElementById('listaFerias').innerHTML =
     db.ferias.map((f,i)=>`
 <tr>
 <td>${f.femotorista}</td>
-<td>${formatarDataBR(f.feinicio)}</td>
-<td>${formatarDataBR(f.fefim)}</td>
+<td>${f.feinicio}</td>
+<td>${f.fefim}</td>
 <td><b>${f.festatus}</b></td>
 <td>${f.feobs || '--'}</td>
 <td>
@@ -933,7 +914,7 @@ document.getElementById('listaFerias').innerHTML =
     document.getElementById('listaSeguros').innerHTML = db.seguros.map((s,i)=>`<tr><td>${s.sveiculo}</td><td>${s.sseguradora}</td><td>${formatarVencimento(s.svencimento)}</td>${btnSet('seguros',i)}</tr>`).join('');
     document.getElementById('listaLicenciamento').innerHTML = db.licenciamento.map((l,i)=>`<tr><td>${l.lveiculo}</td><td>${formatarVencimento(l.lvencimento)}</td><td><b>${l.lvalor}</b></td>${btnSet('licenciamento',i)}</tr>`).join('');
     document.getElementById('listaTacografo').innerHTML = db.tacografo.map((t,i)=>`<tr><td>${t.tveiculo}</td><td>${formatarVencimento(t.tvencimento)}</td><td><b>${t.tvalor}</b></td>${btnSet('tacografo',i)}</tr>`).join('');
-    document.getElementById('listaManutencao').innerHTML = db.manutencoes.map((m,i)=>`<tr><td>${m.mveiculo}</td><td>${formatarDataBR(m.mdata)}</td><td>${m.mkm}</td><td><b>${m.mvalor}</b></td><td>${m.mfornecedor || '---'}</td><td>${m.mservico}</td>${btnSet('manutencoes',i)}</tr>`).join('');
+    document.getElementById('listaManutencao').innerHTML = db.manutencoes.map((m,i)=>`<tr><td>${m.mveiculo}</td><td>${m.mdata}</td><td>${m.mkm}</td><td><b>${m.mvalor}</b></td><td>${m.mfornecedor || '---'}</td><td>${m.mservico}</td>${btnSet('manutencoes',i)}</tr>`).join('');
     document.getElementById('listaLicencas').innerHTML = db.licencas.map((le,i)=>`<tr><td>${le.leveiculo}</td><td>${formatarVencimento(le.venciv)}</td><td>${formatarVencimento(le.vencipp)}</td>${btnSet('licencas',i)}</tr>`).join('');
     document.getElementById('listaRevisoes').innerHTML = db.revisoes.map((r,i)=>`<tr><td>${r.rveiculo}</td><td>${r.rtipo}</td><td>${r.rkm} KM</td>${btnSet('revisoes',i)}</tr>`).join('');
     document.getElementById('listaFornecedores').innerHTML = db.fornecedores.map((f,i)=>`<tr><td><b>${f.fnome}</b></td><td>${f.fresp}</td><td>${f.fcnpj}</td><td>${f.ftel}</td>${btnSet('fornecedores',i)}</tr>`).join('');
@@ -1512,7 +1493,7 @@ function atualizarDashboardFiltrado(dados){
     // LISTA
     let lista = dados.map(d => `
         <div class="alerta-item">
-            <b>${d.placa}</b> - ${d.tipo} (${formatarDataBR(d.data)})
+            <b>${d.placa}</b> - ${d.tipo} (${d.data})
         </div>
     `).join('');
 
@@ -1630,8 +1611,8 @@ function gerarRelatorioFerias(){
         html += `
         <tr>
             <td>${f.femotorista}</td>
-            <td>${formatarDataBR(f.feinicio)}</td>
-            <td>${formatarDataBR(f.fefim)}</td>
+            <td>${f.feinicio}</td>
+            <td>${f.fefim}</td>
             <td class="status">${f.festatus}</td>
             <td>${f.feobs || '--'}</td>
         </tr>
