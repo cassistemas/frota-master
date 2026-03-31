@@ -63,8 +63,8 @@ function obterPagina(modulo) {
 }
 
 function mudarPagina(modulo, direcao) {
-    const total = db[modulo].length;
-    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
+    const total = (db[modulo] || []).length;
+    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina[modulo]);
 
     let paginaAtual = obterPagina(modulo);
 
@@ -87,8 +87,8 @@ function getDadosPaginados(modulo) {
 }
 
 function renderPaginacao(modulo, containerId) {
-    const total = db[modulo].length;
-    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
+    const total = (db[modulo] || []).length;
+    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina[modulo]);
     const pagina = obterPagina(modulo);
 
     const container = document.getElementById(containerId);
@@ -121,7 +121,8 @@ function renderModulo(modulo) {
 
         document.getElementById('listaVeiculos').innerHTML =
         dados.map((v,i)=>{
-            const realIndex = db.veiculos.indexOf(v);
+            const pagina = obterPagina('veiculos');
+            const realIndex = (pagina - 1) * PAGINACAO.itensPorPagina.veiculos + i;
             return `
             <tr>
             <td><b>${v.vplaca}</b></td>
@@ -139,12 +140,44 @@ function renderModulo(modulo) {
         renderPaginacao('veiculos','paginacaoVeiculos');
     }
 
+     if(modulo === 'manutencoes'){
+
+    const dados = getDadosPaginados('manutencoes');
+
+    let el = document.getElementById('listaManutencao');
+    if(!el) return;
+
+    el.innerHTML = dados.map((m,i)=>{
+
+        const pagina = obterPagina('manutencoes');
+        const realIndex = (pagina - 1) * PAGINACAO.itensPorPagina.manutencoes + i;
+
+        return `
+        <tr>
+            <td>${m.mveiculo}</td>
+            <td>${formatarDataBR(m.mdata)}</td>
+            <td>${m.mkm}</td>
+            <td><b>${m.mvalor}</b></td>
+            <td>${m.mfornecedor || '---'}</td>
+            <td>${m.mservico}</td>
+            <td>
+                <button class="btn-edit" onclick="editar('manutencoes',${realIndex})">✎</button>
+                <button class="btn-del" onclick="deletar('manutencoes',${realIndex})">✕</button>
+            </td>
+        </tr>
+        `;
+    }).join('');
+
+    renderPaginacao('manutencoes','paginacaoManutencoes');
+}
+
     if(modulo === 'multas'){
         const dados = getDadosPaginados('multas');
 
         document.getElementById('listaMultas').innerHTML =
         dados.map((mu,i)=>{
-            const realIndex = db.multas.indexOf(mu);
+            const pagina = obterPagina('multas');
+            const realIndex = (pagina - 1) * PAGINACAO.itensPorPagina.multas + i;
             return `
             <tr>
             <td>${mu.muveiculo}</td>
