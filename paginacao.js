@@ -16,46 +16,9 @@ function formatarDataBR(data) {
 }
 
 const PAGINACAO = {
-    paginas: {
-        veiculos: 1,
-        multas: 1,
-        manutencoes: 1
-    },
-    itensPorPagina: {
-        veiculos: 10,
-        multas: 10,
-        manutencoes: 5
-    }
+    itensPorPagina: 15,
+    paginas: {},
 };
-
-function renderPaginacaoControles(modulo, totalItens, containerId){
-
-    let pagina = PAGINACAO.paginas[modulo] || 1;
-    let porPagina = PAGINACAO.itensPorPagina[modulo] || 5;
-
-    let totalPaginas = Math.ceil(totalItens / porPagina);
-
-    let html = '';
-
-    for(let i = 1; i <= totalPaginas; i++){
-        html += `
-            <button class="btn btn-sm ${i === pagina ? 'btn-primary' : 'btn-outline-primary'}"
-            onclick="irPagina('${modulo}', ${i})">
-            ${i}
-            </button>
-        `;
-    }
-
-    let container = document.getElementById(containerId);
-    if(container){
-        container.innerHTML = html;
-    }
-}
-
-function irPagina(modulo, pagina){
-    PAGINACAO.paginas[modulo] = pagina;
-    renderTudo();
-}
 
 function obterPagina(modulo) {
     if (!PAGINACAO.paginas[modulo]) PAGINACAO.paginas[modulo] = 1;
@@ -63,8 +26,8 @@ function obterPagina(modulo) {
 }
 
 function mudarPagina(modulo, direcao) {
-    const porPagina = PAGINACAO.itensPorPagina[modulo] || 10;
-const totalPaginas = Math.ceil(total / porPagina);
+    const total = db[modulo].length;
+    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
 
     let paginaAtual = obterPagina(modulo);
 
@@ -80,19 +43,16 @@ const totalPaginas = Math.ceil(total / porPagina);
 
 function getDadosPaginados(modulo) {
     const pagina = obterPagina(modulo);
+    const inicio = (pagina - 1) * PAGINACAO.itensPorPagina;
+    const fim = inicio + PAGINACAO.itensPorPagina;
 
-    const porPagina = PAGINACAO.itensPorPagina[modulo] || 10;
-
-    const inicio = (pagina - 1) * porPagina;
-    const fim = inicio + porPagina;
-
-    return (db[modulo] || []).slice(inicio, fim);
+    return db[modulo].slice(inicio, fim);
 }
 
 function renderPaginacao(modulo, containerId) {
-    const total = (db[modulo] || []).length;
-    const porPagina = PAGINACAO.itensPorPagina[modulo] || 10;
-const totalPaginas = Math.ceil(total / porPagina);
+    const total = db[modulo].length;
+    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
+    const pagina = obterPagina(modulo);
 
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -124,8 +84,7 @@ function renderModulo(modulo) {
 
         document.getElementById('listaVeiculos').innerHTML =
         dados.map((v,i)=>{
-            const pagina = obterPagina('veiculos');
-            const realIndex = (pagina - 1) * PAGINACAO.itensPorPagina.veiculos + i;
+            const realIndex = db.veiculos.indexOf(v);
             return `
             <tr>
             <td><b>${v.vplaca}</b></td>
@@ -143,44 +102,12 @@ function renderModulo(modulo) {
         renderPaginacao('veiculos','paginacaoVeiculos');
     }
 
-     if(modulo === 'manutencoes'){
-
-    const dados = getDadosPaginados('manutencoes');
-
-    let el = document.getElementById('listaManutencao');
-    if(!el) return;
-
-    el.innerHTML = dados.map((m,i)=>{
-
-        const pagina = obterPagina('manutencoes');
-        const realIndex = (pagina - 1) * PAGINACAO.itensPorPagina.manutencoes + i;
-
-        return `
-        <tr>
-            <td>${m.mveiculo}</td>
-            <td>${formatarDataBR(m.mdata)}</td>
-            <td>${m.mkm}</td>
-            <td><b>${m.mvalor}</b></td>
-            <td>${m.mfornecedor || '---'}</td>
-            <td>${m.mservico}</td>
-            <td>
-                <button class="btn-edit" onclick="editar('manutencoes',${realIndex})">✎</button>
-                <button class="btn-del" onclick="deletar('manutencoes',${realIndex})">✕</button>
-            </td>
-        </tr>
-        `;
-    }).join('');
-
-    renderPaginacao('manutencoes','paginacaoManutencoes');
-}
-
     if(modulo === 'multas'){
         const dados = getDadosPaginados('multas');
 
         document.getElementById('listaMultas').innerHTML =
         dados.map((mu,i)=>{
-            const pagina = obterPagina('multas');
-            const realIndex = (pagina - 1) * PAGINACAO.itensPorPagina.multas + i;
+            const realIndex = db.multas.indexOf(mu);
             return `
             <tr>
             <td>${mu.muveiculo}</td>
@@ -209,5 +136,4 @@ function renderModulo(modulo) {
 function ativarPaginacao(){
     renderModulo('veiculos');
     renderModulo('multas');
-    renderModulo('manutencoes');
 }
