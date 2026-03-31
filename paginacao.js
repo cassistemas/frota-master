@@ -22,9 +22,9 @@ const PAGINACAO = {
         manutencoes: 1
     },
     itensPorPagina: {
-        veiculos: 15,
-        multas: 15,
-        manutencoes: 15
+        veiculos: 10,
+        multas: 10,
+        manutencoes: 5
     }
 };
 
@@ -63,8 +63,8 @@ function obterPagina(modulo) {
 }
 
 function mudarPagina(modulo, direcao) {
-    const total = (db[modulo] || []).length;
-    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina[modulo]);
+    const porPagina = PAGINACAO.itensPorPagina[modulo] || 10;
+const totalPaginas = Math.ceil(total / porPagina);
 
     let paginaAtual = obterPagina(modulo);
 
@@ -80,16 +80,19 @@ function mudarPagina(modulo, direcao) {
 
 function getDadosPaginados(modulo) {
     const pagina = obterPagina(modulo);
-    const inicio = (pagina - 1) * PAGINACAO.itensPorPagina;
-    const fim = inicio + PAGINACAO.itensPorPagina;
 
-    return db[modulo].slice(inicio, fim);
+    const porPagina = PAGINACAO.itensPorPagina[modulo] || 10;
+
+    const inicio = (pagina - 1) * porPagina;
+    const fim = inicio + porPagina;
+
+    return (db[modulo] || []).slice(inicio, fim);
 }
 
 function renderPaginacao(modulo, containerId) {
     const total = (db[modulo] || []).length;
-    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina[modulo]);
-    const pagina = obterPagina(modulo);
+    const porPagina = PAGINACAO.itensPorPagina[modulo] || 10;
+const totalPaginas = Math.ceil(total / porPagina);
 
     const container = document.getElementById(containerId);
     if (!container) return;
