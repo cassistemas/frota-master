@@ -57,6 +57,7 @@ Criar Conta
 <div class="sidebar" id="sistema" style="display:none">
     <h4>FROTA MASTER</h4>
     <a onclick="navegar('dashboard',this)" class="active">📊 Dashboard</a>
+    <a onclick="navegar('agendamentos',this)">📅 Agendamentos</a>
     <a onclick="navegar('veiculos',this)">🚗 Veículos</a>
     <a onclick="navegar('motoristas',this)">👥 Motoristas</a>
     <a onclick="navegar('ferias',this)">🏖 Férias</a>
@@ -80,6 +81,82 @@ Criar Conta
 </div>
 
 <div class="main" id="sistemaMain" style="display:none">
+
+<div id="agendamentos" class="hidden">
+    <h3>📅 Agendamentos</h3>
+
+    <div class="glass-container">
+        <input type="hidden" id="ag_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+                <select id="agveiculo" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+                <select id="agmotorista" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+                <input type="date" id="agdata" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+                <input type="time" id="aghora" class="form-control">
+            </div>
+
+            <div class="col-md-8">
+                <input id="agdescricao" class="form-control" placeholder="Descrição">
+            </div>
+
+            <div class="col-md-4">
+                <select id="agstatus" class="form-select">
+                    <option value="Agendado">Agendado</option>
+                    <option value="Concluído">Concluído</option>
+                    <option value="Cancelado">Cancelado</option>
+                </select>
+            </div>
+
+            <div class="col-md-12 text-end">
+                <button id="btn_cancel_agendamentos" class="btn btn-outline-secondary btn-cancelar"
+                onclick="limparForm('agendamentos',
+                ['agveiculo','agmotorista','agdata','aghora','agdescricao','agstatus'],
+                'ag_idx')">Cancelar</button>
+
+                <button class="btn btn-primary"
+                onclick="salvar('agendamentos',
+                ['agveiculo','agmotorista','agdata','aghora','agdescricao','agstatus'],
+                'ag_idx')">Salvar</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="glass-container">
+
+        <input type="text" class="form-control search-box"
+        placeholder="🔎 Pesquisar..."
+        onkeyup="filtrarTabela('listaAgendamentos', this.value)">
+
+        <table class="table mt-3">
+            <thead>
+                <tr>
+                    <th>Veículo</th>
+                    <th>Motorista</th>
+                    <th>Data</th>
+                    <th>Hora</th>
+                    <th>Descrição</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+
+            <tbody id="listaAgendamentos"></tbody>
+        </table>
+
+    </div>
+</div>
 
     <div id="dashboard">
         <h2 class="fw-bold mb-4">Painel de Controle</h2>
@@ -629,6 +706,7 @@ const MAP={
     licencas:'FM_LE',
     fornecedores:'FM_F',
     ferias:'FM_FE',
+    agendamentos:'FM_AG',
 };
 const MODULOS = Object.keys(MAP);
 let db={}
@@ -643,6 +721,7 @@ const ID_MAP_INDEX = {
     revisoes:'r_idx',fornecedores:'f_idx',licenciamento:'l_idx',
     tacografo:'t_idx',licencas:'le_idx',multas:'mu_idx',
     ferias:'fe_idx',
+    agendamentos:'ag_idx',
 }
 
 function exportarExcel(modulo) {
@@ -874,6 +953,30 @@ if(filtroMotorista){
         db.motoristas.map(m => `<option value="${m.motNome}">${m.motNome}</option>`).join('');
 }
 
+// SELECTS
+if(document.getElementById('agveiculo'))
+    document.getElementById('agveiculo').innerHTML = vOpt;
+
+if(document.getElementById('agmotorista'))
+    document.getElementById('agmotorista').innerHTML = mOpt;
+
+// LISTA
+document.getElementById('listaAgendamentos').innerHTML =
+    db.agendamentos.map((a,i)=>`
+<tr>
+<td>${a.agveiculo}</td>
+<td>${a.agmotorista}</td>
+<td>${formatarDataBR(a.agdata)}</td>
+<td>${a.aghora}</td>
+<td>${a.agdescricao}</td>
+<td><b>${a.agstatus}</b></td>
+<td>
+<button class="btn-edit" onclick="editar('agendamentos',${i})">✎</button>
+<button class="btn-del" onclick="deletar('agendamentos',${i})">✕</button>
+</td>
+</tr>
+`).join('');
+
 if(filtroPlaca){
     filtroPlaca.innerHTML = '<option value="">Todas</option>' +
         db.veiculos.map(v => `<option value="${v.vplaca}">${v.vplaca}</option>`).join('');
@@ -993,6 +1096,22 @@ db.ferias.forEach(f => {
     if(ctx && Object.keys(mData).length)
         chart = new Chart(ctx,{type:'bar',data:{labels:Object.keys(mData),datasets:[{label:'Investimento Total R$',data:Object.values(mData),backgroundColor:'#3b82f6'}]}});
 }
+// ALERTA AGENDAMENTOS HOJE
+db.agendamentos.forEach(a => {
+
+    if(!a.agdata) return;
+
+    let hoje = new Date().toISOString().split('T')[0];
+
+    if(a.agdata === hoje && a.agstatus === 'Agendado'){
+        alertas.push(`
+            <div class="alerta-item alerta-atencao">
+                📅 ${a.agveiculo} - ${a.agdescricao} (${a.aghora})
+            </div>
+        `);
+    }
+
+});
 
 function gerarRelatorioPDF() { window.print(); }
 function exportarBackup(){
