@@ -471,6 +471,7 @@ Criar Conta
                 <button class="btn-excel" onclick="exportarExcel('manutencoes')">📥 Exportar Excel</button>
             </div>
             <table class="table"><thead><tr><th>Veículo</th><th>Data</th><th>KM</th><th>Valor</th><th>Fornecedor</th><th>Serviço</th><th>Ações</th></tr></thead><tbody id="listaManutencao"></tbody></table>
+            <div id="paginacaoManutencoes"></div>
         </div>
     </div>
 
@@ -994,6 +995,8 @@ if(document.getElementById('agmotorista'))
     
     renderModulo('veiculos');
     renderModulo('multas');
+    renderModulo('fornecedores');
+    renderModulo('manutencoes');
     renderDashboard();
 
     document.getElementById('listaMotoristas').innerHTML = db.motoristas.map((m,i)=>`
