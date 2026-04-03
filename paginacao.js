@@ -102,6 +102,54 @@ function renderModulo(modulo) {
         renderPaginacao('veiculos','paginacaoVeiculos');
     }
 
+    if(modulo === 'fornecedores'){
+    const dados = getDadosPaginados('fornecedores');
+
+    document.getElementById('listaFornecedores').innerHTML =
+    dados.map((f,i)=>{
+        const realIndex = db.fornecedores.indexOf(f);
+        return `
+        <tr>
+        <td>${f.fnome}</td>
+        <td>${f.fresp}</td>
+        <td>${f.fcnpj}</td>
+        <td>${f.ftel}</td>
+        <td>
+        <button class="btn-edit" onclick="editar('fornecedores',${realIndex})">✎</button>
+        <button class="btn-del" onclick="deletar('fornecedores',${realIndex})">✕</button>
+        </td>
+        </tr>
+        `;
+    }).join('');
+
+    renderPaginacao('fornecedores','paginacaoFornecedores');
+}
+
+    if(modulo === 'manutencoes'){
+    const dados = getDadosPaginados('manutencoes');
+
+    document.getElementById('listaManutencao').innerHTML =
+    dados.map((m,i)=>{
+        const realIndex = db.manutencoes.indexOf(m);
+        return `
+        <tr>
+        <td>${m.mveiculo}</td>
+        <td>${formatarDataBR(m.mdata)}</td>
+        <td>${m.mkm}</td>
+        <td>${m.mvalor}</td>
+        <td>${m.mfornecedor}</td>
+        <td>${m.mservico}</td>
+        <td>
+        <button class="btn-edit" onclick="editar('manutencoes',${realIndex})">✎</button>
+        <button class="btn-del" onclick="deletar('manutencoes',${realIndex})">✕</button>
+        </td>
+        </tr>
+        `;
+    }).join('');
+
+    renderPaginacao('manutencoes','paginacaoManutencoes');
+}
+
     if(modulo === 'multas'){
         const dados = getDadosPaginados('multas');
 
@@ -136,4 +184,6 @@ function renderModulo(modulo) {
 function ativarPaginacao(){
     renderModulo('veiculos');
     renderModulo('multas');
+    renderModulo('fornecedores');
+    renderModulo('manutencoes');
 }
