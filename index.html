@@ -1083,7 +1083,7 @@ db.agendamentos.forEach(a => {
 
     if(!a.agdata) return;
 
-    // ❌ Ignorar cancelados ou concluídos
+    // ❌ Ignorar se não estiver como "Agendado"
     if(a.agstatus !== "Agendado") return;
 
     const hoje = new Date();
@@ -1092,40 +1092,19 @@ db.agendamentos.forEach(a => {
     const dataAg = new Date(a.agdata);
     dataAg.setHours(0,0,0,0);
 
-    const diff = (dataAg - hoje) / 86400000;
+    const diff = Math.ceil((dataAg - hoje) / 86400000);
 
-    // 🔴 ATRASADO
-    if(diff < 0){
-        alertas.push(`
-            <div class="alerta-item alerta-vencido">
-                📅 <b>${a.agveiculo}</b> - Agendamento ATRASADO (${formatarDataBR(a.agdata)})
-            </div>
-        `);
-    }
+    // Definindo a classe de cor baseada na urgência
+    let classeAlerta = "";
+    if(diff < 0) classeAlerta = "alerta-vencido";
+    else if(diff <= 7) classeAlerta = "alerta-atencao";
 
-    // 🟡 HOJE
-    else if(diff === 0){
+    // Mostra a descrição real do agendamento
+    if(diff <= 30) {
         alertas.push(`
-            <div class="alerta-item alerta-atencao">
-                📅 <b>${a.agveiculo}</b> - Agendamento HOJE (${a.aghora || "--"})
-            </div>
-        `);
-    }
-
-    // 🟠 PRÓXIMOS 7 DIAS
-    else if(diff <= 7){
-        alertas.push(`
-            <div class="alerta-item alerta-atencao">
-                📅 <b>${a.agveiculo}</b> - Agendamento em ${diff} dia(s)
-            </div>
-        `);
-    }
-
-    // 🔵 ATÉ 30 DIAS
-    else if(diff <= 30){
-        alertas.push(`
-            <div class="alerta-item">
-                📅 <b>${a.agveiculo}</b> - Agendado para daqui a ${diff} dia(s) (${formatarDataBR(a.agdata)})
+            <div class="alerta-item ${classeAlerta}">
+                📅 <b>${a.agveiculo}</b>: ${a.agdescricao} 
+                <br><small>Data: ${formatarDataBR(a.agdata)} às ${a.aghora || "--"}</small>
             </div>
         `);
     }
