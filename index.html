@@ -1080,35 +1080,36 @@ db.ferias.forEach(f => {
 // 📅 ALERTAS DE AGENDAMENTOS
 // ===============================
 db.agendamentos.forEach(a => {
-
     if(!a.agdata) return;
 
-    // ❌ Ignorar se não estiver como "Agendado"
+    // Remove o alerta se não estiver "Agendado" (ex: ao concluir, ele some)
     if(a.agstatus !== "Agendado") return;
 
     const hoje = new Date();
     hoje.setHours(0,0,0,0);
-
     const dataAg = new Date(a.agdata);
     dataAg.setHours(0,0,0,0);
 
     const diff = Math.ceil((dataAg - hoje) / 86400000);
 
-    // Definindo a classe de cor baseada na urgência
-    let classeAlerta = "";
-    if(diff < 0) classeAlerta = "alerta-vencido";
-    else if(diff <= 7) classeAlerta = "alerta-atencao";
-
-    // Mostra a descrição real do agendamento
+    // Só processa se estiver no intervalo de 30 dias (atrasados ou próximos)
     if(diff <= 30) {
+        let classeAlerta = "";
+        if(diff < 0) classeAlerta = "alerta-vencido";
+        else if(diff <= 7) classeAlerta = "alerta-atencao";
+
+        // LÓGICA SOLICITADA: Se não tem veículo (placa), mostra o motorista
+        const identificador = a.agveiculo && a.agveiculo.trim() !== "" 
+            ? a.agveiculo 
+            : (a.agmotorista || "Sem Identificação");
+
         alertas.push(`
             <div class="alerta-item ${classeAlerta}">
-                📅 <b>${a.agveiculo}</b>: ${a.agdescricao} 
+                📅 <b>${identificador}</b>: ${a.agdescricao}
                 <br><small>Data: ${formatarDataBR(a.agdata)} às ${a.aghora || "--"}</small>
             </div>
         `);
     }
-
 });
 
     const hoje = new Date();
