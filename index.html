@@ -1075,6 +1075,63 @@ db.ferias.forEach(f => {
     }
 
 });
+
+// ===============================
+// 📅 ALERTAS DE AGENDAMENTOS
+// ===============================
+db.agendamentos.forEach(a => {
+
+    if(!a.agdata) return;
+
+    // ❌ Ignorar cancelados ou concluídos
+    if(a.agstatus !== "Agendado") return;
+
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+
+    const dataAg = new Date(a.agdata);
+    dataAg.setHours(0,0,0,0);
+
+    const diff = (dataAg - hoje) / 86400000;
+
+    // 🔴 ATRASADO
+    if(diff < 0){
+        alertas.push(`
+            <div class="alerta-item alerta-vencido">
+                📅 <b>${a.agveiculo}</b> - Agendamento ATRASADO (${formatarDataBR(a.agdata)})
+            </div>
+        `);
+    }
+
+    // 🟡 HOJE
+    else if(diff === 0){
+        alertas.push(`
+            <div class="alerta-item alerta-atencao">
+                📅 <b>${a.agveiculo}</b> - Agendamento HOJE (${a.aghora || "--"})
+            </div>
+        `);
+    }
+
+    // 🟠 PRÓXIMOS 7 DIAS
+    else if(diff <= 7){
+        alertas.push(`
+            <div class="alerta-item alerta-atencao">
+                📅 <b>${a.agveiculo}</b> - Agendamento em ${diff} dia(s)
+            </div>
+        `);
+    }
+
+    // 🔵 ATÉ 30 DIAS
+    else if(diff <= 30){
+        alertas.push(`
+            <div class="alerta-item">
+                📅 <b>${a.agveiculo}</b> - Futuro (${diff} dias)
+            </div>
+        `);
+    }
+
+});
+
     const hoje = new Date();
     const analisar = (placa, tipo, data) => {
         if(!data) return;
@@ -1088,6 +1145,8 @@ db.ferias.forEach(f => {
     db.tacografo.forEach(t=>analisar(t.tveiculo,'Tacógrafo',t.tvencimento));
     db.multas.filter(m=>m.mustatus!=='Pago').forEach(mu=>analisar(mu.muveiculo,'Desc. Multa',mu.muvenc));
     db.licencas.forEach(le=>{ analisar(le.leveiculo,'CIV',le.venciv); analisar(le.leveiculo,'CIPP',le.vencipp); });
+    document.getElementById('listaAlertasRapidos').innerHTML = alertas.join('');
+    document.getElementById('d_alertas').innerText = alertas.length;
     document.getElementById('d_alertas').innerText = alertas.length;
     document.getElementById('listaAlertasRapidos').innerHTML = alertas.length ? alertas.join('') : '<div class="text-success p-3">✅ Frota em dia</div>';
     let mData={};
@@ -1098,22 +1157,6 @@ db.ferias.forEach(f => {
     if(ctx && Object.keys(mData).length)
         chart = new Chart(ctx,{type:'bar',data:{labels:Object.keys(mData),datasets:[{label:'Investimento Total R$',data:Object.values(mData),backgroundColor:'#3b82f6'}]}});
 }
-// ALERTA AGENDAMENTOS HOJE
-db.agendamentos.forEach(a => {
-
-    if(!a.agdata) return;
-
-    let hoje = new Date().toISOString().split('T')[0];
-
-    if(a.agdata === hoje && a.agstatus === 'Agendado'){
-        alertas.push(`
-            <div class="alerta-item alerta-atencao">
-                📅 ${a.agveiculo} - ${a.agdescricao} (${a.aghora})
-            </div>
-        `);
-    }
-
-});
 
 function gerarRelatorioPDF() { window.print(); }
 function exportarBackup(){
