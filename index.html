@@ -1125,7 +1125,7 @@ db.agendamentos.forEach(a => {
     else if(diff <= 30){
         alertas.push(`
             <div class="alerta-item">
-                📅 <b>${a.agveiculo}</b> - Futuro (${diff} dias)
+                📅 <b>${a.agveiculo}</b> - Agendado para daqui a ${diff} dia(s) (${formatarDataBR(a.agdata)})
             </div>
         `);
     }
