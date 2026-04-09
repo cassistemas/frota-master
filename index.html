@@ -846,8 +846,9 @@ function salvar(mod,campos,idCampo){
     else db[mod][idx]=obj
     
     limparForm(mod, campos, idCampo);
-    if(typeof PAGINACAO !== 'undefined'){
-    PAGINACAO.paginas[mod] = 1;
+    // mantém página atual (não reseta)
+if(typeof PAGINACAO !== 'undefined'){
+    PAGINACAO.paginas[mod] = PAGINACAO.paginas[mod] || 1;
 }
     salvarNuvem()
 }
@@ -874,8 +875,11 @@ function deletar(mod,i){
 
         // RESET PAGINA
         if(typeof PAGINACAO !== 'undefined'){
-            PAGINACAO.paginas[mod] = 1;
-        }
+            const totalPaginas = Math.ceil(db[mod].length / PAGINACAO.itensPorPagina);
+
+if(PAGINACAO.paginas[mod] > totalPaginas){
+    PAGINACAO.paginas[mod] = totalPaginas || 1;
+}
 
         salvarNuvem();
     }
