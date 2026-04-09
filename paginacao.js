@@ -150,7 +150,9 @@ function renderModulo(modulo) {
     renderPaginacao('manutencoes','paginacaoManutencoes');
 }
 
-   let base = multasFiltradas.length ? multasFiltradas : db.multas;
+if(modulo === 'multas'){
+
+let base = multasFiltradas.length ? multasFiltradas : db.multas;
 
 const pagina = obterPagina('multas');
 const inicio = (pagina - 1) * PAGINACAO.itensPorPagina;
@@ -177,6 +179,8 @@ const dados = base.slice(inicio, fim);
             </tr>
             `;
         }).join('');
+
+        // 🔥 TOTAL
        let total = base.reduce((soma, m) => {
     return soma + moedaParaFloat(m.muvalor);
 }, 0);
