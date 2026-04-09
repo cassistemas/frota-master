@@ -261,11 +261,52 @@ Criar Conta
                 </div>
             </div>
         </div>
-        <div class="glass-container">
-            <div class="d-flex justify-content-between mb-3">
-                <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar multas..." onkeyup="filtrarTabela('listaMultas', this.value)">
-                <button class="btn-excel" onclick="exportarExcel('multas')">📥 Exportar Excel</button>
-            </div>
+       <div class="glass-container">
+
+    <!-- 🔥 FILTROS COMPLETOS -->
+    <div class="row g-2 mb-3">
+
+        <div class="col-md-2">
+            <label>Data Inicial</label>
+            <input type="date" id="filtroMuDataIni" class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <label>Data Final</label>
+            <input type="date" id="filtroMuDataFim" class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <label>Placa</label>
+            <select id="filtroMuPlaca" class="form-select">
+            <option value="">Todas</option>
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <label>Motorista</label>
+            <select id="filtroMuMotorista" class="form-select">
+           <option value="">Todos</option>
+           </select>
+        </div>
+
+        <div class="col-md-2">
+            <label>AIT</label>
+            <input type="text" id="filtroMuAIT" class="form-control">
+        </div>
+
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100" onclick="filtrarMultas()">Filtrar</button>
+            <button class="btn btn-secondary w-100 mt-1" onclick="limparFiltroMultas()">Limpar</button>
+        </div>
+
+    </div>
+
+    <!-- 🔎 PESQUISA ANTIGA -->
+    <div class="d-flex justify-content-between mb-3">
+        <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar multas..." onkeyup="filtrarTabela('listaMultas', this.value)">
+        <button class="btn-excel" onclick="exportarExcel('multas')">📥 Exportar Excel</button>
+    </div>
            <table class="table">
 <thead>
 <tr>
@@ -869,6 +910,18 @@ function deletar(mod,i){
     }
 }
 
+function limparFiltroMultas(){
+    document.getElementById('filtroMuDataIni').value = '';
+    document.getElementById('filtroMuDataFim').value = '';
+    document.getElementById('filtroMuPlaca').value = '';
+    document.getElementById('filtroMuMotorista').value = '';
+    document.getElementById('filtroMuAIT').value = '';
+
+    multasFiltradas = [];
+
+    renderModulo('multas');
+}
+
 function filtrarTabela(idTabela, termo) {
     let trs = document.getElementById(idTabela).getElementsByTagName('tr');
     termo = termo.toLowerCase();
@@ -950,6 +1003,20 @@ let filtroMotorista = document.getElementById("filtroMotorista");
 
 if(filtroMotorista){
     filtroMotorista.innerHTML = '<option value="">Todos</option>' +
+        db.motoristas.map(m => `<option value="${m.motNome}">${m.motNome}</option>`).join('');
+}
+
+// 🔥 FILTRO MULTAS - PLACA
+let filtroMuPlaca = document.getElementById("filtroMuPlaca");
+if(filtroMuPlaca){
+    filtroMuPlaca.innerHTML = '<option value="">Todas</option>' +
+        db.veiculos.map(v => `<option value="${v.vplaca}">${v.vplaca}</option>`).join('');
+}
+
+// 🔥 FILTRO MULTAS - MOTORISTA
+let filtroMuMotorista = document.getElementById("filtroMuMotorista");
+if(filtroMuMotorista){
+    filtroMuMotorista.innerHTML = '<option value="">Todos</option>' +
         db.motoristas.map(m => `<option value="${m.motNome}">${m.motNome}</option>`).join('');
 }
 
@@ -1819,6 +1886,35 @@ function carregarPermissoesAdmin(){
 
     });
 
+}
+
+let multasFiltradas = [];
+
+function filtrarMultas(){
+
+    let dataIni = document.getElementById('filtroMuDataIni').value;
+    let dataFim = document.getElementById('filtroMuDataFim').value;
+    let placa = document.getElementById('filtroMuPlaca').value;
+    let motorista = document.getElementById('filtroMuMotorista').value;
+    let ait = document.getElementById('filtroMuAIT').value.toLowerCase();
+
+    multasFiltradas = db.multas.filter(m => {
+
+        let ok = true;
+
+        if(dataIni && m.mudata < dataIni) ok = false;
+        if(dataFim && m.mudata > dataFim) ok = false;
+
+        if(placa && m.muveiculo !== placa) ok = false;
+        if(motorista && m.mumotorista !== motorista) ok = false;
+        if(ait && !(m.muait || '').toLowerCase().includes(ait)) ok = false;
+
+        return ok;
+    });
+
+    PAGINACAO.paginas['multas'] = 1;
+
+    renderModulo('multas');
 }
 
 </script>
