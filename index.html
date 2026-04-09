@@ -261,6 +261,49 @@ Criar Conta
                 </div>
             </div>
         </div>
+<div class="glass-container mb-3">
+    <div class="row g-2">
+
+        <div class="col-md-2">
+            <label>Veículo</label>
+            <select id="filtroMuVeiculo" class="form-select">
+                <option value="">Todos</option>
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <label>Motorista</label>
+            <select id="filtroMuMotorista" class="form-select">
+                <option value="">Todos</option>
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <label>AIT</label>
+            <input id="filtroMuAIT" class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <label>Data Inicial</label>
+            <input type="date" id="filtroMuDataIni" class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <label>Data Final</label>
+            <input type="date" id="filtroMuDataFim" class="form-control">
+        </div>
+
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100" onclick="filtrarMultas()">Filtrar</button>
+        </div>
+
+    </div>
+
+    <div class="mt-3">
+        <b>Total filtrado: </b>
+        <span id="totalMultas">R$ 0,00</span>
+    </div>
+</div>
         <div class="glass-container">
             <div class="d-flex justify-content-between mb-3">
                 <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar multas..." onkeyup="filtrarTabela('listaMultas', this.value)">
