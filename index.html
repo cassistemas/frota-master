@@ -499,11 +499,10 @@ Criar Conta
                 <div class="col-md-2"><input id="mkm" class="form-control" type="number" placeholder="KM"></div>
                 <div class="col-md-2"><input id="mvalor" class="form-control" placeholder="Valor R$" oninput="mascaraMoeda(this)"></div>
                 <div class="col-md-3"><select id="mfornecedor" class="form-select"></select></div>
-                <div class="col-md-3"><select id="mtipo" class="form-select"><option value="">Tipo de Manutenção</option><option value="Mecânica">Mecânica</option><option value="Lavação">Lavação</option><option value="Acessórios">Acessórios</option></select></div>
                 <div class="col-md-12 mt-2"><input id="mservico" class="form-control" placeholder="Descrição do Serviço"></div>
                 <div class="col-md-12 text-end">
                     <button id="btn_cancel_manutencoes" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('manutencoes',['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico'],'man_idx')">Cancelar</button>
-                    <button class="btn btn-success" onclick="salvar('manutencoes',['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico','mtipo'],'man_idx')">Salvar</button>
+                    <button class="btn btn-success" onclick="salvar('manutencoes',['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico'],'man_idx')">Salvar</button>
                 </div>
             </div>
         </div>
@@ -512,24 +511,8 @@ Criar Conta
                 <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaManutencao', this.value)">
                 <button class="btn-excel" onclick="exportarExcel('manutencoes')">📥 Exportar Excel</button>
             </div>
-            <table class="table">
-            <thead>
-            <tr>
-            <th>Veículo</th>
-            <th>Data</th>
-            <th>KM</th>
-            <th>Valor</th>
-            <th>Fornecedor</th>
-            <th>Serviço</th>
-            <th>Tipo</th>
-            <th>Ações</th>
-            </tr>
-            </thead>
-
-           <tbody id="listaManutencao"></tbody>
-          </table>
-
-          <div id="paginacaoManutencoes"></div>
+            <table class="table"><thead><tr><th>Veículo</th><th>Data</th><th>KM</th><th>Valor</th><th>Fornecedor</th><th>Serviço</th><th>Ações</th></tr></thead><tbody id="listaManutencao"></tbody></table>
+            <div id="paginacaoManutencoes"></div>
         </div>
     </div>
 
