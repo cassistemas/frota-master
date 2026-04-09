@@ -139,6 +139,7 @@ function renderModulo(modulo) {
         <td>${m.mvalor}</td>
         <td>${m.mfornecedor}</td>
         <td>${m.mservico}</td>
+        <td>${m.mtipo || '--'}</td>
         <td>
         <button class="btn-edit" onclick="editar('manutencoes',${realIndex})">✎</button>
         <button class="btn-del" onclick="deletar('manutencoes',${realIndex})">✕</button>
@@ -193,7 +194,6 @@ document.getElementById('listaMultas').innerHTML += `
 `;
         renderPaginacao('multas','paginacaoMultas');
     }
-}
 
 // ==========================
 // HOOK GLOBAL
