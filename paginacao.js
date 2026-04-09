@@ -138,6 +138,7 @@ function renderModulo(modulo) {
         <td>${m.mkm}</td>
         <td>${m.mvalor}</td>
         <td>${m.mfornecedor}</td>
+        <td>${m.mtipo || '-'}</td>
         <td>${m.mservico}</td>
         <td>
         <button class="btn-edit" onclick="editar('manutencoes',${realIndex})">✎</button>
