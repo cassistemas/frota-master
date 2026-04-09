@@ -189,7 +189,6 @@ document.getElementById('listaMultas').innerHTML += `
 `;
         renderPaginacao('multas','paginacaoMultas');
     }
-}
 
 // ==========================
 // HOOK GLOBAL
