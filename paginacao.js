@@ -153,7 +153,7 @@ function renderModulo(modulo) {
     if(modulo === 'multas'){
 
     if(!window.filtrosMultasCarregado){
-        carregarFiltrosMultas();
+        carregarFiltrosMultas(); // sempre atualiza
         window.filtrosMultasCarregado = true;
     }
 
@@ -205,16 +205,30 @@ function carregarFiltrosMultas(){
 
     if(!selVeiculo || !selMotorista) return;
 
+    // limpa completamente
     selVeiculo.innerHTML = `<option value="">Todos</option>`;
     selMotorista.innerHTML = `<option value="">Todos</option>`;
 
-    db.veiculos.forEach(v=>{
-        selVeiculo.innerHTML += `<option value="${v.vplaca}">${v.vplaca}</option>`;
+    // 🔥 evita erro
+    const veiculos = db.veiculos || [];
+    const motoristas = db.motoristas || [];
+
+    // 🔥 remove duplicados
+    const placasUnicas = [...new Set(veiculos.map(v => v.vplaca))];
+    const motoristasUnicos = [...new Set(motoristas.map(m => m.motNome))];
+
+    // 🔥 preenche veículos
+    placasUnicas.forEach(placa=>{
+        if(placa){
+            selVeiculo.innerHTML += `<option value="${placa}">${placa}</option>`;
+        }
     });
 
-   if(db.motoristas){
-    db.motoristas.forEach(m=>{
-        selMotorista.innerHTML += `<option value="${m.motNome}">${m.motNome}</option>`;
+    // 🔥 preenche motoristas
+    motoristasUnicos.forEach(nome=>{
+        if(nome){
+            selMotorista.innerHTML += `<option value="${nome}">${nome}</option>`;
+        }
     });
 }
 // ==========================
