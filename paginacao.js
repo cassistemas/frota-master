@@ -212,18 +212,18 @@ function carregarFiltrosMultas(){
         selVeiculo.innerHTML += `<option value="${v.vplaca}">${v.vplaca}</option>`;
     });
 
+   if(db.motoristas){
     db.motoristas.forEach(m=>{
         selMotorista.innerHTML += `<option value="${m.motNome}">${m.motNome}</option>`;
     });
 }
-
 // ==========================
 
 function filtrarMultas(){
 
     const veiculo = document.getElementById('filtroMuVeiculo').value;
     const motorista = document.getElementById('filtroMuMotorista').value;
-    const ait = document.getElementById('filtroMuAIT').value.toLowerCase();
+    const ait = (document.getElementById('filtroMuAIT').value || '').toLowerCase();
     const dataIni = document.getElementById('filtroMuDataIni').value;
     const dataFim = document.getElementById('filtroMuDataFim').value;
 
@@ -234,8 +234,8 @@ function filtrarMultas(){
 
         if(ait && !(m.muait || '').toLowerCase().includes(ait)) return false;
 
-        if(dataIni && m.mudata < dataIni) return false;
-        if(dataFim && m.mudata > dataFim) return false;
+        if(dataIni && new Date(m.mudata) < new Date(dataIni)) return false;
+        if(dataFim && new Date(m.mudata) > new Date(dataFim)) return false;
 
         return true;
     });
