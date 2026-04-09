@@ -151,6 +151,9 @@ function renderModulo(modulo) {
 }
 
     if(modulo === 'multas'){
+
+        carregarFiltrosMultas();        
+ 
         const dados = getDadosPaginados('multas');
 
         document.getElementById('listaMultas').innerHTML =
@@ -188,3 +191,87 @@ function ativarPaginacao(){
     renderModulo('manutencoes');
 }
 
+// ==========================
+// FILTROS DE MULTAS
+// ==========================
+
+function carregarFiltrosMultas(){
+
+    const selVeiculo = document.getElementById('filtroMuVeiculo');
+    const selMotorista = document.getElementById('filtroMuMotorista');
+
+    if(!selVeiculo || !selMotorista) return;
+
+    selVeiculo.innerHTML = `<option value="">Todos</option>`;
+    selMotorista.innerHTML = `<option value="">Todos</option>`;
+
+    db.veiculos.forEach(v=>{
+        selVeiculo.innerHTML += `<option value="${v.vplaca}">${v.vplaca}</option>`;
+    });
+
+    db.motoristas.forEach(m=>{
+        selMotorista.innerHTML += `<option value="${m.motNome}">${m.motNome}</option>`;
+    });
+}
+
+// ==========================
+
+function filtrarMultas(){
+
+    const veiculo = document.getElementById('filtroMuVeiculo').value;
+    const motorista = document.getElementById('filtroMuMotorista').value;
+    const ait = document.getElementById('filtroMuAIT').value.toLowerCase();
+    const dataIni = document.getElementById('filtroMuDataIni').value;
+    const dataFim = document.getElementById('filtroMuDataFim').value;
+
+    let filtradas = db.multas.filter(m => {
+
+        if(veiculo && m.muveiculo !== veiculo) return false;
+        if(motorista && m.mumotorista !== motorista) return false;
+
+        if(ait && !(m.muait || '').toLowerCase().includes(ait)) return false;
+
+        if(dataIni && m.mudata < dataIni) return false;
+        if(dataFim && m.mudata > dataFim) return false;
+
+        return true;
+    });
+
+    renderMultasFiltradas(filtradas);
+}
+
+// ==========================
+
+function renderMultasFiltradas(lista){
+
+    let total = 0;
+
+    document.getElementById('listaMultas').innerHTML =
+    lista.map((mu)=>{
+
+        const valor = parseFloat(
+            (mu.muvalor || '0')
+            .replace('R$','')
+            .replace(/\./g,'')
+            .replace(',','.')
+        );
+
+        total += valor;
+
+        return `
+        <tr>
+            <td>${mu.muveiculo}</td>
+            <td>${mu.mumotorista}</td>
+            <td><b>${mu.muait || '---'}</b></td>
+            <td>${formatarDataBR(mu.mudata)}</td>
+            <td>${formatarDataBR(mu.muvenc)}</td>
+            <td><b>${mu.muvalor}</b></td>
+            <td>${mu.mustatus}</td>
+            <td></td>
+        </tr>
+        `;
+    }).join('');
+
+    document.getElementById('totalMultas').innerText =
+        total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+}
