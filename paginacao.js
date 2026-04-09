@@ -77,6 +77,19 @@ function renderPaginacao(modulo, containerId) {
 
 function renderModulo(modulo) {
 
+    // 🔥 GARANTE QUE NÃO VOLTE PRA PÁGINA 1
+    const total = db[modulo].length;
+    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
+
+    if (!PAGINACAO.paginas[modulo]) {
+        PAGINACAO.paginas[modulo] = 1;
+    }
+
+    // 🔥 AJUSTA SE PASSAR DO LIMITE
+    if (PAGINACAO.paginas[modulo] > totalPaginas) {
+        PAGINACAO.paginas[modulo] = totalPaginas || 1;
+    }
+
     const btnSet = (m,i) => `<td><button class="btn-edit" onclick="editar('${m}',${i})">✎</button><button class="btn-del" onclick="deletar('${m}',${i})">✕</button></td>`;
 
     if(modulo === 'veiculos'){
