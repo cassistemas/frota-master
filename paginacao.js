@@ -249,14 +249,18 @@ function renderMultasFiltradas(lista){
     document.getElementById('listaMultas').innerHTML =
     lista.map((mu)=>{
 
-        const valor = parseFloat(
-            (mu.muvalor || '0')
-            .replace('R$','')
-            .replace(/\./g,'')
-            .replace(',','.')
-        );
+        let valor = 0;
 
-        total += valor;
+if(mu.muvalor){
+    valor = parseFloat(
+        mu.muvalor
+        .replace('R$','')
+        .replace(/\./g,'')
+        .replace(',','.')
+    ) || 0;
+}
+
+total += valor;
 
         return `
         <tr>
@@ -274,4 +278,11 @@ function renderMultasFiltradas(lista){
 
     document.getElementById('totalMultas').innerText =
         total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+
+document.getElementById('totalMultas').innerText =
+    total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+
+// 🔥 CORREÇÃO: remove paginação quando filtra
+document.getElementById('paginacaoMultas').innerHTML = '';
+    
 }
