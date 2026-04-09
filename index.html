@@ -973,6 +973,9 @@ function iniciarSistema(){
     Object.keys(MAP).forEach(mod=>{
         escutarDados(mod);
     });
+setTimeout(() => {
+    renderTudo();
+}, 1500);
 
     // 🔥 IMPORTANTE: carregar lista usuários
     escutarUsuarios();
@@ -983,15 +986,16 @@ function iniciarSistema(){
 function escutarDados(modulo){
 
     dbCloud.collection("frota")
-    .doc(modulo)
-    .onSnapshot(doc => {
+.doc(modulo)
+.onSnapshot(doc => {
+    if(doc.exists){
+        db[modulo] = doc.data().dados || [];
 
-        if(doc.exists){
-            db[modulo] = doc.data().dados || [];
-            renderTudo();
-        }
+        console.log("Atualizou:", modulo, db[modulo]); // 👈 ADICIONE ISSO
 
-    });
+        renderTudo();
+    }
+});
 
 }
 
@@ -1008,14 +1012,14 @@ if(filtroMotorista){
 
 // 🔥 FILTRO MULTAS - PLACA
 let filtroMuPlaca = document.getElementById("filtroMuPlaca");
-if(filtroMuPlaca){
+if(filtroMuPlaca && db.veiculos.length){
     filtroMuPlaca.innerHTML = '<option value="">Todas</option>' +
         db.veiculos.map(v => `<option value="${v.vplaca}">${v.vplaca}</option>`).join('');
 }
 
 // 🔥 FILTRO MULTAS - MOTORISTA
 let filtroMuMotorista = document.getElementById("filtroMuMotorista");
-if(filtroMuMotorista){
+if(filtroMuMotorista && db.motoristas.length){
     filtroMuMotorista.innerHTML = '<option value="">Todos</option>' +
         db.motoristas.map(m => `<option value="${m.motNome}">${m.motNome}</option>`).join('');
 }
