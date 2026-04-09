@@ -1115,6 +1115,10 @@ document.getElementById('listaFerias').innerHTML =
     document.getElementById('listaFornecedores').innerHTML = db.fornecedores.map((f,i)=>`<tr><td><b>${f.fnome}</b></td><td>${f.fresp}</td><td>${f.fcnpj}</td><td>${f.ftel}</td>${btnSet('fornecedores',i)}</tr>`).join('');
 
     ativarPaginacao();
+    renderModulo('veiculos');
+    renderModulo('multas');
+    renderModulo('fornecedores');
+    renderModulo('manutencoes');
 }
 
 function renderDashboard(){
