@@ -150,15 +150,8 @@ function renderModulo(modulo) {
     renderPaginacao('manutencoes','paginacaoManutencoes');
 }
 
-if(modulo === 'multas'){
-
-let base = multasFiltradas.length ? multasFiltradas : db.multas;
-
-const pagina = obterPagina('multas');
-const inicio = (pagina - 1) * PAGINACAO.itensPorPagina;
-const fim = inicio + PAGINACAO.itensPorPagina;
-
-const dados = base.slice(inicio, fim);
+    if(modulo === 'multas'){
+        const dados = getDadosPaginados('multas');
 
         document.getElementById('listaMultas').innerHTML =
         dados.map((mu,i)=>{
@@ -180,17 +173,6 @@ const dados = base.slice(inicio, fim);
             `;
         }).join('');
 
-        // 🔥 TOTAL
-       let total = base.reduce((soma, m) => {
-    return soma + moedaParaFloat(m.muvalor);
-}, 0);
-
-document.getElementById('listaMultas').innerHTML += `
-<tr style="font-weight:bold;background:#f1f5f9">
-<td colspan="5">TOTAL</td>
-<td colspan="3">${floatParaMoeda(total)}</td>
-</tr>
-`;
         renderPaginacao('multas','paginacaoMultas');
     }
 }
