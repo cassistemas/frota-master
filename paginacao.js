@@ -152,9 +152,12 @@ function renderModulo(modulo) {
 
     if(modulo === 'multas'){
 
-        carregarFiltrosMultas();        
- 
-        const dados = getDadosPaginados('multas');
+    if(!window.filtrosMultasCarregado){
+        carregarFiltrosMultas();
+        window.filtrosMultasCarregado = true;
+    }
+
+    const dados = getDadosPaginados('multas');
 
         document.getElementById('listaMultas').innerHTML =
         dados.map((mu,i)=>{
@@ -238,6 +241,18 @@ function filtrarMultas(){
     });
 
     renderMultasFiltradas(filtradas);
+}
+
+function limparFiltroMultas(){
+
+    document.getElementById('filtroMuVeiculo').value = '';
+    document.getElementById('filtroMuMotorista').value = '';
+    document.getElementById('filtroMuAIT').value = '';
+    document.getElementById('filtroMuDataIni').value = '';
+    document.getElementById('filtroMuDataFim').value = '';
+
+    // 🔥 volta para lista normal
+    renderModulo('multas');
 }
 
 // ==========================
