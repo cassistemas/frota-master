@@ -253,8 +253,11 @@ Criar Conta
     <div id="previewArquivos" class="mt-2"></div>
 </div>
 </div>
+                <div class="col-md-12">
+    <input id="muobs" class="form-control" placeholder="Observações (ex: motorista contestou, radar escondido, etc)">
+</div>
                 <div class="col-md-12 text-end">
-                    <button id="btn_cancel_multas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('multas',['muveiculo','mumotorista','muinfracao','muait','mudata','muvenc','muvalor','mustatus'],'mu_idx')">Cancelar</button>
+                    <button id="btn_cancel_multas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('multas',['muveiculo','mumotorista','muinfracao','muait','mudata','muvenc','muvalor','mustatus','muobs'],'mu_idx')">Cancelar</button>
                     <button class="btn btn-danger" onclick="salvarMulta()">
                     Salvar Multa
                     </button>
@@ -276,6 +279,7 @@ Criar Conta
 <th>Venc. Desconto</th>
 <th>Valor</th>
 <th>Status</th>
+<th>Obs</th>
 <th>Ações</th>
 </tr>
 </thead>
@@ -1160,6 +1164,7 @@ let obj = {
     muvenc: document.getElementById("muvenc").value,
     muvalor: document.getElementById("muvalor").value,
     mustatus: document.getElementById("mustatus").value,
+    muobs: document.getElementById("muobs").value,
     arquivos: []
 
 }
@@ -1228,7 +1233,7 @@ document.getElementById("muarquivos").value=""
 
 limparForm(
 'multas',
-['muveiculo','mumotorista','muinfracao','muait','mudata','muvenc','muvalor','mustatus'],
+['muveiculo','mumotorista','muinfracao','muait','mudata','muvenc','muvalor','mustatus','muobs'],
 'mu_idx'
 )
 
