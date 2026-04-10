@@ -21,7 +21,14 @@ const PAGINACAO = {
 };
 
 function obterPagina(modulo) {
-    if (!PAGINACAO.paginas[modulo]) PAGINACAO.paginas[modulo] = 1;
+    const total = db[modulo]?.length || 0;
+    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
+
+    // Se ainda não existe página definida, começa pela última
+    if (!PAGINACAO.paginas[modulo]) {
+        PAGINACAO.paginas[modulo] = totalPaginas > 0 ? totalPaginas : 1;
+    }
+
     return PAGINACAO.paginas[modulo];
 }
 
@@ -47,6 +54,13 @@ function getDadosPaginados(modulo) {
     const fim = inicio + PAGINACAO.itensPorPagina;
 
     return db[modulo].slice(inicio, fim);
+}
+
+function irParaUltimaPagina(modulo){
+    const total = db[modulo]?.length || 0;
+    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
+
+    PAGINACAO.paginas[modulo] = totalPaginas > 0 ? totalPaginas : 1;
 }
 
 function renderPaginacao(modulo, containerId) {
@@ -76,6 +90,10 @@ function renderPaginacao(modulo, containerId) {
 // ==========================
 
 function renderModulo(modulo) {
+
+if (!PAGINACAO.paginas[modulo]) {
+    irParaUltimaPagina(modulo);
+}
 
     const btnSet = (m,i) => `<td><button class="btn-edit" onclick="editar('${m}',${i})">✎</button><button class="btn-del" onclick="deletar('${m}',${i})">✕</button></td>`;
 
@@ -165,6 +183,7 @@ function renderModulo(modulo) {
             <td>${formatarDataBR(mu.muvenc)}</td>
             <td><b>${mu.muvalor}</b></td>
             <td><span class="badge ${mu.mustatus=='Pago'?'bg-success':'bg-danger'}">${mu.mustatus}</span></td>
+            <td>${mu.muobs || '--'}</td>
             <td>
             <button class="btn-edit" onclick="editar('multas',${realIndex})">✎</button>
             <button class="btn-del" onclick="deletar('multas',${realIndex})">✕</button>
@@ -182,6 +201,12 @@ function renderModulo(modulo) {
 // ==========================
 
 function ativarPaginacao(){
+
+    irParaUltimaPagina('veiculos');
+    irParaUltimaPagina('multas');
+    irParaUltimaPagina('fornecedores');
+    irParaUltimaPagina('manutencoes');
+
     renderModulo('veiculos');
     renderModulo('multas');
     renderModulo('fornecedores');
