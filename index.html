@@ -164,6 +164,11 @@ Criar Conta
         <div class="glass-container">
     <div class="row g-2">
 
+<div class="glass-container">
+    <h6>Média de Consumo</h6>
+    <h3 id="mediaKM">--</h3>
+</div>
+
         <div class="col-md-2">
             <label>Data Inicial</label>
             <input type="date" id="filtroDataIni" class="form-control">
@@ -194,6 +199,7 @@ Criar Conta
                 <option value="">Todos</option>
                 <option value="multas">Multas</option>
                 <option value="manutencoes">Manutenções</option>
+                <option value="combustivel">Combustível</option>
             </select>
         </div>
 
@@ -513,6 +519,10 @@ Criar Conta
                 <input id="cvalorlitro" class="form-control" placeholder="Valor/L">
             </div>
 
+            <div class="col-md-2">
+            <input id="ckm" class="form-control" placeholder="KM Atual">
+            </div>
+
             <div class="col-md-3">
                 <input id="cposto" class="form-control" placeholder="Posto">
             </div>
@@ -522,36 +532,6 @@ Criar Conta
                 <button class="btn btn-outline-secondary" onclick="limparForm('combustivel', ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'cposto'], 'c_idx')">Cancelar</button>            </div>
         </div>
     </div>
-
-  <div class="row g-2 mb-3">
-
-    <div class="col-md-3">
-        <select id="filtroVeiculoComb" class="form-select"></select>
-    </div>
-
-    <div class="col-md-2">
-        <input type="date" id="filtroDataIniComb" class="form-control">
-    </div>
-
-    <div class="col-md-2">
-        <input type="date" id="filtroDataFimComb" class="form-control">
-    </div>
-
-    <div class="col-md-2">
-        <select id="filtroTipoComb" class="form-select">
-            <option value="">Todos</option>
-            <option>Gasolina</option>
-            <option>Diesel S500</option>
-            <option>Diesel S10</option>
-            <option>Arla32</option>
-        </select>
-    </div>
-
-    <div class="col-md-3">
-        <button class="btn btn-primary w-100" onclick="filtrarCombustivel()">Filtrar</button>
-    </div>
-
-</div>
 
     <div class="glass-container">
 
@@ -565,6 +545,7 @@ Criar Conta
                     <th>Veículo</th>
                     <th>Data</th>
                     <th>Tipo</th>
+                    <th>KM</th>
                     <th>Litros</th>
                     <th>Valor/L</th>
                     <th>Total</th>
@@ -829,7 +810,7 @@ const ID_MAP_INDEX = {
     revisoes:'r_idx',fornecedores:'f_idx',licenciamento:'l_idx',
     tacografo:'t_idx',licencas:'le_idx',multas:'mu_idx',
     ferias:'fe_idx',
-    agendamentos:'ag_idx',
+    agendamentos:'ag_idx',combustivel: 'c_idx',
 }
 
 function exportarExcel(modulo) {
@@ -926,6 +907,11 @@ if(usuarioLogado.tipo !== "admin"){
     document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'))
     el.classList.add('active')
     renderTudo()
+  
+    if(modulo === 'dashboard'){
+    calcularMediaConsumo();
+}
+    
 }
 
 function salvar(mod,campos,idCampo){
@@ -1020,15 +1006,48 @@ function carregarFiltroVeiculosComb(){
 }
 
 function salvarCombustivelCustom() {
-    const campos = ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'cposto'];
+    const campos = ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'ckm', 'cposto'];
     const idxCampo = 'c_idx';
 
-    // Salva os dados
+    let km = document.getElementById('ckm').value;
+km = parseFloat(km) || 0;
+
+document.getElementById('ckm').value = km;
+
+    // 🔥 PEGAR VALORES
+    let litros = document.getElementById('clitros').value;
+    let valor = document.getElementById('cvalorlitro').value;
+
+    // 🔥 CORRIGIR VÍRGULA → PONTO
+    litros = parseFloat(String(litros).replace(',', '.')) || 0;
+    valor = parseFloat(String(valor).replace(',', '.')) || 0;
+
+    // 🔥 CALCULAR TOTAL
+    const total = litros * valor;
+
+    // 🔥 SALVAR NOS CAMPOS
+    document.getElementById('clitros').value = litros;
+    document.getElementById('cvalorlitro').value = valor;
+
+    // salva normalmente
     salvar('combustivel', campos, idxCampo);
-    
-    // ATENÇÃO: Estas duas linhas abaixo fazem a tabela atualizar na hora
+
+    // 🔥 SALVAR TOTAL NO ÚLTIMO REGISTRO
+    const ultimo = db.combustivel.length - 1;
+    db.combustivel[ultimo].ctotal = total;
+
+    // atualizar tela
     irParaUltimaPagina('combustivel');
     renderModulo('combustivel');
+    calcularMediaConsumo();
+    document.getElementById('mediaKM').innerText = calcularMediaKM();
+
+// 🔥 ATUALIZA MÉDIA
+    document.getElementById('mediaKM').innerText = calcularMediaKM();
+
+// AUTO-UPDATE DASHBOARD
+    calcularMediaConsumo();
+
 }
 
 function filtrarCombustivel(){
@@ -1048,19 +1067,123 @@ function filtrarCombustivel(){
     });
 
     document.getElementById('listaCombustivel').innerHTML =
-    dados.map(c => `
+    dados.map(c => {
+
+        // 🔥 GARANTIR NÚMEROS CORRETOS
+        const litros = parseFloat(String(c.clitros).replace(',', '.')) || 0;
+        const valor = parseFloat(String(c.cvalorlitro).replace(',', '.')) || 0;
+
+        // 🔥 CALCULAR TOTAL SEMPRE
+        const total = litros * valor;
+
+        // 🔥 FORMATAR BONITO
+        const totalFormatado = total.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        });
+
+        const valorFormatado = valor.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        });
+
+        return `
         <tr>
         <td>${c.cveiculo}</td>
         <td>${formatarDataBR(c.cdata)}</td>
         <td>${c.ctipo}</td>
-        <td>${c.clitros}</td>
-        <td>${c.cvalorlitro}</td>
-        <td>${c.ctotal.toFixed(2)}</td>
-        <td>${c.cmedia}</td>
+        <td>${c.ckm || '--'}</td>
+        <td>${litros}</td>
+        <td>${valorFormatado}</td>
+        <td><b>${totalFormatado}</b></td>
+        <td>--</td>
         <td>${c.cposto}</td>
         <td></td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
+}
+
+function calcularMediaConsumo() {
+    // 1. Pegar valores dos filtros diretamente da tela
+    const filtroPlaca = document.getElementById('filtroPlaca')?.value || '';
+    const filtroDataIni = document.getElementById('filtroDataIni')?.value || '';
+    const filtroDataFim = document.getElementById('filtroDataFim')?.value || '';
+
+    if (!db.combustivel || db.combustivel.length < 2) {
+        document.getElementById('mediaKM').innerText = '--';
+        return;
+    }
+
+    // 2. Filtrar os dados
+    let dados = [...db.combustivel];
+
+    if (filtroPlaca) {
+        dados = dados.filter(c => c.cveiculo === filtroPlaca);
+    }
+    if (filtroDataIni) {
+        dados = dados.filter(c => c.cdata >= filtroDataIni);
+    }
+    if (filtroDataFim) {
+        dados = dados.filter(c => c.cdata <= filtroDataFim);
+    }
+
+    // 3. Ordenar por KM para garantir que o cálculo de distância faça sentido
+    dados.sort((a, b) => (parseFloat(a.ckm) || 0) - (parseFloat(b.ckm) || 0));
+
+    if (dados.length < 2) {
+        document.getElementById('mediaKM').innerText = '--';
+        return;
+    }
+
+    // 4. Cálculo de Média (Diferença de KM / Soma de Litros)
+    const kmInicial = parseFloat(dados[0].ckm) || 0;
+    const kmFinal = parseFloat(dados[dados.length - 1].ckm) || 0;
+    const distTotal = kmFinal - kmInicial;
+
+    // Somamos os litros de todos os abastecimentos exceto o primeiro 
+    // (Pois o primeiro KM apenas inicia a contagem do ciclo)
+    let totalLitros = 0;
+    for (let i = 1; i < dados.length; i++) {
+        totalLitros += parseFloat(String(dados[i].clitros).replace(',', '.')) || 0;
+    }
+
+    if (totalLitros > 0 && distTotal > 0) {
+        const media = distTotal / totalLitros;
+        document.getElementById('mediaKM').innerText = media.toFixed(2) + ' km/L';
+    } else {
+        document.getElementById('mediaKM').innerText = '--';
+    }
+}
+
+function mediaPorVeiculo(placa){
+
+    const dados = db.combustivel
+        .filter(c => c.cveiculo === placa)
+        .sort((a,b) => new Date(a.cdata) - new Date(b.cdata));
+
+    if (dados.length < 2) return '--';
+
+    let totalKm = 0;
+    let totalLitros = 0;
+
+    for (let i = 1; i < dados.length; i++) {
+
+        const kmAtual = parseFloat(dados[i].ckm) || 0;
+        const kmAnterior = parseFloat(dados[i-1].ckm) || 0;
+        const litros = parseFloat(dados[i].clitros) || 0;
+
+        const distancia = kmAtual - kmAnterior;
+
+        if (distancia > 0 && litros > 0) {
+            totalKm += distancia;
+            totalLitros += litros;
+        }
+    }
+
+    if (totalLitros === 0) return '--';
+
+    return (totalKm / totalLitros).toFixed(2) + ' km/L';
 }
 
 function iniciarSistema(){
@@ -1250,6 +1373,7 @@ function salvarCombustivel(){
 
     irParaUltimaPagina('combustivel');
     renderModulo('combustivel');
+    document.getElementById('mediaKM').innerText = calcularMediaKM();
 }
 
 function renderDashboard(){
@@ -1814,6 +1938,28 @@ function aplicarFiltroDashboard(){
 });
     }
 
+
+// ⛽ COMBUSTÍVEL
+if(tipo === '' || tipo === 'combustivel'){
+
+    db.combustivel.forEach(c => {
+
+        let vei = db.veiculos.find(v => v.vplaca === c.cveiculo);
+
+        const valor = parseFloat(String(c.cvalorlitro).replace(',', '.')) || 0;
+        const litros = parseFloat(String(c.clitros).replace(',', '.')) || 0;
+
+        dados.push({
+            tipo: 'Combustivel',
+            placa: c.cveiculo,
+            motorista: vei ? vei.vmotorista : '',
+            data: c.cdata,
+            valor: valor * litros
+        });
+
+    });
+}
+
     // 🔍 APLICAR FILTRO
     dados = dados.filter(d => {
 
@@ -2082,4 +2228,5 @@ style="width:100%; height:400px; border:none;">
 </div>
 </div>
 </body>
+<script src="paginacao.js"></script>
 </html>
