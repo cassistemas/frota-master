@@ -64,7 +64,7 @@ function irParaUltimaPagina(modulo){
 }
 
 function salvarCombustivelCustom() {
-    const campos = ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'cposto'];
+    const campos = ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro','ckm', 'cposto'];
     const idxCampo = 'c_idx';
     
     // 1. Salva os dados no banco/localStorage
@@ -75,28 +75,92 @@ function salvarCombustivelCustom() {
     
     // 3. CORREÇÃO: Atualiza a tabela na tela imediatamente
     renderModulo('combustivel');
+    calcularMediaConsumo();
     
     // 4. Limpa o formulário
     limparForm('combustivel', campos, idxCampo);
 }
 
-function filtrarCombustivel() {
-    const veiculo = document.getElementById('filtroVeiculoComb').value;
-    const dataIni = document.getElementById('filtroDataIniComb').value;
-    const dataFim = document.getElementById('filtroDataFimComb').value;
-    const tipo = document.getElementById('filtroTipoComb').value;
+function calcularMediaConsumo(filtros = {}) {
 
-    // Filtra os dados do banco original
-    const filtrados = db.combustivel.filter(c => {
-        const matchVeiculo = !veiculo || c.cveiculo === veiculo;
-        const matchTipo = !tipo || c.ctipo === tipo;
-        const matchData = (!dataIni || c.cdata >= dataIni) && (!dataFim || c.cdata <= dataFim);
-        return matchVeiculo && matchTipo && matchData;
-    });
+    // 👉 só calcula se for combustível ou vazio
+if (filtros.tipo && filtros.tipo !== 'combustivel') {
+    document.getElementById('mediaKM').innerText = '--';
+    return;
+}
 
-    // IMPORTANTE: Para funcionar com a sua paginação, 
-    // precisamos passar os dados filtrados para a função de renderizar
-    renderModulo('combustivel', filtrados);
+    if (!db.combustivel || db.combustivel.length < 2) {
+        document.getElementById('mediaKM').innerText = '--';
+        return;
+    }
+
+    let dados = [...db.combustivel];
+
+    // ✅ FILTRO POR VEÍCULO
+    if (filtros.placa) {
+        dados = dados.filter(c => c.cveiculo === filtros.placa);
+    }
+
+    // ✅ FILTRO POR DATA
+    if (filtros.dataIni) {
+        dados = dados.filter(c => c.cdata >= filtros.dataIni);
+    }
+
+    if (filtros.dataFim) {
+        dados = dados.filter(c => c.cdata <= filtros.dataFim);
+    }
+
+    // Ordenar por data
+    dados.sort((a, b) => new Date(a.cdata) - new Date(b.cdata));
+
+    let totalKM = 0;
+    let totalLitros = 0;
+
+    for (let i = 1; i < dados.length; i++) {
+
+        const atual = dados[i];
+        const anterior = dados[i - 1];
+
+        const kmAtual = parseFloat(atual.ckm) || 0;
+        const kmAnterior = parseFloat(anterior.ckm) || 0;
+        const litros = parseFloat(String(atual.clitros).replace(',', '.')) || 0;
+
+        if (kmAtual > kmAnterior && litros > 0) {
+            totalKM += (kmAtual - kmAnterior);
+            totalLitros += litros;
+        }
+    }
+
+    if (totalLitros === 0) {
+        document.getElementById('mediaKM').innerText = '--';
+        return;
+    }
+
+    const media = totalKM / totalLitros;
+
+    document.getElementById('mediaKM').innerText =
+        media.toFixed(2) + ' km/L';
+}
+
+function aplicarFiltroDashboard() {
+
+    const filtros = {
+        placa: document.getElementById('filtroPlaca')?.value || '',
+        dataIni: document.getElementById('filtroDataIni')?.value || '',
+        dataFim: document.getElementById('filtroDataFim')?.value || '',
+        tipo: document.getElementById('filtroTipo')?.value || ''
+    };
+
+    calcularMediaConsumo(filtros);
+}
+
+function limparFiltroDashboard() {
+    document.getElementById('filtroPlaca').value = '';
+    document.getElementById('filtroDataIni').value = '';
+    document.getElementById('filtroDataFim').value = '';
+
+    // Recalcula a média geral sem filtros
+    calcularMediaConsumo();
 }
 
 function renderPaginacao(modulo, containerId) {
@@ -124,22 +188,6 @@ function renderPaginacao(modulo, containerId) {
 // ==========================
 // INTEGRAÇÃO COM RENDER
 // ==========================
-
-function renderModulo(modulo, dadosFiltrados = null) {
-    // Se passarmos dados filtrados, usamos eles. Se não, usamos o banco original.
-    const fonteDados = dadosFiltrados || db[modulo];
-
-    if(modulo === 'combustivel'){
-        // Ajuste a função getDadosPaginados para aceitar a fonte de dados
-        const dados = getDadosPaginados(modulo, fonteDados);
-        
-        document.getElementById('listaCombustivel').innerHTML = dados.map((c, i) => {
-            // ... resto do seu código de mapeamento (tr) ...
-        }).join('');
-        
-        renderPaginacao(modulo, 'paginacaoCombustivel', fonteDados);
-    }
-}
 
 function renderModulo(modulo) {
 
@@ -223,31 +271,51 @@ if (!PAGINACAO.paginas[modulo]) {
 if(modulo === 'combustivel'){
         const dados = getDadosPaginados('combustivel');
 
-        document.getElementById('listaCombustivel').innerHTML = 
-        dados.map((c, i) => {
-            const realIndex = db.combustivel.indexOf(c);
-            
-            // Cálculos para a tabela
-            const litros = parseFloat(c.clitros) || 0;
-            const valorL = parseFloat(c.cvalorlitro) || 0;
-            const total = (litros * valorL).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        document.getElementById('listaCombustivel').innerHTML =
+dados.map(c => {
 
-            return `
-            <tr>
-                <td>${c.cveiculo}</td>
-                <td>${formatarDataBR(c.cdata)}</td>
-                <td>${c.ctipo}</td>
-                <td>${litros}L</td>
-                <td>R$ ${valorL.toFixed(2)}</td>
-                <td><b>${total}</b></td>
-                <td>--</td> <td>${c.cposto || '--'}</td>
-                <td>
-                    <button class="btn-edit" onclick="editar('combustivel', ${realIndex})">✎</button>
-                    <button class="btn-del" onclick="deletar('combustivel', ${realIndex})">✕</button>
-                </td>
-            </tr>
-            `;
-        }).join('');
+    const litros = parseFloat(String(c.clitros).replace(',', '.')) || 0;
+    const valor = parseFloat(String(c.cvalorlitro).replace(',', '.')) || 0;
+
+    const total = litros * valor;
+
+    const valorFormatado = valor.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    });
+
+    const totalFormatado = total.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    });
+
+    const realIndex = db.combustivel.indexOf(c);
+
+    return `
+    <tr>
+        <td>${c.cveiculo}</td>
+        <td>${formatarDataBR(c.cdata)}</td>
+        <td>${c.ctipo}</td>
+
+        <td>${c.ckm || '--'}</td>
+
+        <td>${litros}L</td>
+
+        <td>${valorFormatado}</td>
+
+        <td><b>${totalFormatado}</b></td>
+
+        <td>--</td>
+
+        <td>${c.cposto || '--'}</td>
+
+        <td>
+            <button class="btn-edit" onclick="editar('combustivel', ${realIndex})">✎</button>
+            <button class="btn-del" onclick="deletar('combustivel', ${realIndex})">✕</button>
+        </td>
+    </tr>
+    `;
+}).join('');
 
         renderPaginacao('combustivel', 'paginacaoCombustivel');
     }
@@ -298,3 +366,28 @@ function ativarPaginacao(){
     renderModulo('manutencoes');
     renderModulo('combustivel');
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    console.log('Eventos do filtro ativados');
+
+    const placa = document.getElementById('filtroPlaca');
+    const dataIni = document.getElementById('filtroDataIni');
+    const dataFim = document.getElementById('filtroDataFim');
+
+    placa?.addEventListener('change', aplicarFiltroDashboard);
+    dataIni?.addEventListener('change', aplicarFiltroDashboard);
+    dataFim?.addEventListener('change', aplicarFiltroDashboard);
+
+});
+
+// 🔥 Atualiza automaticamente ao mudar filtros
+['filtroPlaca','filtroDataIni','filtroDataFim','filtroTipo']
+.forEach(id => {
+    document.getElementById(id)?.addEventListener('change', aplicarFiltroDashboard);
+});
+
+// 🔄 Calcula média ao carregar sistema
+window.addEventListener('load', () => {
+    calcularMediaConsumo();
+});
