@@ -64,14 +64,19 @@ function irParaUltimaPagina(modulo){
 }
 
 function salvarCombustivelCustom() {
-    // Lista de IDs dos campos conforme definidos no seu HTML
     const campos = ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'cposto'];
-    const idxCampo = 'c_idx'; // ID do input hidden que armazena se é edição ou novo
+    const idxCampo = 'c_idx';
     
-    // Chama a função genérica de salvar que seu sistema já utiliza
+    // 1. Salva os dados no banco/localStorage
     salvar('combustivel', campos, idxCampo);
     
-    // Força a limpeza do formulário após salvar para permitir novos cadastros
+    // 2. CORREÇÃO: Força o sistema a ir para a última página para mostrar o novo registro
+    irParaUltimaPagina('combustivel');
+    
+    // 3. CORREÇÃO: Atualiza a tabela na tela imediatamente
+    renderModulo('combustivel');
+    
+    // 4. Limpa o formulário
     limparForm('combustivel', campos, idxCampo);
 }
 
@@ -181,32 +186,36 @@ if (!PAGINACAO.paginas[modulo]) {
 }
 
 if(modulo === 'combustivel'){
-    const dados = getDadosPaginados('combustivel');
+        const dados = getDadosPaginados('combustivel');
 
-    document.getElementById('listaCombustivel').innerHTML =
-    dados.map((c)=>{
-        const realIndex = db.combustivel.indexOf(c);
+        document.getElementById('listaCombustivel').innerHTML = 
+        dados.map((c, i) => {
+            const realIndex = db.combustivel.indexOf(c);
+            
+            // Cálculos para a tabela
+            const litros = parseFloat(c.clitros) || 0;
+            const valorL = parseFloat(c.cvalorlitro) || 0;
+            const total = (litros * valorL).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-        return `
-        <tr>
-        <td>${c.cveiculo}</td>
-        <td>${formatarDataBR(c.cdata)}</td>
-        <td>${c.ctipo}</td>
-        <td>${c.clitros}</td>
-        <td>${c.cvalorlitro}</td>
-        <td>${c.ctotal.toFixed(2)}</td>
-        <td>${c.cmedia}</td>
-        <td>${c.cposto}</td>
-        <td>
-        <button class="btn-edit" onclick="editar('combustivel',${realIndex})">✎</button>
-        <button class="btn-del" onclick="deletar('combustivel',${realIndex})">✕</button>
-        </td>
-        </tr>
-        `;
-    }).join('');
+            return `
+            <tr>
+                <td>${c.cveiculo}</td>
+                <td>${formatarDataBR(c.cdata)}</td>
+                <td>${c.ctipo}</td>
+                <td>${litros}L</td>
+                <td>R$ ${valorL.toFixed(2)}</td>
+                <td><b>${total}</b></td>
+                <td>--</td> <td>${c.cposto || '--'}</td>
+                <td>
+                    <button class="btn-edit" onclick="editar('combustivel', ${realIndex})">✎</button>
+                    <button class="btn-del" onclick="deletar('combustivel', ${realIndex})">✕</button>
+                </td>
+            </tr>
+            `;
+        }).join('');
 
-    renderPaginacao('combustivel','paginacaoCombustivel');
-}
+        renderPaginacao('combustivel', 'paginacaoCombustivel');
+    }
 
     if(modulo === 'multas'){
         const dados = getDadosPaginados('multas');
