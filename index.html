@@ -519,8 +519,7 @@ Criar Conta
 
             <div class="col-md-12 text-end">
                 <button class="btn btn-primary" onclick="salvarCombustivelCustom()">Salvar</button>
-                <button class="btn btn-outline-secondary" onclick="limparForm('combustivel', ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'cposto'], 'c_idx')">Cancelar</button>
-            </div>
+                <button class="btn btn-outline-secondary" onclick="limparForm('combustivel', ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'cposto'], 'c_idx')">Cancelar</button>            </div>
         </div>
     </div>
 
@@ -1018,6 +1017,18 @@ function carregarFiltroVeiculosComb(){
         db.veiculos.map(v =>
             `<option value="${v.vplaca}">${v.vplaca}</option>`
         ).join('');
+}
+
+function salvarCombustivelCustom() {
+    const campos = ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'cposto'];
+    const idxCampo = 'c_idx';
+
+    // Salva os dados
+    salvar('combustivel', campos, idxCampo);
+    
+    // ATENÇÃO: Estas duas linhas abaixo fazem a tabela atualizar na hora
+    irParaUltimaPagina('combustivel');
+    renderModulo('combustivel');
 }
 
 function filtrarCombustivel(){
