@@ -67,6 +67,7 @@ Criar Conta
     <a onclick="navegar('tacografo',this)">⏱ Tacógrafo</a>
     <a onclick="navegar('licencas',this)">📄 CIV / CIPP</a>
     <a onclick="navegar('manutencoes',this)">🔧 Manutenções</a>
+    <a onclick="navegar('combustivel',this)">⛽ Combustível</a>
     <a onclick="navegar('revisoes',this)">⏱ Revisões KM</a>
     <a onclick="navegar('fornecedores',this)">🏭 Fornecedores</a>
     <a onclick="navegar('relatorios',this)">📂 Relatórios & Backup</a>
@@ -479,6 +480,109 @@ Criar Conta
         </div>
     </div>
 
+<div id="combustivel" class="hidden">
+    <h3>⛽ Controle de Combustível</h3>
+
+    <div class="glass-container">
+        <input type="hidden" id="c_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+                <select id="cveiculo" class="form-select"></select>
+            </div>
+
+            <div class="col-md-2">
+                <input type="date" id="cdata" class="form-control">
+            </div>
+
+            <div class="col-md-2">
+                <select id="ctipo" class="form-select">
+                    <option>Gasolina</option>
+                    <option>Diesel S500</option>
+                    <option>Diesel S10</option>
+                    <option>Arla32</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <input id="clitros" type="number" class="form-control" placeholder="Litros">
+            </div>
+
+            <div class="col-md-2">
+                <input id="cvalorlitro" class="form-control" placeholder="Valor/L">
+            </div>
+
+            <div class="col-md-3">
+                <input id="cposto" class="form-control" placeholder="Posto">
+            </div>
+
+            <div class="col-md-12 text-end">
+                <button class="btn btn-primary"
+                onclick="salvarCombustivel()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+  <div class="row g-2 mb-3">
+
+    <div class="col-md-3">
+        <select id="filtroVeiculoComb" class="form-select"></select>
+    </div>
+
+    <div class="col-md-2">
+        <input type="date" id="filtroDataIniComb" class="form-control">
+    </div>
+
+    <div class="col-md-2">
+        <input type="date" id="filtroDataFimComb" class="form-control">
+    </div>
+
+    <div class="col-md-2">
+        <select id="filtroTipoComb" class="form-select">
+            <option value="">Todos</option>
+            <option>Gasolina</option>
+            <option>Diesel S500</option>
+            <option>Diesel S10</option>
+            <option>Arla32</option>
+        </select>
+    </div>
+
+    <div class="col-md-3">
+        <button class="btn btn-primary w-100" onclick="filtrarCombustivel()">Filtrar</button>
+    </div>
+
+</div>
+
+    <div class="glass-container">
+
+        <input type="text" class="form-control search-box"
+        placeholder="🔎 Pesquisar..."
+        onkeyup="filtrarTabela('listaCombustivel', this.value)">
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Veículo</th>
+                    <th>Data</th>
+                    <th>Tipo</th>
+                    <th>Litros</th>
+                    <th>Valor/L</th>
+                    <th>Total</th>
+                    <th>Média</th>
+                    <th>Posto</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+
+            <tbody id="listaCombustivel"></tbody>
+        </table>
+
+        <div id="paginacaoCombustivel"></div>
+
+    </div>
+</div>
+
     <div id="licenciamento" class="hidden">
         <h3>📜 Licenciamento</h3>
         <div class="glass-container">
@@ -711,6 +815,7 @@ const MAP={
     fornecedores:'FM_F',
     ferias:'FM_FE',
     agendamentos:'FM_AG',
+    combustivel:'FM_C',
 };
 const MODULOS = Object.keys(MAP);
 let db={}
@@ -795,6 +900,10 @@ function salvarNuvem(){
 
 function navegar(id,el){
 
+if(id === 'combustivel'){
+    carregarVeiculosSelect('cveiculo');
+}
+
      // 🔐 bloqueio por permissão
 if(usuarioLogado.tipo !== "admin"){
 
@@ -840,6 +949,11 @@ function salvar(mod,campos,idCampo){
     limparForm(mod, campos, idCampo);
     if(typeof PAGINACAO !== 'undefined'){
     PAGINACAO.paginas[mod] = 1;
+}
+
+// 🔥 ATUALIZA SELECT DE VEÍCULOS NO COMBUSTÍVEL
+if(mod === 'veiculos'){
+    carregarVeiculosSelect('cveiculo');
 }
     salvarNuvem()
 }
@@ -893,6 +1007,49 @@ function formatarVencimento(dataStr){
     if(diff <= 15) return `<span class="status-atencao">${dataFormatada}</span>`;
 
     return `<span class="status-ok">${dataFormatada}</span>`;
+}
+
+function carregarFiltroVeiculosComb(){
+
+    const select = document.getElementById('filtroVeiculoComb');
+    if(!select) return;
+
+    select.innerHTML = '<option value="">Todos</option>' +
+        db.veiculos.map(v =>
+            `<option value="${v.vplaca}">${v.vplaca}</option>`
+        ).join('');
+}
+
+function filtrarCombustivel(){
+
+    const v = document.getElementById('filtroVeiculoComb').value;
+    const t = document.getElementById('filtroTipoComb').value;
+    const di = document.getElementById('filtroDataIniComb').value;
+    const df = document.getElementById('filtroDataFimComb').value;
+
+    let dados = db.combustivel;
+
+    dados = dados.filter(c => {
+        return (!v || c.cveiculo == v) &&
+               (!t || c.ctipo == t) &&
+               (!di || c.cdata >= di) &&
+               (!df || c.cdata <= df);
+    });
+
+    document.getElementById('listaCombustivel').innerHTML =
+    dados.map(c => `
+        <tr>
+        <td>${c.cveiculo}</td>
+        <td>${formatarDataBR(c.cdata)}</td>
+        <td>${c.ctipo}</td>
+        <td>${c.clitros}</td>
+        <td>${c.cvalorlitro}</td>
+        <td>${c.ctotal.toFixed(2)}</td>
+        <td>${c.cmedia}</td>
+        <td>${c.cposto}</td>
+        <td></td>
+        </tr>
+    `).join('');
 }
 
 function iniciarSistema(){
@@ -1048,6 +1205,40 @@ document.getElementById('listaFerias').innerHTML =
     document.getElementById('listaFornecedores').innerHTML = db.fornecedores.map((f,i)=>`<tr><td><b>${f.fnome}</b></td><td>${f.fresp}</td><td>${f.fcnpj}</td><td>${f.ftel}</td>${btnSet('fornecedores',i)}</tr>`).join('');
 
     ativarPaginacao();
+}
+
+function salvarCombustivel(){
+
+    const veiculo = document.getElementById('cveiculo').value;
+    const data = document.getElementById('cdata').value;
+    const tipo = document.getElementById('ctipo').value;
+    const litros = parseFloat(document.getElementById('clitros').value || 0);
+    const valorLitro = parseFloat(document.getElementById('cvalorlitro').value || 0);
+    const posto = document.getElementById('cposto').value;
+
+    const total = litros * valorLitro;
+
+    // média automática (base KM do veículo)
+    const veic = db.veiculos.find(v => v.vplaca == veiculo);
+    let media = '--';
+
+    if(veic && litros > 0){
+        media = (veic.vkm / litros).toFixed(2);
+    }
+
+    db.combustivel.push({
+        cveiculo: veiculo,
+        cdata: data,
+        ctipo: tipo,
+        clitros: litros,
+        cvalorlitro: valorLitro,
+        ctotal: total,
+        cmedia: media,
+        cposto: posto
+    });
+
+    irParaUltimaPagina('combustivel');
+    renderModulo('combustivel');
 }
 
 function renderDashboard(){
@@ -1551,6 +1742,17 @@ function excluirAnexo(i, index){
 
     // Atualiza o modal na hora
     verAnexos(i);
+}
+
+function carregarVeiculosSelect(idSelect){
+    const select = document.getElementById(idSelect);
+    if(!select) return;
+
+    select.innerHTML = '<option value="">Selecione</option>';
+
+    db.veiculos.forEach(v=>{
+        select.innerHTML += `<option value="${v.vplaca}">${v.vplaca} - ${v.vmodelo}</option>`;
+    });
 }
 
 function aplicarFiltroDashboard(){
