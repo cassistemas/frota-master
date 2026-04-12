@@ -1218,13 +1218,11 @@ function salvarCombustivel(){
 
     const total = litros * valorLitro;
 
-    // média automática (base KM do veículo)
-    const veic = db.veiculos.find(v => v.vplaca == veiculo);
-    let media = '--';
+    // 🔒 garante estrutura
+    if(!db.combustivel) db.combustivel = [];
 
-    if(veic && litros > 0){
-        media = (veic.vkm / litros).toFixed(2);
-    }
+    // média simples (placeholder)
+    let media = '--';
 
     db.combustivel.push({
         cveiculo: veiculo,
@@ -1236,6 +1234,8 @@ function salvarCombustivel(){
         cmedia: media,
         cposto: posto
     });
+
+    salvarNuvem(); // 🔥 ESSENCIAL
 
     irParaUltimaPagina('combustivel');
     renderModulo('combustivel');
