@@ -80,6 +80,25 @@ function salvarCombustivelCustom() {
     limparForm('combustivel', campos, idxCampo);
 }
 
+function filtrarCombustivel() {
+    const veiculo = document.getElementById('filtroVeiculoComb').value;
+    const dataIni = document.getElementById('filtroDataIniComb').value;
+    const dataFim = document.getElementById('filtroDataFimComb').value;
+    const tipo = document.getElementById('filtroTipoComb').value;
+
+    // Filtra os dados do banco original
+    const filtrados = db.combustivel.filter(c => {
+        const matchVeiculo = !veiculo || c.cveiculo === veiculo;
+        const matchTipo = !tipo || c.ctipo === tipo;
+        const matchData = (!dataIni || c.cdata >= dataIni) && (!dataFim || c.cdata <= dataFim);
+        return matchVeiculo && matchTipo && matchData;
+    });
+
+    // IMPORTANTE: Para funcionar com a sua paginação, 
+    // precisamos passar os dados filtrados para a função de renderizar
+    renderModulo('combustivel', filtrados);
+}
+
 function renderPaginacao(modulo, containerId) {
     const total = db[modulo].length;
     const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
@@ -105,6 +124,22 @@ function renderPaginacao(modulo, containerId) {
 // ==========================
 // INTEGRAÇÃO COM RENDER
 // ==========================
+
+function renderModulo(modulo, dadosFiltrados = null) {
+    // Se passarmos dados filtrados, usamos eles. Se não, usamos o banco original.
+    const fonteDados = dadosFiltrados || db[modulo];
+
+    if(modulo === 'combustivel'){
+        // Ajuste a função getDadosPaginados para aceitar a fonte de dados
+        const dados = getDadosPaginados(modulo, fonteDados);
+        
+        document.getElementById('listaCombustivel').innerHTML = dados.map((c, i) => {
+            // ... resto do seu código de mapeamento (tr) ...
+        }).join('');
+        
+        renderPaginacao(modulo, 'paginacaoCombustivel', fonteDados);
+    }
+}
 
 function renderModulo(modulo) {
 
