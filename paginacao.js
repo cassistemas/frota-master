@@ -63,6 +63,18 @@ function irParaUltimaPagina(modulo){
     PAGINACAO.paginas[modulo] = totalPaginas > 0 ? totalPaginas : 1;
 }
 
+function salvarCombustivelCustom() {
+    // Lista de IDs dos campos conforme definidos no seu HTML
+    const campos = ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'cposto'];
+    const idxCampo = 'c_idx'; // ID do input hidden que armazena se é edição ou novo
+    
+    // Chama a função genérica de salvar que seu sistema já utiliza
+    salvar('combustivel', campos, idxCampo);
+    
+    // Força a limpeza do formulário após salvar para permitir novos cadastros
+    limparForm('combustivel', campos, idxCampo);
+}
+
 function renderPaginacao(modulo, containerId) {
     const total = db[modulo].length;
     const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
