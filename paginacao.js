@@ -168,6 +168,34 @@ if (!PAGINACAO.paginas[modulo]) {
     renderPaginacao('manutencoes','paginacaoManutencoes');
 }
 
+if(modulo === 'combustivel'){
+    const dados = getDadosPaginados('combustivel');
+
+    document.getElementById('listaCombustivel').innerHTML =
+    dados.map((c)=>{
+        const realIndex = db.combustivel.indexOf(c);
+
+        return `
+        <tr>
+        <td>${c.cveiculo}</td>
+        <td>${formatarDataBR(c.cdata)}</td>
+        <td>${c.ctipo}</td>
+        <td>${c.clitros}</td>
+        <td>${c.cvalorlitro}</td>
+        <td>${c.ctotal.toFixed(2)}</td>
+        <td>${c.cmedia}</td>
+        <td>${c.cposto}</td>
+        <td>
+        <button class="btn-edit" onclick="editar('combustivel',${realIndex})">✎</button>
+        <button class="btn-del" onclick="deletar('combustivel',${realIndex})">✕</button>
+        </td>
+        </tr>
+        `;
+    }).join('');
+
+    renderPaginacao('combustivel','paginacaoCombustivel');
+}
+
     if(modulo === 'multas'){
         const dados = getDadosPaginados('multas');
 
@@ -206,9 +234,11 @@ function ativarPaginacao(){
     irParaUltimaPagina('multas');
     irParaUltimaPagina('fornecedores');
     irParaUltimaPagina('manutencoes');
+    irParaUltimaPagina('combustivel');
 
     renderModulo('veiculos');
     renderModulo('multas');
     renderModulo('fornecedores');
     renderModulo('manutencoes');
+    renderModulo('combustivel');
 }
