@@ -518,8 +518,8 @@ Criar Conta
             </div>
 
             <div class="col-md-12 text-end">
-                <button class="btn btn-primary"
-                onclick="salvarCombustivel()">Salvar</button>
+                <button class="btn btn-primary" onclick="salvarCombustivelCustom()">Salvar</button>
+                <button class="btn btn-outline-secondary" onclick="limparForm('combustivel', ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'cposto'], 'c_idx')">Cancelar</button>
             </div>
         </div>
     </div>
@@ -1218,11 +1218,13 @@ function salvarCombustivel(){
 
     const total = litros * valorLitro;
 
-    // 🔒 garante estrutura
-    if(!db.combustivel) db.combustivel = [];
-
-    // média simples (placeholder)
+    // média automática (base KM do veículo)
+    const veic = db.veiculos.find(v => v.vplaca == veiculo);
     let media = '--';
+
+    if(veic && litros > 0){
+        media = (veic.vkm / litros).toFixed(2);
+    }
 
     db.combustivel.push({
         cveiculo: veiculo,
@@ -1234,8 +1236,6 @@ function salvarCombustivel(){
         cmedia: media,
         cposto: posto
     });
-
-    salvarNuvem(); // 🔥 ESSENCIAL
 
     irParaUltimaPagina('combustivel');
     renderModulo('combustivel');
