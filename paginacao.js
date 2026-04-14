@@ -474,6 +474,9 @@ dados.map(c => {
         carregarMotoristasSelect('filtroMuMotorista');
 
         const filtrados = getMultasFiltradas();
+        const total = calcularTotalMultas(filtrados);
+        document.getElementById('totalMultas').innerText =
+        'Total: ' + floatParaMoeda(total);
         const dados = getDadosPaginadosCustom(filtrados, 'multas');
 
         document.getElementById('listaMultas').innerHTML =
@@ -580,4 +583,15 @@ function carregarVeiculosSelect(id){
     db.veiculos.forEach(v => {
         select.innerHTML += `<option value="${v.vplaca}">${v.vplaca}</option>`;
     });
+}
+
+function calcularTotalMultas(lista) {
+    let total = 0;
+
+    lista.forEach(mu => {
+        const valor = moedaParaFloat(mu.muvalor || mu.valor);
+        total += valor;
+    });
+
+    return total;
 }
