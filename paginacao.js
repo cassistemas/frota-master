@@ -32,11 +32,40 @@ function obterPagina(modulo) {
     return PAGINACAO.paginas[modulo];
 }
 
-function mudarPagina(modulo, direcao) {
-    const total = db[modulo].length;
-    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
+function obterPaginaCustom(modulo, totalItens) {
 
-    let paginaAtual = obterPagina(modulo);
+    const totalPaginas = Math.ceil(totalItens / PAGINACAO.itensPorPagina);
+
+    if (!PAGINACAO.paginas[modulo]) {
+        PAGINACAO.paginas[modulo] = totalPaginas > 0 ? totalPaginas : 1;
+    }
+
+    if (PAGINACAO.paginas[modulo] > totalPaginas) {
+        PAGINACAO.paginas[modulo] = totalPaginas || 1;
+    }
+
+    return PAGINACAO.paginas[modulo];
+}
+
+function mudarPagina(modulo, direcao) {
+    let total;
+
+if (modulo === 'multas') {
+
+    // 🔥 se filtros ainda não existem → usa base normal
+    if (!document.getElementById('filtroMuVeiculo')) {
+        total = db.multas.length;
+    } else {
+        total = getMultasFiltradas().length;
+    }
+
+} else {
+    total = db[modulo].length;
+}
+
+const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
+
+let paginaAtual = obterPaginaCustom(modulo, total);
 
     paginaAtual += direcao;
 
@@ -56,8 +85,23 @@ function getDadosPaginados(modulo) {
     return db[modulo].slice(inicio, fim);
 }
 
+function getDadosPaginadosCustom(lista, modulo) {
+
+    const pagina = obterPaginaCustom(modulo, lista.length);
+    const inicio = (pagina - 1) * PAGINACAO.itensPorPagina;
+    const fim = inicio + PAGINACAO.itensPorPagina;
+
+    return lista.slice(inicio, fim);
+}
+
 function irParaUltimaPagina(modulo){
-    const total = db[modulo]?.length || 0;
+    let total;
+
+if (modulo === 'multas') {
+    total = getMultasFiltradas().length;
+} else {
+    total = db[modulo]?.length || 0;
+}
     const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
 
     PAGINACAO.paginas[modulo] = totalPaginas > 0 ? totalPaginas : 1;
@@ -163,6 +207,69 @@ function limparFiltroDashboard() {
     calcularMediaConsumo();
 }
 
+function getMultasFiltradas() {
+
+    // 🔥 se DOM ainda não carregou → não filtra
+if (!document.getElementById('filtroMuVeiculo')) {
+    return db.multas || [];
+}
+
+    if (!db.multas || db.multas.length === 0) return [];
+
+    let dados = [...db.multas];
+
+    const veiculo = document.getElementById('filtroMuVeiculo')?.value || '';
+    const motorista = document.getElementById('filtroMuMotorista')?.value || '';
+    const status = document.getElementById('filtroMuStatus')?.value || '';
+    const dataIni = document.getElementById('filtroMuDataIni')?.value || '';
+    const dataFim = document.getElementById('filtroMuDataFim')?.value || '';
+    const valorMin = document.getElementById('filtroMuValorMin')?.value || '';
+    const valorMax = document.getElementById('filtroMuValorMax')?.value || '';
+    const ait = document.getElementById('filtroMuAIT')?.value?.toLowerCase() || '';
+
+if (
+    !veiculo &&
+    !motorista &&
+    !status &&
+    !dataIni &&
+    !dataFim &&
+    !valorMin &&
+    !valorMax &&
+    !ait
+) {
+    return dados;
+}
+
+   return dados.filter(mu => {
+
+    return (
+       (!veiculo || 
+    String(mu.muveiculo || mu.veiculo || '')
+    .toLowerCase()
+    .trim() === veiculo.toLowerCase().trim()
+) &&
+(!motorista || 
+    String(mu.mumotorista || mu.motorista || '')
+    .toLowerCase()
+    .trim() === motorista.toLowerCase().trim()
+) &&
+        (!status || mu.mustatus == status)
+        &&
+        (!dataIni || (mu.mudata || mu.data) >= dataIni)
+        &&
+        (!dataFim || (mu.mudata || mu.data) <= dataFim)
+        &&
+        (!valorMin || moedaParaFloat(mu.muvalor || mu.valor) >= parseFloat(valorMin))
+        &&
+        (!valorMax || moedaParaFloat(mu.muvalor || mu.valor) <= parseFloat(valorMax))
+        &&
+        (!ait || (mu.muait || '').toLowerCase().includes(ait))
+
+    );
+
+});
+}
+
 function renderPaginacao(modulo, containerId) {
     const total = db[modulo].length;
     const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
@@ -185,6 +292,48 @@ function renderPaginacao(modulo, containerId) {
     `;
 }
 
+function renderPaginacaoCustom(lista, modulo, containerId) {
+
+    const total = lista.length;
+    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
+    const pagina = obterPaginaCustom(modulo, total);
+
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (totalPaginas <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = `
+        <div style="display:flex;justify-content:center;gap:10px;margin-top:10px;">
+            <button onclick="mudarPagina('${modulo}', -1)">⬅</button>
+            <span>Página ${pagina} de ${totalPaginas}</span>
+            <button onclick="mudarPagina('${modulo}', 1)">➡</button>
+        </div>
+    `;
+}
+
+function aplicarFiltroMultas(){
+    PAGINACAO.paginas['multas'] = 1;
+    renderModulo('multas');
+}
+
+function limparFiltroMultas(){
+
+    [
+        'filtroMuVeiculo','filtroMuMotorista','filtroMuStatus',
+        'filtroMuDataIni','filtroMuDataFim','filtroMuAIT',
+        'filtroMuValorMin','filtroMuValorMax'
+    ].forEach(id=>{
+        const el = document.getElementById(id);
+        if(el) el.value = '';
+    });
+
+    aplicarFiltroMultas();
+}
+
 // ==========================
 // INTEGRAÇÃO COM RENDER
 // ==========================
@@ -192,7 +341,7 @@ function renderPaginacao(modulo, containerId) {
 function renderModulo(modulo) {
 
 if (!PAGINACAO.paginas[modulo]) {
-    irParaUltimaPagina(modulo);
+    PAGINACAO.paginas[modulo] = 1;
 }
 
     const btnSet = (m,i) => `<td><button class="btn-edit" onclick="editar('${m}',${i})">✎</button><button class="btn-del" onclick="deletar('${m}',${i})">✕</button></td>`;
@@ -321,19 +470,23 @@ dados.map(c => {
     }
 
     if(modulo === 'multas'){
-        const dados = getDadosPaginados('multas');
+        carregarVeiculosSelect('filtroMuVeiculo');
+        carregarMotoristasSelect('filtroMuMotorista');
+
+        const filtrados = getMultasFiltradas();
+        const dados = getDadosPaginadosCustom(filtrados, 'multas');
 
         document.getElementById('listaMultas').innerHTML =
         dados.map((mu,i)=>{
             const realIndex = db.multas.indexOf(mu);
             return `
             <tr>
-            <td>${mu.muveiculo}</td>
-            <td>${mu.mumotorista}</td>
-            <td><b>${mu.muait || '---'}</b></td>
-            <td>${formatarDataBR(mu.mudata)}</td>
-            <td>${formatarDataBR(mu.muvenc)}</td>
-            <td><b>${mu.muvalor}</b></td>
+            <td>${mu.muveiculo || mu.veiculo || '--'}</td>
+            <td>${mu.mumotorista || mu.motorista || '--'}</td>
+            <td><b>${mu.muait || mu.ait || '---'}</b></td>
+            <td>${formatarDataBR(mu.mudata || mu.data)}</td>
+            <td>${formatarDataBR(mu.muvenc || mu.vencimento)}</td>
+            <td><b>${mu.muvalor || mu.valor || '--'}</b></td>
             <td><span class="badge ${mu.mustatus=='Pago'?'bg-success':'bg-danger'}">${mu.mustatus}</span></td>
             <td>${mu.muobs || '--'}</td>
             <td>
@@ -344,7 +497,7 @@ dados.map(c => {
             `;
         }).join('');
 
-        renderPaginacao('multas','paginacaoMultas');
+        renderPaginacaoCustom(filtrados, 'multas','paginacaoMultas');
     }
 }
 
@@ -391,3 +544,40 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('load', () => {
     calcularMediaConsumo();
 });
+
+function carregarMotoristasSelect(id){
+
+    const select = document.getElementById(id);
+    if(!select) return;
+
+    select.innerHTML = '<option value="">Motorista</option>';
+
+    if (!db.motoristas) return;
+
+    db.motoristas.forEach(m => {
+
+        const nome =
+            m.motNome ||   // 🔥 PRINCIPAL (seu caso)
+            m.mnome ||
+            m.nome ||
+            m.motorista;
+
+        if(!nome) return;
+
+        select.innerHTML += `<option value="${nome}">${nome}</option>`;
+    });
+}
+
+function carregarVeiculosSelect(id){
+
+    const select = document.getElementById(id);
+    if(!select) return;
+
+    select.innerHTML = '<option value="">Veículo</option>';
+
+    if (!db.veiculos) return;
+
+    db.veiculos.forEach(v => {
+        select.innerHTML += `<option value="${v.vplaca}">${v.vplaca}</option>`;
+    });
+}
