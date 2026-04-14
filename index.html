@@ -241,6 +241,10 @@ Criar Conta
                         <option value="Recurso">Em Recurso</option>
                     </select>
                 </div>
+<div class="col-md-12">
+    <label>Arquivos (opcional)</label>
+    <input type="file" id="muarquivos" class="form-control" multiple>
+</div>
               <div class="col-md-12">
     <input id="muobs" class="form-control" placeholder="Observações (ex: motorista contestou, radar escondido, etc)">
 </div>
@@ -301,8 +305,8 @@ Criar Conta
 
 </div>
         <div class="glass-container">
+         <h5 id="totalMultas" style="margin-bottom:10px;">Total: R$ 0,00</h5>
             <div class="d-flex justify-content-between mb-3">
-                <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar multas..." onkeyup="filtrarTabela('listaMultas', this.value)">
                 <button class="btn-excel" onclick="exportarExcel('multas')">📥 Exportar Excel</button>
             </div>
            <table class="table">
@@ -1593,6 +1597,7 @@ limparForm(
 )
 
 salvarNuvem()
+
 
 }
 function verAnexos(i){
