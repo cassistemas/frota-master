@@ -338,6 +338,21 @@ function limparFiltroMultas(){
 // INTEGRAÇÃO COM RENDER
 // ==========================
 
+function corStatusMulta(status) {
+    switch (status) {
+        case 'Pago':
+        case 'Enviadas RH':
+            return 'bg-success';
+
+        case 'Recurso':
+        case 'Em Recurso':
+            return 'bg-warning text-dark';
+
+        default:
+            return 'bg-danger';
+    }
+}
+
 function renderModulo(modulo) {
 
 if (!PAGINACAO.paginas[modulo]) {
@@ -490,7 +505,11 @@ dados.map(c => {
             <td>${formatarDataBR(mu.mudata || mu.data)}</td>
             <td>${formatarDataBR(mu.muvenc || mu.vencimento)}</td>
             <td><b>${mu.muvalor || mu.valor || '--'}</b></td>
-            <td><span class="badge ${mu.mustatus=='Pago'?'bg-success':'bg-danger'}">${mu.mustatus}</span></td>
+            <td>
+    <span class="badge ${corStatusMulta(mu.mustatus)}">
+        ${mu.mustatus}
+    </span>
+</td>
             <td>${mu.muobs || '--'}</td>
             <td>
             <button class="btn-edit" onclick="editar('multas',${realIndex})">✎</button>
