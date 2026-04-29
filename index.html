@@ -239,6 +239,7 @@ Criar Conta
                         <option value="Pendente">Pendente</option>
                         <option value="Pago">Pago</option>
                         <option value="Recurso">Em Recurso</option>
+                        <option value="Enviadas RH">Enviadas RH</option>
                     </select>
                 </div>
 <div class="col-md-12">
@@ -272,6 +273,7 @@ Criar Conta
 <option value="Pendente">Pendente</option>
 <option value="Pago">Pago</option>
 <option value="Recurso">Recurso</option>
+<option value="Enviadas RH">Enviadas RH</option>
 </select>
 </div>
 
@@ -1417,7 +1419,10 @@ function renderDashboard(){
     totalGasto += db.licenciamento.reduce((a,b)=>a + moedaParaFloat(b.lvalor),0);
     totalGasto += db.tacografo.reduce((a,b)=>a + moedaParaFloat(b.tvalor),0);
     document.getElementById('d_val').innerText = floatParaMoeda(totalGasto);
-    let multasPendentes = db.multas.filter(m=>m.mustatus !== 'Pago').length;
+    let multasPendentes = db.multas.filter(m =>
+    m.mustatus !== 'Pago' &&
+    m.mustatus !== 'Enviadas RH'
+).length;
     document.getElementById('d_multas_count').innerText = multasPendentes;
     let alertas = [];
     // ALERTA DE FÉRIAS
@@ -1486,7 +1491,12 @@ db.agendamentos.forEach(a => {
     db.seguros.forEach(s=>analisar(s.sveiculo,'Seguro',s.svencimento));
     db.licenciamento.forEach(l=>analisar(l.lveiculo,'Licenc.',l.lvencimento));
     db.tacografo.forEach(t=>analisar(t.tveiculo,'Tacógrafo',t.tvencimento));
-    db.multas.filter(m=>m.mustatus!=='Pago').forEach(mu=>analisar(mu.muveiculo,'Desc. Multa',mu.muvenc));
+    db.multas
+    .filter(m =>
+        m.mustatus !== 'Pago' &&
+        m.mustatus !== 'Enviadas RH'
+    )
+    .forEach(mu => analisar(mu.muveiculo, 'Desc. Multa', mu.muvenc));
     db.licencas.forEach(le=>{ analisar(le.leveiculo,'CIV',le.venciv); analisar(le.leveiculo,'CIPP',le.vencipp); });
     document.getElementById('listaAlertasRapidos').innerHTML = alertas.join('');
     document.getElementById('d_alertas').innerText = alertas.length;
