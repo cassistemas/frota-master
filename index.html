@@ -1415,7 +1415,12 @@ function renderDashboard(){
     if(!document.getElementById('d_vei')) return;
     document.getElementById('d_vei').innerText = db.veiculos.length;
     let totalGasto = db.manutencoes.reduce((a,b)=>a + moedaParaFloat(b.mvalor),0);
-    totalGasto += db.multas.filter(m=>m.mustatus==='Pago').reduce((a,b)=>a + moedaParaFloat(b.muvalor),0);
+    totalGasto += db.multas
+    .filter(m => 
+        m.mustatus === 'Pago' || 
+        m.mustatus === 'Enviadas RH'
+    )
+    .reduce((a,b)=>a + moedaParaFloat(b.muvalor),0);
     totalGasto += db.licenciamento.reduce((a,b)=>a + moedaParaFloat(b.lvalor),0);
     totalGasto += db.tacografo.reduce((a,b)=>a + moedaParaFloat(b.tvalor),0);
     document.getElementById('d_val').innerText = floatParaMoeda(totalGasto);
