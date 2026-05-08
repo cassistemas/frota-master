@@ -484,6 +484,36 @@ dados.map(c => {
         renderPaginacao('combustivel', 'paginacaoCombustivel');
     }
 
+if(modulo === 'motoristas'){
+
+    const dados = getDadosPaginados('motoristas');
+
+    document.getElementById('listaMotoristas').innerHTML =
+    dados.map((m,i)=>{
+
+        const realIndex = db.motoristas.indexOf(m);
+
+        return `
+        <tr>
+            <td>${m.motNome || '--'}</td>
+            <td>${m.motCpf || '--'}</td>
+            <td>${m.motCnh || '--'}</td>
+            <td>${m.motTel || '--'}</td>
+            <td>
+                ${m.motInicio || '--'} às ${m.motFim || '--'}
+            </td>
+            <td>
+                <button class="btn-edit" onclick="editar('motoristas',${realIndex})">✎</button>
+
+                <button class="btn-del" onclick="deletar('motoristas',${realIndex})">✕</button>
+            </td>
+        </tr>
+        `;
+    }).join('');
+
+    renderPaginacao('motoristas','paginacaoMotoristas');
+}
+
     if(modulo === 'multas'){
         carregarVeiculosSelect('filtroMuVeiculo');
         carregarMotoristasSelect('filtroMuMotorista');
@@ -534,8 +564,10 @@ function ativarPaginacao(){
     irParaUltimaPagina('fornecedores');
     irParaUltimaPagina('manutencoes');
     irParaUltimaPagina('combustivel');
+    irParaUltimaPagina('motoristas');
 
     renderModulo('veiculos');
+    renderModulo('motoristas');
     renderModulo('multas');
     renderModulo('fornecedores');
     renderModulo('manutencoes');
