@@ -59,6 +59,7 @@ Criar Conta
     <a onclick="navegar('dashboard',this)" class="active">📊 Dashboard</a>
     <a onclick="navegar('agendamentos',this)">📅 Agendamentos</a>
     <a onclick="navegar('veiculos',this)">🚗 Veículos</a>
+    <a onclick="navegar('pneus',this)">🛞 Pneus</a>
     <a onclick="navegar('motoristas',this)">👥 Motoristas</a>
     <a onclick="navegar('ferias',this)">🏖 Férias</a>
     <a onclick="navegar('multas',this)">🚫 Multas</a>
@@ -783,6 +784,233 @@ Criar Conta
     </div>
 </div>
 
+<!-- ========================= -->
+<!-- MÓDULO PNEUS -->
+<!-- ========================= -->
+<div id="pneus" class="hidden">
+
+    <h3>🛞 Gestão de Pneus</h3>
+
+    <!-- ========================= -->
+    <!-- FORMULÁRIO -->
+    <!-- ========================= -->
+    <div class="glass-container">
+
+        <input type="hidden" id="p_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+                <input id="pnumero" class="form-control" placeholder="Número do Pneu">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pmarca" class="form-control" placeholder="Marca">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pmodelo" class="form-control" placeholder="Modelo">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pmedida" class="form-control" placeholder="Medida">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pdot" class="form-control" placeholder="DOT">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pvalor" class="form-control" placeholder="Valor Compra" oninput="mascaraMoeda(this)">
+            </div>
+
+            <div class="col-md-3">
+                <input type="date" id="pdata" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pvida" type="number" class="form-control" placeholder="Vida Útil KM">
+            </div>
+
+            <div class="col-md-3">
+                <input id="psulco" class="form-control" placeholder="Sulco Inicial">
+            </div>
+
+            <div class="col-md-3">
+                <select id="pveiculo" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+                <select id="pfornecedor" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+                <select id="pposicao" class="form-select">
+                    <option>Dianteiro Esquerdo</option>
+                    <option>Dianteiro Direito</option>
+                    <option>Tração E.Externo</option>
+                    <option>Tração E.Dentro</option>
+                    <option>Tração D.Externo</option>
+                    <option>Tração D.Dentro</option>
+                    <option>Truck E.Externo</option>
+                    <option>Truck E.Dentro</option>
+                    <option>Truck D.Externo</option>
+                    <option>Truck D.Dentro</option>
+                    <option>Estepe 1</option>
+                    <option>Estepe 2</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <input id="pkminstalacao"
+type="number"
+class="form-control"
+placeholder="KM Instalação"
+oninput="calcularKMPneu()">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pkmatual"
+type="number"
+class="form-control"
+placeholder="KM Atual"
+oninput="calcularKMPneu()">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pkmrodado"class="form-control"placeholder="KM Rodado Automático"readonly>
+            </div>
+
+            <div class="col-md-3">
+                <select id="pstatus" class="form-select">
+                    <option>Em Uso</option>
+                    <option>Estoque</option>
+                    <option>Recapado</option>
+                    <option>Descartado</option>
+                </select>
+            </div>
+
+            <div class="col-md-12">
+                <textarea id="pobs" class="form-control" placeholder="Observações"></textarea>
+            </div>
+
+            <div class="col-md-12 text-end">
+
+                <button id="btn_cancel_pneus"
+                class="btn btn-outline-secondary btn-cancelar"
+                onclick="limparForm('pneus',
+                ['pnumero','pmarca','pmodelo','pmedida','pdot','pvalor','pdata','pvida','psulco','pveiculo','pfornecedor','pposicao','pkminstalacao','pkmatual','pkmrodado','pstatus','pobs'],
+                'p_idx')">
+                Cancelar
+                </button>
+
+                <button class="btn btn-dark"
+                onclick="salvarPneu()">
+                Salvar Pneu
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- FILTROS -->
+    <!-- ========================= -->
+    <div class="glass-container">
+
+        <div class="row g-2">
+
+            <div class="col-md-3">
+                <input type="text"
+                id="filtroPneu"
+                class="form-control"
+                placeholder="Pesquisar Pneu">
+            </div>
+
+            <div class="col-md-3">
+                <select id="filtroPVeiculo" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+                <select id="filtroPStatus" class="form-select">
+                    <option value="">Status</option>
+                    <option>Em Uso</option>
+                    <option>Estoque</option>
+                    <option>Recapado</option>
+                    <option>Descartado</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <button class="btn btn-primary w-100"
+                onclick="renderModulo('pneus')">
+                Filtrar
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+<!-- RESUMO PNEUS -->
+<div class="row mb-3">
+
+    <div class="col-md-6">
+        <div class="stat-card">
+            <h6>Total de Pneus</h6>
+            <h3 id="totalPneus">0</h3>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="stat-card" style="border-left-color: var(--success)">
+            <h6>Valor Total em Pneus</h6>
+            <h3 id="valorTotalPneus">R$ 0,00</h3>
+        </div>
+    </div>
+
+</div>
+
+    <!-- ========================= -->
+    <!-- TABELA -->
+    <!-- ========================= -->
+    <div class="glass-container">
+
+        <div class="d-flex justify-content-between mb-3">
+
+            <button class="btn-excel"
+            onclick="exportarExcel('pneus')">
+            📥 Exportar Excel
+            </button>
+
+        </div>
+
+        <table class="table">
+
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th>Marca</th>
+                    <th>Veículo</th>
+                    <th>Posição</th>
+                    <th>KM Rodado</th>
+                    <th>Status</th>
+                    <th>Fornecedor</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+
+            <tbody id="listaPneus"></tbody>
+
+        </table>
+
+        <div id="paginacaoPneus"></div>
+
+    </div>
+
+</div>
+
     <div id="relatorios" class="hidden">
         <h3>📂 Relatórios e Backup</h3>
         <div class="row">
@@ -821,6 +1049,7 @@ const dbCloud = firebase.firestore();
 const MAP={
     veiculos:'FM_V',
     motoristas:'FM_M',
+    pneus:'FM_P',
     multas:'FM_MU', 
     manutencoes:'FM_MAN',
     revisoes:'FM_R',
@@ -846,7 +1075,7 @@ const ID_MAP_INDEX = {
     revisoes:'r_idx',fornecedores:'f_idx',licenciamento:'l_idx',
     tacografo:'t_idx',licencas:'le_idx',multas:'mu_idx',
     ferias:'fe_idx',
-    agendamentos:'ag_idx',combustivel: 'c_idx',
+    agendamentos:'ag_idx',combustivel: 'c_idx',pneus:'p_idx',
 }
 
 function exportarExcel(modulo) {
@@ -2231,6 +2460,257 @@ function gerarRelatorioFerias(){
     let win = window.open('', '', 'width=900,height=700');
     win.document.write(html);
     win.document.close();
+}
+
+// =========================
+// SALVAR PNEU
+// =========================
+function salvarPneu(){
+
+    let obj = {
+
+        pnumero: document.getElementById('pnumero').value,
+        pmarca: document.getElementById('pmarca').value,
+        pmodelo: document.getElementById('pmodelo').value,
+        pmedida: document.getElementById('pmedida').value,
+        pdot: document.getElementById('pdot').value,
+        pvalor: document.getElementById('pvalor').value,
+        pdata: document.getElementById('pdata').value,
+        pvida: document.getElementById('pvida').value,
+        psulco: document.getElementById('psulco').value,
+        pveiculo: document.getElementById('pveiculo').value,
+        pfornecedor: document.getElementById('pfornecedor').value,
+        pposicao: document.getElementById('pposicao').value,
+        pkminstalacao: document.getElementById('pkminstalacao').value,
+        pkmatual: document.getElementById('pkmatual').value,
+        pkmrodado: document.getElementById('pkmrodado').value,
+        pstatus: document.getElementById('pstatus').value,
+        pobs: document.getElementById('pobs').value,
+        pdatacadastro: new Date().toISOString()
+
+    };
+
+    const idx = document.getElementById('p_idx').value;
+
+    if(idx === ''){
+        db.pneus.push(obj);
+
+        // vai para última página
+        irParaUltimaPagina('pneus');
+
+    } else {
+        db.pneus[idx] = obj;
+    }
+
+    salvarNuvem();
+
+    renderModulo('pneus');
+
+    limparForm(
+        'pneus',
+        [
+            'pnumero','pmarca','pmodelo','pmedida','pdot',
+            'pvalor','pdata','pvida','psulco','pveiculo',
+            'pfornecedor','pposicao','pkminstalacao',
+            'pkmatual','pkmrodado','pstatus','pobs'
+        ],
+        'p_idx'
+    );
+}
+
+// =========================
+// SELECTS
+// =========================
+function carregarPneuSelects(){
+
+    const veiculos = document.getElementById('pveiculo');
+    const filtroVeiculo = document.getElementById('filtroPVeiculo');
+
+    if(veiculos){
+
+        veiculos.innerHTML =
+        '<option value=\"\">Selecione o veículo</option>' +
+
+        db.veiculos.map(v =>
+        `<option value=\"${v.vplaca}\">${v.vplaca}</option>`).join('');
+
+    }
+
+    if(filtroVeiculo){
+
+        filtroVeiculo.innerHTML =
+        '<option value=\"\">Todos</option>' +
+
+        db.veiculos.map(v =>
+        `<option value=\"${v.vplaca}\">${v.vplaca}</option>`).join('');
+
+    }
+
+    const fornecedores = document.getElementById('pfornecedor');
+
+    if(fornecedores){
+
+        fornecedores.innerHTML =
+        '<option value=\"\">Selecione o fornecedor</option>' +
+
+        db.fornecedores.map(f =>
+        `<option value=\"${f.fnome}\">${f.fnome}</option>`).join('');
+
+    }
+
+}
+// =========================
+// RENDER
+// =========================
+const oldRenderModulo = renderModulo;
+
+renderModulo = function(modulo){
+
+    oldRenderModulo(modulo);
+
+    if(modulo === 'pneus'){
+
+        carregarPneuSelects();
+
+        let lista = [...db.pneus];
+
+        const filtro = document.getElementById('filtroPneu')?.value?.toLowerCase() || '';
+        const veiculo = document.getElementById('filtroPVeiculo')?.value || '';
+        const status = document.getElementById('filtroPStatus')?.value || '';
+
+        lista = lista.filter(p => {
+
+            return (
+                (!filtro ||
+                p.pnumero.toLowerCase().includes(filtro) ||
+                p.pmarca.toLowerCase().includes(filtro))
+                &&
+                (!veiculo || p.pveiculo === veiculo)
+                &&
+                (!status || p.pstatus === status)
+            );
+
+        });
+
+        const totalPneus = db.pneus.length;
+
+const valorTotal = db.pneus.reduce((total, p) => {
+
+    let valor = String(p.pvalor || '0')
+        .replace('R$', '')
+        .replace(/\./g, '')
+        .replace(',', '.')
+        .trim();
+
+    return total + (parseFloat(valor) || 0);
+
+}, 0);
+
+document.getElementById('totalPneus').innerText =
+totalPneus;
+
+document.getElementById('valorTotalPneus').innerText =
+valorTotal.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+});
+
+        const dados = getDadosPaginadosCustom(lista,'pneus');
+
+        document.getElementById('listaPneus').innerHTML =
+        dados.map(p=>{
+
+            const realIndex = db.pneus.indexOf(p);
+
+            return `
+            <tr>
+
+            <td><b>${p.pnumero}</b></td>
+
+            <td>${p.pmarca}</td>
+
+            <td>${p.pveiculo}</td>
+
+            <td>${p.pposicao}</td>
+
+            <td>${p.pkmrodado || 0} KM</td>
+
+            <td>
+                <span class="badge bg-dark">
+                ${p.pstatus}
+                </span>
+            </td>
+
+            <td>${p.pfornecedor}</td>
+
+            <td>
+
+                <button class="btn-edit"
+                onclick="editar('pneus',${realIndex})">
+                ✎
+                </button>
+
+                <button class="btn-del"
+                onclick="deletar('pneus',${realIndex})">
+                ✕
+                </button>
+
+            </td>
+
+            </tr>
+            `;
+
+        }).join('');
+
+        renderPaginacaoCustom(lista,'pneus','paginacaoPneus');
+
+    }
+
+}
+
+// =========================
+// ALERTAS
+// =========================
+function alertasPneus(){
+
+    let alertas = [];
+
+    db.pneus.forEach(p=>{
+
+        const kmRodado = parseFloat(p.pkmrodado || 0);
+        const vida = parseFloat(p.pvida || 0);
+
+        if(kmRodado >= (vida * 0.9)){
+
+            alertas.push(
+                `⚠️ Pneu ${p.pnumero} próximo da troca`
+            );
+
+        }
+
+    });
+
+    return alertas;
+}
+
+function calcularKMPneu(){
+
+    const kmInstalacao =
+    parseFloat(document.getElementById('pkminstalacao').value) || 0;
+
+    const kmAtual =
+    parseFloat(document.getElementById('pkmatual').value) || 0;
+
+    let total = 0;
+
+    if(kmAtual > kmInstalacao){
+
+        total = kmAtual - kmInstalacao;
+
+    }
+
+    document.getElementById('pkmrodado').value = total;
+
 }
 
 function carregarPermissoesAdmin(){
