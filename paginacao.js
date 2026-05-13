@@ -514,6 +514,51 @@ if(modulo === 'motoristas'){
     renderPaginacao('motoristas','paginacaoMotoristas');
 }
 
+if(modulo === 'pneus'){
+
+    carregarPneuSelects();
+
+    const dados = getDadosPaginados('pneus');
+
+    document.getElementById('listaPneus').innerHTML =
+
+    dados.map(p=>{
+
+        const realIndex = db.pneus.indexOf(p);
+
+        return `
+        <tr>
+
+        <td>${p.pnumero}</td>
+        <td>${p.pmarca}</td>
+        <td>${p.pveiculo}</td>
+        <td>${p.pkmrodado}</td>
+        <td>${p.pstatus}</td>
+        <td>${p.pfornecedor}</td>
+
+        <td>
+
+        <button class="btn-edit"
+        onclick="editar('pneus',${realIndex})">
+        ✎
+        </button>
+
+        <button class="btn-del"
+        onclick="deletar('pneus',${realIndex})">
+        ✕
+        </button>
+
+        </td>
+
+        </tr>
+        `;
+
+    }).join('');
+
+    renderPaginacao('pneus','paginacaoPneus');
+
+}
+
     if(modulo === 'multas'){
         carregarVeiculosSelect('filtroMuVeiculo');
         carregarMotoristasSelect('filtroMuMotorista');
@@ -565,6 +610,7 @@ function ativarPaginacao(){
     irParaUltimaPagina('manutencoes');
     irParaUltimaPagina('combustivel');
     irParaUltimaPagina('motoristas');
+    irParaUltimaPagina('pneus');
 
     renderModulo('veiculos');
     renderModulo('motoristas');
@@ -572,6 +618,7 @@ function ativarPaginacao(){
     renderModulo('fornecedores');
     renderModulo('manutencoes');
     renderModulo('combustivel');
+    renderModulo('pneus');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
