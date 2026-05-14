@@ -17,6 +17,7 @@ function formatarDataBR(data) {
 
 const PAGINACAO = {
     itensPorPagina: 15,
+
     paginas: {},
 };
 
@@ -353,6 +354,89 @@ function corStatusMulta(status) {
     }
 }
 
+function getDiariasFiltradas(){
+
+    if(!db.diarias) return [];
+
+    let dados = [...db.diarias];
+
+    const motorista =
+    document.getElementById('filtroDiMotorista')?.value || '';
+
+    const dataIni =
+    document.getElementById('filtroDiDataIni')?.value || '';
+
+    const dataFim =
+    document.getElementById('filtroDiDataFim')?.value || '';
+
+    const valorMin =
+    document.getElementById('filtroDiValorMin')?.value || '';
+
+    const valorMax =
+    document.getElementById('filtroDiValorMax')?.value || '';
+
+    return dados.filter(d => {
+
+        const valor =
+        moedaParaFloat(d.divalor || 0);
+
+        return (
+
+            (!motorista ||
+            d.dimotorista === motorista)
+
+            &&
+
+            (!dataIni ||
+            d.didata >= dataIni)
+
+            &&
+
+            (!dataFim ||
+            d.didata <= dataFim)
+
+            &&
+
+            (!valorMin ||
+            valor >= parseFloat(valorMin))
+
+            &&
+
+            (!valorMax ||
+            valor <= parseFloat(valorMax))
+
+        );
+
+    });
+
+}
+
+function aplicarFiltroDiarias(){
+
+    PAGINACAO.paginas['diarias'] = 1;
+
+    renderModulo('diarias');
+}
+
+function limparFiltroDiarias(){
+
+    [
+        'filtroDiMotorista',
+        'filtroDiDataIni',
+        'filtroDiDataFim',
+        'filtroDiValorMin',
+        'filtroDiValorMax'
+    ].forEach(id => {
+
+        const el = document.getElementById(id);
+
+        if(el) el.value = '';
+
+    });
+
+    renderModulo('diarias');
+}
+
 function renderModulo(modulo) {
 
 if (!PAGINACAO.paginas[modulo]) {
@@ -383,6 +467,77 @@ if (!PAGINACAO.paginas[modulo]) {
 
         renderPaginacao('veiculos','paginacaoVeiculos');
     }
+
+    if(modulo === 'diarias'){
+
+    carregarMotoristasSelect('dimotorista');
+
+    carregarMotoristasSelect('dimotorista');
+
+carregarMotoristasSelect('filtroDiMotorista');
+
+const filtrados = getDiariasFiltradas();
+
+document.getElementById('totalDiariasQtd').innerText =
+filtrados.length;
+
+const totalDiarias = filtrados.reduce((acc,d)=>{
+
+    return acc + moedaParaFloat(d.divalor || 0);
+
+},0);
+
+document.getElementById('totalDiariasValor').innerText =
+
+floatParaMoeda(totalDiarias);
+
+const dados = getDadosPaginadosCustom(
+    filtrados,
+    'diarias'
+);
+
+    document.getElementById('listaDiarias').innerHTML =
+
+    dados.map(d => {
+
+        const realIndex = db.diarias.indexOf(d);
+
+        return `
+       <tr>
+
+    <td>${d.dimotorista || '--'}</td>
+
+    <td>${formatarDataBR(d.didata)}</td>
+
+    <td>${d.divalor || '--'}</td>
+
+    <td>${d.dicoleta || '--'}</td>
+
+    <td>
+
+                <button class="btn-edit"
+                onclick="editar('diarias',${realIndex})">
+                ✎
+                </button>
+
+                <button class="btn-del"
+                onclick="deletar('diarias',${realIndex})">
+                ✕
+                </button>
+
+            </td>
+
+        </tr>
+        `;
+
+    }).join('');
+
+    renderPaginacaoCustom(
+    filtrados,
+    'diarias',
+    'paginacaoDiarias'
+);
+}
 
     if(modulo === 'fornecedores'){
     const dados = getDadosPaginados('fornecedores');
