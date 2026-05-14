@@ -17,6 +17,7 @@ function formatarDataBR(data) {
 
 const PAGINACAO = {
     itensPorPagina: 15,
+
     paginas: {},
 };
 
@@ -353,6 +354,99 @@ function corStatusMulta(status) {
     }
 }
 
+function getDiariasFiltradas(){
+
+    if(!db.diarias) return [];
+
+    let dados = [...db.diarias];
+
+    const motorista =
+    document.getElementById('filtroDiMotorista')?.value || '';
+
+    const dataIni =
+    document.getElementById('filtroDiDataIni')?.value || '';
+
+    const dataFim =
+    document.getElementById('filtroDiDataFim')?.value || '';
+
+    const valorMin =
+    document.getElementById('filtroDiValorMin')?.value || '';
+
+    const valorMax =
+    document.getElementById('filtroDiValorMax')?.value || '';
+
+    return dados.filter(d => {
+
+        const valor =
+        moedaParaFloat(d.divalor || 0);
+
+        const nomeDiaria =
+    String(d.dimotorista || '')
+    .trim()
+    .toLowerCase();
+
+const nomeFiltro =
+    String(motorista || '')
+    .trim()
+    .toLowerCase();
+
+return (
+
+    (!motorista ||
+    nomeDiaria === nomeFiltro)
+
+    &&
+
+    (!dataIni ||
+    d.didata >= dataIni)
+
+    &&
+
+    (!dataFim ||
+    d.didata <= dataFim)
+
+    &&
+
+    (!valorMin ||
+    valor >= parseFloat(valorMin))
+
+    &&
+
+    (!valorMax ||
+    valor <= parseFloat(valorMax))
+
+);
+
+    });
+
+}
+
+function aplicarFiltroDiarias(){
+
+    PAGINACAO.paginas['diarias'] = 1;
+
+    renderModulo('diarias');
+}
+
+function limparFiltroDiarias(){
+
+    [
+        'filtroDiMotorista',
+        'filtroDiDataIni',
+        'filtroDiDataFim',
+        'filtroDiValorMin',
+        'filtroDiValorMax'
+    ].forEach(id => {
+
+        const el = document.getElementById(id);
+
+        if(el) el.value = '';
+
+    });
+
+    renderModulo('diarias');
+}
+
 function renderModulo(modulo) {
 
 if (!PAGINACAO.paginas[modulo]) {
@@ -383,6 +477,85 @@ if (!PAGINACAO.paginas[modulo]) {
 
         renderPaginacao('veiculos','paginacaoVeiculos');
     }
+
+    if(modulo === 'diarias'){
+
+    if(
+        document.getElementById('dimotorista')
+        .options.length <= 1
+    ){
+        carregarMotoristasSelect('dimotorista');
+    }
+
+    if(
+        document.getElementById('filtroDiMotorista')
+        .options.length <= 1
+    ){
+        carregarMotoristasSelect('filtroDiMotorista');
+    }
+
+const filtrados = getDiariasFiltradas();
+
+document.getElementById('totalDiariasQtd').innerText =
+filtrados.length;
+
+const totalDiarias = filtrados.reduce((acc,d)=>{
+
+    return acc + moedaParaFloat(d.divalor || 0);
+
+},0);
+
+document.getElementById('totalDiariasValor').innerText =
+
+floatParaMoeda(totalDiarias);
+
+const dados = getDadosPaginadosCustom(
+    filtrados,
+    'diarias'
+);
+
+    document.getElementById('listaDiarias').innerHTML =
+
+    dados.map(d => {
+
+        const realIndex = db.diarias.indexOf(d);
+
+        return `
+       <tr>
+
+    <td>${d.dimotorista || '--'}</td>
+
+    <td>${formatarDataBR(d.didata)}</td>
+
+    <td>${d.divalor || '--'}</td>
+
+    <td>${d.dicoleta || '--'}</td>
+
+    <td>
+
+                <button class="btn-edit"
+                onclick="editar('diarias',${realIndex})">
+                ✎
+                </button>
+
+                <button class="btn-del"
+                onclick="deletar('diarias',${realIndex})">
+                ✕
+                </button>
+
+            </td>
+
+        </tr>
+        `;
+
+    }).join('');
+
+    renderPaginacaoCustom(
+    filtrados,
+    'diarias',
+    'paginacaoDiarias'
+);
+}
 
     if(modulo === 'fornecedores'){
     const dados = getDadosPaginados('fornecedores');
@@ -656,24 +829,38 @@ window.addEventListener('load', () => {
 
 function carregarMotoristasSelect(id){
 
-    const select = document.getElementById(id);
+    const select =
+        document.getElementById(id);
+
     if(!select) return;
 
-    select.innerHTML = '<option value="">Motorista</option>';
+    select.innerHTML =
+        '<option value="">Motorista</option>';
 
-    if (!db.motoristas) return;
+    if(
+        !db ||
+        !Array.isArray(db.motoristas)
+    ) return;
 
     db.motoristas.forEach(m => {
 
+        console.log(m);
+
+        // pega qualquer campo possível
         const nome =
-            m.motNome ||   // 🔥 PRINCIPAL (seu caso)
-            m.mnome ||
+            m.motNome ||
             m.nome ||
-            m.motorista;
+            m.motorista ||
+            m.mnome ||
+            '';
 
-        if(!nome) return;
+        if(nome.trim() === '') return;
 
-        select.innerHTML += `<option value="${nome}">${nome}</option>`;
+        select.innerHTML += `
+            <option value="${nome}">
+                ${nome}
+            </option>
+        `;
     });
 }
 
