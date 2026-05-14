@@ -2346,21 +2346,6 @@ function excluirAnexo(i, index){
     verAnexos(i);
 }
 
-function carregarMotoristasSelect(id){
-    const select = document.getElementById(id);
-    if(!select) return;
-
-    const valorAtual = select.value;
-
-    select.innerHTML = '<option value="">Todos</option>';
-
-    db.motoristas.forEach(m => {
-        select.innerHTML += `<option value="${m.motNome}">${m.motNome}</option>`;
-    });
-
-    select.value = valorAtual;
-}
-
 function carregarVeiculosSelect(id){
     const select = document.getElementById(id);
     if(!select) return;
