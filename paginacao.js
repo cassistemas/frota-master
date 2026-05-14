@@ -564,10 +564,18 @@ if(modulo === 'pneus'){
         carregarMotoristasSelect('filtroMuMotorista');
 
         const filtrados = getMultasFiltradas();
-        const total = calcularTotalMultas(filtrados);
-        document.getElementById('totalMultas').innerText =
-        'Total: ' + floatParaMoeda(total);
-        const dados = getDadosPaginadosCustom(filtrados, 'multas');
+
+// TOTAL DE MULTAS
+document.getElementById('quantidadeMultas').innerText =
+filtrados.length;
+
+// TOTAL EM VALOR
+const total = calcularTotalMultas(filtrados);
+
+document.getElementById('totalMultas').innerText =
+'Total: ' + floatParaMoeda(total);
+
+const dados = getDadosPaginadosCustom(filtrados, 'multas');
 
         document.getElementById('listaMultas').innerHTML =
         dados.map((mu,i)=>{
