@@ -1745,6 +1745,7 @@ if(document.getElementById('agmotorista'))
     renderModulo('multas');
     renderModulo('fornecedores');
     renderModulo('manutencoes');
+    renderModulo('diarias');
     renderDashboard();
 
     document.getElementById('listaMotoristas').innerHTML = db.motoristas.map((m,i)=>`
