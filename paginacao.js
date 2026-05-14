@@ -380,32 +380,42 @@ function getDiariasFiltradas(){
         const valor =
         moedaParaFloat(d.divalor || 0);
 
-        return (
+        const nomeDiaria =
+    String(d.dimotorista || '')
+    .trim()
+    .toLowerCase();
 
-            (!motorista ||
-            d.dimotorista === motorista)
+const nomeFiltro =
+    String(motorista || '')
+    .trim()
+    .toLowerCase();
 
-            &&
+return (
 
-            (!dataIni ||
-            d.didata >= dataIni)
+    (!motorista ||
+    nomeDiaria === nomeFiltro)
 
-            &&
+    &&
 
-            (!dataFim ||
-            d.didata <= dataFim)
+    (!dataIni ||
+    d.didata >= dataIni)
 
-            &&
+    &&
 
-            (!valorMin ||
-            valor >= parseFloat(valorMin))
+    (!dataFim ||
+    d.didata <= dataFim)
 
-            &&
+    &&
 
-            (!valorMax ||
-            valor <= parseFloat(valorMax))
+    (!valorMin ||
+    valor >= parseFloat(valorMin))
 
-        );
+    &&
+
+    (!valorMax ||
+    valor <= parseFloat(valorMax))
+
+);
 
     });
 
@@ -470,8 +480,19 @@ if (!PAGINACAO.paginas[modulo]) {
 
     if(modulo === 'diarias'){
 
-    carregarMotoristasSelect('dimotorista');
-    carregarMotoristasSelect('filtroDiMotorista');
+    if(
+        document.getElementById('dimotorista')
+        .options.length <= 1
+    ){
+        carregarMotoristasSelect('dimotorista');
+    }
+
+    if(
+        document.getElementById('filtroDiMotorista')
+        .options.length <= 1
+    ){
+        carregarMotoristasSelect('filtroDiMotorista');
+    }
 
 const filtrados = getDiariasFiltradas();
 
@@ -808,24 +829,38 @@ window.addEventListener('load', () => {
 
 function carregarMotoristasSelect(id){
 
-    const select = document.getElementById(id);
+    const select =
+        document.getElementById(id);
+
     if(!select) return;
 
-    select.innerHTML = '<option value="">Motorista</option>';
+    select.innerHTML =
+        '<option value="">Motorista</option>';
 
-    if (!db.motoristas) return;
+    if(
+        !db ||
+        !Array.isArray(db.motoristas)
+    ) return;
 
     db.motoristas.forEach(m => {
 
+        console.log(m);
+
+        // pega qualquer campo possível
         const nome =
-            m.motNome ||   // 🔥 PRINCIPAL (seu caso)
-            m.mnome ||
+            m.motNome ||
             m.nome ||
-            m.motorista;
+            m.motorista ||
+            m.mnome ||
+            '';
 
-        if(!nome) return;
+        if(nome.trim() === '') return;
 
-        select.innerHTML += `<option value="${nome}">${nome}</option>`;
+        select.innerHTML += `
+            <option value="${nome}">
+                ${nome}
+            </option>
+        `;
     });
 }
 
