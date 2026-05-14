@@ -61,6 +61,7 @@ Criar Conta
     <a onclick="navegar('veiculos',this)">🚗 Veículos</a>
     <a onclick="navegar('pneus',this)">🛞 Pneus</a>
     <a onclick="navegar('motoristas',this)">👥 Motoristas</a>
+    <a onclick="navegar('diarias',this)">💰 Diárias</a>
     <a onclick="navegar('ferias',this)">🏖 Férias</a>
     <a onclick="navegar('multas',this)">🚫 Multas</a>
     <a onclick="navegar('seguros',this)">🛡 Seguros</a>
@@ -83,6 +84,176 @@ Criar Conta
 </div>
 
 <div class="main" id="sistemaMain" style="display:none">
+
+<div id="diarias" class="hidden">
+
+    <h3>💰 Controle de Diárias</h3>
+
+    <div class="glass-container">
+
+        <input type="hidden" id="di_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+    <select id="dimotorista" class="form-select"></select>
+</div>
+
+<div class="col-md-3">
+    <input type="date" id="didata" class="form-control">
+</div>
+
+<div class="col-md-3">
+    <input id="divalor"
+    class="form-control"
+    placeholder="Valor R$"
+    oninput="mascaraMoeda(this)">
+</div>
+
+<div class="col-md-3">
+    <input id="dicoleta"
+    class="form-control"
+    placeholder="N° Coleta/Entrega">
+</div>
+            <div class="col-md-12 text-end">
+
+                <button id="btn_cancel_diarias"
+                class="btn btn-outline-secondary btn-cancelar"
+                onclick="limparForm(
+                    'diarias',
+                    ['didata','divalor','dicoleta','dimotorista'],
+                    'di_idx'
+                )">
+                    Cancelar
+                </button>
+
+                <button class="btn btn-success"
+                onclick="salvar(
+                    'diarias',
+                    ['didata','divalor','dicoleta','dimotorista'],
+                    'di_idx'
+                )">
+                    Salvar
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+<div class="glass-container">
+
+    <div class="row g-2">
+
+        <div class="col-md-3">
+            <select id="filtroDiMotorista" class="form-select"></select>
+        </div>
+
+        <div class="col-md-2">
+            <input type="date"
+            id="filtroDiDataIni"
+            class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <input type="date"
+            id="filtroDiDataFim"
+            class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <input type="number"
+            id="filtroDiValorMin"
+            class="form-control"
+            placeholder="Valor Min">
+        </div>
+
+        <div class="col-md-2">
+            <input type="number"
+            id="filtroDiValorMax"
+            class="form-control"
+            placeholder="Valor Max">
+        </div>
+
+        <div class="col-md-1">
+            <button class="btn btn-primary w-100"
+            onclick="aplicarFiltroDiarias()">
+            🔎
+            </button>
+        </div>
+
+        <div class="col-md-2">
+            <button class="btn btn-secondary w-100"
+            onclick="limparFiltroDiarias()">
+            Limpar
+            </button>
+        </div>
+
+    </div>
+
+</div>
+
+<div class="row mb-3">
+
+    <div class="col-md-6">
+        <div class="stat-card">
+            <h6>Quantidade de Diárias</h6>
+            <h3 id="totalDiariasQtd">0</h3>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="stat-card"
+        style="border-left-color: var(--success)">
+
+            <h6>Valor Total Diárias</h6>
+
+            <h3 id="totalDiariasValor">
+                R$ 0,00
+            </h3>
+
+        </div>
+    </div>
+
+</div>
+
+    <div class="glass-container">
+
+        <div class="d-flex justify-content-between mb-3">
+
+            <input type="text"
+            class="form-control search-box w-75"
+            placeholder="🔎 Pesquisar..."
+            onkeyup="filtrarTabela('listaDiarias', this.value)">
+
+            <button class="btn-excel"
+            onclick="exportarExcel('diarias')">
+                📥 Exportar Excel
+            </button>
+
+        </div>
+
+        <table class="table">
+
+            <thead>
+                <tr>
+                    <th>Motorista</th>
+                    <th>Data</th>
+                    <th>Valor</th>
+                    <th>N° Coleta/Entrega</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+
+            <tbody id="listaDiarias"></tbody>
+
+        </table>
+
+        <div id="paginacaoDiarias"></div>
+
+    </div>
+
+</div>
 
 <div id="agendamentos" class="hidden">
     <h3>📅 Agendamentos</h3>
@@ -1065,6 +1236,7 @@ const dbCloud = firebase.firestore();
 const MAP={
     veiculos:'FM_V',
     motoristas:'FM_M',
+    diarias:'FM_DI',
     pneus:'FM_P',
     multas:'FM_MU', 
     manutencoes:'FM_MAN',
@@ -1087,7 +1259,7 @@ Object.keys(MAP).forEach(k=>{
     db[k] = []
 })
 const ID_MAP_INDEX = {
-    veiculos:'v_idx',motoristas:'m_idx',seguros:'s_idx',manutencoes:'man_idx',
+    veiculos:'v_idx',motoristas:'m_idx',diarias:'di_idx',seguros:'s_idx',manutencoes:'man_idx',
     revisoes:'r_idx',fornecedores:'f_idx',licenciamento:'l_idx',
     tacografo:'t_idx',licencas:'le_idx',multas:'mu_idx',
     ferias:'fe_idx',
