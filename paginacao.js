@@ -471,10 +471,7 @@ if (!PAGINACAO.paginas[modulo]) {
     if(modulo === 'diarias'){
 
     carregarMotoristasSelect('dimotorista');
-
-    carregarMotoristasSelect('dimotorista');
-
-carregarMotoristasSelect('filtroDiMotorista');
+    carregarMotoristasSelect('filtroDiMotorista');
 
 const filtrados = getDiariasFiltradas();
 
