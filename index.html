@@ -1775,12 +1775,26 @@ document.getElementById('listaFerias').innerHTML =
 <td>${f.femotorista}</td>
 <td>${formatarDataBR(f.feinicio)}</td>
 <td>${formatarDataBR(f.fefim)}</td>
-<td><b>${f.festatus}</b></td>
+
+<td>
+    <span class="badge ${
+        f.festatus === 'Concluída'
+            ? 'bg-success'
+            : f.festatus === 'Em andamento'
+            ? 'bg-warning text-dark'
+            : 'bg-danger'
+    }">
+        ${f.festatus}
+    </span>
+</td>
+
 <td>${f.feobs || '--'}</td>
+
 <td>
 <button class="btn-edit" onclick="editar('ferias',${i})">✎</button>
 <button class="btn-del" onclick="deletar('ferias',${i})">✕</button>
 </td>
+
 </tr>
 `).join('');
    
