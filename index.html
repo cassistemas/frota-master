@@ -1771,12 +1771,15 @@ if(document.getElementById('femotorista')){
 // LISTA
 document.getElementById('listaFerias').innerHTML =
 
-    [...db.ferias]
+    db.ferias
 
-    // ORDENAR POR DATA
+    // mantém índice original
+    .map((f, i) => ({ ...f, originalIndex: i }))
+
+    // ordena pela data
     .sort((a, b) => new Date(a.feinicio) - new Date(b.feinicio))
 
-    .map((f,i)=>`
+    .map(f => `
 <tr>
 
 <td>${f.femotorista}</td>
@@ -1800,8 +1803,9 @@ document.getElementById('listaFerias').innerHTML =
 <td>${f.feobs || '--'}</td>
 
 <td>
-<button class="btn-edit" onclick="editar('ferias',${i})">✎</button>
-<button class="btn-del" onclick="deletar('ferias',${i})">✕</button>
+<button class="btn-edit" onclick="editar('ferias',${f.originalIndex})">✎</button>
+
+<button class="btn-del" onclick="deletar('ferias',${f.originalIndex})">✕</button>
 </td>
 
 </tr>
