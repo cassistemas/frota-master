@@ -1770,10 +1770,19 @@ if(document.getElementById('femotorista')){
 
 // LISTA
 document.getElementById('listaFerias').innerHTML =
-    db.ferias.map((f,i)=>`
+
+    [...db.ferias]
+
+    // ORDENAR POR DATA
+    .sort((a, b) => new Date(a.feinicio) - new Date(b.feinicio))
+
+    .map((f,i)=>`
 <tr>
+
 <td>${f.femotorista}</td>
+
 <td>${formatarDataBR(f.feinicio)}</td>
+
 <td>${formatarDataBR(f.fefim)}</td>
 
 <td>
