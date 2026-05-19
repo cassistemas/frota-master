@@ -733,10 +733,17 @@ if(modulo === 'pneus'){
 }
 
     if(modulo === 'multas'){
-        carregarVeiculosSelect('filtroMuVeiculo');
-        carregarMotoristasSelect('filtroMuMotorista');
 
-        const filtrados = getMultasFiltradas();
+    // só carrega se ainda estiver vazio
+    if(document.getElementById('filtroMuVeiculo').options.length <= 1){
+        carregarVeiculosSelect('filtroMuVeiculo');
+    }
+
+    if(document.getElementById('filtroMuMotorista').options.length <= 1){
+        carregarMotoristasSelect('filtroMuMotorista');
+    }
+
+    const filtrados = getMultasFiltradas();
 
 // TOTAL DE MULTAS
 document.getElementById('quantidadeMultas').innerText =
