@@ -115,24 +115,30 @@ Criar Conta
     class="form-control"
     placeholder="N° Coleta/Entrega">
 </div>
+
+<div class="col-md-12">
+    <textarea id="diobs"
+    class="form-control"
+    placeholder="Observações"></textarea>
+</div>
             <div class="col-md-12 text-end">
 
                 <button id="btn_cancel_diarias"
                 class="btn btn-outline-secondary btn-cancelar"
-                onclick="limparForm(
-                    'diarias',
-                    ['didata','divalor','dicoleta','dimotorista'],
-                    'di_idx'
-                )">
+               onclick="limparForm(
+    'diarias',
+    ['didata','divalor','dicoleta','dimotorista','diobs'],
+    'di_idx'
+)">
                     Cancelar
                 </button>
 
                 <button class="btn btn-success"
                 onclick="salvar(
-                    'diarias',
-                    ['didata','divalor','dicoleta','dimotorista'],
-                    'di_idx'
-                )">
+    'diarias',
+    ['didata','divalor','dicoleta','dimotorista','diobs'],
+    'di_idx'
+)">
                     Salvar
                 </button>
 
@@ -241,6 +247,7 @@ Criar Conta
                     <th>Data</th>
                     <th>Valor</th>
                     <th>N° Coleta/Entrega</th>
+                    <th>Observações</th>
                     <th>Ações</th>
                 </tr>
             </thead>
