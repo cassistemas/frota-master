@@ -531,6 +531,8 @@ const dados = getDadosPaginadosCustom(
 
     <td>${d.dicoleta || '--'}</td>
 
+    <td>${d.diobs || '--'}</td>
+
     <td>
 
                 <button class="btn-edit"
