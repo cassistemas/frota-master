@@ -324,15 +324,27 @@ function aplicarFiltroMultas(){
 function limparFiltroMultas(){
 
     [
-        'filtroMuVeiculo','filtroMuMotorista','filtroMuStatus',
-        'filtroMuDataIni','filtroMuDataFim','filtroMuAIT',
-        'filtroMuValorMin','filtroMuValorMax'
-    ].forEach(id=>{
+        'filtroMuVeiculo',
+        'filtroMuMotorista',
+        'filtroMuStatus',
+        'filtroMuDataIni',
+        'filtroMuDataFim',
+        'filtroMuAIT',
+        'filtroMuValorMin',
+        'filtroMuValorMax'
+    ].forEach(id => {
+
         const el = document.getElementById(id);
+
         if(el) el.value = '';
+
     });
 
-    aplicarFiltroMultas();
+    // 🔥 volta para última página
+    irParaUltimaPagina('multas');
+
+    // 🔥 renderiza novamente
+    renderModulo('multas');
 }
 
 // ==========================
