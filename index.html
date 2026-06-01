@@ -116,6 +116,14 @@ Criar Conta
     placeholder="N° Coleta/Entrega">
 </div>
 
+<div class="col-md-3">
+    <select id="distatus" class="form-select">
+        <option value="Pendente">Pendente</option>
+        <option value="Enviadas RH">Enviadas RH</option>
+        <option value="Pago">Pago</option>
+    </select>
+</div>
+
 <div class="col-md-12">
     <textarea id="diobs"
     class="form-control"
@@ -127,7 +135,7 @@ Criar Conta
                 class="btn btn-outline-secondary btn-cancelar"
                onclick="limparForm(
     'diarias',
-    ['didata','divalor','dicoleta','dimotorista','diobs'],
+    ['didata','divalor','dicoleta','distatus','dimotorista','diobs'],
     'di_idx'
 )">
                     Cancelar
@@ -136,7 +144,7 @@ Criar Conta
                 <button class="btn btn-success"
                 onclick="salvar(
     'diarias',
-    ['didata','divalor','dicoleta','dimotorista','diobs'],
+    ['didata','divalor','dicoleta','distatus','dimotorista','diobs'],
     'di_idx'
 )">
                     Salvar
@@ -180,6 +188,15 @@ Criar Conta
             class="form-control"
             placeholder="Valor Max">
         </div>
+
+      <div class="col-md-2">
+    <select id="filtroDiStatus" class="form-select">
+        <option value="">Status</option>
+        <option value="Pendente">Pendente</option>
+        <option value="Enviadas RH">Enviadas RH</option>
+        <option value="Pago">Pago</option>
+    </select>
+</div>
 
         <div class="col-md-1">
             <button class="btn btn-primary w-100"
@@ -247,6 +264,7 @@ Criar Conta
                     <th>Data</th>
                     <th>Valor</th>
                     <th>N° Coleta/Entrega</th>
+                    <th>Status</th>
                     <th>Observações</th>
                     <th>Ações</th>
                 </tr>
