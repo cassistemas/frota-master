@@ -627,6 +627,7 @@ const dados = getDadosPaginadosCustom(
         <td>${formatarDataBR(m.mdata)}</td>
         <td>${m.mkm}</td>
         <td>${m.mvalor}</td>
+        <td>${m.mnf || '--'}</td>
         <td>${m.mfornecedor}</td>
         <td>${m.mservico}</td>
         <td>
