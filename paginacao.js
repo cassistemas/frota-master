@@ -375,6 +375,9 @@ function getDiariasFiltradas(){
     const motorista =
     document.getElementById('filtroDiMotorista')?.value || '';
 
+    const status =
+    document.getElementById('filtroDiStatus')?.value || '';
+
     const dataIni =
     document.getElementById('filtroDiDataIni')?.value || '';
 
@@ -406,6 +409,11 @@ return (
 
     (!motorista ||
     nomeDiaria === nomeFiltro)
+
+    &&
+
+    (!status ||
+    (d.distatus || 'Pendente') === status)
 
     &&
 
@@ -444,6 +452,7 @@ function limparFiltroDiarias(){
 
     [
         'filtroDiMotorista',
+         'filtroDiStatus',
         'filtroDiDataIni',
         'filtroDiDataFim',
         'filtroDiValorMin',
@@ -543,9 +552,21 @@ const dados = getDadosPaginadosCustom(
 
     <td>${d.dicoleta || '--'}</td>
 
-    <td>${d.diobs || '--'}</td>
+<td>
+    <span class="badge ${
+        d.distatus === 'Pago'
+            ? 'bg-success'
+            : d.distatus === 'Enviadas RH'
+            ? 'bg-warning text-dark'
+            : 'bg-danger'
+    }">
+        ${d.distatus || 'Pendente'}
+    </span>
+</td>
 
-    <td>
+<td>${d.diobs || '--'}</td>
+
+<td>
 
                 <button class="btn-edit"
                 onclick="editar('diarias',${realIndex})">
