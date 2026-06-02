@@ -901,7 +901,19 @@ Criar Conta
                 <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaLicencas', this.value)">
                 <button class="btn-excel" onclick="exportarExcel('licencas')">📥 Exportar Excel</button>
             </div>
-            <table class="table"><thead><tr><th>Veículo</th><th>CIV</th><th>CIPP</th><th>Ações</th></tr></thead><tbody id="listaLicencas"></tbody></table>
+            <table class="table table-striped">
+<thead>
+<tr>
+    <th>Veículo</th>
+    <th>Nº CIV</th>
+    <th>Venc. CIV</th>
+    <th>Nº CIPP</th>
+    <th>Venc. CIPP</th>
+    <th>Ações</th>
+</tr>
+</thead>
+<tbody id="listaLicencas"></tbody>
+</table>
         </div>
     </div>
     
@@ -1848,7 +1860,20 @@ document.getElementById('listaFerias').innerHTML =
     document.getElementById('listaLicenciamento').innerHTML = db.licenciamento.map((l,i)=>`<tr><td>${l.lveiculo}</td><td>${formatarVencimento(l.lvencimento)}</td><td><b>${l.lvalor}</b></td>${btnSet('licenciamento',i)}</tr>`).join('');
     document.getElementById('listaTacografo').innerHTML = db.tacografo.map((t,i)=>`<tr><td>${t.tveiculo}</td><td>${formatarVencimento(t.tvencimento)}</td><td><b>${t.tvalor}</b></td>${btnSet('tacografo',i)}</tr>`).join('');
     document.getElementById('listaManutencao').innerHTML = db.manutencoes.map((m,i)=>`<tr><td>${m.mveiculo}</td><td>${formatarDataBR(m.mdata)}</td><td>${m.mkm}</td><td><b>${m.mvalor}</b></td><td>${m.mfornecedor || '---'}</td><td>${m.mservico}</td>${btnSet('manutencoes',i)}</tr>`).join('');
-    document.getElementById('listaLicencas').innerHTML = db.licencas.map((le,i)=>`<tr><td>${le.leveiculo}</td><td>${formatarVencimento(le.venciv)}</td><td>${formatarVencimento(le.vencipp)}</td>${btnSet('licencas',i)}</tr>`).join('');
+    document.getElementById('listaLicencas').innerHTML =
+db.licencas.map((le,i)=>`
+<tr>
+    <td>${le.leveiculo || '--'}</td>
+
+    <td>${le.numciv || '--'}</td>
+    <td>${formatarVencimento(le.venciv)}</td>
+
+    <td>${le.numcipp || '--'}</td>
+    <td>${formatarVencimento(le.vencipp)}</td>
+
+    ${btnSet('licencas',i)}
+</tr>
+`).join('');
     document.getElementById('listaRevisoes').innerHTML = db.revisoes.map((r,i)=>`<tr><td>${r.rveiculo}</td><td>${r.rtipo}</td><td>${r.rkm} KM</td>${btnSet('revisoes',i)}</tr>`).join('');
     document.getElementById('listaFornecedores').innerHTML = db.fornecedores.map((f,i)=>`<tr><td><b>${f.fnome}</b></td><td>${f.fresp}</td><td>${f.fcnpj}</td><td>${f.ftel}</td>${btnSet('fornecedores',i)}</tr>`).join('');
 
