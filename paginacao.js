@@ -227,7 +227,7 @@ if (!document.getElementById('filtroMuVeiculo')) {
     const valorMin = document.getElementById('filtroMuValorMin')?.value || '';
     const valorMax = document.getElementById('filtroMuValorMax')?.value || '';
     const ait = document.getElementById('filtroMuAIT')?.value?.toLowerCase() || '';
-    const renainf = document.getElementById('filtroMuRENAINF')?.value?.toLowerCase() || '';
+    const renainf = document.getElementById('filtroMuRenainf')?.value?.toLowerCase() || '';
 
 if (
     !veiculo &&
@@ -334,7 +334,7 @@ function limparFiltroMultas(){
         'filtroMuDataIni',
         'filtroMuDataFim',
         'filtroMuAIT',
-        'filtroMuRENAINF',
+        'filtroMuRenainf',
         'filtroMuValorMin',
         'filtroMuValorMax'
     ].forEach(id => {
