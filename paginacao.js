@@ -227,6 +227,7 @@ if (!document.getElementById('filtroMuVeiculo')) {
     const valorMin = document.getElementById('filtroMuValorMin')?.value || '';
     const valorMax = document.getElementById('filtroMuValorMax')?.value || '';
     const ait = document.getElementById('filtroMuAIT')?.value?.toLowerCase() || '';
+    const renainf = document.getElementById('filtroMuRENAINF')?.value?.toLowerCase() || '';
 
 if (
     !veiculo &&
@@ -236,7 +237,8 @@ if (
     !dataFim &&
     !valorMin &&
     !valorMax &&
-    !ait
+    !ait &&
+    !renainf
 ) {
     return dados;
 }
@@ -265,6 +267,8 @@ if (
         (!valorMax || moedaParaFloat(mu.muvalor || mu.valor) <= parseFloat(valorMax))
         &&
         (!ait || (mu.muait || '').toLowerCase().includes(ait))
+        &&
+       (!renainf || (mu.murenainf || '').toLowerCase().includes(renainf))
 
     );
 
@@ -330,6 +334,7 @@ function limparFiltroMultas(){
         'filtroMuDataIni',
         'filtroMuDataFim',
         'filtroMuAIT',
+        'filtroMuRENAINF',
         'filtroMuValorMin',
         'filtroMuValorMax'
     ].forEach(id => {
@@ -801,6 +806,7 @@ const dados = getDadosPaginadosCustom(filtrados, 'multas');
             <td>${mu.muveiculo || mu.veiculo || '--'}</td>
             <td>${mu.mumotorista || mu.motorista || '--'}</td>
             <td><b>${mu.muait || mu.ait || '---'}</b></td>
+            <td>${mu.murenainf || '--'}</td>
             <td>${formatarDataBR(mu.mudata || mu.data)}</td>
             <td>${formatarDataBR(mu.muvenc || mu.vencimento)}</td>
             <td><b>${mu.muvalor || mu.valor || '--'}</b></td>
