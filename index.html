@@ -714,33 +714,264 @@ Criar Conta
     </div>
 </div>
     
-    <div id="manutencoes" class="hidden">
-        <h3>🔧 Manutenções</h3>
-        <div class="glass-container">
-            <input type="hidden" id="man_idx">
-            <div class="row g-3">
-                <div class="col-md-3"><select id="mveiculo" class="form-select"></select></div>
-                <div class="col-md-2"><input type="date" id="mdata" class="form-control"></div>
-                <div class="col-md-2"><input id="mkm" class="form-control" type="number" placeholder="KM"></div>
-                <div class="col-md-2"><input id="mvalor" class="form-control" placeholder="Valor R$" oninput="mascaraMoeda(this)"></div>
-                <div class="col-md-3"><input id="mnf" class="form-control" placeholder="Nº NF"></div>
-                <div class="col-md-3"><select id="mfornecedor" class="form-select"></select></div>
-                <div class="col-md-12 mt-2"><input id="mservico" class="form-control" placeholder="Descrição do Serviço"></div>
-                <div class="col-md-12 text-end">
-                    <button id="btn_cancel_manutencoes" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('manutencoes',['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico','mnf'],'man_idx')">Cancelar</button>
-                    <button class="btn btn-success" onclick="salvar('manutencoes',['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico','mnf'],'man_idx')">Salvar</button>
-                </div>
+<div id="manutencoes" class="hidden">
+
+    <h3>🔧 Manutenções</h3>
+
+    <!-- FORMULÁRIO -->
+
+    <div class="glass-container">
+
+        <input type="hidden" id="man_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+                <select id="mveiculo" class="form-select"></select>
             </div>
-        </div>
-        <div class="glass-container">
-            <div class="d-flex justify-content-between mb-3">
-                <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaManutencao', this.value)">
-                <button class="btn-excel" onclick="exportarExcel('manutencoes')">📥 Exportar Excel</button>
+
+            <div class="col-md-2">
+                <input type="date" id="mdata" class="form-control">
             </div>
-            <table class="table"><thead><tr><th>Veículo</th><th>Data</th><th>KM</th><th>Valor</th><th>NF</th><th>Fornecedor</th><th>Serviço</th><th>Ações</th></tr></thead><tbody id="listaManutencao"></tbody></table>
-            <div id="paginacaoManutencoes"></div>
+
+            <div class="col-md-2">
+                <input id="mkm"
+                       class="form-control"
+                       type="number"
+                       placeholder="KM">
+            </div>
+
+            <div class="col-md-2">
+                <input id="mvalor"
+                       class="form-control"
+                       placeholder="Valor R$"
+                       oninput="mascaraMoeda(this)">
+            </div>
+
+            <div class="col-md-3">
+                <input id="mnf"
+                       class="form-control"
+                       placeholder="Nº NF">
+            </div>
+
+            <div class="col-md-3">
+                <select id="mfornecedor"
+                        class="form-select"></select>
+            </div>
+
+            <div class="col-md-12">
+                <input id="mservico"
+                       class="form-control"
+                       placeholder="Descrição do Serviço">
+            </div>
+
+            <div class="col-md-12 text-end">
+
+                <button
+                id="btn_cancel_manutencoes"
+                class="btn btn-outline-secondary btn-cancelar"
+                onclick="limparForm(
+                'manutencoes',
+                ['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico','mnf'],
+                'man_idx'
+                )">
+                Cancelar
+                </button>
+
+                <button
+                class="btn btn-success"
+                onclick="salvar(
+                'manutencoes',
+                ['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico','mnf'],
+                'man_idx'
+                )">
+                Salvar
+                </button>
+
+            </div>
+
         </div>
+
     </div>
+
+    <!-- CARDS -->
+
+    <div class="row mb-3">
+
+        <div class="col-md-3">
+            <div class="glass-container text-center">
+                <small>Manutenções</small>
+                <h4 id="totalManutencoesQtd">0</h4>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="glass-container text-center">
+                <small>Total Gasto</small>
+                <h4 id="totalManutencoesValor">
+                    R$ 0,00
+                </h4>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="glass-container text-center">
+                <small>Ticket Médio</small>
+                <h4 id="ticketMedioManutencao">
+                    R$ 0,00
+                </h4>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="glass-container text-center">
+                <small>Última Manutenção</small>
+                <h4 id="ultimaManutencao">
+                    --
+                </h4>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- FILTROS -->
+
+    <div class="glass-container">
+
+        <div class="row g-2">
+
+            <div class="col-md-3">
+                <select id="filtroManVeiculo"
+                        class="form-select">
+                    <option value="">Todos Veículos</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <select id="filtroManFornecedor"
+                        class="form-select">
+                    <option value="">Todos Fornecedores</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <input type="date"
+                       id="filtroManDataIni"
+                       class="form-control">
+            </div>
+
+            <div class="col-md-2">
+                <input type="date"
+                       id="filtroManDataFim"
+                       class="form-control">
+            </div>
+
+            <div class="col-md-2">
+                <input type="number"
+                       id="filtroManKmMin"
+                       class="form-control"
+                       placeholder="KM Min">
+            </div>
+
+            <div class="col-md-2">
+                <input type="number"
+                       id="filtroManKmMax"
+                       class="form-control"
+                       placeholder="KM Max">
+            </div>
+
+            <div class="col-md-2">
+                <input id="filtroManNF"
+                       class="form-control"
+                       placeholder="NF">
+            </div>
+
+            <div class="col-md-3">
+                <input id="filtroManServico"
+class="form-control"
+placeholder="Serviço">
+</div>
+
+<div class="col-md-2">
+
+<button
+class="btn btn-primary w-100"
+onclick="aplicarFiltroManutencoes()">
+
+🔎 Filtrar
+
+</button>
+
+</div>
+
+<div class="col-md-2">
+
+<button
+class="btn btn-secondary w-100"
+onclick="limparFiltroManutencoes()">
+
+Limpar
+
+</button>
+
+</div>
+ </div>
+    </div>
+
+    <!-- LISTA -->
+
+    <div class="glass-container">
+
+        <div class="d-flex justify-content-between mb-3">
+
+            <input
+            type="text"
+            class="form-control search-box w-75"
+            placeholder="🔎 Pesquisar..."
+            onkeyup="
+            filtrarTabela(
+            'listaManutencao',
+            this.value
+            )
+            ">
+
+            <button
+            class="btn-excel"
+            onclick="exportarExcel('manutencoes')">
+            📥 Exportar Excel
+            </button>
+
+        </div>
+
+        <table class="table">
+
+            <thead>
+
+                <tr>
+
+                    <th>Veículo</th>
+                    <th>Data</th>
+                    <th>KM</th>
+                    <th>Valor</th>
+                    <th>NF</th>
+                    <th>Fornecedor</th>
+                    <th>Serviço</th>
+                    <th>Ações</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody id="listaManutencao"></tbody>
+
+        </table>
+
+        <div id="paginacaoManutencoes"></div>
+
+    </div>
+
+</div>
+
 
 <div id="combustivel" class="hidden">
     <h3>⛽ Controle de Combustível</h3>
@@ -1752,6 +1983,24 @@ if(filtroMotorista){
         db.motoristas.map(m => `<option value="${m.motNome}">${m.motNome}</option>`).join('');
 }
 
+// Filtro de veículos manutenção
+if(document.getElementById('filtroManVeiculo')){
+    document.getElementById('filtroManVeiculo').innerHTML =
+        '<option value="">Todos Veículos</option>' +
+        db.veiculos.map(v =>
+            `<option value="${v.vplaca}">${v.vplaca}</option>`
+        ).join('');
+}
+
+// Filtro de fornecedores manutenção
+if(document.getElementById('filtroManFornecedor')){
+    document.getElementById('filtroManFornecedor').innerHTML =
+        '<option value="">Todos Fornecedores</option>' +
+        db.fornecedores.map(f =>
+            `<option value="${f.fnome}">${f.fnome}</option>`
+        ).join('');
+}
+
 // LISTA
 document.getElementById('listaAgendamentos').innerHTML =
     db.agendamentos.map((a,i)=>`
@@ -1865,7 +2114,6 @@ document.getElementById('listaFerias').innerHTML =
     document.getElementById('listaSeguros').innerHTML = db.seguros.map((s,i)=>`<tr><td>${s.sveiculo}</td><td>${s.sseguradora}</td><td>${formatarVencimento(s.svencimento)}</td>${btnSet('seguros',i)}</tr>`).join('');
     document.getElementById('listaLicenciamento').innerHTML = db.licenciamento.map((l,i)=>`<tr><td>${l.lveiculo}</td><td>${formatarVencimento(l.lvencimento)}</td><td><b>${l.lvalor}</b></td>${btnSet('licenciamento',i)}</tr>`).join('');
     document.getElementById('listaTacografo').innerHTML = db.tacografo.map((t,i)=>`<tr><td>${t.tveiculo}</td><td>${formatarVencimento(t.tvencimento)}</td><td><b>${t.tvalor}</b></td>${btnSet('tacografo',i)}</tr>`).join('');
-    document.getElementById('listaManutencao').innerHTML = db.manutencoes.map((m,i)=>`<tr><td>${m.mveiculo}</td><td>${formatarDataBR(m.mdata)}</td><td>${m.mkm}</td><td><b>${m.mvalor}</b></td><td>${m.mfornecedor || '---'}</td><td>${m.mservico}</td>${btnSet('manutencoes',i)}</tr>`).join('');
     document.getElementById('listaLicencas').innerHTML =
 db.licencas.map((le,i)=>`
 <tr>
