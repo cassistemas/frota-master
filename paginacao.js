@@ -275,6 +275,102 @@ if (
 });
 }
 
+function getManutencoesFiltradas(){
+
+    if(!db.manutencoes) return [];
+
+    let dados = [...db.manutencoes];
+
+    const veiculo =
+    document.getElementById('filtroManVeiculo')?.value || '';
+
+    const fornecedor =
+    document.getElementById('filtroManFornecedor')?.value || '';
+
+    const dataIni =
+    document.getElementById('filtroManDataIni')?.value || '';
+
+    const dataFim =
+    document.getElementById('filtroManDataFim')?.value || '';
+
+    const kmMin =
+    document.getElementById('filtroManKmMin')?.value || '';
+
+    const kmMax =
+    document.getElementById('filtroManKmMax')?.value || '';
+
+    const nf =
+    document.getElementById('filtroManNF')?.value?.toLowerCase() || '';
+
+    const servico =
+    document.getElementById('filtroManServico')?.value?.toLowerCase() || '';
+
+    return dados.filter(m => {
+
+        return (
+
+            (!veiculo ||
+                String(m.mveiculo || '')
+                .trim()
+                .toLowerCase() ===
+                String(veiculo || '')
+                .trim()
+                .toLowerCase()
+            )
+
+            &&
+
+            (!fornecedor ||
+                String(m.mfornecedor || '')
+                .trim()
+                .toLowerCase() ===
+                String(fornecedor || '')
+                .trim()
+                .toLowerCase()
+            )
+
+            &&
+
+            (!dataIni || m.mdata >= dataIni)
+
+            &&
+
+            (!dataFim || m.mdata <= dataFim)
+
+            &&
+
+            (!kmMin ||
+                parseFloat(m.mkm || 0) >= parseFloat(kmMin)
+            )
+
+            &&
+
+            (!kmMax ||
+                parseFloat(m.mkm || 0) <= parseFloat(kmMax)
+            )
+
+            &&
+
+            (!nf ||
+                (m.mnf || '')
+                .toLowerCase()
+                .includes(nf)
+            )
+
+            &&
+
+            (!servico ||
+                (m.mservico || '')
+                .toLowerCase()
+                .includes(servico)
+            )
+
+        );
+
+    });
+
+}
+
 function renderPaginacao(modulo, containerId) {
     const total = db[modulo].length;
     const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
@@ -369,6 +465,16 @@ function corStatusMulta(status) {
         default:
             return 'bg-danger';
     }
+}
+
+function aplicarFiltroManutencoes(){
+
+    paginaAnteriorManutencao =
+        PAGINACAO.paginas['manutencoes'] || 1;
+
+    PAGINACAO.paginas['manutencoes'] = 1;
+
+    renderModulo('manutencoes');
 }
 
 function getDiariasFiltradas(){
@@ -621,29 +727,113 @@ const dados = getDadosPaginadosCustom(
 }
 
     if(modulo === 'manutencoes'){
-    const dados = getDadosPaginados('manutencoes');
 
-    document.getElementById('listaManutencao').innerHTML =
-    dados.map((m,i)=>{
-        const realIndex = db.manutencoes.indexOf(m);
+    const filtrados =
+getManutencoesFiltradas();
+
+const dados =
+getDadosPaginadosCustom(
+    filtrados,
+    'manutencoes'
+);
+
+const total =
+filtrados;
+
+    const totalGasto =
+    total.reduce((s,m)=>{
+
+        return s +
+        moedaParaFloat(
+        m.mvalor || '0'
+        );
+
+    },0);
+
+    document.getElementById(
+    'totalManutencoesQtd'
+    ).innerText =
+    total.length;
+
+    document.getElementById(
+    'totalManutencoesValor'
+    ).innerText =
+    floatParaMoeda(totalGasto);
+
+    document.getElementById(
+    'ticketMedioManutencao'
+    ).innerText =
+    floatParaMoeda(
+    total.length
+    ?
+    totalGasto/total.length
+    :
+    0
+    );
+
+    if(total.length){
+
+        const ultima =
+        [...total]
+        .sort((a,b)=>
+        b.mdata.localeCompare(a.mdata)
+        )[0];
+
+        document.getElementById(
+        'ultimaManutencao'
+        ).innerText =
+        formatarDataBR(
+        ultima.mdata
+        );
+
+    }
+
+    document.getElementById(
+    'listaManutencao'
+    ).innerHTML =
+
+    dados.map(m=>{
+
+        const idx =
+        db.manutencoes.indexOf(m);
+
         return `
         <tr>
+
         <td>${m.mveiculo}</td>
         <td>${formatarDataBR(m.mdata)}</td>
         <td>${m.mkm}</td>
         <td>${m.mvalor}</td>
-        <td>${m.mnf || '--'}</td>
+        <td>${m.mnf||''}</td>
         <td>${m.mfornecedor}</td>
         <td>${m.mservico}</td>
+
         <td>
-        <button class="btn-edit" onclick="editar('manutencoes',${realIndex})">✎</button>
-        <button class="btn-del" onclick="deletar('manutencoes',${realIndex})">✕</button>
+
+        <button
+        class="btn-edit"
+        onclick="editar('manutencoes',${idx})">
+        ✎
+        </button>
+
+        <button
+        class="btn-del"
+        onclick="deletar('manutencoes',${idx})">
+        ✕
+        </button>
+
         </td>
+
         </tr>
         `;
+
     }).join('');
 
-    renderPaginacao('manutencoes','paginacaoManutencoes');
+    renderPaginacaoCustom(
+    filtrados,
+    'manutencoes',
+    'paginacaoManutencoes'
+);
 }
 
 if(modulo === 'combustivel'){
@@ -913,18 +1103,155 @@ function carregarMotoristasSelect(id){
     });
 }
 
+function getDadosPaginadosCustom(lista, modulo){
+
+    const pagina =
+    PAGINACAO.paginas[modulo] || 1;
+
+    const inicio =
+    (pagina - 1) *
+    PAGINACAO.itensPorPagina;
+
+    return lista.slice(
+        inicio,
+        inicio +
+        PAGINACAO.itensPorPagina
+    );
+
+}
+
+function limparFiltroManutencoes(){
+
+    [
+    'filtroManVeiculo',
+    'filtroManFornecedor',
+    'filtroManDataIni',
+    'filtroManDataFim',
+    'filtroManValorMin',
+    'filtroManValorMax',
+    'filtroManKmMin',
+    'filtroManKmMax',
+    'filtroManNF',
+    'filtroManServico'
+    ].forEach(id => {
+
+        const el = document.getElementById(id);
+
+        if(el) el.value = '';
+
+    });
+
+    PAGINACAO.paginas['manutencoes'] =
+        paginaAnteriorManutencao || 1;
+
+    renderModulo('manutencoes');
+}
+
+function renderPaginacaoCustom(
+    lista,
+    modulo,
+    containerId
+){
+
+    const totalPaginas =
+    Math.ceil(
+        lista.length /
+        PAGINACAO.itensPorPagina
+    );
+
+    const container =
+    document.getElementById(containerId);
+
+    if(!container) return;
+
+    if(totalPaginas <= 1){
+
+        container.innerHTML = '';
+
+        return;
+
+    }
+
+    let html = '';
+
+    for(let i=1;i<=totalPaginas;i++){
+
+        html += `
+        <button
+        class="btn btn-sm ${
+            i === PAGINACAO.paginas[modulo]
+            ? 'btn-primary'
+            : 'btn-outline-primary'
+        }"
+        onclick="
+        PAGINACAO.paginas['${modulo}']=${i};
+        renderModulo('${modulo}');
+        ">
+        ${i}
+        </button>
+        `;
+
+    }
+
+    container.innerHTML = html;
+
+}
+
 function carregarVeiculosSelect(id){
 
-    const select = document.getElementById(id);
+    const select =
+    document.getElementById(id);
+
     if(!select) return;
 
-    select.innerHTML = '<option value="">Veículo</option>';
+    const atual = select.value;
 
-    if (!db.veiculos) return;
+    select.innerHTML =
+    '<option value="">Todos Veículos</option>';
 
-    db.veiculos.forEach(v => {
-        select.innerHTML += `<option value="${v.vplaca}">${v.vplaca}</option>`;
+    (db.veiculos || []).forEach(v=>{
+
+        const valor =
+        v.placa || v.nome || v.veiculo;
+
+        select.innerHTML += `
+        <option value="${valor}">
+            ${valor}
+        </option>
+        `;
+
     });
+
+    select.value = atual;
+
+}
+
+function carregarFornecedoresSelect(id){
+
+    const select =
+    document.getElementById(id);
+
+    if(!select) return;
+
+    const atual = select.value;
+
+    select.innerHTML =
+    '<option value="">Todos Fornecedores</option>';
+
+    (db.fornecedores || []).forEach(f=>{
+
+        const valor = f.fnome;
+
+        select.innerHTML += `
+        <option value="${valor}">
+            ${valor}
+        </option>
+        `;
+
+    });
+
+    select.value = atual;
+
 }
 
 function calcularTotalMultas(lista) {
