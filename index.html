@@ -2133,7 +2133,19 @@ document.getElementById('listaAgendamentos').innerHTML =
 <td>${formatarDataBR(a.agdata)}</td>
 <td>${a.aghora}</td>
 <td>${a.agdescricao}</td>
-<td><b>${a.agstatus}</b></td>
+
+<td>
+    <span class="badge ${
+        a.agstatus === 'Concluído'
+            ? 'bg-success'
+            : a.agstatus === 'Cancelado'
+            ? 'bg-danger'
+            : 'bg-warning text-dark'
+    }">
+        ${a.agstatus}
+    </span>
+</td>
+
 <td>
 <button class="btn-edit" onclick="editar('agendamentos',${i})">✎</button>
 <button class="btn-del" onclick="deletar('agendamentos',${i})">✕</button>
