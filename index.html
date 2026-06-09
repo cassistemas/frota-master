@@ -426,7 +426,67 @@ Criar Conta
             <div class="row g-3">
                 <div class="col-md-3"><select id="muveiculo" class="form-select"></select></div>
                 <div class="col-md-3"><select id="mumotorista" class="form-select"></select></div>
-                <div class="col-md-3"><input id="muinfracao" class="form-control" placeholder="Infração (Ex: Velocidade)"></div>
+                <div class="col-md-3">
+    <select id="muinfracao" class="form-select">
+        <option value="">Selecione a Infração</option>
+
+        <option value="Excesso de Velocidade">
+            Excesso de Velocidade
+        </option>
+        
+       <option value="Balança">
+            Balança
+        </option>
+
+        <option value="Placa Inelegível">
+            Placa Inelegível
+        </option>
+
+        <option value="Rodízio De Placa">
+            Rodízio De Placa
+        </option>
+
+       <option value="Não Indicar Condutor">
+            Não Indicar Condutor
+        </option>
+
+        <option value="Avanço de Sinal Vermelho">
+            Avanço de Sinal Vermelho
+        </option>
+
+        <option value="Estacionamento Irregular">
+            Estacionamento Irregular
+        </option>
+
+        <option value="Uso de Celular">
+            Uso de Celular
+        </option>
+
+        <option value="Não Uso Do Cinto">
+            Não Uso Do Cinto
+        </option>
+
+        <option value="Transitar em Local Proibido">
+            Transitar em Local Proibido
+        </option>
+
+        <option value="Ultrapassagem Proibida">
+            Ultrapassagem Proibida
+        </option>
+
+        <option value="Documentação Irregular">
+            Documentação Irregular
+        </option>
+
+        <option value="Excesso de Peso">
+            Excesso de Peso
+        </option>
+
+        <option value="Outros">
+            Outros
+        </option>
+    </select>
+</div>
                 <div class="col-md-3"><input id="muait" class="form-control" placeholder="Nº AIT / Auto"></div>
                 <div class="col-md-3"><input id="murenainf" class="form-control" placeholder="Renainf"></div>
                 <div class="col-md-3"><input type="date" id="mudata" class="form-control" title="Data da Infração"></div>
@@ -463,6 +523,68 @@ Criar Conta
 
 <div class="col-md-2">
 <select id="filtroMuMotorista" class="form-select"></select>
+</div>
+
+<div class="col-md-2">
+    <select id="filtroMuInfracao" class="form-select">
+        <option value="">Todas Infrações</option>
+
+        <option value="Excesso de Velocidade">
+            Excesso de Velocidade
+        </option>
+
+        <option value="Balança">
+            Balança
+        </option>
+
+        <option value="Placa Inelegível">
+            Placa Inelegível
+        </option>
+
+        <option value="Rodízio De Placa">
+            Rodízio De Placa
+        </option>
+
+        <option value="Não Indicar Condutor">
+            Não Indicar Condutor
+        </option>
+
+        <option value="Avanço de Sinal Vermelho">
+            Avanço de Sinal Vermelho
+        </option>
+
+        <option value="Estacionamento Irregular">
+            Estacionamento Irregular
+        </option>
+
+        <option value="Uso de Celular">
+            Uso de Celular
+        </option>
+
+        <option value="Não Uso Do Cinto">
+            Não Uso Do Cinto
+        </option>
+
+        <option value="Transitar em Local Proibido">
+            Transitar em Local Proibido
+        </option>
+
+        <option value="Ultrapassagem Proibida">
+            Ultrapassagem Proibida
+        </option>
+
+        <option value="Documentação Irregular">
+            Documentação Irregular
+        </option>
+
+        <option value="Excesso de Peso">
+            Excesso de Peso
+        </option>
+
+        <option value="Outros">
+            Outros
+        </option>
+    </select>
 </div>
 
 <div class="col-md-2">
@@ -534,6 +656,7 @@ Criar Conta
 <tr>
 <th>Veículo</th>
 <th>Motorista</th>
+<th>Infração</th>
 <th>AIT</th>
 <th>Renainf</th>
 <th>Data</th>
@@ -2693,7 +2816,8 @@ function carregarVeiculosSelect(id){
 
     const valorAtual = select.value; // guarda o valor selecionado
 
-    select.innerHTML = '<option value="">Todos</option>';
+    select.innerHTML =
+'<option value="">Veículos</option>';
 
     db.veiculos.forEach(v => {
         select.innerHTML += `<option value="${v.vplaca}">${v.vplaca}</option>`;
