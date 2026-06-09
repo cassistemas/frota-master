@@ -221,6 +221,7 @@ if (!document.getElementById('filtroMuVeiculo')) {
 
     const veiculo = document.getElementById('filtroMuVeiculo')?.value || '';
     const motorista = document.getElementById('filtroMuMotorista')?.value || '';
+    const infracao = document.getElementById('filtroMuInfracao')?.value || '';
     const status = document.getElementById('filtroMuStatus')?.value || '';
     const dataIni = document.getElementById('filtroMuDataIni')?.value || '';
     const dataFim = document.getElementById('filtroMuDataFim')?.value || '';
@@ -232,6 +233,7 @@ if (!document.getElementById('filtroMuVeiculo')) {
 if (
     !veiculo &&
     !motorista &&
+    !infracao &&
     !status &&
     !dataIni &&
     !dataFim &&
@@ -255,6 +257,11 @@ if (
     String(mu.mumotorista || mu.motorista || '')
     .toLowerCase()
     .trim() === motorista.toLowerCase().trim()
+) &&
+(!infracao ||
+    String(mu.muinfracao || mu.infracao || '')
+    .toLowerCase()
+    .trim() === infracao.toLowerCase().trim()
 ) &&
         (!status || mu.mustatus == status)
         &&
@@ -422,18 +429,18 @@ function aplicarFiltroMultas(){
 }
 
 function limparFiltroMultas(){
-
-    [
-        'filtroMuVeiculo',
-        'filtroMuMotorista',
-        'filtroMuStatus',
-        'filtroMuDataIni',
-        'filtroMuDataFim',
-        'filtroMuAIT',
-        'filtroMuRenainf',
-        'filtroMuValorMin',
-        'filtroMuValorMax'
-    ].forEach(id => {
+[
+ 'filtroMuVeiculo',
+ 'filtroMuMotorista',
+ 'filtroMuInfracao',
+ 'filtroMuStatus',
+ 'filtroMuDataIni',
+ 'filtroMuDataFim',
+ 'filtroMuAIT',
+ 'filtroMuRenainf',
+ 'filtroMuValorMin',
+ 'filtroMuValorMax'
+].forEach(id => {
 
         const el = document.getElementById(id);
 
@@ -1000,6 +1007,7 @@ const dados = getDadosPaginadosCustom(filtrados, 'multas');
             <td>${formatarDataBR(mu.mudata || mu.data)}</td>
             <td>${formatarDataBR(mu.muvenc || mu.vencimento)}</td>
             <td><b>${mu.muvalor || mu.valor || '--'}</b></td>
+            <td>${mu.muinfracao || '--'}</td>
             <td>
     <span class="badge ${corStatusMulta(mu.mustatus)}">
         ${mu.mustatus}
@@ -1207,7 +1215,7 @@ function carregarVeiculosSelect(id){
     const atual = select.value;
 
     select.innerHTML =
-    '<option value="">Todos Veículos</option>';
+    '<option value="">Veículos</option>';
 
     (db.veiculos || []).forEach(v=>{
 
