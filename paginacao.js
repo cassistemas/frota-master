@@ -1002,12 +1002,12 @@ const dados = getDadosPaginadosCustom(filtrados, 'multas');
             <tr>
             <td>${mu.muveiculo || mu.veiculo || '--'}</td>
             <td>${mu.mumotorista || mu.motorista || '--'}</td>
+            <td>${mu.muinfracao || '--'}</td>
             <td><b>${mu.muait || mu.ait || '---'}</b></td>
             <td>${mu.murenainf || '--'}</td>
             <td>${formatarDataBR(mu.mudata || mu.data)}</td>
             <td>${formatarDataBR(mu.muvenc || mu.vencimento)}</td>
             <td><b>${mu.muvalor || mu.valor || '--'}</b></td>
-            <td>${mu.muinfracao || '--'}</td>
             <td>
     <span class="badge ${corStatusMulta(mu.mustatus)}">
         ${mu.mustatus}
