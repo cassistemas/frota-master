@@ -2689,15 +2689,11 @@ async function buscarCNPJFornecedor() {
 
         const dados = await resp.json();
 
-        // Dados principais
-        document.getElementById('fnome').value =
-            dados.razao_social || '';
-
-        document.getElementById('fresp').value =
-            dados.nome_fantasia || '';
-
-        document.getElementById('ftel').value =
-            dados.ddd_telefone_1 || '';
+        // Dados principais 
+document.getElementById('fnome').value = dados.razao_social || ''; 
+document.getElementById('ffantasia').value = dados.nome_fantasia || ''; // Responsável permanece manual // 
+document.getElementById('fresp').value = ''; 
+document.getElementById('ftel').value = dados.ddd_telefone_1 || '';
 
         // E-mail
         if (document.getElementById('femail')) {
