@@ -31,7 +31,7 @@
         .alerta-item { padding: 8px; border-radius: 6px; margin-bottom: 5px; border-left: 5px solid transparent; }
         .alerta-vencido { background: #fee2e2; border-left-color: var(--danger); color: #991b1b; }
         .alerta-atencao { background: #fef9c3; border-left-color: var(--warning); color: #854d0e; }
-        .btn-cancelar { display: none; margin-right: 10px; }
+        .btn-cancelar{ margin-right:10px; }
     </style>
 </head>
 <body>
@@ -1305,13 +1305,98 @@ Limpar
         <div class="glass-container">
             <input type="hidden" id="f_idx">
             <div class="row g-3">
-                <div class="col-md-3"><input id="fnome" class="form-control" placeholder="Empresa"></div>
-                <div class="col-md-3"><input id="fresp" class="form-control" placeholder="Responsável"></div>
-                <div class="col-md-3"><input id="fcnpj" class="form-control" placeholder="CNPJ" oninput="mascaraCNPJ(this)" onblur="buscarCNPJFornecedor()"></div>
-                <div class="col-md-3"><input id="ftel" class="form-control" placeholder="Telefone" oninput="mascaraTelefone(this)"></div>
-                <div class="col-md-12 text-end">
-                    <button id="btn_cancel_fornecedores" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('fornecedores',['fnome','fresp','fcnpj','ftel'],'f_idx')">Cancelar</button>
-                    <button class="btn btn-primary" onclick="salvar('fornecedores',['fnome','fresp','fcnpj','ftel'],'f_idx')">Salvar</button>
+
+    <div class="col-md-3">
+        <input id="fnome" class="form-control" placeholder="Empresa">
+    </div>
+
+    <div class="col-md-3">
+    <input id="ffantasia" class="form-control" placeholder="Nome Fantasia">
+</div>
+
+<div class="col-md-3">
+    <input id="fresp" class="form-control" placeholder="Responsável">
+</div>
+
+    <div class="col-md-3">
+        <input id="fcnpj" class="form-control"
+               placeholder="CNPJ"
+               oninput="mascaraCNPJ(this); verificarCNPJFornecedor();">
+    </div>
+
+    <div class="col-md-3">
+        <input id="ftel" class="form-control"
+               placeholder="Telefone"
+               oninput="mascaraTelefone(this)">
+    </div>
+
+    <div class="col-md-4">
+        <input id="femail" class="form-control"
+               placeholder="E-mail">
+    </div>
+
+    <div class="col-md-2">
+        <input id="fcep" class="form-control"
+               placeholder="CEP">
+    </div>
+
+    <div class="col-md-4">
+        <input id="fendereco" class="form-control"
+               placeholder="Endereço">
+    </div>
+
+    <div class="col-md-2">
+        <input id="fnumero" class="form-control"
+               placeholder="Número">
+    </div>
+
+    <div class="col-md-4">
+        <input id="fbairro" class="form-control"
+               placeholder="Bairro">
+    </div>
+
+    <div class="col-md-4">
+        <input id="fcidade" class="form-control"
+               placeholder="Cidade">
+    </div>
+
+    <div class="col-md-2">
+        <input id="fuf" class="form-control"
+               placeholder="UF">
+    </div>
+                <div class="col-md-12 d-flex justify-content-end gap-2">
+<button id="btn_cancel_fornecedores" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('fornecedores',
+[
+'fnome',
+'ffantasia',
+'fresp',
+'fcnpj',
+'ftel',
+'femail',
+'fcep',
+'fendereco',
+'fnumero',
+'fbairro',
+'fcidade',
+'fuf'
+],
+'f_idx')">Cancelar</button>
+<button class="btn btn-primary" onclick="salvar('fornecedores',
+[
+'fnome',
+'ffantasia',
+'fresp',
+'fcnpj',
+'ftel',
+'femail',
+'fcep',
+'fendereco',
+'fnumero',
+'fbairro',
+'fcidade',
+'fuf'
+],
+'f_idx')">Salvar</button>
                 </div>
             </div>
         </div>
@@ -1320,7 +1405,19 @@ Limpar
                 <input type="text" class="form-control search-box w-100" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaFornecedores', this.value)">
                 <button class="btn-excel" onclick="exportarExcel('fornecedores')">📥 Exportar Excel</button>
             </div>
-            <table class="table"><thead><tr><th>Empresa</th><th>Responsável</th><th>CNPJ</th><th>Telefone</th><th>Ações</th></tr></thead><tbody id="listaFornecedores"></tbody></table>
+            <table class="table"><thead>
+<tr>
+<th>Empresa</th>
+<th>Nome Fantasia</th>
+<th>Responsável</th>
+<th>CNPJ</th>
+<th>Telefone</th>
+<th>E-mail</th>
+<th>Cidade</th>
+<th>UF</th>
+<th>Ações</th>
+</tr>
+</thead><tbody id="listaFornecedores"></tbody></table>
 <div id="paginacaoFornecedores"></div>
         </div>
     </div>
@@ -1804,8 +1901,11 @@ if(mod === 'veiculos'){
 function limparForm(mod, campos, idCampo) {
     campos.forEach(c=>document.getElementById(c).value='');
     document.getElementById(idCampo).value='';
+
     const btnCancel = document.getElementById('btn_cancel_' + mod);
-    if(btnCancel) btnCancel.style.display = 'none';
+
+    if(btnCancel)
+        btnCancel.style.display = 'inline-block';
 }
 
 function editar(mod,i){
@@ -2555,6 +2655,98 @@ document.getElementById("listaArquivos").innerHTML = html
 document.getElementById("modalAnexos").style.display="flex"
 
 }
+
+function verificarCNPJFornecedor() {
+
+    const cnpj = document
+        .getElementById('fcnpj')
+        .value
+        .replace(/\D/g, '');
+
+    if (cnpj.length === 14) {
+        buscarCNPJFornecedor();
+    }
+}
+
+async function buscarCNPJFornecedor() {
+
+    const cnpj = document
+        .getElementById('fcnpj')
+        .value
+        .replace(/\D/g, '');
+
+    if (cnpj.length !== 14) return;
+
+    try {
+
+        const resp = await fetch(
+            `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`
+        );
+
+        if (!resp.ok) {
+            throw new Error('CNPJ não encontrado');
+        }
+
+        const dados = await resp.json();
+
+        // Dados principais
+        document.getElementById('fnome').value =
+            dados.razao_social || '';
+
+        document.getElementById('fresp').value =
+            dados.nome_fantasia || '';
+
+        document.getElementById('ftel').value =
+            dados.ddd_telefone_1 || '';
+
+        // E-mail
+        if (document.getElementById('femail')) {
+            document.getElementById('femail').value =
+                dados.email || '';
+        }
+
+        // Endereço
+        if (document.getElementById('fcep')) {
+            document.getElementById('fcep').value =
+                dados.cep || '';
+        }
+
+        if (document.getElementById('fendereco')) {
+            document.getElementById('fendereco').value =
+                dados.logradouro || '';
+        }
+
+        if (document.getElementById('fnumero')) {
+            document.getElementById('fnumero').value =
+                dados.numero || '';
+        }
+
+        if (document.getElementById('fbairro')) {
+            document.getElementById('fbairro').value =
+                dados.bairro || '';
+        }
+
+        if (document.getElementById('fcidade')) {
+            document.getElementById('fcidade').value =
+                dados.municipio || '';
+        }
+
+        if (document.getElementById('fuf')) {
+            document.getElementById('fuf').value =
+                dados.uf || '';
+        }
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        alert(
+            'Não foi possível localizar os dados do CNPJ.'
+        );
+
+    }
+}
+
 function abrirArquivo(i,index){
 
 let arq = db.multas[i].arquivos[index]
@@ -3042,49 +3234,6 @@ function aplicarPermissoes(){
     });
 
 }
-
-async function buscarCNPJFornecedor() {
-
-    const campo = document.getElementById('fcnpj');
-
-    let cnpj = campo.value.replace(/\D/g, '');
-
-    if (cnpj.length !== 14) return;
-
-    try {
-
-        const resp = await fetch(
-            `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`
-        );
-
-        if (!resp.ok) {
-            throw new Error('CNPJ não encontrado');
-        }
-
-        const dados = await resp.json();
-
-        document.getElementById('fnome').value =
-            dados.razao_social || '';
-
-        document.getElementById('fresp').value =
-            dados.nome_fantasia || '';
-
-        if (dados.ddd_telefone_1) {
-            document.getElementById('ftel').value =
-                dados.ddd_telefone_1;
-        }
-
-    } catch (erro) {
-
-        console.error(erro);
-
-        alert(
-            'Não foi possível localizar os dados do CNPJ.'
-        );
-
-    }
-
-}    
 
 function gerarRelatorioFerias(){
 
