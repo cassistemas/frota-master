@@ -1307,7 +1307,7 @@ Limpar
             <div class="row g-3">
                 <div class="col-md-3"><input id="fnome" class="form-control" placeholder="Empresa"></div>
                 <div class="col-md-3"><input id="fresp" class="form-control" placeholder="Responsável"></div>
-                <div class="col-md-3"><input id="fcnpj" class="form-control" placeholder="CNPJ" oninput="mascaraCNPJ(this)"></div>
+                <div class="col-md-3"><input id="fcnpj" class="form-control" placeholder="CNPJ" oninput="mascaraCNPJ(this)" onblur="buscarCNPJFornecedor()"></div>
                 <div class="col-md-3"><input id="ftel" class="form-control" placeholder="Telefone" oninput="mascaraTelefone(this)"></div>
                 <div class="col-md-12 text-end">
                     <button id="btn_cancel_fornecedores" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('fornecedores',['fnome','fresp','fcnpj','ftel'],'f_idx')">Cancelar</button>
@@ -3042,6 +3042,49 @@ function aplicarPermissoes(){
     });
 
 }
+
+async function buscarCNPJFornecedor() {
+
+    const campo = document.getElementById('fcnpj');
+
+    let cnpj = campo.value.replace(/\D/g, '');
+
+    if (cnpj.length !== 14) return;
+
+    try {
+
+        const resp = await fetch(
+            `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`
+        );
+
+        if (!resp.ok) {
+            throw new Error('CNPJ não encontrado');
+        }
+
+        const dados = await resp.json();
+
+        document.getElementById('fnome').value =
+            dados.razao_social || '';
+
+        document.getElementById('fresp').value =
+            dados.nome_fantasia || '';
+
+        if (dados.ddd_telefone_1) {
+            document.getElementById('ftel').value =
+                dados.ddd_telefone_1;
+        }
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        alert(
+            'Não foi possível localizar os dados do CNPJ.'
+        );
+
+    }
+
+}    
 
 function gerarRelatorioFerias(){
 
