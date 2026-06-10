@@ -717,17 +717,29 @@ const dados = getDadosPaginadosCustom(
     dados.map((f,i)=>{
         const realIndex = db.fornecedores.indexOf(f);
         return `
-        <tr>
-        <td>${f.fnome}</td>
-        <td>${f.fresp}</td>
-        <td>${f.fcnpj}</td>
-        <td>${f.ftel}</td>
-        <td>
-        <button class="btn-edit" onclick="editar('fornecedores',${realIndex})">✎</button>
-        <button class="btn-del" onclick="deletar('fornecedores',${realIndex})">✕</button>
-        </td>
-        </tr>
-        `;
+<tr>
+<td>${f.fnome || ''}</td>
+<td>${f.ffantasia || ''}</td>
+<td>${f.fresp || ''}</td>
+<td>${f.fcnpj || ''}</td>
+<td>${f.ftel || ''}</td>
+<td>${f.femail || ''}</td>
+<td>${f.fcidade || ''}</td>
+<td>${f.fuf || ''}</td>
+
+<td class="text-nowrap">
+    <button class="btn-edit"
+        onclick="editar('fornecedores',${realIndex})">
+        ✎
+    </button>
+
+    <button class="btn-del"
+        onclick="deletar('fornecedores',${realIndex})">
+        ✕
+    </button>
+</td>
+</tr>
+`;
     }).join('');
 
     renderPaginacao('fornecedores','paginacaoFornecedores');
