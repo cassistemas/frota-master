@@ -2679,68 +2679,98 @@ async function buscarCNPJFornecedor() {
 
     try {
 
-        const resp = await fetch(
+        let dados;
+
+        // 1ª tentativa - BrasilAPI
+        let resp = await fetch(
             `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`
         );
 
-        if (!resp.ok) {
-            throw new Error('CNPJ não encontrado');
-        }
+        if (resp.ok) {
 
-        const dados = await resp.json();
+            dados = await resp.json();
 
-        // Dados principais 
-document.getElementById('fnome').value = dados.razao_social || ''; 
-document.getElementById('ffantasia').value = dados.nome_fantasia || ''; // Responsável permanece manual // 
-document.getElementById('fresp').value = ''; 
-document.getElementById('ftel').value = dados.ddd_telefone_1 || '';
+            document.getElementById('fnome').value =
+                dados.razao_social || '';
 
-        // E-mail
-        if (document.getElementById('femail')) {
+            document.getElementById('ffantasia').value =
+                dados.nome_fantasia || '';
+
+            document.getElementById('ftel').value =
+                dados.ddd_telefone_1 || '';
+
             document.getElementById('femail').value =
                 dados.email || '';
-        }
 
-        // Endereço
-        if (document.getElementById('fcep')) {
             document.getElementById('fcep').value =
                 dados.cep || '';
-        }
 
-        if (document.getElementById('fendereco')) {
             document.getElementById('fendereco').value =
                 dados.logradouro || '';
-        }
 
-        if (document.getElementById('fnumero')) {
             document.getElementById('fnumero').value =
                 dados.numero || '';
-        }
 
-        if (document.getElementById('fbairro')) {
             document.getElementById('fbairro').value =
                 dados.bairro || '';
-        }
 
-        if (document.getElementById('fcidade')) {
             document.getElementById('fcidade').value =
                 dados.municipio || '';
-        }
 
-        if (document.getElementById('fuf')) {
             document.getElementById('fuf').value =
                 dados.uf || '';
+
+            return;
         }
 
-    } catch (erro) {
-
-        console.error(erro);
-
-        alert(
-            'Não foi possível localizar os dados do CNPJ.'
+        // 2ª tentativa - ReceitaWS
+        resp = await fetch(
+            `https://receitaws.com.br/v1/cnpj/${cnpj}`
         );
 
+        dados = await resp.json();
+
+        if (dados.status === "ERROR") {
+            throw new Error();
+        }
+
+        document.getElementById('fnome').value =
+            dados.nome || '';
+
+        document.getElementById('ffantasia').value =
+            dados.fantasia || '';
+
+        document.getElementById('ftel').value =
+            dados.telefone || '';
+
+        document.getElementById('femail').value =
+            dados.email || '';
+
+        document.getElementById('fcep').value =
+            dados.cep || '';
+
+        document.getElementById('fendereco').value =
+            dados.logradouro || '';
+
+        document.getElementById('fnumero').value =
+            dados.numero || '';
+
+        document.getElementById('fbairro').value =
+            dados.bairro || '';
+
+        document.getElementById('fcidade').value =
+            dados.municipio || '';
+
+        document.getElementById('fuf').value =
+            dados.uf || '';
+
     }
+    catch (erro) {
+
+        alert("CNPJ não encontrado.");
+
+    }
+
 }
 
 function abrirArquivo(i,index){
