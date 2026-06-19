@@ -982,6 +982,63 @@ if(modulo === 'pneus'){
 
 }
 
+if(modulo === 'terceiros'){
+
+const dados = db.terceiros;
+
+document.getElementById('listaTerceiros').innerHTML =
+
+dados.map(t=>{
+
+const idx = db.terceiros.indexOf(t);
+
+return `
+<tr>
+
+<td>${t.ternome}</td>
+<td>${t.terempresa}</td>
+<td>${t.tertipoveiculo}</td>
+<td>${t.terplaca}</td>
+<td>${t.tercarreta || '--'}</td>
+<td>${t.terano || '--'}</td>
+<td>${t.tertelefone}</td>
+
+<td>
+<span class="badge ${
+t.terstatus === 'Ativo'
+? 'bg-success'
+: 'bg-danger'
+}">
+${t.terstatus}
+</span>
+</td>
+
+<td>
+
+<button class="btn-edit"
+onclick="editar('terceiros',${idx})">
+✎
+</button>
+
+<button class="btn-del"
+onclick="deletar('terceiros',${idx})">
+✕
+</button>
+
+</td>
+
+</tr>
+`;
+
+}).join('');
+
+renderPaginacao(
+'terceiros',
+'paginacaoTerceiros'
+);
+
+}
+
     if(modulo === 'multas'){
 
     // só carrega se ainda estiver vazio
@@ -1121,23 +1178,6 @@ function carregarMotoristasSelect(id){
             </option>
         `;
     });
-}
-
-function getDadosPaginadosCustom(lista, modulo){
-
-    const pagina =
-    PAGINACAO.paginas[modulo] || 1;
-
-    const inicio =
-    (pagina - 1) *
-    PAGINACAO.itensPorPagina;
-
-    return lista.slice(
-        inicio,
-        inicio +
-        PAGINACAO.itensPorPagina
-    );
-
 }
 
 function limparFiltroManutencoes(){
@@ -1284,3 +1324,91 @@ function calcularTotalMultas(lista) {
 
     return total;
 }
+
+function getTerceirosFiltrados(){
+
+let dados = [...db.terceiros];
+
+const motorista =
+document.getElementById(
+'filtroTerMotorista'
+)?.value.toLowerCase() || '';
+
+const empresa =
+document.getElementById(
+'filtroTerEmpresa'
+)?.value.toLowerCase() || '';
+
+const placa =
+document.getElementById(
+'filtroTerPlaca'
+)?.value.toLowerCase() || '';
+
+const status =
+document.getElementById(
+'filtroTerStatus'
+)?.value || '';
+
+return dados.filter(t => {
+
+return (
+
+(!motorista ||
+(t.ternome || '')
+.toLowerCase()
+.includes(motorista))
+
+&&
+
+(!empresa ||
+(t.terempresa || '')
+.toLowerCase()
+.includes(empresa))
+
+&&
+
+(!placa ||
+(t.terplaca || '')
+.toLowerCase()
+.includes(placa))
+
+&&
+
+(!status ||
+t.terstatus === status)
+
+);
+
+});
+
+}
+
+function aplicarFiltroTerceiros(){
+
+PAGINACAO.paginas['terceiros'] = 1;
+
+renderModulo('terceiros');
+
+}
+
+function limparFiltroTerceiros(){
+
+[
+'filtroTerMotorista',
+'filtroTerEmpresa',
+'filtroTerPlaca',
+'filtroTerStatus'
+].forEach(id=>{
+
+const el =
+document.getElementById(id);
+
+if(el) el.value='';
+
+});
+
+renderModulo('terceiros');
+
+}
+
+
