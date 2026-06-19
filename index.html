@@ -61,6 +61,7 @@ Criar Conta
     <a onclick="navegar('veiculos',this)">🚗 Veículos</a>
     <a onclick="navegar('pneus',this)">🛞 Pneus</a>
     <a onclick="navegar('motoristas',this)">👥 Motoristas</a>
+    <a onclick="navegar('terceiros',this)">🚛 Terceiros</a>
     <a onclick="navegar('diarias',this)">💰 Diárias</a>
     <a onclick="navegar('ferias',this)">🏖 Férias</a>
     <a onclick="navegar('multas',this)">🚫 Multas</a>
@@ -278,6 +279,216 @@ Criar Conta
 
     </div>
 
+</div>
+
+<div id="terceiros" class="hidden">
+
+<h3>🚛 Cadastro de Terceiros</h3>
+
+<div class="glass-container">
+
+<input type="hidden" id="ter_idx">
+
+<div class="row g-3">
+
+<div class="col-md-4">
+<input id="ternome"
+class="form-control"
+placeholder="Nome Motorista">
+</div>
+
+<div class="col-md-4">
+<input id="terempresa"
+class="form-control"
+placeholder="Empresa">
+</div>
+
+<div class="col-md-4">
+<input id="tertipoveiculo"
+class="form-control"
+placeholder="Tipo Veículo">
+</div>
+
+<div class="col-md-3">
+<input id="terplaca"
+class="form-control"
+placeholder="Placa Veículo">
+</div>
+
+<div class="col-md-3">
+<input id="tercarreta"
+class="form-control"
+placeholder="Placa Carreta">
+</div>
+
+<div class="col-md-2">
+<input id="terano"
+type="number"
+class="form-control"
+placeholder="Ano">
+</div>
+
+<div class="col-md-2">
+<input id="tertelefone"
+class="form-control"
+placeholder="Telefone">
+</div>
+
+<div class="col-md-2">
+<select id="terstatus"
+class="form-select">
+
+<option value="Ativo">
+Ativo
+</option>
+
+<option value="Bloqueado">
+Bloqueado
+</option>
+
+</select>
+</div>
+
+<div class="col-md-12">
+<textarea
+id="terobs"
+class="form-control"
+placeholder="Observações">
+</textarea>
+</div>
+
+<div class="col-md-12 text-end">
+
+    <button
+    class="btn btn-primary"
+    onclick="salvarTerceirosCustom()">
+        Salvar
+    </button>
+
+    <button
+    class="btn btn-outline-secondary"
+    onclick="limparForm(
+        'terceiros',
+        [
+            'ternome',
+            'terempresa',
+            'tertipoveiculo',
+            'terplaca',
+            'tercarreta',
+            'terano',
+            'tertelefone',
+            'terstatus',
+            'terobs'
+        ],
+        'ter_idx'
+    )">
+        Cancelar
+    </button>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="glass-container">
+
+<div class="row g-2">
+
+<div class="col-md-3">
+<input
+id="filtroTerMotorista"
+class="form-control"
+placeholder="Motorista">
+</div>
+
+<div class="col-md-3">
+<input
+id="filtroTerEmpresa"
+class="form-control"
+placeholder="Empresa">
+</div>
+
+<div class="col-md-2">
+<input
+id="filtroTerPlaca"
+class="form-control"
+placeholder="Placa">
+</div>
+
+<div class="col-md-2">
+<select
+id="filtroTerStatus"
+class="form-select">
+
+<option value="">
+Todos
+</option>
+
+<option value="Ativo">
+Ativo
+</option>
+
+<option value="Bloqueado">
+Bloqueado
+</option>
+
+</select>
+</div>
+
+<div class="col-md-1">
+<button
+class="btn btn-primary w-100"
+onclick="aplicarFiltroTerceiros()">
+
+🔎
+
+</button>
+</div>
+
+<div class="col-md-1">
+<button
+class="btn btn-secondary w-100"
+onclick="limparFiltroTerceiros()">
+
+✖
+
+</button>
+</div>
+
+</div>
+
+</div>
+
+<div class="glass-container">
+
+<table class="table">
+
+<thead>
+
+<tr>
+
+<th>Motorista</th>
+<th>Empresa</th>
+<th>Tipo</th>
+<th>Placa</th>
+<th>Carreta</th>
+<th>Ano</th>
+<th>Telefone</th>
+<th>Status</th>
+<th>Ações</th>
+
+</tr>
+
+</thead>
+
+<tbody id="listaTerceiros"></tbody>
+
+</table>
+
+<div id="paginacaoTerceiros"></div>
+
+</div>
 </div>
 
 <div id="agendamentos" class="hidden">
@@ -1738,6 +1949,7 @@ const dbCloud = firebase.firestore();
 const MAP={
     veiculos:'FM_V',
     motoristas:'FM_M',
+    terceiros:'FM_TER',
     diarias:'FM_DI',
     pneus:'FM_P',
     multas:'FM_MU', 
@@ -1761,11 +1973,22 @@ Object.keys(MAP).forEach(k=>{
     db[k] = []
 })
 const ID_MAP_INDEX = {
-    veiculos:'v_idx',motoristas:'m_idx',diarias:'di_idx',seguros:'s_idx',manutencoes:'man_idx',
-    revisoes:'r_idx',fornecedores:'f_idx',licenciamento:'l_idx',
-    tacografo:'t_idx',licencas:'le_idx',multas:'mu_idx',
+    veiculos:'v_idx',
+    motoristas:'m_idx',
+    terceiros:'ter_idx',
+    diarias:'di_idx',
+    seguros:'s_idx',
+    manutencoes:'man_idx',
+    revisoes:'r_idx',
+    fornecedores:'f_idx',
+    licenciamento:'l_idx',
+    tacografo:'t_idx',
+    licencas:'le_idx',
+    multas:'mu_idx',
     ferias:'fe_idx',
-    agendamentos:'ag_idx',combustivel: 'c_idx',pneus:'p_idx',
+    agendamentos:'ag_idx',
+    combustivel:'c_idx',
+    pneus:'p_idx',
 }
 
 function exportarExcel(modulo) {
@@ -1917,17 +2140,21 @@ function editar(mod,i){
     window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
-function deletar(mod,i){
-    if(confirm('Excluir registro?')){
-        db[mod].splice(i,1);
+function deletar(mod, i){
 
-        // RESET PAGINA
+    if(confirm('Excluir registro?')){
+
+        db[mod].splice(Number(i), 1);
+
         if(typeof PAGINACAO !== 'undefined'){
             PAGINACAO.paginas[mod] = 1;
         }
 
         salvarNuvem();
+
+        renderModulo(mod);
     }
+
 }
 
 function filtrarTabela(idTabela, termo) {
@@ -2609,6 +2836,54 @@ salvarNuvem()
 
 
 }
+
+function salvarTerceirosCustom(){
+
+    const idx = document.getElementById('ter_idx').value;
+
+    const obj = {
+        ternome: document.getElementById('ternome').value,
+        terempresa: document.getElementById('terempresa').value,
+        tertipoveiculo: document.getElementById('tertipoveiculo').value,
+        terplaca: document.getElementById('terplaca').value,
+        tercarreta: document.getElementById('tercarreta').value,
+        terano: document.getElementById('terano').value,
+        tertelefone: document.getElementById('tertelefone').value,
+        terstatus: document.getElementById('terstatus').value,
+        terobs: document.getElementById('terobs').value
+    };
+
+    if(idx === ''){
+        db.terceiros.push(obj);
+    }else{
+        db.terceiros[idx] = obj;
+    }
+
+    if(!PAGINACAO.paginas['terceiros']){
+        PAGINACAO.paginas['terceiros'] = 1;
+    }
+
+    renderModulo('terceiros');
+
+    salvarNuvem();
+
+    limparForm(
+        'terceiros',
+        [
+            'ternome',
+            'terempresa',
+            'tertipoveiculo',
+            'terplaca',
+            'tercarreta',
+            'terano',
+            'tertelefone',
+            'terstatus',
+            'terobs'
+        ],
+        'ter_idx'
+    );
+}
+
 function verAnexos(i){
 
 let multa = db.multas[i]
@@ -3590,6 +3865,40 @@ function calcularKMPneu(){
 
     document.getElementById('pkmrodado').value = total;
 
+}
+
+function navegarTerceiros(){
+
+    let html = '';
+
+    db.terceiros.forEach((t, i)=>{
+
+        html += `
+        <tr>
+            <td>${t.ternome || ''}</td>
+            <td>${t.terempresa || ''}</td>
+            <td>${t.tertipoveiculo || ''}</td>
+            <td>${t.terplaca || ''}</td>
+            <td>${t.tercarreta || ''}</td>
+            <td>${t.terano || ''}</td>
+            <td>${t.tertelefone || ''}</td>
+            <td>${t.terstatus || ''}</td>
+            <td>
+                <button class="btn btn-sm btn-warning"
+                    onclick="editarTerceiro(${i})">
+                    ✏️
+                </button>
+
+                <button class="btn btn-sm btn-danger"
+                    onclick="excluir('terceiros',${i})">
+                    🗑️
+                </button>
+            </td>
+        </tr>
+        `;
+    });
+
+    document.getElementById('listaTerceiros').innerHTML = html;
 }
 
 function carregarPermissoesAdmin(){
