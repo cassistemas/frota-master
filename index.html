@@ -2415,6 +2415,7 @@ function salvar(mod,campos,idCampo){
 
     if(idx==='') db[mod].push(obj)
     else db[mod][idx]=obj
+    salvarNuvem();
     
     limparForm(mod, campos, idCampo);
     if(typeof PAGINACAO !== 'undefined'){
@@ -2780,6 +2781,7 @@ function escutarDados(modulo){
 
         if(doc.exists){
             db[modulo] = doc.data().dados || [];
+            renderModulo(modulo);
             renderTudo();
         }
 
