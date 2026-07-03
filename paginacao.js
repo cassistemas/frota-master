@@ -587,61 +587,32 @@ function limparFiltroDiarias(){
     renderModulo('diarias');
 }
 
-function getSaidaVeiculosFiltrados(){
+function getSaidaVeiculosFiltrados() {
+    if (!db.saidaVeiculos) return [];
 
-    if(!db.saidaVeiculos) return [];
+    let dados = [...db.saidaVeiculos];
 
-    let dados=[...db.saidaVeiculos];
+    // Captura dos filtros
+    const reserva = document.getElementById("filtroSVReserva")?.value.toLowerCase().trim() || "";
+    const veiculo = document.getElementById("filtroSVVeiculo")?.value.toLowerCase().trim() || "";
+    const motorista = document.getElementById("filtroSVMotorista")?.value.toLowerCase().trim() || "";
+    const dataIni = document.getElementById("filtroSVDataIni")?.value || "";
+    const dataFim = document.getElementById("filtroSVDataFim")?.value || "";
 
-    const reserva=
-    document.getElementById("filtroSVReserva")?.value
-    .toLowerCase() || "";
+    return dados.filter(s => {
+        // Normaliza os valores do registro para comparação (garantindo que não quebre se estiver vazio)
+        const svReserva = String(s.svnumeroreserva || "").toLowerCase().trim();
+        const svVeiculo = String(s.svveiculo || "").toLowerCase().trim();
+        const svMotorista = String(s.svmotorista || "").toLowerCase().trim();
 
-    const veiculo=
-    document.getElementById("filtroSVVeiculo")?.value || "";
-
-    const motorista=
-    document.getElementById("filtroSVMotorista")?.value || "";
-
-    const dataIni=
-    document.getElementById("filtroSVDataIni")?.value || "";
-
-    const dataFim=
-    document.getElementById("filtroSVDataFim")?.value || "";
-
-    return dados.filter(s=>{
-
-        return(
-
-        (!reserva ||
-        (s.svreserva||"")
-        .toLowerCase()
-        .includes(reserva))
-
-        &&
-
-        (!veiculo ||
-        s.svveiculo===veiculo)
-
-        &&
-
-        (!motorista ||
-        s.svmotorista===motorista)
-
-        &&
-
-        (!dataIni ||
-        s.svdataSaida>=dataIni)
-
-        &&
-
-        (!dataFim ||
-        s.svdataSaida<=dataFim)
-
+        return (
+            (!reserva || svReserva.includes(reserva)) &&
+            (!veiculo || svVeiculo === veiculo) &&
+            (!motorista || svMotorista.includes(motorista)) &&
+            (!dataIni || s.svdataSaida >= dataIni) &&
+            (!dataFim || s.svdataSaida <= dataFim)
         );
-
     });
-
 }
 
 function aplicarFiltroSaidaVeiculos(){
