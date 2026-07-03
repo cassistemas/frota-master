@@ -644,25 +644,6 @@ function getSaidaVeiculosFiltrados(){
 
 }
 
-function salvarSaidaVeiculo() {
-    const campos = [
-        'svreserva', 'svnumeroreserva', 'svveiculo', 'svmotorista', 
-        'svdestino', 'svdataSaida', 'svhoraSaida', 'svdataChegada', 
-        'svhoraChegada', 'svstatus', 'svobs'
-    ];
-    const idxCampo = 'sv_idx';
-    
-    // Certifique-se que esta função salva no localStorage
-    salvar('saidaVeiculos', campos, idxCampo);
-    
-    // Garante que o banco está sincronizado antes de renderizar
-    if (typeof atualizarLocalStorage === 'function') {
-        atualizarLocalStorage(); 
-    }
-    
-    renderModulo('saidaVeiculos');
-}
-
 function aplicarFiltroSaidaVeiculos(){
 
     PAGINACAO.paginas["saidaVeiculos"]=1;
