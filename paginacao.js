@@ -108,6 +108,12 @@ if (modulo === 'multas') {
     PAGINACAO.paginas[modulo] = totalPaginas > 0 ? totalPaginas : 1;
 }
 
+if(modulo==="saidaVeiculos"){
+
+    total=getSaidaVeiculosFiltrados().length;
+
+}
+
 function salvarCombustivelCustom() {
     const campos = ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro','ckm', 'cposto'];
     const idxCampo = 'c_idx';
@@ -586,7 +592,131 @@ function limparFiltroDiarias(){
     renderModulo('diarias');
 }
 
-function renderModulo(modulo) {
+function getSaidaVeiculosFiltrados(){
+
+    if(!db.saidaVeiculos) return [];
+
+    let dados=[...db.saidaVeiculos];
+
+    const reserva=
+    document.getElementById("filtroSVReserva")?.value
+    .toLowerCase() || "";
+
+    const veiculo=
+    document.getElementById("filtroSVVeiculo")?.value || "";
+
+    const motorista=
+    document.getElementById("filtroSVMotorista")?.value || "";
+
+    const dataIni=
+    document.getElementById("filtroSVDataIni")?.value || "";
+
+    const dataFim=
+    document.getElementById("filtroSVDataFim")?.value || "";
+
+    return dados.filter(s=>{
+
+        return(
+
+        (!reserva ||
+        (s.svreserva||"")
+        .toLowerCase()
+        .includes(reserva))
+
+        &&
+
+        (!veiculo ||
+        s.svveiculo===veiculo)
+
+        &&
+
+        (!motorista ||
+        s.svmotorista===motorista)
+
+        &&
+
+        (!dataIni ||
+        s.svdataSaida>=dataIni)
+
+        &&
+
+        (!dataFim ||
+        s.svdataSaida<=dataFim)
+
+        );
+
+    });
+
+}
+
+function aplicarFiltroSaidaVeiculos(){
+
+    PAGINACAO.paginas["saidaVeiculos"]=1;
+
+    renderModulo("saidaVeiculos");
+
+}
+
+function limparFiltroSaidaVeiculos(){
+
+    [
+
+    "filtroSVReserva",
+
+    "filtroSVVeiculo",
+
+    "filtroSVMotorista",
+
+    "filtroSVDataIni",
+
+    "filtroSVDataFim"
+
+    ].forEach(id=>{
+
+        const el=document.getElementById(id);
+
+        if(el) el.value="";
+
+    });
+
+    renderModulo("saidaVeiculos");
+
+}
+
+function veiculoEmUso(veiculo, ignorarIndex = -1){
+
+    if(!db.saidaVeiculos) return false;
+
+    return db.saidaVeiculos.some((s,i)=>{
+
+        if(i===ignorarIndex) return false;
+
+        return (
+            s.svveiculo===veiculo &&
+            (
+                !s.svdataChegada ||
+                !s.svhoraChegada
+            )
+        );
+
+    });
+
+}
+
+function totalVeiculosEmViagem(){
+
+    if(!db.saidaVeiculos) return 0;
+
+    return db.saidaVeiculos.filter(s=>
+
+        !s.svdataChegada ||
+        !s.svhoraChegada
+
+    ).length;
+
+}
+
+function renderModulo(modulo){
 
 if (!PAGINACAO.paginas[modulo]) {
     PAGINACAO.paginas[modulo] = 1;
@@ -1039,6 +1169,84 @@ renderPaginacao(
 
 }
 
+if(modulo==="saidaVeiculos"){
+
+    carregarVeiculosSelect("svveiculo");
+    carregarVeiculosSelect("filtroSVVeiculo");
+    
+    const dados=getSaidaVeiculosFiltrados();
+
+    document.getElementById("listaSaidaVeiculos").innerHTML=
+
+    getDadosPaginadosCustom(
+        dados,
+        "saidaVeiculos"
+    )
+
+    .map((s) => {
+    const real = db.saidaVeiculos.indexOf(s);
+    // Substitua o trecho antigo dentro da função renderModulo pelo código abaixo:
+
+let status;
+
+if (s.svdataChegada && s.svhoraChegada) {
+    status = "Finalizado"; // Prioridade: se há dados de chegada, está finalizado
+} else if (s.svreserva === "Reservado" && (!s.svdataSaida || s.svdataSaida === "")) {
+    status = "Reservado"; // Garante que a reserva seja mantida se não houver data de saída
+} else {
+    status = "Em viagem"; // Qualquer registro sem chegada e sem status de reserva pendente
+}
+
+    return `
+    <tr>
+        <td>
+            ${s.svnumeroreserva || "--"}
+            <br>
+            <span class="badge ${s.svreserva === "Reservado" ? "bg-danger" : "bg-success"}">
+                ${s.svreserva}
+            </span>
+        </td>
+        <td>
+            ${s.svveiculo}
+            ${status === "Em viagem" ? '<span class="badge bg-danger ms-2">EM VIAGEM</span>' : ''}
+        </td>
+        <td>${s.svmotorista}</td>
+        <td>
+            ${formatarDataBR(s.svdataSaida)}
+            <br>
+            ${s.svhoraSaida}
+        </td>
+        <td>
+            ${s.svdataChegada ? formatarDataBR(s.svdataChegada) : "--"}
+            <br>
+            ${s.svhoraChegada || "--"}
+        </td>
+        <td>${s.svdestino}</td>
+        <td>
+            <span class="badge ${
+                status === "Finalizado" ? "bg-success" : 
+                status === "Reservado" ? "bg-warning text-dark" : "bg-danger"
+            }">
+                ${status}
+            </span>
+        </td>
+        <td>
+            <button class="btn-edit" onclick="editar('saidaVeiculos', ${real})">✎</button>
+            <button class="btn-del" onclick="deletar('saidaVeiculos', ${real})">✕</button>
+        </td>
+    </tr>
+    `;
+})
+.join("");
+
+renderPaginacaoCustom(
+dados,
+"saidaVeiculos",
+"paginacaoSaidaVeiculos"
+);
+
+}
+
     if(modulo === 'multas'){
 
     // só carrega se ainda estiver vazio
@@ -1254,35 +1462,6 @@ function renderPaginacaoCustom(
     }
 
     container.innerHTML = html;
-
-}
-
-function carregarVeiculosSelect(id){
-
-    const select =
-    document.getElementById(id);
-
-    if(!select) return;
-
-    const atual = select.value;
-
-    select.innerHTML =
-    '<option value="">Veículos</option>';
-
-    (db.veiculos || []).forEach(v=>{
-
-        const valor =
-        v.placa || v.nome || v.veiculo;
-
-        select.innerHTML += `
-        <option value="${valor}">
-            ${valor}
-        </option>
-        `;
-
-    });
-
-    select.value = atual;
 
 }
 
