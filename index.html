@@ -570,7 +570,7 @@ onclick="limparFiltroTerceiros()">
 
 <div id="saidaVeiculos" class="hidden">
 
-<h3>🚚 Saída De Veículos</h3>
+<h3>🚚 Saída de Veículos</h3>
 
 <div class="glass-container">
 
@@ -778,7 +778,7 @@ class="form-control">
 class="btn btn-primary w-100"
 onclick="aplicarFiltroSaidaVeiculos()">
 
-🔎
+Filtrar
 
 </button>
 
@@ -790,7 +790,7 @@ onclick="aplicarFiltroSaidaVeiculos()">
 class="btn btn-secondary w-100"
 onclick="limparFiltroSaidaVeiculos()">
 
-✖
+Limpar
 
 </button>
 
@@ -799,7 +799,6 @@ onclick="limparFiltroSaidaVeiculos()">
 </div>
 
 </div>
-
 
 
 <div class="glass-container">
@@ -2524,9 +2523,22 @@ function deletar(mod, i){
 }
 
 function filtrarTabela(idTabela, termo) {
-    let trs = document.getElementById(idTabela).getElementsByTagName('tr');
-    termo = termo.toLowerCase();
-    for (let tr of trs) tr.style.display = tr.innerText.toLowerCase().includes(termo) ? '' : 'none';
+
+    const tbody = document.getElementById(idTabela);
+    if (!tbody) return;
+
+    termo = termo.toLowerCase().trim();
+
+    Array.from(tbody.rows).forEach(linha => {
+
+        const texto = linha.textContent.toLowerCase();
+
+        linha.style.display = texto.includes(termo)
+            ? ""
+            : "none";
+
+    });
+
 }
 
 function formatarVencimento(dataStr){
@@ -3090,6 +3102,35 @@ db.agendamentos.forEach(a => {
     )
     .forEach(mu => analisar(mu.muveiculo, 'Desc. Multa', mu.muvenc));
     db.licencas.forEach(le=>{ analisar(le.leveiculo,'CIV',le.venciv); analisar(le.leveiculo,'CIPP',le.vencipp); });
+    // ===============================
+// 🚚 ALERTAS DE SAÍDA DE VEÍCULOS
+// ===============================
+
+db.saidaVeiculos.forEach(s => {
+
+    // Veículo em viagem
+    if (!s.svdataChegada || !s.svhoraChegada) {
+
+        alertas.push(`
+            <div class="alerta-item alerta-atencao">
+                🚚 <b>${s.svveiculo}</b> em viagem
+                <br>
+                <small>
+                    Motorista: ${s.svmotorista || "--"}
+                    <br>
+                    Destino: ${s.svdestino || "--"}
+                    <br>
+                    Saída:
+                    ${formatarDataBR(s.svdataSaida)}
+                    às
+                    ${s.svhoraSaida || "--"}
+                </small>
+            </div>
+        `);
+
+    }
+
+});
     document.getElementById('listaAlertasRapidos').innerHTML = alertas.join('');
     document.getElementById('d_alertas').innerText = alertas.length;
     document.getElementById('d_alertas').innerText = alertas.length;
@@ -3683,19 +3724,28 @@ function excluirAnexo(i, index){
 }
 
 function carregarVeiculosSelect(idElemento) {
+
     const select = document.getElementById(idElemento);
     if (!select) return;
-    
-    // Limpa opções atuais
+
+    const valorAtual = select.value;
+
     select.innerHTML = '<option value="">Selecione o Veículo</option>';
-    
-    // Adiciona as placas cadastradas
+
     db.veiculos.forEach(v => {
-        const option = document.createElement('option');
+
+        const option = document.createElement("option");
         option.value = v.vplaca;
         option.textContent = v.vplaca;
+
+        if (v.vplaca === valorAtual) {
+            option.selected = true;
+        }
+
         select.appendChild(option);
+
     });
+
 }
 
 function aplicarFiltroDashboard(){
