@@ -58,6 +58,7 @@ Criar Conta
     <h4>FROTA MASTER</h4>
     <a onclick="navegar('dashboard',this)" class="active">📊 Dashboard</a>
     <a onclick="navegar('agendamentos',this)">📅 Agendamentos</a>
+    <a onclick="navegar('saidaVeiculos',this)">🚚 Saída De Veículos</a>
     <a onclick="navegar('veiculos',this)">🚗 Veículos</a>
     <a onclick="navegar('pneus',this)">🛞 Pneus</a>
     <a onclick="navegar('motoristas',this)">👥 Motoristas</a>
@@ -565,6 +566,304 @@ onclick="limparFiltroTerceiros()">
         </table>
 
     </div>
+</div>
+
+<div id="saidaVeiculos" class="hidden">
+
+<h3>🚚 Saída de Veículos</h3>
+
+<div class="glass-container">
+
+<input type="hidden" id="sv_idx">
+
+<div class="row g-3">
+
+<div class="col-md-3">
+<label>Status da Reserva</label>
+
+<select id="svreserva" class="form-select">
+    <option value="Livre">Livre</option>
+    <option value="Reservado">Reservado</option>
+</select>
+
+</div>
+
+<div class="col-md-3">
+
+<label>Nº da Reserva</label>
+
+<input
+id="svnumeroreserva"
+class="form-control"
+placeholder="Número da Reserva">
+
+</div>
+
+<div class="col-md-3">
+<label>Veículo</label>
+<select
+id="svveiculo"
+class="form-select">
+</select>
+</div>
+
+<div class="col-md-3">
+
+<label>Motorista</label>
+
+<input
+id="svmotorista"
+class="form-control"
+placeholder="Digite o motorista">
+
+</div>
+
+<div class="col-md-3">
+<label>Destino</label>
+<input
+id="svdestino"
+class="form-control"
+placeholder="Destino">
+</div>
+
+<div class="col-md-3">
+<label>Data Saída</label>
+<input
+type="date"
+id="svdataSaida"
+class="form-control">
+</div>
+
+<div class="col-md-3">
+<label>Hora Saída</label>
+<input
+type="time"
+id="svhoraSaida"
+class="form-control">
+</div>
+
+<div class="col-md-3">
+<label>Data Chegada</label>
+<input
+type="date"
+id="svdataChegada"
+class="form-control">
+</div>
+
+<div class="col-md-3">
+<label>Hora Chegada</label>
+<input
+type="time"
+id="svhoraChegada"
+class="form-control">
+</div>
+
+<div class="col-md-3">
+
+<label>Status</label>
+
+<select
+id="svstatus"
+class="form-select">
+
+<option value="Em Viagem">
+Em Viagem
+</option>
+
+<option value="Finalizado">
+Finalizado
+</option>
+
+</select>
+
+</div>
+
+<div class="col-md-12">
+
+<label>Observação</label>
+
+<textarea
+id="svobs"
+class="form-control"
+rows="3"></textarea>
+
+</div>
+
+<div class="col-md-12 text-end">
+
+<button
+id="btn_cancel_saida"
+class="btn btn-outline-secondary btn-cancelar"
+
+onclick="limparForm(
+'saidaVeiculos',
+[
+'svreserva',
+'svnumeroreserva',
+'svveiculo',
+'svmotorista',
+'svdestino',
+'svdataSaida',
+'svhoraSaida',
+'svdataChegada',
+'svhoraChegada',
+'svstatus',
+'svobs'
+],
+'sv_idx'
+)">
+
+Cancelar
+
+</button>
+</button>
+<button class="btn btn-primary" onclick="salvarSaidaVeiculo()">Salvar</button>
+
+</button>
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+
+<div class="glass-container">
+
+<div class="row g-2">
+
+<div class="col-md-2">
+<input
+id="filtroSVReserva"
+class="form-control"
+placeholder="Reserva">
+</div>
+
+<div class="col-md-2">
+<select
+id="filtroSVVeiculo"
+class="form-select">
+<option value="">Veículo</option>
+</select>
+</div>
+
+<div class="col-md-2">
+
+<input
+id="filtroSVMotorista"
+class="form-control"
+placeholder="Motorista">
+
+</div>
+
+<div class="col-md-2">
+<input
+type="date"
+id="filtroSVDataIni"
+class="form-control">
+</div>
+
+<div class="col-md-2">
+<input
+type="date"
+id="filtroSVDataFim"
+class="form-control">
+</div>
+
+<div class="col-md-1">
+
+<button
+class="btn btn-primary w-100"
+onclick="aplicarFiltroSaidaVeiculos()">
+
+🔎
+
+</button>
+
+</div>
+
+<div class="col-md-1">
+
+<button
+class="btn btn-secondary w-100"
+onclick="limparFiltroSaidaVeiculos()">
+
+✖
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+
+<div class="glass-container">
+
+<div class="d-flex justify-content-between mb-3">
+
+<input
+
+type="text"
+
+class="form-control search-box w-75"
+
+placeholder="🔎 Pesquisar..."
+
+onkeyup="filtrarTabela('listaSaidaVeiculos',this.value)">
+
+<button
+
+class="btn-excel"
+
+onclick="exportarExcel('saidaVeiculos')">
+
+📥 Exportar Excel
+
+</button>
+
+</div>
+
+<table class="table table-striped table-hover">
+
+<thead>
+
+<tr>
+
+<th>Reserva</th>
+
+<th>Veículo</th>
+
+<th>Motorista</th>
+
+<th>Saída</th>
+
+<th>Chegada</th>
+
+<th>Destino</th>
+
+<th>Status</th>
+
+<th>Ações</th>
+
+</tr>
+
+</thead>
+
+<tbody id="listaSaidaVeiculos">
+
+</tbody>
+
+</table>
+
+<div id="paginacaoSaidaVeiculos"></div>
+
+</div>
+
 </div>
 
     <div id="dashboard">
@@ -1963,6 +2262,7 @@ const MAP={
     ferias:'FM_FE',
     agendamentos:'FM_AG',
     combustivel:'FM_C',
+    saidaVeiculos:'FM_SV',
 };
 const MODULOS = Object.keys(MAP);
 let db={}
@@ -1989,6 +2289,7 @@ const ID_MAP_INDEX = {
     agendamentos:'ag_idx',
     combustivel:'c_idx',
     pneus:'p_idx',
+    saidaVeiculos:'sv_idx',
 }
 
 function exportarExcel(modulo) {
@@ -2056,40 +2357,46 @@ function salvarNuvem(){
 
 }
 
-function navegar(id,el){
+function navegar(id, el) {
+    // 🔐 bloqueio por permissão
+    if (usuarioLogado.tipo !== "admin") {
+        let p = usuarioLogado.permissoes || {};
+        if (p[id] === false) {
+            alert("Acesso negado!");
+            return;
+        }
+    }
 
-if(id === 'combustivel'){
-    carregarVeiculosSelect('cveiculo');
-}
-
-     // 🔐 bloqueio por permissão
-if(usuarioLogado.tipo !== "admin"){
-
-    let p = usuarioLogado.permissoes || {};
-
-    if(p[id] === false){
-        alert("Acesso negado!");
+    // 🔐 bloqueio de segurança
+    if (id === "admin" && (!usuarioLogado || usuarioLogado.tipo !== "admin")) {
+        alert("Acesso restrito!");
         return;
     }
 
-}
-
-    // 🔐 bloqueio de segurança
-    if(id === "admin" && (!usuarioLogado || usuarioLogado.tipo !== "admin")){
-    alert("Acesso restrito!");
-    return;
-}
-
-    document.querySelectorAll('.main>div').forEach(d=>d.classList.add('hidden'))
-    document.getElementById(id).classList.remove('hidden')
-    document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'))
-    el.classList.add('active')
-    renderTudo()
-  
-    if(modulo === 'dashboard'){
-    calcularMediaConsumo();
-}
+    // Esconde todos e mostra o selecionado
+    document.querySelectorAll('.main>div').forEach(d => d.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
     
+    // Gerencia o menu ativo
+    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+    el.classList.add('active');
+
+    // Carregamento específico por módulo
+    if (id === 'combustivel') {
+        carregarVeiculosSelect('cveiculo');
+    }
+
+    if (id === 'saidaVeiculos') {
+        carregarVeiculosSelect('svveiculo');
+        carregarVeiculosSelect('filtroSVVeiculo');
+    }
+
+    // Renderizações globais e cálculos
+    renderTudo();
+
+    if (id === 'dashboard') { // Alterado de 'modulo' para 'id' para consistência
+        calcularMediaConsumo();
+    }
 }
 
 function salvar(mod,campos,idCampo){
@@ -2138,6 +2445,64 @@ function editar(mod,i){
     const btnCancel = document.getElementById('btn_cancel_' + mod);
     if(btnCancel) btnCancel.style.display = 'inline-block';
     window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function salvarSaidaVeiculo() {
+
+    const idx = document.getElementById("sv_idx").value;
+    const veiculo = document.getElementById("svveiculo").value;
+    const reserva = document.getElementById("svreserva").value;
+    const data = document.getElementById("svdataSaida").value;
+    const hora = document.getElementById("svhoraSaida").value;
+
+    if (reserva === "Reservado") {
+
+        const existe = db.saidaVeiculos.some((item, i) => {
+
+            if (idx !== "" && i === Number(idx)) {
+                return false;
+            }
+
+            return (
+
+                item.svreserva === "Reservado" &&
+                item.svveiculo === veiculo &&
+                item.svdataSaida === data &&
+                item.svhoraSaida === hora
+
+            );
+
+        });
+
+        if (existe) {
+
+            alert("Este veículo já está reservado para esta data e horário.");
+            return;
+
+        }
+
+    }
+
+    salvar(
+        "saidaVeiculos",
+        [
+            "svreserva",
+            "svnumeroreserva",
+            "svveiculo",
+            "svmotorista",
+            "svdestino",
+            "svdataSaida",
+            "svhoraSaida",
+            "svdataChegada",
+            "svhoraChegada",
+            "svstatus",
+            "svobs"
+        ],
+        "sv_idx"
+    );
+
+    renderModulo("saidaVeiculos");
+
 }
 
 function deletar(mod, i){
@@ -3315,20 +3680,20 @@ function excluirAnexo(i, index){
     verAnexos(i);
 }
 
-function carregarVeiculosSelect(id){
-    const select = document.getElementById(id);
-    if(!select) return;
-
-    const valorAtual = select.value; // guarda o valor selecionado
-
-    select.innerHTML =
-'<option value="">Veículos</option>';
-
+function carregarVeiculosSelect(idElemento) {
+    const select = document.getElementById(idElemento);
+    if (!select) return;
+    
+    // Limpa opções atuais
+    select.innerHTML = '<option value="">Selecione o Veículo</option>';
+    
+    // Adiciona as placas cadastradas
     db.veiculos.forEach(v => {
-        select.innerHTML += `<option value="${v.vplaca}">${v.vplaca}</option>`;
+        const option = document.createElement('option');
+        option.value = v.vplaca;
+        option.textContent = v.vplaca;
+        select.appendChild(option);
     });
-
-    select.value = valorAtual; // restaura o valor
 }
 
 function aplicarFiltroDashboard(){
