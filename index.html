@@ -2491,31 +2491,34 @@ function salvarSaidaVeiculo() {
 
     if (reserva === "Reservado") {
 
-        const existe = db.saidaVeiculos.some((item, i) => {
+    const existe = db.saidaVeiculos.some((item, i) => {
 
-            if (idx !== "" && i === Number(idx)) {
-                return false;
-            }
-
-            return (
-
-                item.svreserva === "Reservado" &&
-                item.svveiculo === veiculo &&
-                item.svdataSaida === data &&
-                item.svhoraSaida === hora
-
-            );
-
-        });
-
-        if (existe) {
-
-            alert("Este veículo já está reservado para esta data e horário.");
-            return;
-
+        // Ignora o registro que está sendo editado
+        if (idx !== "" && i === Number(idx)) {
+            return false;
         }
 
+        return (
+
+            item.svveiculo === veiculo &&
+
+            item.svdataSaida === data &&
+
+            item.svstatus === "Em Viagem"
+
+        );
+
+    });
+
+    if (existe) {
+
+        alert("Este veículo já possui uma viagem em andamento nesta data. Finalize a viagem antes de fazer uma nova reserva.");
+
+        return;
+
     }
+
+}
 
     salvar(
         "saidaVeiculos",
