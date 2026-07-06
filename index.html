@@ -2482,44 +2482,57 @@ function editar(mod,i){
 }
 
 function salvarSaidaVeiculo() {
-
     const idx = document.getElementById("sv_idx").value;
     const veiculo = document.getElementById("svveiculo").value;
     const reserva = document.getElementById("svreserva").value;
     const data = document.getElementById("svdataSaida").value;
     const hora = document.getElementById("svhoraSaida").value;
+    
+    // Garante que a lista exista, se não existir inicia como array vazio
+    const listaVeiculos = db.saidaVeiculos || [];
 
-    if (reserva === "Reservado") {
-
-    const existe = db.saidaVeiculos.some((item, i) => {
-
-        // Ignora o registro que está sendo editado
-        if (idx !== "" && i === Number(idx)) {
-            return false;
-        }
-
-        return (
-
-            item.svveiculo === veiculo &&
-
-            item.svdataSaida === data &&
-
-            item.svstatus === "Em Viagem"
-
-        );
-
-    });
-
-    if (existe) {
-
-        alert("Este veículo já possui uma viagem em andamento nesta data. Finalize a viagem antes de fazer uma nova reserva.");
-
-        return;
-
+    // 1. GERAR NÚMERO AUTOMÁTICO (Fora do IF para garantir que funcione)
+    const inputNumReserva = document.getElementById("svnumeroreserva");
+    
+    if (inputNumReserva && (!inputNumReserva.value || inputNumReserva.value.trim() === "")) {
+        console.log("Campo do número da reserva está vazio. Gerando número...");
+        
+        // Mapeia os números existentes salvos no banco
+        const numeros = listaVeiculos
+            .map(s => parseInt(s.svnumeroreserva))
+            .filter(n => !isNaN(n));
+        
+        // Se houver números, pega o maior e soma 1. Se não, começa em 1.
+        const proximoNumero = numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
+        
+        inputNumReserva.value = proximoNumero;
+        console.log("Novo número gerado e inserido no input:", proximoNumero);
     }
 
-}
+    // 2. VALIDAÇÃO DE VIAGEM EM ANDAMENTO
+    // Ajustado para aceitar "Reservado" ou "reservado"
+    if (reserva && reserva.toLowerCase() === "reservado") {
+        console.log("Status é Reservado. Validando se veículo já está em viagem...");
+        
+        const existe = listaVeiculos.some((item, i) => {
+            if (idx !== "" && i === Number(idx)) {
+                return false; // Ignora o próprio registro em edição
+            }
+            return (
+                item.svveiculo === veiculo &&
+                item.svdataSaida === data &&
+                item.svstatus === "Em Viagem"
+            );
+        });
 
+        if (existe) {
+            alert("Este veículo já possui uma viagem em andamento nesta data. Finalize a viagem antes de fazer uma nova reserva.");
+            return;
+        }
+    }
+
+    // 3. EXECUTA O SALVAMENTO PADRÃO
+    console.log("Chamando a função salvar genérica...");
     salvar(
         "saidaVeiculos",
         [
@@ -2539,7 +2552,20 @@ function salvarSaidaVeiculo() {
     );
 
     renderModulo("saidaVeiculos");
+}
 
+function gerarProximoNumeroReserva() {
+    if (!db.saidaVeiculos || db.saidaVeiculos.length === 0) return 1;
+
+    // Pega todos os números de reserva, converte para número e filtra vazios
+    const numeros = db.saidaVeiculos
+        .map(s => parseInt(s.svnumeroreserva))
+        .filter(n => !isNaN(n));
+
+    if (numeros.length === 0) return 1;
+
+    // Retorna o maior valor encontrado + 1
+    return Math.max(...numeros) + 1;
 }
 
 function deletar(mod, i){
