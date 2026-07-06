@@ -78,6 +78,37 @@ let paginaAtual = obterPaginaCustom(modulo, total);
     renderModulo(modulo);
 }
 
+function irPrimeiraPagina(modulo){
+
+    PAGINACAO.paginas[modulo]=1;
+
+    renderModulo(modulo);
+
+}
+
+function irUltimaPagina(modulo){
+
+    let total;
+
+    if(modulo==="multas"){
+
+        total=getMultasFiltradas().length;
+
+    }else{
+
+        total=db[modulo]?.length || 0;
+
+    }
+
+    PAGINACAO.paginas[modulo]=Math.max(
+        1,
+        Math.ceil(total/PAGINACAO.itensPorPagina)
+    );
+
+    renderModulo(modulo);
+
+}
+
 function getDadosPaginados(modulo) {
     const pagina = obterPagina(modulo);
     const inicio = (pagina - 1) * PAGINACAO.itensPorPagina;
@@ -379,50 +410,70 @@ function getManutencoesFiltradas(){
 
 }
 
-function renderPaginacao(modulo, containerId) {
-    const total = db[modulo].length;
-    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
-    const pagina = obterPagina(modulo);
+function renderPaginacao(modulo, containerId){
 
-    const container = document.getElementById(containerId);
-    if (!container) return;
+    const total=db[modulo].length;
 
-    if (totalPaginas <= 1) {
-        container.innerHTML = '';
-        return;
-    }
+    const totalPaginas=Math.max(
+        1,
+        Math.ceil(total/PAGINACAO.itensPorPagina)
+    );
 
-    container.innerHTML = `
-        <div style="display:flex;justify-content:center;gap:10px;margin-top:10px;">
-            <button class="btn btn-sm btn-outline-primary" onclick="mudarPagina('${modulo}', -1)">⬅</button>
-            <span>Página ${pagina} de ${totalPaginas}</span>
-            <button class="btn btn-sm btn-outline-primary" onclick="mudarPagina('${modulo}', 1)">➡</button>
-        </div>
-    `;
+    const pagina=obterPagina(modulo);
+
+    const container=document.getElementById(containerId);
+
+    if(!container) return;
+
+    container.innerHTML=`
+
+<div class="paginacao-global">
+
+<button
+${pagina===1?'disabled':''}
+onclick="irPrimeiraPagina('${modulo}')">
+
+<< Primeira
+
+</button>
+
+<button
+${pagina===1?'disabled':''}
+onclick="mudarPagina('${modulo}',-1)">
+
+< Anterior
+
+</button>
+
+<div class="pagina-info">
+
+Página ${pagina} de ${totalPaginas}
+
+</div>
+
+<button
+${pagina===totalPaginas?'disabled':''}
+onclick="mudarPagina('${modulo}',1)">
+
+Próxima >
+
+</button>
+
+<button
+${pagina===totalPaginas?'disabled':''}
+onclick="irUltimaPagina('${modulo}')">
+
+Última >>
+
+</button>
+
+</div>
+
+`;
+
 }
 
-function renderPaginacaoCustom(lista, modulo, containerId) {
 
-    const total = lista.length;
-    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
-    const pagina = obterPaginaCustom(modulo, total);
-
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    if (totalPaginas <= 1) {
-        container.innerHTML = '';
-        return;
-    }
-
-    container.innerHTML = `
-        <div style="display:flex;justify-content:center;gap:10px;margin-top:10px;">
-            <button onclick="mudarPagina('${modulo}', -1)">⬅</button>
-            <span>Página ${pagina} de ${totalPaginas}</span>
-            <button onclick="mudarPagina('${modulo}', 1)">➡</button>
-        </div>
-    `;
-}
 
 function aplicarFiltroMultas(){
     PAGINACAO.paginas['multas'] = 1;
@@ -1381,53 +1432,62 @@ function limparFiltroManutencoes(){
     renderModulo('manutencoes');
 }
 
-function renderPaginacaoCustom(
-    lista,
-    modulo,
-    containerId
-){
+function renderPaginacaoCustom(lista, modulo, containerId){
 
-    const totalPaginas =
-    Math.ceil(
-        lista.length /
-        PAGINACAO.itensPorPagina
+    const total = lista.length;
+
+    const totalPaginas = Math.max(
+        1,
+        Math.ceil(total / PAGINACAO.itensPorPagina)
     );
 
-    const container =
-    document.getElementById(containerId);
+    const pagina = PAGINACAO.paginas[modulo] || 1;
+
+    const container = document.getElementById(containerId);
 
     if(!container) return;
 
-    if(totalPaginas <= 1){
+    container.innerHTML = `
 
-        container.innerHTML = '';
+<div class="paginacao-global">
 
-        return;
-
-    }
-
-    let html = '';
-
-    for(let i=1;i<=totalPaginas;i++){
-
-        html += `
-        <button
-        class="btn btn-sm ${
-            i === PAGINACAO.paginas[modulo]
-            ? 'btn-primary'
-            : 'btn-outline-primary'
-        }"
+    <button
+        ${pagina === 1 ? "disabled" : ""}
         onclick="
-        PAGINACAO.paginas['${modulo}']=${i};
-        renderModulo('${modulo}');
+            PAGINACAO.paginas['${modulo}']=1;
+            renderModulo('${modulo}');
         ">
-        ${i}
-        </button>
-        `;
+        << Primeira
+    </button>
 
-    }
+    <button
+        ${pagina === 1 ? "disabled" : ""}
+        onclick="mudarPagina('${modulo}',-1)">
+        < Anterior
+    </button>
 
-    container.innerHTML = html;
+    <div class="pagina-info">
+        Página ${pagina} de ${totalPaginas}
+    </div>
+
+    <button
+        ${pagina === totalPaginas ? "disabled" : ""}
+        onclick="mudarPagina('${modulo}',1)">
+        Próxima >
+    </button>
+
+    <button
+        ${pagina === totalPaginas ? "disabled" : ""}
+        onclick="
+            PAGINACAO.paginas['${modulo}']=${totalPaginas};
+            renderModulo('${modulo}');
+        ">
+        Última >>
+    </button>
+
+</div>
+
+`;
 
 }
 
