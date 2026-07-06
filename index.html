@@ -32,6 +32,40 @@
         .alerta-vencido { background: #fee2e2; border-left-color: var(--danger); color: #991b1b; }
         .alerta-atencao { background: #fef9c3; border-left-color: var(--warning); color: #854d0e; }
         .btn-cancelar{ margin-right:10px; }
+/* ==========================
+   PAGINAÇÃO GLOBAL
+========================== */
+
+.paginacao-global{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:20px;
+    gap:15px;
+}
+
+.paginacao-global button{
+    background:#6c757d;
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    padding:8px 18px;
+    font-weight:600;
+}
+
+.paginacao-global button:hover{
+    background:#5c636a;
+}
+
+.paginacao-global button:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+}
+
+.pagina-info{
+    font-size:24px;
+    font-weight:bold;
+}
     </style>
 </head>
 <body>
