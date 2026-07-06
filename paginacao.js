@@ -709,11 +709,8 @@ function veiculoEmUso(veiculo, ignorarIndex = -1){
         if(i===ignorarIndex) return false;
 
         return (
-            s.svveiculo===veiculo &&
-            (
-                !s.svdataChegada ||
-                !s.svhoraChegada
-            )
+            s.svveiculo === veiculo &&
+            s.svstatus === "Em Viagem"
         );
 
     });
@@ -724,10 +721,9 @@ function totalVeiculosEmViagem(){
 
     if(!db.saidaVeiculos) return 0;
 
-    return db.saidaVeiculos.filter(s=>
+    return db.saidaVeiculos.filter(s =>
 
-        !s.svdataChegada ||
-        !s.svhoraChegada
+        s.svstatus === "Em Viagem"
 
     ).length;
 
@@ -1190,77 +1186,137 @@ if(modulo==="saidaVeiculos"){
 
     carregarVeiculosSelect("svveiculo");
     carregarVeiculosSelect("filtroSVVeiculo");
-    
-    const dados=getSaidaVeiculosFiltrados();
 
-    document.getElementById("listaSaidaVeiculos").innerHTML=
+    const dados = getSaidaVeiculosFiltrados();
+
+    document.getElementById("listaSaidaVeiculos").innerHTML =
 
     getDadosPaginadosCustom(
         dados,
         "saidaVeiculos"
     )
 
-    .map((s) => {
-    const real = db.saidaVeiculos.indexOf(s);
-    // Substitua o trecho antigo dentro da função renderModulo pelo código abaixo:
+    .map((s)=>{
 
-let status;
+        const real = db.saidaVeiculos.indexOf(s);
 
-if (s.svdataChegada && s.svhoraChegada) {
-    status = "Finalizado"; // Prioridade: se há dados de chegada, está finalizado
-} else if (s.svreserva === "Reservado" && (!s.svdataSaida || s.svdataSaida === "")) {
-    status = "Reservado"; // Garante que a reserva seja mantida se não houver data de saída
-} else {
-    status = "Em viagem"; // Qualquer registro sem chegada e sem status de reserva pendente
-}
+        // STATUS MANUAL
+        const status = s.svstatus || "Em Viagem";
 
-    return `
-    <tr>
-        <td>
-            ${s.svnumeroreserva || "--"}
-            <br>
-            <span class="badge ${s.svreserva === "Reservado" ? "bg-danger" : "bg-success"}">
-                ${s.svreserva}
-            </span>
-        </td>
-        <td>
-            ${s.svveiculo}
-            ${status === "Em viagem" ? '<span class="badge bg-danger ms-2">EM VIAGEM</span>' : ''}
-        </td>
-        <td>${s.svmotorista}</td>
-        <td>
-            ${formatarDataBR(s.svdataSaida)}
-            <br>
-            ${s.svhoraSaida}
-        </td>
-        <td>
-            ${s.svdataChegada ? formatarDataBR(s.svdataChegada) : "--"}
-            <br>
-            ${s.svhoraChegada || "--"}
-        </td>
-        <td>${s.svdestino}</td>
-        <td>
-            <span class="badge ${
-                status === "Finalizado" ? "bg-success" : 
-                status === "Reservado" ? "bg-warning text-dark" : "bg-danger"
-            }">
-                ${status}
-            </span>
-        </td>
-        <td>
-            <button class="btn-edit" onclick="editar('saidaVeiculos', ${real})">✎</button>
-            <button class="btn-del" onclick="deletar('saidaVeiculos', ${real})">✕</button>
-        </td>
-    </tr>
-    `;
-})
-.join("");
+        return `
+        <tr>
 
-renderPaginacaoCustom(
-dados,
-"saidaVeiculos",
-"paginacaoSaidaVeiculos"
-);
+            <td>
+
+                ${s.svnumeroreserva || "--"}
+
+                <br>
+
+                <span class="badge ${
+                    s.svreserva === "Reservado"
+                        ? "bg-danger"
+                        : "bg-success"
+                }">
+
+                    ${s.svreserva}
+
+                </span>
+
+            </td>
+
+            <td>
+
+                ${s.svveiculo}
+
+                ${
+                    status === "Em Viagem"
+                    ? '<span class="badge bg-danger ms-2">EM VIAGEM</span>'
+                    : ''
+                }
+
+            </td>
+
+            <td>
+
+                ${s.svmotorista || "--"}
+
+            </td>
+
+            <td>
+
+                ${formatarDataBR(s.svdataSaida)}
+
+                <br>
+
+                ${s.svhoraSaida || "--"}
+
+            </td>
+
+            <td>
+
+                ${
+                    s.svdataChegada
+                    ? formatarDataBR(s.svdataChegada)
+                    : "--"
+                }
+
+                <br>
+
+                ${s.svhoraChegada || "--"}
+
+            </td>
+
+            <td>
+
+                ${s.svdestino || "--"}
+
+            </td>
+
+            <td>
+
+                <span class="badge ${
+                    status === "Finalizado"
+                        ? "bg-success"
+                        : status === "Em Viagem"
+                        ? "bg-danger"
+                        : "bg-secondary"
+                }">
+
+                    ${status}
+
+                </span>
+
+            </td>
+
+            <td>
+
+                <button
+                    class="btn-edit"
+                    onclick="editar('saidaVeiculos',${real})">
+                    ✎
+                </button>
+
+                <button
+                    class="btn-del"
+                    onclick="deletar('saidaVeiculos',${real})">
+                    ✕
+                </button>
+
+            </td>
+
+        </tr>
+
+        `;
+
+    })
+
+    .join("");
+
+    renderPaginacaoCustom(
+        dados,
+        "saidaVeiculos",
+        "paginacaoSaidaVeiculos"
+    );
 
 }
 
