@@ -729,7 +729,55 @@ function totalVeiculosEmViagem(){
 
 }
 
+/**
+ * Verifica se o usuário tem permissão para acessar um determinado módulo.
+ * Se não for admin, bloqueia a navegação ou ação.
+ */
+function verificarAcesso(modulo) {
+    // Recupera o usuário logado (ajuste conforme sua lógica de login)
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+
+    // Lista de módulos restritos apenas para administradores
+    const modulosRestritos = ['admin', 'relatorios']; 
+
+    if (modulosRestritos.includes(modulo)) {
+        if (!usuario || usuario.perfil !== 'admin') {
+            alert('Acesso negado: Você não tem permissão para acessar esta área.');
+            return false; // Bloqueia o acesso
+        }
+    }
+    return true; // Permite o acesso
+}
+
+function podeAbrirModulo(modulo){
+
+    // Administrador pode tudo
+    if(usuarioLogado.tipo === "admin"){
+        return true;
+    }
+
+    // Módulos bloqueados para usuários comuns
+    const modulosBloqueados = [
+        "dashboard"
+    ];
+
+    return !modulosBloqueados.includes(modulo);
+}
+
 function renderModulo(modulo){
+// Proteção extra: se tentar renderizar algo restrito, bloqueie
+    if (!verificarAcesso(modulo)) {
+        return; 
+    }
+
+if(!podeAbrirModulo(modulo)){
+        alert("Você não possui permissão para acessar este módulo.");
+        return;
+    }
+
+    document.querySelectorAll(".modulo").forEach(m=>{
+        m.style.display = "none";
+    });
 
 if (!PAGINACAO.paginas[modulo]) {
     PAGINACAO.paginas[modulo] = 1;
@@ -1290,19 +1338,36 @@ if(modulo==="saidaVeiculos"){
 
             <td>
 
-                <button
-                    class="btn-edit"
-                    onclick="editar('saidaVeiculos',${real})">
-                    ✎
-                </button>
+    ${
+        usuarioLogado.tipo === "admin" ||
+        s.criadoPor === usuarioLogado.email
 
-                <button
-                    class="btn-del"
-                    onclick="deletar('saidaVeiculos',${real})">
-                    ✕
-                </button>
+        ?
 
-            </td>
+        `<button
+            class="btn-edit"
+            onclick="editar('saidaVeiculos',${real})">
+            ✎
+        </button>`
+
+        : ""
+    }
+
+    ${
+        usuarioLogado.tipo === "admin"
+
+        ?
+
+        `<button
+            class="btn-del"
+            onclick="deletar('saidaVeiculos',${real})">
+            ✕
+        </button>`
+
+        : ""
+    }
+
+</td>
 
         </tr>
 
