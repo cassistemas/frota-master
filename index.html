@@ -2446,41 +2446,20 @@ function salvar(mod,campos,idCampo){
         }
     }
 
-    if (idx === '') {
-
-    // grava quem criou o registro
-    obj.criadoPor = usuarioLogado.email;      // ou usuarioLogado.usuario
-    obj.dataCadastro = new Date().toISOString();
-
-    db[mod].push(obj);
-
-} else {
-
-    // mantém o dono original do registro
-    obj.criadoPor = db[mod][idx].criadoPor;
-    obj.dataCadastro = db[mod][idx].dataCadastro;
-
-    db[mod][idx] = obj;
-}
+    if(idx==='') db[mod].push(obj)
+    else db[mod][idx]=obj
     salvarNuvem();
-
-limparForm(mod, campos, idCampo);
-
-if(typeof PAGINACAO !== 'undefined'){
+    
+    limparForm(mod, campos, idCampo);
+    if(typeof PAGINACAO !== 'undefined'){
     PAGINACAO.paginas[mod] = 1;
 }
 
+// 🔥 ATUALIZA SELECT DE VEÍCULOS NO COMBUSTÍVEL
 if(mod === 'veiculos'){
     carregarVeiculosSelect('cveiculo');
 }
-
-renderModulo(mod);
-if(mod === "saidaVeiculos"){
-    carregarVeiculosSelect("svveiculo");
-    carregarVeiculosSelect("filtroSVVeiculo");
-}
-
-salvarNuvem();
+    salvarNuvem()
 }
 
 function limparForm(mod, campos, idCampo) {
@@ -2503,34 +2482,41 @@ function editar(mod,i){
 }
 
 function salvarSaidaVeiculo() {
-    console.log("Iniciando salvarSaidaVeiculo...");
+    const idx = document.getElementById("sv_idx").value;
+    const veiculo = document.getElementById("svveiculo").value;
+    const reserva = document.getElementById("svreserva").value;
+    const data = document.getElementById("svdataSaida").value;
+    const hora = document.getElementById("svhoraSaida").value;
+    
+    // Garante que a lista exista, se não existir inicia como array vazio
+    const listaVeiculos = db.saidaVeiculos || [];
 
-    // 1. CAPTURA DOS CAMPOS PRINCIPAIS
-    let inputIdx = document.getElementById("sv_idx");
-    let idx = inputIdx ? inputIdx.value : "";
-    let veiculo = document.getElementById("svveiculo").value;
-    let data = document.getElementById("svdataSaida").value;
-    let reserva = document.getElementById("svreserva").value;
-    let inputNumReserva = document.getElementById("svnumeroreserva");
-
-    let listaVeiculos = db.saidaVeiculos || [];
-
-    // LÓGICA DE GERAR NÚMERO AUTOMÁTICO SE RESERVADO
-    if (reserva && reserva.toLowerCase() === "reservado" && (!inputNumReserva.value || inputNumReserva.value.trim() === "")) {
+    // 1. GERAR NÚMERO AUTOMÁTICO (Fora do IF para garantir que funcione)
+    const inputNumReserva = document.getElementById("svnumeroreserva");
+    
+    if (inputNumReserva && (!inputNumReserva.value || inputNumReserva.value.trim() === "")) {
+        console.log("Campo do número da reserva está vazio. Gerando número...");
+        
+        // Mapeia os números existentes salvos no banco
         const numeros = listaVeiculos
             .map(s => parseInt(s.svnumeroreserva))
             .filter(n => !isNaN(n));
-
+        
+        // Se houver números, pega o maior e soma 1. Se não, começa em 1.
         const proximoNumero = numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
+        
         inputNumReserva.value = proximoNumero;
+        console.log("Novo número gerado e inserido no input:", proximoNumero);
     }
 
     // 2. VALIDAÇÃO DE VIAGEM EM ANDAMENTO
+    // Ajustado para aceitar "Reservado" ou "reservado"
     if (reserva && reserva.toLowerCase() === "reservado") {
+        console.log("Status é Reservado. Validando se veículo já está em viagem...");
+        
         const existe = listaVeiculos.some((item, i) => {
-            // Se for uma edição (idx preenchido), ignora o próprio registro que está sendo alterado
             if (idx !== "" && i === Number(idx)) {
-                return false; 
+                return false; // Ignora o próprio registro em edição
             }
             return (
                 item.svveiculo === veiculo &&
@@ -2545,48 +2531,26 @@ function salvarSaidaVeiculo() {
         }
     }
 
-    // 3. EXECUTA O SALVAMENTO SEGURO (Otimizado para Edição & Criação)
-    let campos = [
-        "svreserva", "svnumeroreserva", "svveiculo", "svmotorista", 
-        "svdestino", "svdataSaida", "svhoraSaida", "svdataChegada", 
-        "svhoraChegada", "svstatus", "svobs"
-    ];
-
-    if (idx !== "" && idx !== undefined && idx !== null) {
-        // MODO EDIÇÃO SEGURO: Atualiza diretamente a posição correta do array
-        console.log("Modo Edição. Atualizando índice:", idx);
-        let obj = listaVeiculos[Number(idx)];
-        if (!obj) obj = {};
-        
-        campos.forEach(campo => {
-            obj[campo] = document.getElementById(campo).value;
-        });
-        
-        listaVeiculos[Number(idx)] = obj;
-    } else {
-        // MODO NOVO REGISTRO: Usa a estrutura genérica normal
-        console.log("Modo Novo Registro. Chamando salvar genérico...");
-        let obj = {};
-        campos.forEach(campo => {
-            obj[campo] = document.getElementById(campo).value;
-        });
-        listaVeiculos.push(obj);
-    }
-
-    // Sincroniza com a persistência do sistema (Salva na Nuvem/Local)
-    db.saidaVeiculos = listaVeiculos;
-    if (typeof salvarNuvem === "function") {
-        salvarNuvem();
-    }
-
-    // Limpa o formulário e atualiza a exibição da tela
-    limparForm(
-        'saidaVeiculos',
-        campos,
-        'sv_idx'
+    // 3. EXECUTA O SALVAMENTO PADRÃO
+    console.log("Chamando a função salvar genérica...");
+    salvar(
+        "saidaVeiculos",
+        [
+            "svreserva",
+            "svnumeroreserva",
+            "svveiculo",
+            "svmotorista",
+            "svdestino",
+            "svdataSaida",
+            "svhoraSaida",
+            "svdataChegada",
+            "svhoraChegada",
+            "svstatus",
+            "svobs"
+        ],
+        "sv_idx"
     );
-    
-    console.log("Salvo com sucesso!");
+
     renderModulo("saidaVeiculos");
 }
 
@@ -2605,12 +2569,6 @@ function gerarProximoNumeroReserva() {
 }
 
 function deletar(mod, i){
-
-    // Somente administrador pode excluir
-    if(mod === "saidaVeiculos" && usuarioLogado.tipo !== "admin"){
-        alert("Somente administradores podem excluir registros.");
-        return;
-    }
 
     if(confirm('Excluir registro?')){
 
