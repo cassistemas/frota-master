@@ -2446,8 +2446,22 @@ function salvar(mod,campos,idCampo){
         }
     }
 
-    if(idx==='') db[mod].push(obj)
-    else db[mod][idx]=obj
+    if (idx === '') {
+
+    // grava quem criou o registro
+    obj.criadoPor = usuarioLogado.email;      // ou usuarioLogado.usuario
+    obj.dataCadastro = new Date().toISOString();
+
+    db[mod].push(obj);
+
+} else {
+
+    // mantém o dono original do registro
+    obj.criadoPor = db[mod][idx].criadoPor;
+    obj.dataCadastro = db[mod][idx].dataCadastro;
+
+    db[mod][idx] = obj;
+}
     salvarNuvem();
     
     limparForm(mod, campos, idCampo);
@@ -2569,6 +2583,12 @@ function gerarProximoNumeroReserva() {
 }
 
 function deletar(mod, i){
+
+    // Somente administrador pode excluir
+    if(mod === "saidaVeiculos" && usuarioLogado.tipo !== "admin"){
+        alert("Somente administradores podem excluir registros.");
+        return;
+    }
 
     if(confirm('Excluir registro?')){
 
