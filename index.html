@@ -3169,24 +3169,62 @@ db.agendamentos.forEach(a => {
 // 🚚 ALERTAS DE SAÍDA DE VEÍCULOS
 // ===============================
 
+const hojeSaida = new Date();
+hojeSaida.setHours(0,0,0,0);
+
 db.saidaVeiculos.forEach(s => {
 
-    // Veículo em viagem
-    if (!s.svdataChegada || !s.svhoraChegada) {
+    // ==========================
+    // ALERTA 1 DIA ANTES DA SAÍDA
+    // ==========================
+    if (s.svdataSaida) {
+
+        const dataSaida = new Date(s.svdataSaida + "T00:00:00");
+
+        const diferencaDias = Math.round(
+    (dataSaida.getTime() - hojeSaida.getTime()) / 86400000
+);
+
+        if (
+            diferencaDias === 1 &&
+            String(s.svreserva).toLowerCase() === "reservado"
+        ) {
+
+            alertas.push(`
+                <div class="alerta-item alerta-atencao">
+                    🚚 <b>${s.svveiculo}</b> possui saída amanhã
+                    <br>
+                    <small>
+                        Reserva Nº ${s.svnumeroreserva || "--"}<br>
+                        Motorista: ${s.svmotorista || "--"}<br>
+                        Destino: ${s.svdestino || "--"}<br>
+                        Data: ${formatarDataBR(s.svdataSaida)}
+                        às ${s.svhoraSaida || "--"}
+                    </small>
+                </div>
+            `);
+
+        }
+
+    }
+
+    // ==========================
+    // VEÍCULO EM VIAGEM
+    // ==========================
+    if (
+        s.svstatus === "Em Viagem" &&
+        (!s.svdataChegada || !s.svhoraChegada)
+    ) {
 
         alertas.push(`
-            <div class="alerta-item alerta-atencao">
+            <div class="alerta-item alerta-vencido">
                 🚚 <b>${s.svveiculo}</b> em viagem
                 <br>
                 <small>
-                    Motorista: ${s.svmotorista || "--"}
-                    <br>
-                    Destino: ${s.svdestino || "--"}
-                    <br>
-                    Saída:
-                    ${formatarDataBR(s.svdataSaida)}
-                    às
-                    ${s.svhoraSaida || "--"}
+                    Motorista: ${s.svmotorista || "--"}<br>
+                    Destino: ${s.svdestino || "--"}<br>
+                    Saída: ${formatarDataBR(s.svdataSaida)}
+                    às ${s.svhoraSaida || "--"}
                 </small>
             </div>
         `);
