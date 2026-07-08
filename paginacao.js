@@ -700,17 +700,33 @@ function limparFiltroSaidaVeiculos(){
 
 }
 
-function veiculoEmUso(veiculo, ignorarIndex = -1){
+function veiculoEmUso(
+    veiculo,
+    dataSaida,
+    dataChegada,
+    ignorarIndex = -1
+){
 
     if(!db.saidaVeiculos) return false;
 
+    const novaSaida = new Date(dataSaida);
+    const novaChegada = new Date(dataChegada);
+
     return db.saidaVeiculos.some((s,i)=>{
 
-        if(i===ignorarIndex) return false;
+        if(i === ignorarIndex) return false;
 
+        if(s.svveiculo !== veiculo) return false;
+
+        if(s.svstatus !== "Em Viagem") return false;
+
+        const saidaExistente = new Date(s.svdataSaida);
+        const chegadaExistente = new Date(s.svdataChegada);
+
+        // Existe conflito quando os períodos se cruzam
         return (
-            s.svveiculo === veiculo &&
-            s.svstatus === "Em Viagem"
+            novaSaida <= chegadaExistente &&
+            novaChegada >= saidaExistente
         );
 
     });
