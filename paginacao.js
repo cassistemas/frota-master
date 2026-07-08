@@ -1288,22 +1288,36 @@ if(modulo==="saidaVeiculos"){
 
             </td>
 
-            <td>
+           <td>
 
-                <button
-                    class="btn-edit"
-                    onclick="editar('saidaVeiculos',${real})">
-                    ✎
-                </button>
+    ${
+        usuarioLogado.tipo === "admin" ||
+        s.criadoPor === usuarioLogado.usuario
+        ?
+        `
+        <button
+            class="btn-edit"
+            onclick="editar('saidaVeiculos',${real})">
+            ✎
+        </button>
+        `
+        : ""
+    }
 
-                <button
-                    class="btn-del"
-                    onclick="deletar('saidaVeiculos',${real})">
-                    ✕
-                </button>
+    ${
+        usuarioLogado.tipo === "admin"
+        ?
+        `
+        <button
+            class="btn-del"
+            onclick="deletar('saidaVeiculos',${real})">
+            ✕
+        </button>
+        `
+        : ""
+    }
 
-            </td>
-
+</td>
         </tr>
 
         `;
