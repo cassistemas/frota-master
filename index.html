@@ -2509,27 +2509,55 @@ function salvarSaidaVeiculo() {
         console.log("Novo número gerado e inserido no input:", proximoNumero);
     }
 
-    // 2. VALIDAÇÃO DE VIAGEM EM ANDAMENTO
-    // Ajustado para aceitar "Reservado" ou "reservado"
-    if (reserva && reserva.toLowerCase() === "reservado") {
-        console.log("Status é Reservado. Validando se veículo já está em viagem...");
-        
-        const existe = listaVeiculos.some((item, i) => {
-            if (idx !== "" && i === Number(idx)) {
-                return false; // Ignora o próprio registro em edição
-            }
-            return (
-                item.svveiculo === veiculo &&
-                item.svdataSaida === data &&
-                item.svstatus === "Em Viagem"
-            );
-        });
+    // 2. VALIDAÇÃO DE CONFLITO DE PERÍODO
+const dataChegada = document.getElementById("svdataChegada").value;
 
-        if (existe) {
-            alert("Este veículo já possui uma viagem em andamento nesta data. Finalize a viagem antes de fazer uma nova reserva.");
-            return;
-        }
+if (!dataChegada) {
+    alert("Informe a data de chegada.");
+    return;
+}
+
+if (dataChegada < data) {
+    alert("A data de chegada não pode ser menor que a data de saída.");
+    return;
+}
+
+const existe = listaVeiculos.some((item, i) => {
+
+    // Ignora o próprio registro quando estiver editando
+    if (idx !== "" && i === Number(idx)) {
+        return false;
     }
+
+    // Outro veículo não interfere
+    if (item.svveiculo !== veiculo) {
+        return false;
+    }
+
+    // Se não estiver em viagem, ignora
+    if (item.svstatus !== "Em Viagem") {
+        return false;
+    }
+
+    const inicioExistente = new Date(item.svdataSaida);
+    const fimExistente = new Date(item.svdataChegada);
+
+    const inicioNovo = new Date(data);
+    const fimNovo = new Date(dataChegada);
+
+    // Existe conflito quando os períodos se sobrepõem
+    return (
+        inicioNovo <= fimExistente &&
+        fimNovo >= inicioExistente
+    );
+});
+
+if (existe) {
+    alert(
+        "Este veículo já possui uma reserva ou viagem neste período."
+    );
+    return;
+}
 
     // 3. EXECUTA O SALVAMENTO PADRÃO
     console.log("Chamando a função salvar genérica...");
