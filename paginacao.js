@@ -255,6 +255,7 @@ if (!document.getElementById('filtroMuVeiculo')) {
     const motorista = document.getElementById('filtroMuMotorista')?.value || '';
     const infracao = document.getElementById('filtroMuInfracao')?.value || '';
     const status = document.getElementById('filtroMuStatus')?.value || '';
+    const indicacao = document.getElementById('filtroMuIndicacao')?.value || '';
     const dataIni = document.getElementById('filtroMuDataIni')?.value || '';
     const dataFim = document.getElementById('filtroMuDataFim')?.value || '';
     const valorMin = document.getElementById('filtroMuValorMin')?.value || '';
@@ -267,6 +268,7 @@ if (
     !motorista &&
     !infracao &&
     !status &&
+    !indicacao &&
     !dataIni &&
     !dataFim &&
     !valorMin &&
@@ -297,6 +299,10 @@ if (
 ) &&
         (!status || mu.mustatus == status)
         &&
+        (!indicacao ||
+ String(mu.muindicacao ?? "Não").trim().toUpperCase() ===
+ String(indicacao).trim().toUpperCase())
+         &&
         (!dataIni || (mu.mudata || mu.data) >= dataIni)
         &&
         (!dataFim || (mu.mudata || mu.data) <= dataFim)
@@ -486,6 +492,7 @@ function limparFiltroMultas(){
  'filtroMuMotorista',
  'filtroMuInfracao',
  'filtroMuStatus',
+ 'filtroMuIndicacao',
  'filtroMuDataIni',
  'filtroMuDataFim',
  'filtroMuAIT',
@@ -703,30 +710,38 @@ function limparFiltroSaidaVeiculos(){
 function veiculoEmUso(
     veiculo,
     dataSaida,
+    horaSaida,
     dataChegada,
+    horaChegada,
     ignorarIndex = -1
 ){
 
     if(!db.saidaVeiculos) return false;
 
-    const novaSaida = new Date(dataSaida);
-    const novaChegada = new Date(dataChegada);
+    const inicioNovo = new Date(`${dataSaida}T${horaSaida}`);
+    const fimNovo    = new Date(`${dataChegada}T${horaChegada}`);
 
-    return db.saidaVeiculos.some((s,i)=>{
+    return db.saidaVeiculos.some((s, i) => {
 
         if(i === ignorarIndex) return false;
 
         if(s.svveiculo !== veiculo) return false;
 
-        if(s.svstatus !== "Em Viagem") return false;
+        // ignora reservas canceladas/finalizadas se desejar
+        if(s.svreserva !== "Reservado") return false;
 
-        const saidaExistente = new Date(s.svdataSaida);
-        const chegadaExistente = new Date(s.svdataChegada);
+        const inicioExistente = new Date(
+            `${s.svdataSaida}T${s.svhoraSaida}`
+        );
 
-        // Existe conflito quando os períodos se cruzam
+        const fimExistente = new Date(
+            `${s.svdataChegada}T${s.svhoraChegada}`
+        );
+
+        // verifica sobreposição dos períodos
         return (
-            novaSaida <= chegadaExistente &&
-            novaChegada >= saidaExistente
+            inicioNovo < fimExistente &&
+            fimNovo > inicioExistente
         );
 
     });
@@ -1391,6 +1406,15 @@ const dados = getDadosPaginadosCustom(filtrados, 'multas');
             <td>
     <span class="badge ${corStatusMulta(mu.mustatus)}">
         ${mu.mustatus}
+    </span>
+</td>
+<td>
+    <span class="badge ${
+        (mu.muindicacao || "Não") === "Sim"
+            ? "bg-success"
+            : "bg-secondary"
+    }">
+        ${mu.muindicacao || "Não"}
     </span>
 </td>
             <td>${mu.muobs || '--'}</td>
