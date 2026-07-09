@@ -1043,6 +1043,12 @@ onclick="exportarExcel('saidaVeiculos')">
                         <option value="Enviadas RH">Enviadas RH</option>
                     </select>
                 </div>
+<div class="col-md-3">
+    <select id="muindicacao" class="form-select">
+        <option value="Não" selected>Indicação: Não</option>
+        <option value="Sim">Indicação: Sim</option>
+    </select>
+</div>
 <div class="col-md-12">
     <label>Arquivos (opcional)</label>
     <input type="file" id="muarquivos" class="form-control" multiple>
@@ -1051,7 +1057,7 @@ onclick="exportarExcel('saidaVeiculos')">
     <input id="muobs" class="form-control" placeholder="Observações (ex: motorista contestou, radar escondido, etc)">
 </div>
                 <div class="col-md-12 text-end">
-                    <button id="btn_cancel_multas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('multas',['muveiculo','mumotorista','muinfracao','muait','murenainf','mudata','muvenc','muvalor','mustatus','muobs'],'mu_idx')">Cancelar</button>
+                    <button id="btn_cancel_multas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('multas',['muveiculo','mumotorista','muinfracao','muait','murenainf','mudata','muvenc','muvalor','mustatus','muindicacao','muobs'],'mu_idx')">Cancelar</button>
                     <button class="btn btn-danger" onclick="salvarMulta()">
                     Salvar Multa
                     </button>
@@ -1141,6 +1147,14 @@ onclick="exportarExcel('saidaVeiculos')">
 </div>
 
 <div class="col-md-2">
+    <select id="filtroMuIndicacao" class="form-select">
+        <option value="">Indicação</option>
+        <option value="Sim">Sim</option>
+        <option value="Não">Não</option>
+    </select>
+</div>
+
+<div class="col-md-2">
 <input type="date" id="filtroMuDataIni" class="form-control">
 </div>
 
@@ -1206,6 +1220,7 @@ onclick="exportarExcel('saidaVeiculos')">
 <th>Venc. Desconto</th>
 <th>Valor</th>
 <th>Status</th>
+<th>Indicação</th>
 <th>Obs</th>
 <th>Ações</th>
 </tr>
@@ -2510,6 +2525,8 @@ function salvarSaidaVeiculo() {
     }
 
     // 2. VALIDAÇÃO DE CONFLITO DE PERÍODO
+
+const horaChegada = document.getElementById("svhoraChegada").value;
 const dataChegada = document.getElementById("svdataChegada").value;
 
 if (!dataChegada) {
@@ -2517,40 +2534,58 @@ if (!dataChegada) {
     return;
 }
 
-if (dataChegada < data) {
-    alert("A data de chegada não pode ser menor que a data de saída.");
+if (!horaChegada) {
+    alert("Informe a hora de chegada.");
+    return;
+}
+
+const inicioNovo = new Date(`${data}T${hora}`);
+const fimNovo = new Date(`${dataChegada}T${horaChegada}`);
+
+if (fimNovo <= inicioNovo) {
+    alert("A data/hora de chegada deve ser maior que a data/hora de saída.");
     return;
 }
 
 const existe = listaVeiculos.some((item, i) => {
 
-    // Ignora o próprio registro quando estiver editando
+    // Ignora o próprio registro na edição
     if (idx !== "" && i === Number(idx)) {
         return false;
     }
 
-    // Outro veículo não interfere
+    // Veículo diferente
     if (item.svveiculo !== veiculo) {
         return false;
     }
 
-    // Se não estiver em viagem, ignora
-    if (item.svstatus !== "Em Viagem") {
+    // Somente reservas ativas
+    if (item.svreserva !== "Reservado") {
         return false;
     }
 
-    const inicioExistente = new Date(item.svdataSaida);
-    const fimExistente = new Date(item.svdataChegada);
-
-    const inicioNovo = new Date(data);
-    const fimNovo = new Date(dataChegada);
-
-    // Existe conflito quando os períodos se sobrepõem
-    return (
-        inicioNovo <= fimExistente &&
-        fimNovo >= inicioExistente
+    const inicioExistente = new Date(
+        `${item.svdataSaida}T${item.svhoraSaida}`
     );
+
+    const fimExistente = new Date(
+        `${item.svdataChegada}T${item.svhoraChegada}`
+    );
+
+    // Existe conflito se os períodos se cruzarem
+    return (
+        inicioNovo < fimExistente &&
+        fimNovo > inicioExistente
+    );
+
 });
+
+if (existe) {
+    alert(
+        "Este veículo já possui uma reserva neste período."
+    );
+    return;
+}
 
 if (existe) {
     alert(
@@ -2974,7 +3009,8 @@ if(document.getElementById('agmotorista'))
     const btnSet = (m,i) => `<td><button class="btn-edit" onclick="editar('${m}',${i})">✎</button><button class="btn-del" onclick="deletar('${m}',${i})">✕</button></td>`;
     
     renderModulo('veiculos');
-    renderModulo('multas');
+    
+('multas');
     renderModulo('fornecedores');
     renderModulo('manutencoes');
     renderModulo('diarias');
@@ -3291,11 +3327,12 @@ let obj = {
     mumotorista: document.getElementById("mumotorista").value,
     muinfracao: document.getElementById("muinfracao").value,
     muait: document.getElementById("muait").value,
-    murenainf: document.getElementById('murenainf').value,
+    murenainf: document.getElementById("murenainf").value,
     mudata: document.getElementById("mudata").value,
     muvenc: document.getElementById("muvenc").value,
     muvalor: document.getElementById("muvalor").value,
     mustatus: document.getElementById("mustatus").value,
+    muindicacao: document.getElementById("muindicacao").value,
     muobs: document.getElementById("muobs").value,
     arquivos: []
 
@@ -3365,7 +3402,7 @@ document.getElementById("muarquivos").value=""
 
 limparForm(
 'multas',
-['muveiculo','mumotorista','muinfracao','muait','murenainf','mudata','muvenc','muvalor','mustatus','muobs'],
+['muveiculo','mumotorista','muinfracao','muait','murenainf','mudata','muvenc','muvalor','mustatus',"muindicacao",'muobs'],
 'mu_idx'
 )
 
