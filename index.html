@@ -1285,6 +1285,21 @@ onclick="exportarExcel('saidaVeiculos')">
                 <div class="col-md-4">
 <input id="motTel" class="form-control" placeholder="Telefone" oninput="mascaraTelefone(this)">
 </div>
+<div class="col-md-3">
+    <label>Vencimento da CNH</label>
+    <input
+        type="date"
+        id="motVencCnh"
+        class="form-control">
+</div>
+
+<div class="col-md-3">
+    <label>Vencimento do Toxicológico</label>
+    <input
+        type="date"
+        id="motVencTox"
+        class="form-control">
+</div>
                 <div class="col-md-2">
 <label>Entrada</label>
 <input type="time" id="motInicio" class="form-control">
@@ -1295,8 +1310,35 @@ onclick="exportarExcel('saidaVeiculos')">
 <input type="time" id="motFim" class="form-control">
 </div>
                 <div class="col-md-12 text-end">
-                    <button id="btn_cancel_motoristas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('motoristas',['motNome','motCpf','motCnh','motTel','motInicio','motFim'],'m_idx')">Cancelar</button>
-                    <button class="btn btn-primary" onclick="salvar('motoristas',['motNome','motCpf','motCnh','motTel','motInicio','motFim'],'m_idx')">Salvar</button>
+                    <button id="btn_cancel_motoristas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm(
+'motoristas',
+[
+'motNome',
+'motCpf',
+'motCnh',
+'motTel',
+'motInicio',
+'motFim',
+'motVencCnh',
+'motVencTox'
+],
+'m_idx'
+)"
+>Cancelar</button>
+<button class="btn btn-primary" onclick="salvar(
+'motoristas',
+[
+'motNome',
+'motCpf',
+'motCnh',
+'motTel',
+'motInicio',
+'motFim',
+'motVencCnh',
+'motVencTox'
+],
+'m_idx'
+)">Salvar</button>
                 </div>
             </div>
         </div>
@@ -1307,15 +1349,18 @@ onclick="exportarExcel('saidaVeiculos')">
             </div>
             <table class="table">
 <thead>
-<tr>
-<th>Nome</th>
-<th>CPF</th>
-<th>CNH</th>
-<th>Telefone</th>
-<th>Horário</th>
-<th>Ações</th>
-</tr>
-</thead><tbody id="listaMotoristas"></tbody></table>
+    <tr>
+        <th>Nome</th>
+        <th>CPF</th>
+        <th>CNH</th>
+        <th>Telefone</th>
+        <th>Venc. CNH</th>
+        <th>Toxicológico</th>
+        <th>Horário</th>
+        <th>Ações</th>
+    </tr>
+</thead>
+<tbody id="listaMotoristas"></tbody></table>
 <div id="paginacaoMotoristas"></div>
         </div>
     </div>
@@ -2448,33 +2493,71 @@ function navegar(id, el) {
 }
 
 function salvar(mod,campos,idCampo){
+
     let obj={}
+
     let idx=document.getElementById(idCampo).value
+
     campos.forEach(c=>obj[c]=document.getElementById(c).value)
-    
+
     // SINCRONIZAÇÃO DE KM AO SALVAR MANUTENÇÃO
     if(mod === 'manutencoes' && obj.mveiculo && obj.mkm){
         let vei = db.veiculos.find(v => v.vplaca === obj.mveiculo);
-        if(vei) {
-            // Só atualiza se o KM da manutenção for maior que o atual (opcional)
+
+        if(vei){
             vei.vkm = obj.mkm;
         }
     }
 
-    if(idx==='') db[mod].push(obj)
-    else db[mod][idx]=obj
-    salvarNuvem();
-    
-    limparForm(mod, campos, idCampo);
-    if(typeof PAGINACAO !== 'undefined'){
-    PAGINACAO.paginas[mod] = 1;
-}
+    if(idx === '')
+        db[mod].push(obj);
+    else
+        db[mod][idx] = obj;
 
-// 🔥 ATUALIZA SELECT DE VEÍCULOS NO COMBUSTÍVEL
-if(mod === 'veiculos'){
-    carregarVeiculosSelect('cveiculo');
-}
-    salvarNuvem()
+    salvarNuvem();
+
+    limparForm(mod, campos, idCampo);
+
+    if(typeof PAGINACAO !== 'undefined'){
+        PAGINACAO.paginas[mod]=1;
+    }
+
+    // Atualiza somente o módulo alterado
+    renderModulo(mod);
+
+    // Atualizações específicas
+    switch(mod){
+
+        case "motoristas":
+
+            atualizarDashboardMotoristas();
+
+            break;
+
+        case "veiculos":
+
+            carregarVeiculosSelect("cveiculo");
+
+            atualizarDashboardVeiculos();
+
+            break;
+
+        case "multas":
+
+            atualizarDashboardMultas();
+
+            break;
+
+        case "manutencoes":
+
+            atualizarDashboardManutencoes();
+
+            break;
+
+    }
+
+    salvarNuvem();
+
 }
 
 function limparForm(mod, campos, idCampo) {
@@ -2645,6 +2728,11 @@ function deletar(mod, i){
 
         renderModulo(mod);
     }
+if(modulo === "motoristas"){
+
+    atualizarDashboardMotoristas();
+
+}
 
 }
 
