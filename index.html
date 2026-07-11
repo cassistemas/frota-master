@@ -3317,6 +3317,30 @@ db.agendamentos.forEach(a => {
     )
     .forEach(mu => analisar(mu.muveiculo, 'Desc. Multa', mu.muvenc));
     db.licencas.forEach(le=>{ analisar(le.leveiculo,'CIV',le.venciv); analisar(le.leveiculo,'CIPP',le.vencipp); });
+
+    // ===============================
+    // 🪪 ALERTAS DE MOTORISTAS (CNH e TOX)
+    // ===============================
+    const alertasMotoristas = obterAlertasMotoristas();
+    alertasMotoristas.forEach(a => {
+        // Define o ícone com base no tipo
+        const icone = a.tipo === 'CNH' ? '🪪' : '🧪';
+        
+        // Formata o texto para ficar igual aos outros alertas
+        // (Nome - Vencimento)
+        const partes = a.texto.split('-');
+        const titulo = partes[0].trim();
+        const desc = partes[1] ? partes[1].trim() : "";
+
+        alertas.push(`
+            <div class="alerta-item ${a.classe}">
+                ${icone} <b>${titulo}</b>
+                <br>
+                <small>${desc}</small>
+            </div>
+        `);
+    });
+   
     // ===============================
 // 🚚 ALERTAS DE SAÍDA DE VEÍCULOS
 // ===============================
@@ -3384,6 +3408,7 @@ db.saidaVeiculos.forEach(s => {
     }
 
 });
+
     document.getElementById('listaAlertasRapidos').innerHTML = alertas.join('');
     document.getElementById('d_alertas').innerText = alertas.length;
     document.getElementById('d_alertas').innerText = alertas.length;
