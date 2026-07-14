@@ -127,7 +127,7 @@ Criar Conta
 
     <div class="glass-container">
 
-        <input type="hidden" id="di_idx">
+        <input type="hidden" id="adm_uid">
 
         <div class="row g-3">
 
@@ -2029,6 +2029,7 @@ Limpar
     <h3>👑 Gerenciamento de Usuários</h3>
 
     <div class="glass-container">
+    <input type="hidden" id="adm_idx">
         <div class="row g-3">
         <div class="col-md-4">
     <input id="admNome" class="form-control mb-2" placeholder="Nome">
@@ -2050,7 +2051,14 @@ Limpar
 </div>
 
             <div class="col-md-12 text-end">
-                <button class="btn btn-dark" onclick="criarUsuarioAdmin()">Criar Usuário</button>
+                <button
+id="btnSalvarUsuario"
+class="btn btn-dark"
+onclick="criarUsuarioAdmin()">
+
+Criar Usuário
+
+</button>
             </div>
         </div>
     </div>
@@ -3801,8 +3809,24 @@ function escutarUsuarios(){
                     </select>
                 </td>
                 <td>
-                    <button class="btn btn-danger btn-sm" onclick="excluirUsuario('${doc.id}')">Excluir</button>
-                </td>
+
+<button
+class="btn btn-primary btn-sm"
+onclick="editarUsuario('${doc.id}')">
+
+Editar
+
+</button>
+
+<button
+class="btn btn-danger btn-sm"
+onclick="excluirUsuario('${doc.id}')">
+
+Excluir
+
+</button>
+
+</td>
             </tr>
             `;
         });
@@ -3813,6 +3837,52 @@ function escutarUsuarios(){
 
 }
 
+function editarUsuario(uid){
+
+dbCloud.collection("usuarios")
+.doc(uid)
+.get()
+.then(doc=>{
+
+let u=doc.data();
+
+document.getElementById("adm_uid").value=uid;
+
+document.getElementById("admNome").value=u.nome;
+
+document.getElementById("admEmail").value=u.email;
+
+document.getElementById("admTipo").value=u.tipo;
+
+// limpa permissões
+
+document.querySelectorAll("#listaPermissoes input")
+.forEach(c=>c.checked=false);
+
+// marca permissões
+
+if(u.permissoes){
+
+Object.keys(u.permissoes).forEach(p=>{
+
+let ck=document.getElementById("perm_"+p);
+
+if(ck){
+
+ck.checked=u.permissoes[p];
+
+}
+
+});
+
+}
+
+document.getElementById("btnSalvarUsuario").innerHTML="Salvar Alterações";
+
+});
+
+}
+
 function criarUsuarioAdmin(){
  
     let nome = document.getElementById("admNome").value;
@@ -3820,15 +3890,62 @@ function criarUsuarioAdmin(){
     let senha = document.getElementById("admSenha").value;
     let tipo = document.getElementById("admTipo").value;
    let permissoes = {};
+   let uid=document.getElementById("adm_uid").value;
 
 MODULOS.forEach(mod => {
     let el = document.getElementById("perm_" + mod);
     permissoes[mod] = el ? el.checked : false;
 });
 
-   if(!nome || !email || !senha){
-    alert("Preencha nome, email e senha");
-    return;
+   if(!uid){
+
+if(!nome || !email || !senha){
+
+alert("Preencha nome, email e senha");
+
+return;
+
+}
+
+}
+
+if(uid){
+
+dbCloud.collection("usuarios")
+.doc(uid)
+.update({
+
+nome:nome,
+
+tipo:tipo,
+
+permissoes:permissoes
+
+})
+
+.then(()=>{
+
+alert("Usuário atualizado!");
+
+document.getElementById("adm_uid").value="";
+
+document.getElementById("admNome").value="";
+
+document.getElementById("admEmail").value="";
+
+document.getElementById("admSenha").value="";
+
+document.getElementById("admTipo").value="user";
+
+document.querySelectorAll("#listaPermissoes input")
+.forEach(c=>c.checked=false);
+
+document.getElementById("btnSalvarUsuario").innerHTML="Criar Usuário";
+
+});
+
+return;
+
 }
 
     let secondaryApp;
