@@ -93,19 +93,30 @@ function atualizarDashboardMotoristas(){
 }
 
 function renderMotoristas() {
+
     const dados = getDadosPaginados('motoristas');
     const corpoTabela = document.getElementById('listaMotoristas');
-    
-    // Limpa a tabela antes de renderizar para evitar acúmulo
+
     corpoTabela.innerHTML = '';
 
     dados.forEach((m) => {
+
         const realIndex = db.motoristas.indexOf(m);
-        const horario = (m.motInicio && m.motFim) ? `${m.motInicio} às ${m.motFim}` : "--";
-        
-        // Cria a linha (tr) e força a estrutura de 8 colunas exatas
+
+        const horario =
+            (m.motInicio && m.motFim)
+                ? `${m.motInicio} às ${m.motFim}`
+                : "--";
+
+        const status = m.motStatus || "Ativo";
+
+        const corStatus =
+            status === "Inativo"
+                ? '<span class="badge bg-danger">Inativo</span>'
+                : '<span class="badge bg-success">Ativo</span>';
+
         const tr = document.createElement('tr');
-        
+
         tr.innerHTML = `
             <td>${m.motNome || '--'}</td>
             <td>${m.motCpf || '--'}</td>
@@ -114,15 +125,15 @@ function renderMotoristas() {
             <td>${formatarDataBR(m.motVencCnh)}</td>
             <td>${formatarDataBR(m.motVencTox)}</td>
             <td>${horario}</td>
+            <td>${corStatus}</td>
             <td>
-                <button class="btn-edit" onclick="editar('motoristas',${realIndex})" title="Editar">✎</button>
-                <button class="btn-del" onclick="deletar('motoristas',${realIndex})" title="Excluir">✕</button>
+                <button class="btn-edit" onclick="editar('motoristas',${realIndex})">✎</button>
+                <button class="btn-del" onclick="deletar('motoristas',${realIndex})">✕</button>
             </td>
         `;
-        
+
         corpoTabela.appendChild(tr);
     });
 
     renderPaginacao('motoristas', 'paginacaoMotoristas');
 }
-
