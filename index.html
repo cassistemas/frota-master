@@ -2539,8 +2539,17 @@ function salvar(mod,campos,idCampo){
     limparForm(mod, campos, idCampo);
 
     if(typeof PAGINACAO !== 'undefined'){
+
+    if(!PAGINACAO.paginas[mod]){
         PAGINACAO.paginas[mod]=1;
     }
+
+    localStorage.setItem(
+        "pagina_" + mod,
+        PAGINACAO.paginas[mod]
+    );
+
+}
 
     // Atualiza somente o módulo alterado
     renderModulo(mod);
@@ -2752,6 +2761,10 @@ function deletar(mod, i){
     // Mantém a página atual, mas se ela deixar de existir,
     // volta apenas uma página.
     PAGINACAO.paginas[mod] = Math.min(paginaAtual, totalPaginas);
+    localStorage.setItem(
+    "pagina_" + mod,
+    PAGINACAO.paginas[mod]
+);
 
     salvarNuvem();
 
