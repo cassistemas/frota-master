@@ -30,7 +30,7 @@ function obterPagina(modulo){
         Math.ceil(total / PAGINACAO.itensPorPagina)
     );
 
-    if(!PAGINACAO.paginas[modulo]){
+    if(PAGINACAO.paginas[modulo] === undefined){
 
         const paginaSalva = Number(
             localStorage.getItem("pagina_" + modulo)
@@ -1433,21 +1433,31 @@ const dados = getDadosPaginadosCustom(filtrados, 'multas');
 
 function ativarPaginacao(){
 
-    irParaUltimaPagina('veiculos');
-    irParaUltimaPagina('multas');
-    irParaUltimaPagina('fornecedores');
-    irParaUltimaPagina('manutencoes');
-    irParaUltimaPagina('combustivel');
-    irParaUltimaPagina('motoristas');
-    irParaUltimaPagina('pneus');
+    const modulos = [
+        "veiculos",
+        "motoristas",
+        "multas",
+        "fornecedores",
+        "manutencoes",
+        "combustivel",
+        "pneus"
+    ];
 
-    renderModulo('veiculos');
-    renderModulo('motoristas');
-    renderModulo('multas');
-    renderModulo('fornecedores');
-    renderModulo('manutencoes');
-    renderModulo('combustivel');
-    renderModulo('pneus');
+    modulos.forEach(mod => {
+
+        const paginaSalva = Number(
+            localStorage.getItem("pagina_" + mod)
+        );
+
+        if (paginaSalva > 0) {
+            PAGINACAO.paginas[mod] = paginaSalva;
+        } else {
+            irParaUltimaPagina(mod);
+        }
+
+    });
+
+    modulos.forEach(mod => renderModulo(mod));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
