@@ -1306,6 +1306,14 @@ onclick="exportarExcel('saidaVeiculos')">
 <input type="time" id="motInicio" class="form-control">
 </div>
 
+<div class="col-md-3">
+    <label>Status</label>
+    <select id="motStatus" class="form-select">
+        <option value="Ativo">Ativo</option>
+        <option value="Inativo">Inativo</option>
+    </select>
+</div>
+
 <div class="col-md-2">
 <label>Saída</label>
 <input type="time" id="motFim" class="form-control">
@@ -1321,7 +1329,8 @@ onclick="exportarExcel('saidaVeiculos')">
 'motInicio',
 'motFim',
 'motVencCnh',
-'motVencTox'
+'motVencTox',
+'motStatus'
 ],
 'm_idx'
 )"
@@ -1336,7 +1345,8 @@ onclick="exportarExcel('saidaVeiculos')">
 'motInicio',
 'motFim',
 'motVencCnh',
-'motVencTox'
+'motVencTox',
+'motStatus'
 ],
 'm_idx'
 )">Salvar</button>
@@ -1358,6 +1368,7 @@ onclick="exportarExcel('saidaVeiculos')">
         <th>Venc. CNH</th>
         <th>Toxicológico</th>
         <th>Horário</th>
+        <th>Status</th>
         <th>Ações</th>
     </tr>
 </thead>
