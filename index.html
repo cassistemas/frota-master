@@ -2512,15 +2512,14 @@ function navegar(id, el) {
     }
 }
 
-function salvar(mod,campos,idCampo){
+function salvar(mod, campos, idCampo){
 
-    let obj={}
+    let obj = {};
 
-    let idx=document.getElementById(idCampo).value
+    let idx = document.getElementById(idCampo).value;
 
-    campos.forEach(c=>obj[c]=document.getElementById(c).value)
+    campos.forEach(c => obj[c] = document.getElementById(c).value);
 
-    // SINCRONIZAÇÃO DE KM AO SALVAR MANUTENÇÃO
     if(mod === 'manutencoes' && obj.mveiculo && obj.mkm){
         let vei = db.veiculos.find(v => v.vplaca === obj.mveiculo);
 
@@ -2529,64 +2528,49 @@ function salvar(mod,campos,idCampo){
         }
     }
 
-    if(idx === '')
+    if(idx === ""){
         db[mod].push(obj);
-    else
+    }else{
         db[mod][idx] = obj;
+    }
 
     salvarNuvem();
+
+    if(typeof PAGINACAO !== "undefined"){
+
+        if(PAGINACAO.paginas[mod] === undefined){
+            PAGINACAO.paginas[mod] = 1;
+        }
+
+        localStorage.setItem(
+            "pagina_" + mod,
+            PAGINACAO.paginas[mod]
+        );
+    }
+
+    renderModulo(mod);
 
     limparForm(mod, campos, idCampo);
 
-    if(typeof PAGINACAO !== 'undefined'){
-
-    if(!PAGINACAO.paginas[mod]){
-        PAGINACAO.paginas[mod]=1;
-    }
-
-    localStorage.setItem(
-        "pagina_" + mod,
-        PAGINACAO.paginas[mod]
-    );
-
-}
-
-    // Atualiza somente o módulo alterado
-    renderModulo(mod);
-
-    // Atualizações específicas
     switch(mod){
 
         case "motoristas":
-
             atualizarDashboardMotoristas();
-
             break;
 
         case "veiculos":
-
             carregarVeiculosSelect("cveiculo");
-
             atualizarDashboardVeiculos();
-
             break;
 
         case "multas":
-
             atualizarDashboardMultas();
-
             break;
 
         case "manutencoes":
-
             atualizarDashboardManutencoes();
-
             break;
-
     }
-
-    salvarNuvem();
-
 }
 
 function limparForm(mod, campos, idCampo) {
