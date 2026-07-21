@@ -2690,34 +2690,35 @@ if (existe) {
     return;
 }
 
-if (existe) {
-    alert(
-        "Este veículo já possui uma reserva ou viagem neste período."
-    );
-    return;
-}
-
     // 3. EXECUTA O SALVAMENTO PADRÃO
     console.log("Chamando a função salvar genérica...");
-    salvar(
-        "saidaVeiculos",
-        [
-            "svreserva",
-            "svnumeroreserva",
-            "svveiculo",
-            "svmotorista",
-            "svdestino",
-            "svdataSaida",
-            "svhoraSaida",
-            "svdataChegada",
-            "svhoraChegada",
-            "svstatus",
-            "svobs"
-        ],
-        "sv_idx"
-    );
+    // Guarda a página atual
+const paginaAtual = PAGINACAO.paginas["saidaVeiculos"] || 1;
 
-    renderModulo("saidaVeiculos");
+// Salva
+salvar(
+    "saidaVeiculos",
+    [
+        "svreserva",
+        "svnumeroreserva",
+        "svveiculo",
+        "svmotorista",
+        "svdestino",
+        "svdataSaida",
+        "svhoraSaida",
+        "svdataChegada",
+        "svhoraChegada",
+        "svstatus",
+        "svobs"
+    ],
+    "sv_idx"
+);
+
+// Restaura a página
+PAGINACAO.paginas["saidaVeiculos"] = paginaAtual;
+
+// Atualiza somente a tabela
+renderModulo("saidaVeiculos");
 }
 
 function gerarProximoNumeroReserva() {
@@ -2736,24 +2737,29 @@ function gerarProximoNumeroReserva() {
 
 function deletar(mod, i){
 
-    if(confirm('Excluir registro?')){
+    if(!confirm("Excluir registro?")) return;
 
-        db[mod].splice(Number(i), 1);
+    const paginaAtual = PAGINACAO.paginas[mod] || 1;
 
-        if(typeof PAGINACAO !== 'undefined'){
-            PAGINACAO.paginas[mod] = 1;
-        }
+    db[mod].splice(Number(i), 1);
 
-        salvarNuvem();
+    // Calcula a última página existente após excluir
+    const totalPaginas = Math.max(
+        1,
+        Math.ceil(db[mod].length / PAGINACAO.itensPorPagina)
+    );
 
-        renderModulo(mod);
+    // Mantém a página atual, mas se ela deixar de existir,
+    // volta apenas uma página.
+    PAGINACAO.paginas[mod] = Math.min(paginaAtual, totalPaginas);
+
+    salvarNuvem();
+
+    renderModulo(mod);
+
+    if(mod === "motoristas"){
+        atualizarDashboardMotoristas();
     }
-if(modulo === "motoristas"){
-
-    atualizarDashboardMotoristas();
-
-}
-
 }
 
 function filtrarTabela(idTabela, termo) {
