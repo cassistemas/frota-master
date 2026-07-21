@@ -21,13 +21,30 @@ const PAGINACAO = {
     paginas: {},
 };
 
-function obterPagina(modulo) {
-    const total = db[modulo]?.length || 0;
-    const totalPaginas = Math.ceil(total / PAGINACAO.itensPorPagina);
+function obterPagina(modulo){
 
-    // Se ainda não existe página definida, começa pela última
-    if (!PAGINACAO.paginas[modulo]) {
-        PAGINACAO.paginas[modulo] = totalPaginas > 0 ? totalPaginas : 1;
+    const total = db[modulo]?.length || 0;
+
+    const totalPaginas = Math.max(
+        1,
+        Math.ceil(total / PAGINACAO.itensPorPagina)
+    );
+
+    if(!PAGINACAO.paginas[modulo]){
+
+        const paginaSalva = Number(
+            localStorage.getItem("pagina_" + modulo)
+        );
+
+        if(
+            paginaSalva >= 1 &&
+            paginaSalva <= totalPaginas
+        ){
+            PAGINACAO.paginas[modulo] = paginaSalva;
+        }else{
+            PAGINACAO.paginas[modulo] = totalPaginas;
+        }
+
     }
 
     return PAGINACAO.paginas[modulo];
@@ -74,6 +91,10 @@ let paginaAtual = obterPaginaCustom(modulo, total);
     if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
 
     PAGINACAO.paginas[modulo] = paginaAtual;
+    localStorage.setItem(
+    "pagina_" + modulo,
+    paginaAtual
+);
 
     renderModulo(modulo);
 }
