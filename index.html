@@ -1241,21 +1241,39 @@ onclick="exportarExcel('saidaVeiculos')">
                 <div class="col-md-3"><input id="vmodelo" class="form-control" placeholder="Modelo"></div>
                 <div class="col-md-3"><input id="vkm" class="form-control" type="number" placeholder="KM Atual"></div>
                 <div class="col-md-3"><select id="vmotorista" class="form-select"></select></div>
-                <div class="col-md-12 text-end">
-                <div class="col-md-4">
-<input id="vtara" class="form-control" placeholder="Tara (Kg)">
+                <div class="col-md-3">
+    <select id="vstatus" class="form-select">
+        <option value="" selected disabled>Status</option>
+        <option value="Ativo">Ativo</option>
+        <option value="Indisponível">Indisponível</option>
+        <option value="Vendido">Vendido</option>
+    </select>
 </div>
 
-<div class="col-md-4">
-<input id="vpliquido" class="form-control" placeholder="P. Líquido (Kg)">
+<div class="col-md-3">
+    <input id="vtara" class="form-control" placeholder="Tara (Kg)">
 </div>
 
-<div class="col-md-4">
-<input id="vm3" class="form-control" placeholder="M³">
+<div class="col-md-3">
+    <input id="vpliquido" class="form-control" placeholder="P. Líquido (Kg)">
 </div>
-                    <button id="btn_cancel_veiculos" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('veiculos',['vplaca','vmodelo','vkm','vmotorista','vtara','vpliquido','vm3'],'v_idx')">Cancelar</button>
-                    <button class="btn btn-primary" onclick="salvar('veiculos',['vplaca','vmodelo','vkm','vmotorista','vtara','vpliquido','vm3'],'v_idx')">Salvar</button>
-                </div>
+
+<div class="col-md-3">
+    <input id="vm3" class="form-control" placeholder="M³">
+</div>
+
+<div class="col-md-12 text-end mt-3">
+    <button id="btn_cancel_veiculos"
+        class="btn btn-outline-secondary btn-cancelar"
+        onclick="limparForm('veiculos',['vplaca','vmodelo','vkm','vmotorista','vtara','vpliquido','vm3','vstatus'],'v_idx')">
+        Cancelar
+    </button>
+
+    <button class="btn btn-primary"
+        onclick="salvar('veiculos',['vplaca','vmodelo','vkm','vmotorista','vtara','vpliquido','vm3','vstatus'],'v_idx')">
+        Salvar
+    </button>
+</div>
             </div>
         </div>
         <div class="glass-container">
@@ -1270,6 +1288,7 @@ onclick="exportarExcel('saidaVeiculos')">
 <th>Tara</th>
 <th>P. Líquido</th>
 <th>M³</th>
+<th>Status</th>
 <th>Ações</th></tr></thead><tbody id="listaVeiculos"></tbody></table>
 <div id="paginacaoVeiculos"></div>
         </div>
