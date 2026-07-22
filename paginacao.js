@@ -804,6 +804,17 @@ if (!PAGINACAO.paginas[modulo]) {
             <td>${v.vtara || '--'} Kg</td>
             <td>${v.vpliquido || '--'} Kg</td>
             <td>${v.vm3 || '--'} m³</td>
+            <td>
+<span class="badge ${
+v.vstatus === "Ativo"
+? "bg-success"
+: v.vstatus === "Indisponível"
+? "bg-warning text-dark"
+: "bg-danger"
+}">
+${v.vstatus || "Ativo"}
+</span>
+</td>
             ${btnSet('veiculos', realIndex)}
             </tr>
             `;
