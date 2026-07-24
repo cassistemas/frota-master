@@ -1166,11 +1166,15 @@ if(modulo === 'pneus'){
 
 if(modulo === 'terceiros'){
 
-const dados = db.terceiros;
+const dados = getTerceirosFiltrados();
+
+const pagina = getDadosPaginadosCustom(
+    dados,
+    'terceiros'
+);
 
 document.getElementById('listaTerceiros').innerHTML =
-
-dados.map(t=>{
+pagina.map(t=>{
 
 const idx = db.terceiros.indexOf(t);
 
@@ -1178,12 +1182,14 @@ return `
 <tr>
 
 <td>${t.ternome}</td>
+<td>${t.tercnpj || '--'}</td>
 <td>${t.terempresa}</td>
+<td>${t.terantt || '--'}</td>
 <td>${t.tertipoveiculo}</td>
 <td>${t.terplaca}</td>
 <td>${t.tercarreta || '--'}</td>
 <td>${t.terano || '--'}</td>
-<td>${t.tertelefone}</td>
+<td>${t.tertelefone || '--'}</td>
 
 <td>
 <span class="badge ${
