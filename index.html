@@ -328,68 +328,60 @@ Criar Conta
 <div class="row g-3">
 
 <div class="col-md-4">
-    <input id="ternome"
-           class="form-control"
-           placeholder="Nome Motorista">
-</div>
-
-<div class="col-md-2">
-    <input id="tercnpj"
-           class="form-control"
-           placeholder="CNPJ"
-           oninput="mascaraCNPJ(this)"
-           onblur="buscarCNPJ()">
+<input id="ternome"
+class="form-control"
+placeholder="Nome Motorista">
 </div>
 
 <div class="col-md-4">
-    <input id="terempresa"
-           class="form-control"
-           placeholder="Empresa">
+<input id="terempresa"
+class="form-control"
+placeholder="Empresa">
 </div>
 
-<div class="col-md-2">
-    <input id="terantt"
-           class="form-control"
-           placeholder="Registro ANTT">
+<div class="col-md-4">
+<input id="tertipoveiculo"
+class="form-control"
+placeholder="Tipo Veículo">
 </div>
 
 <div class="col-md-3">
-    <input id="tertipoveiculo"
-           class="form-control"
-           placeholder="Tipo Veículo">
+<input id="terplaca"
+class="form-control"
+placeholder="Placa Veículo">
+</div>
+
+<div class="col-md-3">
+<input id="tercarreta"
+class="form-control"
+placeholder="Placa Carreta">
 </div>
 
 <div class="col-md-2">
-    <input id="terplaca"
-           class="form-control"
-           placeholder="Placa Veículo">
+<input id="terano"
+type="number"
+class="form-control"
+placeholder="Ano">
 </div>
 
 <div class="col-md-2">
-    <input id="tercarreta"
-           class="form-control"
-           placeholder="Placa Carreta">
-</div>
-
-<div class="col-md-1">
-    <input id="terano"
-           type="number"
-           class="form-control"
-           placeholder="Ano">
+<input id="tertelefone"
+class="form-control"
+placeholder="Telefone">
 </div>
 
 <div class="col-md-2">
-    <input id="tertelefone"
-           class="form-control"
-           placeholder="telefone"
-           oninput="mascaraTelefone(this)">
-</div>
+<select id="terstatus"
+class="form-select">
 
-<div class="col-md-2">
-    <select id="terstatus" class="form-select">
-    <option value="" selected disabled>Status</option>
-    <option value="Ativo">Ativo</option>
-    <option value="Bloqueado">Bloqueado</option>
+<option value="Ativo">
+Ativo
+</option>
+
+<option value="Bloqueado">
+Bloqueado
+</option>
+
 </select>
 </div>
 
@@ -414,18 +406,16 @@ placeholder="Observações">
     onclick="limparForm(
         'terceiros',
         [
-'ternome',
-'tercnpj',
-'terempresa',
-'terantt',
-'tertipoveiculo',
-'terplaca',
-'tercarreta',
-'terano',
-'tertelefone',
-'terstatus',
-'terobs'
-],
+            'ternome',
+            'terempresa',
+            'tertipoveiculo',
+            'terplaca',
+            'tercarreta',
+            'terano',
+            'tertelefone',
+            'terstatus',
+            'terobs'
+        ],
         'ter_idx'
     )">
         Cancelar
@@ -515,9 +505,7 @@ onclick="limparFiltroTerceiros()">
 <tr>
 
 <th>Motorista</th>
-<th>CNPJ</th>
 <th>Empresa</th>
-<th>ANTT</th>
 <th>Tipo</th>
 <th>Placa</th>
 <th>Carreta</th>
@@ -3583,18 +3571,16 @@ function salvarTerceirosCustom(){
     const idx = document.getElementById('ter_idx').value;
 
     const obj = {
-    ternome: document.getElementById('ternome').value,
-    tercnpj: document.getElementById('tercnpj').value,
-    terempresa: document.getElementById('terempresa').value,
-    terantt: document.getElementById('terantt').value,
-    tertipoveiculo: document.getElementById('tertipoveiculo').value,
-    terplaca: document.getElementById('terplaca').value,
-    tercarreta: document.getElementById('tercarreta').value,
-    terano: document.getElementById('terano').value,
-    tertelefone: document.getElementById('tertelefone').value,
-    terstatus: document.getElementById('terstatus').value,
-    terobs: document.getElementById('terobs').value
-};
+        ternome: document.getElementById('ternome').value,
+        terempresa: document.getElementById('terempresa').value,
+        tertipoveiculo: document.getElementById('tertipoveiculo').value,
+        terplaca: document.getElementById('terplaca').value,
+        tercarreta: document.getElementById('tercarreta').value,
+        terano: document.getElementById('terano').value,
+        tertelefone: document.getElementById('tertelefone').value,
+        terstatus: document.getElementById('terstatus').value,
+        terobs: document.getElementById('terobs').value
+    };
 
     if(idx === ''){
         db.terceiros.push(obj);
@@ -3613,18 +3599,16 @@ function salvarTerceirosCustom(){
     limparForm(
         'terceiros',
         [
-'ternome',
-'tercnpj',
-'terempresa',
-'terantt',
-'tertipoveiculo',
-'terplaca',
-'tercarreta',
-'terano',
-'tertelefone',
-'terstatus',
-'terobs'
-],
+            'ternome',
+            'terempresa',
+            'tertipoveiculo',
+            'terplaca',
+            'tercarreta',
+            'terano',
+            'tertelefone',
+            'terstatus',
+            'terobs'
+        ],
         'ter_idx'
     );
 }
@@ -3783,70 +3767,6 @@ async function buscarCNPJFornecedor() {
 
         document.getElementById('fuf').value =
             dados.uf || '';
-
-    }
-    catch (erro) {
-
-        alert("CNPJ não encontrado.");
-
-    }
-
-}
-
-async function buscarCNPJ() {
-
-    const cnpj = document
-        .getElementById('tercnpj')
-        .value
-        .replace(/\D/g, '');
-
-    if (cnpj.length !== 14) return;
-
-    try {
-
-        let dados;
-
-        // 1ª tentativa - BrasilAPI
-        let resp = await fetch(
-            `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`
-        );
-
-        if (resp.ok) {
-
-            dados = await resp.json();
-
-            document.getElementById('terempresa').value =
-                dados.razao_social || '';
-
-            // Preenche o telefone caso esteja vazio
-            if (document.getElementById('tertelefone').value === '') {
-                document.getElementById('tertelefone').value =
-                    dados.ddd_telefone_1 || '';
-                mascaraTelefone(document.getElementById('tertelefone'));
-            }
-
-            return;
-        }
-
-        // 2ª tentativa - ReceitaWS
-        resp = await fetch(
-            `https://receitaws.com.br/v1/cnpj/${cnpj}`
-        );
-
-        dados = await resp.json();
-
-        if (dados.status === "ERROR") {
-            throw new Error();
-        }
-
-        document.getElementById('terempresa').value =
-            dados.nome || '';
-
-        if (document.getElementById('tertelefone').value === '') {
-            document.getElementById('tertelefone').value =
-                dados.telefone || '';
-            mascaraTelefone(document.getElementById('tertelefone'));
-        }
 
     }
     catch (erro) {
@@ -4803,9 +4723,7 @@ function navegarTerceiros(){
         html += `
         <tr>
             <td>${t.ternome || ''}</td>
-            <td>${t.tercnpj || ''}</td>
             <td>${t.terempresa || ''}</td>
-            <td>${t.terantt || ''}</td>
             <td>${t.tertipoveiculo || ''}</td>
             <td>${t.terplaca || ''}</td>
             <td>${t.tercarreta || ''}</td>
@@ -4889,8 +4807,6 @@ style="width:100%; height:400px; border:none;">
 
 <div class="text-end mt-3">
 <button class="btn btn-secondary" onclick="fecharAnexos()">Fechar</button>
-</div>
-</div>
 </div>
 
     <script>
