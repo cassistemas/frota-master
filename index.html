@@ -1051,7 +1051,23 @@ onclick="exportarExcel('saidaVeiculos')">
         </div>
         <div class="row">
             <div class="col-md-7"><div class="glass-container"><h6>Investimento por Veículo</h6><canvas id="graficoCustos" height="150"></canvas></div></div>
-            <div class="col-md-5"><div class="glass-container"><h6>Alertas de Vencimento</h6><div id="listaAlertasRapidos"></div></div></div>
+            <div class="col-md-5">
+
+    <div class="glass-container">
+
+        <h6>Alertas de Vencimento</h6>
+
+        <div id="listaAlertasRapidos"
+             style="max-height:420px;overflow-y:auto">
+        </div>
+
+        <div id="paginacaoAlertas"
+             class="d-flex justify-content-center mt-3">
+        </div>
+
+    </div>
+
+</div>
         </div>
     </div>
 
@@ -2003,28 +2019,234 @@ Limpar
         </div>
     </div>
     
-    <div id="revisoes" class="hidden">
-        <h3>⏱ Revisões KM</h3>
-        <div class="glass-container">
-            <input type="hidden" id="r_idx">
-            <div class="row g-3">
-                <div class="col-md-4"><select id="rveiculo" class="form-select"></select></div>
-                <div class="col-md-4"><input id="rtipo" class="form-control" placeholder="Item"></div>
-                <div class="col-md-4"><input id="rkm" class="form-control" type="number" placeholder="Trocar a cada (KM)"></div>
-                <div class="col-md-12 text-end">
-                    <button id="btn_cancel_revisoes" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('revisoes',['rveiculo','rtipo','rkm'],'r_idx')">Cancelar</button>
-                    <button class="btn btn-warning" onclick="salvar('revisoes',['rveiculo','rtipo','rkm'],'r_idx')">Salvar</button>
+   <div id="revisoes" class="hidden">
+
+    <h3>⏱ Revisões KM</h3>
+
+    <div class="glass-container">
+
+        <input type="hidden" id="r_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+                <label class="form-label">Veículo</label>
+                <select id="rveiculo"
+                        class="form-select"
+                        onchange="atualizarKMAtualRevisao()">
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">KM Atual</label>
+                <input id="rkmatual"
+                       class="form-control text-end fw-bold"
+                       readonly>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Última Revisão</label>
+                <input id="rkmultima"
+                       type="number"
+                       class="form-control text-end"
+                       oninput="calcularRevisao()">
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Trocar a cada (KM)</label>
+                <input id="rkm"
+                       type="number"
+                       class="form-control text-end"
+                       placeholder="10000"
+                       oninput="calcularRevisao()">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Serviço</label>
+                <input id="rtipo"
+                       class="form-control"
+                       placeholder="Ex.: Troca de óleo">
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Próxima Revisão</label>
+                <input id="rkmproxima"
+                       class="form-control text-end fw-bold"
+                       readonly>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">KM Faltantes</label>
+                <input id="rkmfaltante"
+                       class="form-control text-end fw-bold"
+                       readonly>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+
+                <div id="rstatus"
+                     class="form-control text-center fw-bold">
+
+                    Em Dia
+
                 </div>
+
             </div>
-        </div>
-        <div class="glass-container">
-            <div class="d-flex justify-content-between mb-3">
-                <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaRevisoes', this.value)">
-                <button class="btn-excel" onclick="exportarExcel('revisoes')">📥 Exportar Excel</button>
+
+            <div class="col-md-2">
+                <label class="form-label">Data Revisão</label>
+                <input id="rdata"
+                       type="date"
+                       class="form-control">
             </div>
-            <table class="table"><thead><tr><th>Veículo</th><th>Item</th><th>Trocar a cada (KM)</th><th>Ações</th></tr></thead><tbody id="listaRevisoes"></tbody></table>
+
+            <div class="col-md-12">
+                <label class="form-label">Observações</label>
+                <textarea id="robs"
+                          class="form-control"
+                          rows="2"></textarea>
+            </div>
+
+            <div class="col-md-12 text-end">
+
+                <button id="btn_cancel_revisoes"
+                        class="btn btn-outline-secondary btn-cancelar"
+                        style="display:none"
+                        onclick="limparFormularioRevisao()">
+
+                    Cancelar
+
+                </button>
+
+                <button class="btn btn-warning"
+                        onclick="salvarRevisao()">
+
+                    💾 Salvar Revisão
+
+                </button>
+
+            </div>
+
         </div>
+
     </div>
+
+    <div class="glass-container">
+
+        <div class="row mb-3">
+
+            <div class="col-md-4">
+
+                <div class="card bg-danger text-white">
+
+                    <div class="card-body text-center">
+
+                        <h6>Vencidas</h6>
+
+                        <h2 id="dashRevVencidas">0</h2>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-4">
+
+                <div class="card bg-warning text-dark">
+
+                    <div class="card-body text-center">
+
+                        <h6>Atenção</h6>
+
+                        <h2 id="dashRevAtencao">0</h2>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-4">
+
+                <div class="card bg-success text-white">
+
+                    <div class="card-body text-center">
+
+                        <h6>Em Dia</h6>
+
+                        <h2 id="dashRevEmDia">0</h2>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="d-flex justify-content-between mb-3">
+
+            <input type="text"
+                   class="form-control search-box w-75"
+                   placeholder="🔎 Pesquisar revisão..."
+                   onkeyup="filtrarTabela('listaRevisoes',this.value)">
+
+            <button class="btn-excel"
+                    onclick="exportarExcel('revisoes')">
+
+                📥 Exportar Excel
+
+            </button>
+
+        </div>
+
+        <div class="table-responsive">
+
+            <table class="table table-hover align-middle">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Veículo</th>
+
+                        <th>Serviço</th>
+
+                        <th class="text-end">KM Atual</th>
+
+                        <th class="text-end">Última</th>
+
+                        <th class="text-end">Troca</th>
+
+                        <th class="text-end">Próxima</th>
+
+                        <th class="text-end">Faltam</th>
+
+                        <th>Status</th>
+
+                        <th>Data</th>
+ 
+                        <th>Observações</th>
+
+                        <th>Ações</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="listaRevisoes">
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
     
     <div id="fornecedores" class="hidden">
         <h3>🏭 Fornecedores</h3>
@@ -2475,7 +2697,7 @@ const MAP={
     terceiros:'FM_TER',
     diarias:'FM_DI',
     pneus:'FM_P',
-    multas:'FM_MU', 
+    multas:'FM_MU',
     manutencoes:'FM_MAN',
     revisoes:'FM_R',
     seguros:'FM_SEG',
@@ -2497,6 +2719,7 @@ Object.keys(MAP).forEach(k=>{
     db[k] = []
 })
 const ID_MAP_INDEX = {
+
     veiculos:'v_idx',
     motoristas:'m_idx',
     terceiros:'ter_idx',
@@ -2514,7 +2737,8 @@ const ID_MAP_INDEX = {
     combustivel:'c_idx',
     pneus:'p_idx',
     saidaVeiculos:'sv_idx',
-}
+
+};
 
 function exportarExcel(modulo) {
     const dados = db[modulo];
@@ -2631,13 +2855,51 @@ function salvar(mod, campos, idCampo){
 
     campos.forEach(c => obj[c] = document.getElementById(c).value);
 
-    if(mod === 'manutencoes' && obj.mveiculo && obj.mkm){
-        let vei = db.veiculos.find(v => v.vplaca === obj.mveiculo);
+    /*=====================================================
+ATUALIZA KM DOS VEÍCULOS
+=====================================================*/
 
-        if(vei){
-            vei.vkm = obj.mkm;
-        }
+if(mod === 'manutencoes' && obj.mveiculo && obj.mkm){
+
+    let vei = db.veiculos.find(
+        v => v.vplaca === obj.mveiculo
+    );
+
+    if(vei){
+
+        vei.vkm = Number(obj.mkm);
+
     }
+
+}
+
+if(mod === 'combustivel' && obj.cveiculo && obj.ckm){
+
+    let vei = db.veiculos.find(
+        v => v.vplaca === obj.cveiculo
+    );
+
+    if(vei){
+
+        vei.vkm = Number(obj.ckm);
+
+    }
+
+}
+
+if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno){
+
+    let vei = db.veiculos.find(
+        v => v.vplaca === obj.svveiculo
+    );
+
+    if(vei){
+
+        vei.vkm = Number(obj.svkmretorno);
+
+    }
+
+}
 
     if(idx === ""){
         db[mod].push(obj);
@@ -2646,6 +2908,12 @@ function salvar(mod, campos, idCampo){
     }
 
     salvarNuvem();
+
+if(typeof sincronizarRevisoes === "function"){
+
+    sincronizarRevisoes();
+
+}
 
     if(typeof PAGINACAO !== "undefined"){
 
@@ -2660,6 +2928,29 @@ function salvar(mod, campos, idCampo){
     }
 
     renderModulo(mod);
+if(mod==="veiculos"){
+
+    renderModulo("revisoes");
+
+}
+
+if(mod==="manutencoes"){
+
+    renderModulo("revisoes");
+
+}
+
+if(mod==="combustivel"){
+
+    renderModulo("revisoes");
+
+}
+
+if(mod==="saidaVeiculos"){
+
+    renderModulo("revisoes");
+
+}
 
     limparForm(mod, campos, idCampo);
 
@@ -3236,6 +3527,7 @@ if(document.getElementById('agmotorista'))
     renderModulo('fornecedores');
     renderModulo('manutencoes');
     renderModulo('diarias');
+    sincronizarRevisoes();
     renderDashboard();
 
     document.getElementById('listaMotoristas').innerHTML = db.motoristas.map((m,i)=>`
@@ -3318,7 +3610,9 @@ db.licencas.map((le,i)=>`
     ${btnSet('licencas',i)}
 </tr>
 `).join('');
-    document.getElementById('listaRevisoes').innerHTML = db.revisoes.map((r,i)=>`<tr><td>${r.rveiculo}</td><td>${r.rtipo}</td><td>${r.rkm} KM</td>${btnSet('revisoes',i)}</tr>`).join('');
+
+renderRevisoes();
+
     document.getElementById('listaFornecedores').innerHTML = db.fornecedores.map((f,i)=>`<tr><td><b>${f.fnome}</b></td><td>${f.fresp}</td><td>${f.fcnpj}</td><td>${f.ftel}</td>${btnSet('fornecedores',i)}</tr>`).join('');
 
     ativarPaginacao();
@@ -3361,6 +3655,9 @@ function salvarCombustivel(){
 
 function renderDashboard(){
     if(!document.getElementById('d_vei')) return;
+    if(typeof sincronizarRevisoes==="function"){
+    sincronizarRevisoes();
+}
     document.getElementById('d_vei').innerText = db.veiculos.length;
     let totalGasto = db.manutencoes.reduce((a,b)=>a + moedaParaFloat(b.mvalor),0);
     totalGasto += db.multas
@@ -3451,6 +3748,50 @@ db.agendamentos.forEach(a => {
     )
     .forEach(mu => analisar(mu.muveiculo, 'Desc. Multa', mu.muvenc));
     db.licencas.forEach(le=>{ analisar(le.leveiculo,'CIV',le.venciv); analisar(le.leveiculo,'CIPP',le.vencipp); });
+
+// ===============================
+// 🔧 ALERTAS DE REVISÕES
+// ===============================
+
+db.revisoes.forEach(r=>{
+
+    if(!r.rveiculo) return;
+
+    const faltam = Number(r.rkmfaltante || 0);
+
+    // REVISÃO VENCIDA
+    if(faltam <= 0){
+
+        alertas.push(`
+            <div class="alerta-item alerta-vencido">
+                🔧 <b>${r.rveiculo}</b>
+                <br>
+                <small>
+                    ${r.rtipo}<br>
+                    Revisão VENCIDA
+                </small>
+            </div>
+        `);
+
+    }
+
+    // ALERTA COM 5.000 KM
+    else if(faltam <= 5000){
+
+        alertas.push(`
+            <div class="alerta-item alerta-atencao">
+                🔧 <b>${r.rveiculo}</b>
+                <br>
+                <small>
+                    ${r.rtipo}<br>
+                    Faltam ${faltam.toLocaleString("pt-BR")} km
+                </small>
+            </div>
+        `);
+
+    }
+
+});
 
     // ===============================
     // 🪪 ALERTAS DE MOTORISTAS (CNH e TOX)
@@ -3546,7 +3887,19 @@ db.saidaVeiculos.forEach(s => {
     document.getElementById('listaAlertasRapidos').innerHTML = alertas.join('');
     document.getElementById('d_alertas').innerText = alertas.length;
     document.getElementById('d_alertas').innerText = alertas.length;
-    document.getElementById('listaAlertasRapidos').innerHTML = alertas.length ? alertas.join('') : '<div class="text-success p-3">✅ Frota em dia</div>';
+    window.totalAlertas = alertas.length;
+
+const pagina = getAlertasPaginados(alertas);
+
+document.getElementById("listaAlertasRapidos").innerHTML =
+
+pagina.length
+
+? pagina.join("")
+
+: '<div class="text-success p-3">✅ Frota em dia</div>';
+
+renderPaginacaoAlertas(alertas.length);
     let mData={};
     db.manutencoes.forEach(x=>mData[x.mveiculo]=(mData[x.mveiculo]||0)+moedaParaFloat(x.mvalor));
     db.multas.forEach(x=>mData[x.muveiculo]=(mData[x.muveiculo]||0)+moedaParaFloat(x.muvalor));
@@ -5053,6 +5406,7 @@ function bloquearTela() {
 </div>
 </div>
 </body>
+<script src="revisoes.js"></script>
 <script src="motoristas.js"></script>
 <script src="veiculos.js"></script>
 <script src="paginacao.js"></script>
