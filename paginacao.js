@@ -1831,4 +1831,120 @@ function limparFiltroTerceiros(){
 
 }
 
+function getAlertasPaginados(alertas){
+
+    const pagina = obterPaginaCustom("alertas", alertas.length);
+
+    const inicio = (pagina - 1) * PAGINACAO.itensPorPagina;
+
+    const fim = inicio + PAGINACAO.itensPorPagina;
+
+    return alertas.slice(inicio, fim);
+
+}
+
+function renderPaginacaoAlertas(total){
+
+    const totalPaginas = Math.max(
+        1,
+        Math.ceil(total / PAGINACAO.itensPorPagina)
+    );
+
+    const pagina = obterPaginaCustom("alertas", total);
+
+    document.getElementById("paginacaoAlertas").innerHTML = `
+
+<div class="d-flex justify-content-center align-items-center gap-2 mt-3">
+
+<button class="btn btn-sm btn-secondary"
+
+onclick="irPrimeiraPaginaAlertas()"
+
+${pagina==1?"disabled":""}>
+
+«
+
+</button>
+
+<button class="btn btn-sm btn-secondary"
+
+onclick="mudarPaginaAlertas(-1)"
+
+${pagina==1?"disabled":""}>
+
+‹
+
+</button>
+
+<span>
+
+Página ${pagina} de ${totalPaginas}
+
+</span>
+
+<button class="btn btn-sm btn-secondary"
+
+onclick="mudarPaginaAlertas(1)"
+
+${pagina==totalPaginas?"disabled":""}>
+
+›
+
+</button>
+
+<button class="btn btn-sm btn-secondary"
+
+onclick="irUltimaPaginaAlertas(${total})"
+
+${pagina==totalPaginas?"disabled":""}>
+
+»
+
+</button>
+
+</div>
+
+`;
+
+}
+
+function mudarPaginaAlertas(direcao){
+
+    let pagina = obterPaginaCustom("alertas", window.totalAlertas);
+
+    pagina += direcao;
+
+    const totalPaginas = Math.max(
+        1,
+        Math.ceil(window.totalAlertas / PAGINACAO.itensPorPagina)
+    );
+
+    if(pagina<1) pagina=1;
+
+    if(pagina>totalPaginas) pagina=totalPaginas;
+
+    PAGINACAO.paginas.alertas = pagina;
+
+    renderDashboard();
+
+}
+
+function irPrimeiraPaginaAlertas(){
+
+    PAGINACAO.paginas.alertas = 1;
+
+    renderDashboard();
+
+}
+
+function irUltimaPaginaAlertas(total){
+
+    PAGINACAO.paginas.alertas = Math.max(
+        1,
+        Math.ceil(total / PAGINACAO.itensPorPagina)
+    );
+
+    renderDashboard();
+
+}
 
