@@ -1231,6 +1231,12 @@ if(modulo === 'terceiros'){
         return `
 <tr>
 
+<td>${
+    t.terdata
+        ? new Date(t.terdata + 'T00:00:00').toLocaleDateString('pt-BR')
+        : '--'
+}</td>
+
 <td>${t.ternome || '--'}</td>
 
 <td>${t.tertelmotorista || '--'}</td>
@@ -1728,59 +1734,67 @@ function calcularTotalMultas(lista) {
 
 function getTerceirosFiltrados(){
 
-let dados = [...db.terceiros];
+    let dados = [...db.terceiros];
 
-const motorista =
-document.getElementById(
-'filtroTerMotorista'
-)?.value.toLowerCase() || '';
+    const motorista =
+    document.getElementById('filtroTerMotorista')?.value.toLowerCase() || '';
 
-const empresa =
-document.getElementById(
-'filtroTerEmpresa'
-)?.value.toLowerCase() || '';
+    const empresa =
+    document.getElementById('filtroTerEmpresa')?.value.toLowerCase() || '';
 
-const placa =
-document.getElementById(
-'filtroTerPlaca'
-)?.value.toLowerCase() || '';
+    const placa =
+    document.getElementById('filtroTerPlaca')?.value.toLowerCase() || '';
 
-const status =
-document.getElementById(
-'filtroTerStatus'
-)?.value || '';
+    const status =
+    document.getElementById('filtroTerStatus')?.value || '';
 
-return dados.filter(t => {
+    const dataInicial =
+    document.getElementById('filtroTerDataInicial')?.value || '';
 
-return (
+    const dataFinal =
+    document.getElementById('filtroTerDataFinal')?.value || '';
 
-(!motorista ||
-(t.ternome || '')
-.toLowerCase()
-.includes(motorista))
+    return dados.filter(t => {
 
-&&
+        return (
 
-(!empresa ||
-(t.terempresa || '')
-.toLowerCase()
-.includes(empresa))
+            (!motorista ||
+            (t.ternome || '')
+            .toLowerCase()
+            .includes(motorista))
 
-&&
+            &&
 
-(!placa ||
-(t.terplaca || '')
-.toLowerCase()
-.includes(placa))
+            (!empresa ||
+            (t.terempresa || '')
+            .toLowerCase()
+            .includes(empresa))
 
-&&
+            &&
 
-(!status ||
-t.terstatus === status)
+            (!placa ||
+            (t.terplaca || '')
+            .toLowerCase()
+            .includes(placa))
 
-);
+            &&
 
-});
+            (!status ||
+            t.terstatus === status)
+
+            &&
+
+            (!dataInicial ||
+            (t.terdata && t.terdata >= dataInicial))
+
+            &&
+
+            (!dataFinal ||
+            (t.terdata && t.terdata <= dataFinal))
+
+        );
+
+    });
 
 }
 
@@ -1794,23 +1808,27 @@ renderModulo('terceiros');
 
 function limparFiltroTerceiros(){
 
-[
-'filtroTerMotorista',
-'filtroTerEmpresa',
-'filtroTerPlaca',
-'filtroTerStatus'
-].forEach(id=>{
+    [
+        'filtroTerMotorista',
+        'filtroTerEmpresa',
+        'filtroTerPlaca',
+        'filtroTerStatus',
+        'filtroTerDataInicial',
+        'filtroTerDataFinal'
+    ].forEach(id => {
 
-const el =
-document.getElementById(id);
+        const el = document.getElementById(id);
 
-if(el) el.value='';
+        if(el){
+            el.value = '';
+        }
 
-});
+    });
 
-renderModulo('terceiros');
+    PAGINACAO.paginas['terceiros'] = 1;
+
+    renderModulo('terceiros');
 
 }
-
 
 
