@@ -3503,7 +3503,13 @@ if(filtroPlaca){
         db.veiculos.map(v => `<option value="${v.vplaca}">${v.vplaca}</option>`).join('');
 }
 
-    const vOpt = '<option value="">Veículo...</option>' + db.veiculos.map(v=>`<option value="${v.vplaca}">${v.vplaca}</option>`).join('');
+    const vOpt =
+'<option value="">Veículo...</option>' +
+
+db.veiculos
+.filter(v => (v.vstatus || "").toUpperCase() !== "VENDIDO")
+.map(v=>`<option value="${v.vplaca}">${v.vplaca}</option>`)
+.join('');
     const mOpt = '<option value="">Motorista...</option>' + db.motoristas.map(m=>`<option value="${m.motNome}">${m.motNome}</option>`).join('');
 // SELECTS
 if(document.getElementById('agveiculo'))
@@ -3756,6 +3762,12 @@ db.agendamentos.forEach(a => {
 db.revisoes.forEach(r=>{
 
     if(!r.rveiculo) return;
+const veiculo = db.veiculos.find(v=>v.vplaca===r.rveiculo);
+
+if(!veiculo) return;
+
+if((veiculo.vstatus || "").toUpperCase()=="VENDIDO")
+    return;
 
     const faltam = Number(r.rkmfaltante || 0);
 
