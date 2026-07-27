@@ -377,6 +377,21 @@ function sincronizarRevisoes(){
     if(!db.revisoes) return;
 
     db.revisoes.forEach(r=>{
+const veiculo = db.veiculos.find(v=>v.vplaca===r.rveiculo);
+
+    if(!veiculo) return;
+// Ignora veículo vendido
+if ((veiculo.vstatus || "").toUpperCase() === "VENDIDO") {
+    return;
+}
+
+    if((veiculo.vstatus || "").toUpperCase() === "VENDIDO")
+        return;
+
+if(!veiculo) return;
+
+if((veiculo.vstatus || "").toUpperCase()=="VENDIDO")
+    return;
 
         atualizarRevisao(r);
 
@@ -487,7 +502,15 @@ function renderRevisoes(){
 
     sincronizarRevisoes();
 
-    let lista = [...db.revisoes];
+    let lista = db.revisoes.filter(r=>{
+
+    const veiculo = db.veiculos.find(v=>v.vplaca===r.rveiculo);
+
+    if(!veiculo) return false;
+
+    return (veiculo.vstatus || "").toUpperCase() !== "VENDIDO";
+
+});
 
     lista.sort((a,b)=>{
 
@@ -653,8 +676,3 @@ function getAlertasRevisoes(){
     return alertas;
 
 }
-
-
-
-
-
