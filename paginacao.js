@@ -1166,38 +1166,100 @@ if(modulo === 'pneus'){
 
 if(modulo === 'terceiros'){
 
-const dados = getTerceirosFiltrados();
+    const dados = getTerceirosFiltrados();
 
-const pagina = getDadosPaginadosCustom(
-    dados,
-    'terceiros'
-);
+    // ==========================
+    // CARDS / INDICADORES
+    // ==========================
 
-document.getElementById('listaTerceiros').innerHTML =
-pagina.map(t=>{
+    const totalTerceiros = dados.length;
 
-const idx = db.terceiros.indexOf(t);
+    const totalContratacoes = dados.filter(t =>
+        t.terfrete && t.terfrete !== ""
+    ).length;
 
-return `
+    const valorTotalFretes = dados.reduce((total, t) => {
+
+        let valor = String(t.terfrete || "0")
+            .replace("R$", "")
+            .replace(/\s/g, "")
+            .replace(/\./g, "")
+            .replace(",", ".");
+
+        return total + (parseFloat(valor) || 0);
+
+    }, 0);
+
+    // Atualiza os cards (caso existam)
+
+    const cardTerceiros = document.getElementById("totalTerceiros");
+    if(cardTerceiros){
+        cardTerceiros.innerText = totalTerceiros;
+    }
+
+    const cardContratacoes = document.getElementById("totalContratacoes");
+    if(cardContratacoes){
+        cardContratacoes.innerText = totalContratacoes;
+    }
+
+    const cardFretes = document.getElementById("valorTotalFretes");
+    if(cardFretes){
+        cardFretes.innerText = valorTotalFretes.toLocaleString("pt-BR",{
+            style:"currency",
+            currency:"BRL"
+        });
+    }
+
+    // ==========================
+    // PAGINAÇÃO
+    // ==========================
+
+    const pagina = getDadosPaginadosCustom(
+        dados,
+        'terceiros'
+    );
+
+    // ==========================
+    // TABELA
+    // ==========================
+
+    document.getElementById('listaTerceiros').innerHTML =
+    pagina.map(t=>{
+
+        const idx = db.terceiros.indexOf(t);
+
+        return `
 <tr>
 
-<td>${t.ternome}</td>
+<td>${t.ternome || '--'}</td>
+
+<td>${t.tertelmotorista || '--'}</td>
+
 <td>${t.tercnpj || '--'}</td>
-<td>${t.terempresa}</td>
+
+<td>${t.terempresa || '--'}</td>
+
 <td>${t.terantt || '--'}</td>
-<td>${t.tertipoveiculo}</td>
-<td>${t.terplaca}</td>
+
+<td>${t.tertipoveiculo || '--'}</td>
+
+<td>${t.terplaca || '--'}</td>
+
 <td>${t.tercarreta || '--'}</td>
+
 <td>${t.terano || '--'}</td>
+
 <td>${t.tertelefone || '--'}</td>
+
+<td>${t.terfrete || 'R$ 0,00'}</td>
 
 <td>
 <span class="badge ${
-t.terstatus === 'Ativo'
-? 'bg-success'
-: 'bg-danger'
+    t.terstatus === 'Ativo'
+        ? 'bg-success'
+        : 'bg-danger'
 }">
-${t.terstatus}
+${t.terstatus || '--'}
 </span>
 </td>
 
@@ -1218,12 +1280,12 @@ onclick="deletar('terceiros',${idx})">
 </tr>
 `;
 
-}).join('');
+    }).join('');
 
-renderPaginacao(
-'terceiros',
-'paginacaoTerceiros'
-);
+    renderPaginacao(
+        'terceiros',
+        'paginacaoTerceiros'
+    );
 
 }
 
