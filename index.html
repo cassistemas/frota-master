@@ -327,6 +327,13 @@ Criar Conta
 
 <div class="row g-3">
 
+<div class="col-md-2">
+    <input
+        type="date"
+        id="terdata"
+        class="form-control">
+</div>
+
 <div class="col-md-4">
     <input id="ternome"
            class="form-control"
@@ -428,6 +435,7 @@ placeholder="Observações">
     onclick="limparForm(
         'terceiros',
         [
+'terdata',
 'ternome',
 'tertelmotorista',
 'tercnpj',
@@ -437,6 +445,7 @@ placeholder="Observações">
 'terplaca',
 'tercarreta',
 'terano',
+'tertelefone',
 'terfrete',
 'terstatus',
 'terobs'
@@ -478,6 +487,20 @@ placeholder="Placa">
 </div>
 
 <div class="col-md-2">
+    <input
+        type="date"
+        id="filtroTerDataInicial"
+        class="form-control">
+</div>
+
+<div class="col-md-2">
+    <input
+        type="date"
+        id="filtroTerDataFinal"
+        class="form-control">
+</div>
+
+<div class="col-md-2">
 <select
 id="filtroTerStatus"
 class="form-select">
@@ -502,7 +525,7 @@ Bloqueado
 class="btn btn-primary w-100"
 onclick="aplicarFiltroTerceiros()">
 
-🔎
+Filtrar
 
 </button>
 </div>
@@ -512,7 +535,7 @@ onclick="aplicarFiltroTerceiros()">
 class="btn btn-secondary w-100"
 onclick="limparFiltroTerceiros()">
 
-✖
+Limpar
 
 </button>
 </div>
@@ -526,28 +549,36 @@ onclick="limparFiltroTerceiros()">
 <div class="row mb-3">
 
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm">
+        <div class="card text-white bg-primary shadow">
             <div class="card-body text-center">
-                <h6>🚛 Terceiros Cadastrados</h6>
-                <h3 id="totalTerceiros">0</h3>
+                <h6 class="mb-2">
+                    🚛 Terceiros Cadastrados
+                </h6>
+                <h2 id="totalTerceiros" class="fw-bold">0</h2>
             </div>
         </div>
     </div>
 
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm">
+        <div class="card text-white bg-warning shadow">
             <div class="card-body text-center">
-                <h6>📋 Contratações</h6>
-                <h3 id="totalContratacoes">0</h3>
+                <h6 class="mb-2">
+                    📋 Contratações
+                </h6>
+                <h2 id="totalContratacoes" class="fw-bold">0</h2>
             </div>
         </div>
     </div>
 
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm">
+        <div class="card text-white bg-success shadow">
             <div class="card-body text-center">
-                <h6>💰 Valor Total dos Fretes</h6>
-                <h3 id="valorTotalFretes">R$ 0,00</h3>
+                <h6 class="mb-2">
+                    💰 Valor Total dos Fretes
+                </h6>
+                <h2 id="valorTotalFretes" class="fw-bold">
+                    R$ 0,00
+                </h2>
             </div>
         </div>
     </div>
@@ -560,6 +591,7 @@ onclick="limparFiltroTerceiros()">
 
 <tr>
 
+<th>Data</th>
 <th>Nome</th>
 <th>Tel. Motorista</th>
 <th>CNPJ</th>
@@ -3631,6 +3663,7 @@ function salvarTerceirosCustom(){
     const idx = document.getElementById('ter_idx').value;
 
     const obj = {
+    terdata: document.getElementById('terdata').value,
     ternome: document.getElementById('ternome').value,
     tertelmotorista: document.getElementById('tertelmotorista').value,
     tercnpj: document.getElementById('tercnpj').value,
@@ -3663,6 +3696,7 @@ function salvarTerceirosCustom(){
     limparForm(
         'terceiros',
         [
+'terdata',
 'ternome',
 'tertelmotorista',
 'tercnpj',
