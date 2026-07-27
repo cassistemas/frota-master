@@ -333,18 +333,25 @@ Criar Conta
            placeholder="Nome Motorista">
 </div>
 
-<div class="col-md-2">
-    <input id="tercnpj"
+<div class="col-md-3">
+    <input id="tertelmotorista"
            class="form-control"
-           placeholder="CNPJ"
-           oninput="mascaraCNPJ(this)"
-           onblur="buscarCNPJ()">
+           placeholder="Telefone do Motorista"
+           oninput="mascaraTelefone(this)">
 </div>
 
 <div class="col-md-4">
     <input id="terempresa"
            class="form-control"
            placeholder="Empresa">
+</div>
+
+<div class="col-md-2">
+    <input id="tercnpj"
+           class="form-control"
+           placeholder="CNPJ"
+           oninput="mascaraCNPJ(this)"
+           onblur="buscarCNPJ()">
 </div>
 
 <div class="col-md-2">
@@ -393,6 +400,13 @@ Criar Conta
 </select>
 </div>
 
+<div class="col-md-2">
+    <input id="terfrete"
+           class="form-control"
+           placeholder="Valor Frete"
+           oninput="mascaraMoeda(this)">
+</div>
+
 <div class="col-md-12">
 <textarea
 id="terobs"
@@ -415,6 +429,7 @@ placeholder="Observações">
         'terceiros',
         [
 'ternome',
+'tertelmotorista',
 'tercnpj',
 'terempresa',
 'terantt',
@@ -422,7 +437,7 @@ placeholder="Observações">
 'terplaca',
 'tercarreta',
 'terano',
-'tertelefone',
+'terfrete',
 'terstatus',
 'terobs'
 ],
@@ -508,21 +523,54 @@ onclick="limparFiltroTerceiros()">
 
 <div class="glass-container">
 
+<div class="row mb-3">
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <h6>🚛 Terceiros Cadastrados</h6>
+                <h3 id="totalTerceiros">0</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <h6>📋 Contratações</h6>
+                <h3 id="totalContratacoes">0</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <h6>💰 Valor Total dos Fretes</h6>
+                <h3 id="valorTotalFretes">R$ 0,00</h3>
+            </div>
+        </div>
+    </div>
+
+</div>
+
 <table class="table">
 
 <thead>
 
 <tr>
 
-<th>Motorista</th>
+<th>Nome</th>
+<th>Tel. Motorista</th>
 <th>CNPJ</th>
 <th>Empresa</th>
 <th>ANTT</th>
-<th>Tipo</th>
+<th>Tipo Veículo</th>
 <th>Placa</th>
 <th>Carreta</th>
 <th>Ano</th>
 <th>Telefone</th>
+<th>Valor Frete</th>
 <th>Status</th>
 <th>Ações</th>
 
@@ -3584,8 +3632,10 @@ function salvarTerceirosCustom(){
 
     const obj = {
     ternome: document.getElementById('ternome').value,
+    tertelmotorista: document.getElementById('tertelmotorista').value,
     tercnpj: document.getElementById('tercnpj').value,
     terempresa: document.getElementById('terempresa').value,
+    terfrete: document.getElementById('terfrete').value,
     terantt: document.getElementById('terantt').value,
     tertipoveiculo: document.getElementById('tertipoveiculo').value,
     terplaca: document.getElementById('terplaca').value,
@@ -3614,6 +3664,7 @@ function salvarTerceirosCustom(){
         'terceiros',
         [
 'ternome',
+'tertelmotorista',
 'tercnpj',
 'terempresa',
 'terantt',
@@ -3621,7 +3672,7 @@ function salvarTerceirosCustom(){
 'terplaca',
 'tercarreta',
 'terano',
-'tertelefone',
+'terfrete',
 'terstatus',
 'terobs'
 ],
@@ -4794,15 +4845,16 @@ function calcularKMPneu(){
 
 }
 
-function navegarTerceiros(){
+function navegarTerceiros() {
 
     let html = '';
 
-    db.terceiros.forEach((t, i)=>{
+    db.terceiros.forEach((t, i) => {
 
         html += `
         <tr>
             <td>${t.ternome || ''}</td>
+            <td>${t.tertelmotorista || ''}</td>
             <td>${t.tercnpj || ''}</td>
             <td>${t.terempresa || ''}</td>
             <td>${t.terantt || ''}</td>
@@ -4811,6 +4863,7 @@ function navegarTerceiros(){
             <td>${t.tercarreta || ''}</td>
             <td>${t.terano || ''}</td>
             <td>${t.tertelefone || ''}</td>
+            <td>${t.terfrete || ''}</td>
             <td>${t.terstatus || ''}</td>
             <td>
                 <button class="btn btn-sm btn-warning"
