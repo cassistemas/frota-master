@@ -32,40 +32,6 @@
         .alerta-vencido { background: #fee2e2; border-left-color: var(--danger); color: #991b1b; }
         .alerta-atencao { background: #fef9c3; border-left-color: var(--warning); color: #854d0e; }
         .btn-cancelar{ margin-right:10px; }
- /* ===== Cards do módulo Manutenções ===== */
-.man-card{
-    background:#fff;
-    border:2px solid #e2e8f0;
-    border-radius:16px;
-    padding:22px 18px;
-    text-align:center;
-    box-shadow:0 2px 8px rgba(15,23,42,.04);
-    transition:all .2s ease;
-}
-
-.man-card:hover{
-    transform:translateY(-2px);
-    box-shadow:0 8px 20px rgba(15,23,42,.08);
-}
-
-.man-card h6{
-    color:#475569;
-    font-weight:600;
-    margin-bottom:8px;
-}
-
-.man-card h3{
-    margin:0;
-    font-weight:800;
-    font-size:2rem;
-    color:#0f172a;
-}
-
-/* cores das bordas */
-.man-card.primary{ border-color:#2563eb; }   /* azul */
-.man-card.success{ border-color:#10b981; }   /* verde */
-.man-card.warning{ border-color:#f59e0b; }   /* laranja */
-.man-card.danger{  border-color:#ef4444; }   /* vermelho */
 /* ==========================
    PAGINAÇÃO GLOBAL
 ========================== */
@@ -499,21 +465,21 @@ placeholder="Observações">
 
 <div class="row g-2">
 
-<div class="col-md-2">
+<div class="col-md-3">
 <input
 id="filtroTerMotorista"
 class="form-control"
 placeholder="Motorista">
 </div>
 
-<div class="col-md-2">
+<div class="col-md-3">
 <input
 id="filtroTerEmpresa"
 class="form-control"
 placeholder="Empresa">
 </div>
 
-<div class="col-md-1">
+<div class="col-md-2">
 <input
 id="filtroTerPlaca"
 class="form-control"
@@ -534,7 +500,7 @@ placeholder="Placa">
         class="form-control">
 </div>
 
-<div class="col-md-1">
+<div class="col-md-2">
 <select
 id="filtroTerStatus"
 class="form-select">
@@ -580,31 +546,41 @@ Limpar
 
 <div class="glass-container">
 
-    <div class="row g-3 mb-3">
+<div class="row mb-3">
 
-        <div class="col-md-4">
-            <div class="man-card primary">
-                <h6>🚛 Terceiros Cadastrados</h6>
+    <div class="col-md-4">
+        <div class="card text-white bg-primary shadow">
+            <div class="card-body text-center">
+                <h6 class="mb-2">
+                    🚛 Terceiros Cadastrados
+                </h6>
                 <h2 id="totalTerceiros" class="fw-bold">0</h2>
             </div>
         </div>
+    </div>
 
-        <div class="col-md-4">
-            <div class="man-card warning">
-                <h6>📋 Contratações</h6>
+    <div class="col-md-4">
+        <div class="card text-white bg-warning shadow">
+            <div class="card-body text-center">
+                <h6 class="mb-2">
+                    📋 Contratações
+                </h6>
                 <h2 id="totalContratacoes" class="fw-bold">0</h2>
             </div>
         </div>
+    </div>
 
-        <div class="col-md-4">
-            <div class="man-card success">
-                <h6>💰 Valor Total dos Fretes</h6>
+    <div class="col-md-4">
+        <div class="card text-white bg-success shadow">
+            <div class="card-body text-center">
+                <h6 class="mb-2">
+                    💰 Valor Total dos Fretes
+                </h6>
                 <h2 id="valorTotalFretes" class="fw-bold">
                     R$ 0,00
                 </h2>
             </div>
         </div>
-
     </div>
 
 </div>
@@ -640,6 +616,7 @@ Limpar
 
 <div id="paginacaoTerceiros"></div>
 
+</div>
 </div>
 
 <div id="agendamentos" class="hidden">
@@ -1645,7 +1622,7 @@ flatpickr("#motFim", {
 
         <div class="row g-3">
 
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <select id="mveiculo" class="form-select"></select>
             </div>
 
@@ -1667,7 +1644,7 @@ flatpickr("#motFim", {
                        oninput="mascaraMoeda(this)">
             </div>
 
-            <div class="col-md-1">
+            <div class="col-md-3">
                 <input id="mnf"
                        class="form-control"
                        placeholder="Nº NF">
@@ -1715,43 +1692,43 @@ flatpickr("#motFim", {
 
     <!-- CARDS -->
 
-    <div class="row g-3 mb-3">
+    <div class="row mb-3">
 
-    <div class="col-md-3">
-        <div class="man-card primary">
-            <small>Manutenções</small>
-            <h4 id="totalManutencoesQtd">0</h4>
+        <div class="col-md-3">
+            <div class="glass-container text-center">
+                <small>Manutenções</small>
+                <h4 id="totalManutencoesQtd">0</h4>
+            </div>
         </div>
-    </div>
 
-    <div class="col-md-3">
-        <div class="man-card success">
-            <small>Total Gasto</small>
-            <h4 id="totalManutencoesValor">
-                R$ 0,00
-            </h4>
+        <div class="col-md-3">
+            <div class="glass-container text-center">
+                <small>Total Gasto</small>
+                <h4 id="totalManutencoesValor">
+                    R$ 0,00
+                </h4>
+            </div>
         </div>
-    </div>
 
-    <div class="col-md-3">
-        <div class="man-card warning">
-            <small>Ticket Médio</small>
-            <h4 id="ticketMedioManutencao">
-                R$ 0,00
-            </h4>
+        <div class="col-md-3">
+            <div class="glass-container text-center">
+                <small>Ticket Médio</small>
+                <h4 id="ticketMedioManutencao">
+                    R$ 0,00
+                </h4>
+            </div>
         </div>
-    </div>
 
-    <div class="col-md-3">
-        <div class="man-card danger">
-            <small>Última Manutenção</small>
-            <h4 id="ultimaManutencao">
-                --
-            </h4>
+        <div class="col-md-3">
+            <div class="glass-container text-center">
+                <small>Última Manutenção</small>
+                <h4 id="ultimaManutencao">
+                    --
+                </h4>
+            </div>
         </div>
-    </div>
 
-</div>
+    </div>
 
     <!-- FILTROS -->
 
