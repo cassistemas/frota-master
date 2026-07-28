@@ -1420,40 +1420,64 @@ onclick="exportarExcel('saidaVeiculos')">
                 <div class="col-md-4">
 <input id="motTel" class="form-control" placeholder="Telefone" oninput="mascaraTelefone(this)">
 </div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
 <div class="col-md-3">
-    <label>Vencimento da CNH</label>
-    <input
-        type="date"
-        id="motVencCnh"
-        class="form-control">
+    <input type="text" id="motVencCnh" class="form-control" placeholder="Vencimento da CNH">
 </div>
 
 <div class="col-md-3">
-    <label>Vencimento do Toxicológico</label>
-    <input
-        type="date"
-        id="motVencTox"
-        class="form-control">
+    <input type="text" id="motVencTox" class="form-control" placeholder="Vencimento do Toxicológico">
 </div>
-                <div class="col-md-2">
-<label>Entrada</label>
-<input type="time" id="motInicio" class="form-control">
+
+<div class="col-md-2">
+    <input type="text" id="motInicio" class="form-control" placeholder="Entrada">
 </div>
 
 <div class="col-md-3">
-    <label>Status</label>
     <select id="motStatus" class="form-select">
+        <option selected disabled>Status</option>
         <option value="Ativo">Ativo</option>
         <option value="Inativo">Inativo</option>
     </select>
 </div>
 
 <div class="col-md-2">
-<label>Saída</label>
-<input type="time" id="motFim" class="form-control">
+    <input type="text" id="motFim" class="form-control" placeholder="Saída">
 </div>
-                <div class="col-md-12 text-end">
-                    <button id="btn_cancel_motoristas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm(
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
+
+<script>
+flatpickr("#motVencCnh", {
+    locale: "pt",
+    dateFormat: "d/m/Y"
+});
+
+flatpickr("#motVencTox", {
+    locale: "pt",
+    dateFormat: "d/m/Y"
+});
+
+flatpickr("#motInicio", {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    time_24hr: true
+});
+
+flatpickr("#motFim", {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    time_24hr: true
+});
+</script>
+
+<div class="col-md-12 text-end">
+<button id="btn_cancel_motoristas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm(
 'motoristas',
 [
 'motNome',
