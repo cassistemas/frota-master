@@ -804,6 +804,9 @@ if (!PAGINACAO.paginas[modulo]) {
             <td>${v.vtara || '--'} Kg</td>
             <td>${v.vpliquido || '--'} Kg</td>
             <td>${v.vm3 || '--'} m³</td>
+            <td style="color:#212529;font-weight:700;">
+    ${v.vmedidas || '--'}
+</td>
             <td>
 <span class="badge ${
 v.vstatus === "Ativo"
