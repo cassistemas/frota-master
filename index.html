@@ -1370,15 +1370,19 @@ onclick="exportarExcel('saidaVeiculos')">
     <input id="vm3" class="form-control" placeholder="M³">
 </div>
 
+<div class="col-md-3">
+    <input id="vmedidas" class="form-control" placeholder="Medidas">
+</div>
+
 <div class="col-md-12 text-end mt-3">
     <button id="btn_cancel_veiculos"
         class="btn btn-outline-secondary btn-cancelar"
-        onclick="limparForm('veiculos',['vplaca','vmodelo','vkm','vmotorista','vtara','vpliquido','vm3','vstatus'],'v_idx')">
+        onclick="limparForm('veiculos',['vplaca','vmodelo','vkm','vmotorista','vtara','vpliquido','vm3','vmedidas','vstatus'],'v_idx')">
         Cancelar
     </button>
 
     <button class="btn btn-primary"
-        onclick="salvar('veiculos',['vplaca','vmodelo','vkm','vmotorista','vtara','vpliquido','vm3','vstatus'],'v_idx')">
+        onclick="salvar('veiculos',['vplaca','vmodelo','vkm','vmotorista','vtara','vpliquido','vm3','vmedidas','vstatus'],'v_idx')">
         Salvar
     </button>
 </div>
@@ -1389,15 +1393,18 @@ onclick="exportarExcel('saidaVeiculos')">
                 <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaVeiculos', this.value)">
                 <button class="btn-excel" onclick="exportarExcel('veiculos')">📥 Exportar Excel</button>
             </div>
-            <table class="table align-middle"><thead><tr><th>Placa</th>
+            <table class="table align-middle"><thead><tr>
+<th>Placa</th>
 <th>Modelo</th>
 <th>KM Atual</th>
 <th>Motorista</th>
 <th>Tara</th>
 <th>P. Líquido</th>
 <th>M³</th>
+<th>Medidas</th>
 <th>Status</th>
-<th>Ações</th></tr></thead><tbody id="listaVeiculos"></tbody></table>
+<th>Ações</th>
+</tr></thead><tbody id="listaVeiculos"></tbody></table>
 <div id="paginacaoVeiculos"></div>
         </div>
     </div>
