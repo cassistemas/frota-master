@@ -170,7 +170,7 @@ Criar Conta
     <select id="dimotorista" class="form-select"></select>
 </div>
 
-<div class="col-md-2">
+<div class="col-md-3">
     <input type="date" id="didata" class="form-control">
 </div>
 
@@ -1438,19 +1438,19 @@ onclick="exportarExcel('saidaVeiculos')">
             <input type="hidden" id="m_idx">
             <div class="row g-3">
                 <div class="col-md-4"><input id="motNome" class="form-control" placeholder="Nome"></div>
-                <div class="col-md-4"><input id="motCpf" class="form-control" placeholder="CPF" oninput="mascaraCPF(this)"></div>
-                <div class="col-md-4"><input id="motCnh" class="form-control" placeholder="CNH"></div>
-                <div class="col-md-4">
+                <div class="col-md-3"><input id="motCpf" class="form-control" placeholder="CPF" oninput="mascaraCPF(this)"></div>
+                <div class="col-md-3"><input id="motCnh" class="form-control" placeholder="CNH"></div>
+                <div class="col-md-3">
 <input id="motTel" class="form-control" placeholder="Telefone" oninput="mascaraTelefone(this)">
 </div>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-<div class="col-md-3">
+<div class="col-md-2">
     <input type="text" id="motVencCnh" class="form-control" placeholder="Vencimento da CNH">
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
     <input type="text" id="motVencTox" class="form-control" placeholder="Vencimento do Toxicológico">
 </div>
 
@@ -1458,16 +1458,16 @@ onclick="exportarExcel('saidaVeiculos')">
     <input type="text" id="motInicio" class="form-control" placeholder="Entrada">
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
+    <input type="text" id="motFim" class="form-control" placeholder="Saída">
+</div>
+
+<div class="col-md-2">
     <select id="motStatus" class="form-select">
         <option selected disabled>Status</option>
         <option value="Ativo">Ativo</option>
         <option value="Inativo">Inativo</option>
     </select>
-</div>
-
-<div class="col-md-2">
-    <input type="text" id="motFim" class="form-control" placeholder="Saída">
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
