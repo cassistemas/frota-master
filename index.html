@@ -142,7 +142,7 @@ Criar Conta
     <a onclick="navegar('combustivel',this)">⛽ Combustível</a>
     <a onclick="navegar('revisoes',this)">⏱ Revisões KM</a>
     <a onclick="navegar('fornecedores',this)">🏭 Fornecedores</a>
-    <a onclick="navegar('relatorios',this)">📂 Relatórios & Backup</a>
+    <a onclick="navegar('backup',this)">📂 Backup</a>
     <a id="menuAdmin" onclick="navegar('admin',this)">👑 Usuários (Admin)</a>
     <a onclick="logout()">🚪 Sair</a>
     <div id="nomeUsuario" style="
@@ -164,7 +164,7 @@ Criar Conta
         <input type="hidden" id="adm_uid">
         <input type="hidden" id="di_idx">
 
-        <div class="row g-2">
+        <div class="row g-3">
 
             <div class="col-md-3">
     <select id="dimotorista" class="form-select"></select>
@@ -174,20 +174,20 @@ Criar Conta
     <input type="date" id="didata" class="form-control">
 </div>
 
-<div class="col-md-2">
+<div class="col-md-3">
     <input id="divalor"
     class="form-control"
     placeholder="Valor R$"
     oninput="mascaraMoeda(this)">
 </div>
 
-<div class="col-md-2">
+<div class="col-md-3">
     <input id="dicoleta"
     class="form-control"
     placeholder="N° Coleta/Entrega">
 </div>
 
-<div class="col-md-2">
+<div class="col-md-3">
     <select id="distatus" class="form-select">
         <option value="Pendente">Pendente</option>
         <option value="Enviadas RH">Enviadas RH</option>
@@ -1372,7 +1372,7 @@ onclick="exportarExcel('saidaVeiculos')">
                 <div class="col-md-3"><input id="vmodelo" class="form-control" placeholder="Modelo"></div>
                 <div class="col-md-3"><input id="vkm" class="form-control" type="number" placeholder="KM Atual"></div>
                 <div class="col-md-3"><select id="vmotorista" class="form-select"></select></div>
-                <div class="col-md-2">
+                <div class="col-md-3">
     <select id="vstatus" class="form-select">
         <option value="" selected disabled>Status</option>
         <option value="Ativo">Ativo</option>
@@ -1381,15 +1381,15 @@ onclick="exportarExcel('saidaVeiculos')">
     </select>
 </div>
 
-<div class="col-md-2">
+<div class="col-md-3">
     <input id="vtara" class="form-control" placeholder="Tara (Kg)">
 </div>
 
-<div class="col-md-2">
+<div class="col-md-3">
     <input id="vpliquido" class="form-control" placeholder="P. Líquido (Kg)">
 </div>
 
-<div class="col-md-2">
+<div class="col-md-3">
     <input id="vm3" class="form-control" placeholder="M³">
 </div>
 
@@ -1438,19 +1438,19 @@ onclick="exportarExcel('saidaVeiculos')">
             <input type="hidden" id="m_idx">
             <div class="row g-3">
                 <div class="col-md-4"><input id="motNome" class="form-control" placeholder="Nome"></div>
-                <div class="col-md-2"><input id="motCpf" class="form-control" placeholder="CPF" oninput="mascaraCPF(this)"></div>
-                <div class="col-md-2"><input id="motCnh" class="form-control" placeholder="CNH"></div>
-                <div class="col-md-2">
+                <div class="col-md-4"><input id="motCpf" class="form-control" placeholder="CPF" oninput="mascaraCPF(this)"></div>
+                <div class="col-md-4"><input id="motCnh" class="form-control" placeholder="CNH"></div>
+                <div class="col-md-4">
 <input id="motTel" class="form-control" placeholder="Telefone" oninput="mascaraTelefone(this)">
 </div>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-<div class="col-md-2">
+<div class="col-md-3">
     <input type="text" id="motVencCnh" class="form-control" placeholder="Vencimento da CNH">
 </div>
 
-<div class="col-md-2">
+<div class="col-md-3">
     <input type="text" id="motVencTox" class="form-control" placeholder="Vencimento do Toxicológico">
 </div>
 
@@ -1458,16 +1458,16 @@ onclick="exportarExcel('saidaVeiculos')">
     <input type="text" id="motInicio" class="form-control" placeholder="Entrada">
 </div>
 
-<div class="col-md-2">
-    <input type="text" id="motFim" class="form-control" placeholder="Saída">
-</div>
-
-<div class="col-md-2">
+<div class="col-md-3">
     <select id="motStatus" class="form-select">
         <option selected disabled>Status</option>
         <option value="Ativo">Ativo</option>
         <option value="Inativo">Inativo</option>
     </select>
+</div>
+
+<div class="col-md-2">
+    <input type="text" id="motFim" class="form-control" placeholder="Saída">
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -2683,15 +2683,125 @@ oninput="calcularKMPneu()">
 
 </div>
 
-    <div id="relatorios" class="hidden">
-        <h3>📂 Relatórios e Backup</h3>
-        <div class="row">
-            <div class="col-md-6"><div class="glass-container"><h5>Gerar Relatório Completo</h5><button class="btn btn-dark w-100 mb-2" onclick="gerarRelatorioPDF()">📄 Gerar Relatório Geral (PDF)</button></div></div>
-            <div class="col-md-6"><div class="glass-container"><h5>Segurança de Dados</h5><button class="btn btn-success w-100 mb-2" onclick="exportarBackup()">💾 Exportar Backup (.json)</button><button class="btn btn-outline-primary w-100" onclick="document.getElementById('fileIn').click()">📥 Importar Backup</button><input type="file" id="fileIn" style="display:none" onchange="importarBackup(event)"></div></div>
+    <div id="backup" class="hidden">
+    <h3>📂 Backup</h3>
+
+    <div class="row">
+
+        <div class="col-md-12">
+            <div class="glass-container">
+                <h5>Segurança de Dados</h5>
+
+                <button class="btn btn-success w-100 mb-2" onclick="exportarBackup()">
+                    💾 Exportar Backup (.json)
+                </button>
+
+                <button class="btn btn-outline-primary w-100"
+                    onclick="document.getElementById('fileIn').click()">
+                    📥 Importar Backup
+                </button>
+
+                <input type="file"
+                       id="fileIn"
+                       style="display:none"
+                       onchange="importarBackup(event)">
+            </div>
         </div>
+
+        <!-- Histórico -->
+        <div class="col-md-12 mt-4">
+            <div class="glass-container">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">🕘 Últimos 10 Backups</h5>
+                    <span class="badge bg-primary" id="totalBackups">0 Backups</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle">
+
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Data/Hora</th>
+                                <th>Arquivo</th>
+                                <th>Tamanho</th>
+                                <th>Status</th>
+                                <th width="220">Ações</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="listaBackups">
+                        </tbody>
+
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
     </div>
 </div>
 <script>
+
+let historicoBackups =
+JSON.parse(localStorage.getItem("historicoBackups")) || [];
+
+function atualizarHistoricoBackup(){
+
+    historicoBackups.sort(
+        (a,b)=>new Date(b.data)-new Date(a.data)
+    );
+
+    historicoBackups = historicoBackups.slice(0,10);
+
+    localStorage.setItem(
+        "historicoBackups",
+        JSON.stringify(historicoBackups)
+    );
+
+    let html="";
+
+    historicoBackups.forEach((b,i)=>{
+
+        html += `
+        <tr>
+
+            <td>${i+1}</td>
+
+            <td>${new Date(b.data).toLocaleString()}</td>
+
+            <td>${b.nome}</td>
+
+            <td>${b.tamanho}</td>
+
+            <td>
+                <span class="badge bg-success">
+                    Concluído
+                </span>
+            </td>
+
+            <td>
+
+                <button class="btn btn-success btn-sm"
+                    onclick="baixarBackup(${i})">⬇</button>
+
+                <button class="btn btn-warning btn-sm"
+                    onclick="restaurarBackup(${i})">🔄</button>
+
+                <button class="btn btn-danger btn-sm"
+                    onclick="excluirBackup(${i})">🗑</button>
+
+            </td>
+
+        </tr>
+        `;
+
+    });
+
+    document.getElementById("listaBackups").innerHTML = html;
+
+}
 
 function formatarDataBR(data){
     if(!data) return '--';
@@ -3949,13 +4059,105 @@ renderPaginacaoAlertas(alertas.length);
 }
 
 function gerarRelatorioPDF() { window.print(); }
+
 function exportarBackup(){
-    const blob = new Blob([JSON.stringify(db)],{type:'application/json'});
+
+    const blob = new Blob(
+        [JSON.stringify(db)],
+        {type:'application/json'}
+    );
+
     const a = document.createElement('a');
+
     a.href = URL.createObjectURL(blob);
-    a.download = 'frota_master_v23.json';
+
+    // Gera um nome único com data e hora
+    const agora = new Date();
+
+    const nomeArquivo =
+    `frota_master_${
+    agora.getFullYear()}-${
+    String(agora.getMonth()+1).padStart(2,'0')}-${
+    String(agora.getDate()).padStart(2,'0')}_${
+    String(agora.getHours()).padStart(2,'0')}-${
+    String(agora.getMinutes()).padStart(2,'0')}-${
+    String(agora.getSeconds()).padStart(2,'0')}.json`;
+
+    // Usa o nome gerado
+    a.download = nomeArquivo;
+
     a.click();
+
+    URL.revokeObjectURL(a.href);
+
+    historicoBackups.unshift({
+
+        nome: nomeArquivo,
+
+        data: new Date(),
+
+        tamanho: (blob.size/1024).toFixed(2) + " KB",
+
+        conteudo: JSON.parse(JSON.stringify(db))
+
+    });
+
+    atualizarHistoricoBackup();
+
 }
+
+function baixarBackup(i){
+
+    const b = historicoBackups[i];
+
+    const blob = new Blob(
+        [JSON.stringify(b.conteudo,null,2)],
+        {type:"application/json"}
+    );
+
+    const a=document.createElement("a");
+
+    a.href=URL.createObjectURL(blob);
+
+    a.download=b.nome;
+
+    a.click();
+    
+    URL.revokeObjectURL(a.href);
+
+}
+
+function restaurarBackup(i){
+
+    if(!confirm("Deseja restaurar este backup?\n\nOs dados atuais serão substituídos."))
+        return;
+
+    db = JSON.parse(JSON.stringify(historicoBackups[i].conteudo));
+
+    salvarNuvem();
+
+    alert("Backup restaurado com sucesso.");
+
+    location.reload();
+
+}
+
+function excluirBackup(i){
+
+    if(!confirm("Excluir este backup?"))
+        return;
+
+    historicoBackups.splice(i,1);
+
+    localStorage.setItem(
+        "historicoBackups",
+        JSON.stringify(historicoBackups)
+    );
+
+    atualizarHistoricoBackup();
+
+}
+
 function salvarMulta(){
 
 let idx = document.getElementById("mu_idx").value
