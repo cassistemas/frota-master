@@ -100,6 +100,28 @@
     font-size:24px;
     font-weight:bold;
 }
+
+/* ===== Permissões do Admin ===== */
+
+#listaPermissoes{
+
+    display:grid;
+
+    grid-auto-flow:column;
+
+    grid-template-rows:repeat(10, auto);
+
+    gap:5px 30px;
+
+}
+
+#listaPermissoes .form-check{
+
+    margin:0;
+
+    white-space:nowrap;
+
+}
     </style>
 </head>
 <body>
@@ -170,18 +192,18 @@ Criar Conta
     <select id="dimotorista" class="form-select"></select>
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
     <input type="date" id="didata" class="form-control">
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
     <input id="divalor"
     class="form-control"
     placeholder="Valor R$"
     oninput="mascaraMoeda(this)">
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
     <input id="dicoleta"
     class="form-control"
     placeholder="N° Coleta/Entrega">
@@ -728,7 +750,7 @@ Limpar
 
 <div class="row g-3">
 
-<div class="col-md-3">
+<div class="col-md-2">
 <label>Status da Reserva</label>
 
 <select id="svreserva" class="form-select">
@@ -738,7 +760,7 @@ Limpar
 
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
 
 <label>Nº da Reserva</label>
 
@@ -749,7 +771,7 @@ placeholder="Número da Reserva">
 
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
 <label>Veículo</label>
 <select
 id="svveiculo"
@@ -776,7 +798,7 @@ class="form-control"
 placeholder="Destino">
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
 <label>Data Saída</label>
 <input
 type="date"
@@ -784,7 +806,7 @@ id="svdataSaida"
 class="form-control">
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
 <label>Hora Saída</label>
 <input
 type="time"
@@ -792,7 +814,7 @@ id="svhoraSaida"
 class="form-control">
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
 <label>Data Chegada</label>
 <input
 type="date"
@@ -800,7 +822,7 @@ id="svdataChegada"
 class="form-control">
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
 <label>Hora Chegada</label>
 <input
 type="time"
@@ -808,7 +830,7 @@ id="svhoraChegada"
 class="form-control">
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
 
 <label>Status</label>
 
@@ -1368,20 +1390,12 @@ onclick="exportarExcel('saidaVeiculos')">
         <div class="glass-container">
             <input type="hidden" id="v_idx">
             <div class="row g-3">
-                <div class="col-md-3"><input id="vplaca" class="form-control" placeholder="Placa"></div>
+                <div class="col-md-2"><input id="vplaca" class="form-control" placeholder="Placa"></div>
                 <div class="col-md-3"><input id="vmodelo" class="form-control" placeholder="Modelo"></div>
-                <div class="col-md-3"><input id="vkm" class="form-control" type="number" placeholder="KM Atual"></div>
+                <div class="col-md-2"><input id="vkm" class="form-control" type="number" placeholder="KM Atual"></div>
                 <div class="col-md-3"><select id="vmotorista" class="form-select"></select></div>
-                <div class="col-md-3">
-    <select id="vstatus" class="form-select">
-        <option value="" selected disabled>Status</option>
-        <option value="Ativo">Ativo</option>
-        <option value="Indisponível">Indisponível</option>
-        <option value="Vendido">Vendido</option>
-    </select>
-</div>
-
-<div class="col-md-3">
+                
+<div class="col-md-2">
     <input id="vtara" class="form-control" placeholder="Tara (Kg)">
 </div>
 
@@ -1389,12 +1403,21 @@ onclick="exportarExcel('saidaVeiculos')">
     <input id="vpliquido" class="form-control" placeholder="P. Líquido (Kg)">
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
     <input id="vm3" class="form-control" placeholder="M³">
 </div>
 
 <div class="col-md-3">
     <input id="vmedidas" class="form-control" placeholder="Medidas">
+</div>
+
+<div class="col-md-3">
+    <select id="vstatus" class="form-select">
+        <option value="" selected disabled>Status</option>
+        <option value="Ativo">Ativo</option>
+        <option value="Indisponível">Indisponível</option>
+        <option value="Vendido">Vendido</option>
+    </select>
 </div>
 
 <div class="col-md-12 text-end mt-3">
@@ -1438,19 +1461,19 @@ onclick="exportarExcel('saidaVeiculos')">
             <input type="hidden" id="m_idx">
             <div class="row g-3">
                 <div class="col-md-4"><input id="motNome" class="form-control" placeholder="Nome"></div>
-                <div class="col-md-4"><input id="motCpf" class="form-control" placeholder="CPF" oninput="mascaraCPF(this)"></div>
-                <div class="col-md-4"><input id="motCnh" class="form-control" placeholder="CNH"></div>
-                <div class="col-md-4">
+                <div class="col-md-2"><input id="motCpf" class="form-control" placeholder="CPF" oninput="mascaraCPF(this)"></div>
+                <div class="col-md-2"><input id="motCnh" class="form-control" placeholder="CNH"></div>
+                <div class="col-md-2">
 <input id="motTel" class="form-control" placeholder="Telefone" oninput="mascaraTelefone(this)">
 </div>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-<div class="col-md-3">
+<div class="col-md-2">
     <input type="text" id="motVencCnh" class="form-control" placeholder="Vencimento da CNH">
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
     <input type="text" id="motVencTox" class="form-control" placeholder="Vencimento do Toxicológico">
 </div>
 
@@ -1458,7 +1481,7 @@ onclick="exportarExcel('saidaVeiculos')">
     <input type="text" id="motInicio" class="form-control" placeholder="Entrada">
 </div>
 
-<div class="col-md-3">
+<div class="col-md-2">
     <select id="motStatus" class="form-select">
         <option selected disabled>Status</option>
         <option value="Ativo">Ativo</option>
@@ -1573,19 +1596,19 @@ flatpickr("#motFim", {
 
         <div class="row g-3">
 
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <select id="femotorista" class="form-select"></select>
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <input type="date" id="feinicio" class="form-control">
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <input type="date" id="fefim" class="form-control">
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <select id="festatus" class="form-select">
                     <option value="Agendada">Agendada</option>
                     <option value="Em andamento">Em andamento</option>
@@ -1593,7 +1616,7 @@ flatpickr("#motFim", {
                 </select>
             </div>
 
-            <div class="col-md-8">
+            <div class="col-md-12">
                 <input id="feobs" class="form-control" placeholder="Observações">
             </div>
 
@@ -2293,19 +2316,19 @@ Limpar
     <input id="fresp" class="form-control" placeholder="Responsável">
 </div>
 
-    <div class="col-md-3">
+    <div class="col-md-2">
         <input id="fcnpj" class="form-control"
                placeholder="CNPJ"
                oninput="mascaraCNPJ(this); verificarCNPJFornecedor();">
     </div>
 
-    <div class="col-md-3">
+    <div class="col-md-2">
         <input id="ftel" class="form-control"
                placeholder="Telefone"
                oninput="mascaraTelefone(this)">
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <input id="femail" class="form-control"
                placeholder="E-mail">
     </div>
@@ -2325,17 +2348,17 @@ Limpar
                placeholder="Número">
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <input id="fbairro" class="form-control"
                placeholder="Bairro">
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <input id="fcidade" class="form-control"
                placeholder="Cidade">
     </div>
 
-    <div class="col-md-2">
+    <div class="col-md-1">
         <input id="fuf" class="form-control"
                placeholder="UF">
     </div>
