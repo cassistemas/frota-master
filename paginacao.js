@@ -132,29 +132,22 @@ function irUltimaPagina(modulo){
 
 function getDadosPaginados(modulo) {
 
-    let lista = [...db[modulo]];
+    let lista = db[modulo].map((item, indiceOriginal) => ({
+        ...item,
+        __idx: indiceOriginal
+    }));
 
-    // Ordenação específica dos fornecedores
-    if (modulo === 'fornecedores') {
+    if (modulo === "fornecedores") {
         lista.sort((a, b) =>
-            (a.fnome || '').localeCompare(
-                b.fnome || '',
-                'pt-BR',
-                { sensitivity: 'base' }
+            (a.fnome || "").localeCompare(
+                b.fnome || "",
+                "pt-BR",
+                { sensitivity: "base" }
             )
         );
     }
 
     const pagina = obterPagina(modulo);
-    const inicio = (pagina - 1) * PAGINACAO.itensPorPagina;
-    const fim = inicio + PAGINACAO.itensPorPagina;
-
-    return lista.slice(inicio, fim);
-}
-
-function getDadosPaginadosCustom(lista, modulo) {
-
-    const pagina = obterPaginaCustom(modulo, lista.length);
     const inicio = (pagina - 1) * PAGINACAO.itensPorPagina;
     const fim = inicio + PAGINACAO.itensPorPagina;
 
@@ -938,7 +931,7 @@ const dados = getDadosPaginadosCustom(
 
     document.getElementById('listaFornecedores').innerHTML =
     dados.map((f,i)=>{
-        const realIndex = db.fornecedores.findIndex(x => x.fcnpj === f.fcnpj);
+        const realIndex = f.__idx;
         return `
 <tr>
 <td>${f.fnome || ''}</td>
