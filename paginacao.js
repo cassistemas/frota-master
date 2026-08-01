@@ -131,11 +131,25 @@ function irUltimaPagina(modulo){
 }
 
 function getDadosPaginados(modulo) {
+
+    let lista = [...db[modulo]];
+
+    // Ordenação específica dos fornecedores
+    if (modulo === 'fornecedores') {
+        lista.sort((a, b) =>
+            (a.fnome || '').localeCompare(
+                b.fnome || '',
+                'pt-BR',
+                { sensitivity: 'base' }
+            )
+        );
+    }
+
     const pagina = obterPagina(modulo);
     const inicio = (pagina - 1) * PAGINACAO.itensPorPagina;
     const fim = inicio + PAGINACAO.itensPorPagina;
 
-    return db[modulo].slice(inicio, fim);
+    return lista.slice(inicio, fim);
 }
 
 function getDadosPaginadosCustom(lista, modulo) {
@@ -924,7 +938,7 @@ const dados = getDadosPaginadosCustom(
 
     document.getElementById('listaFornecedores').innerHTML =
     dados.map((f,i)=>{
-        const realIndex = db.fornecedores.indexOf(f);
+        const realIndex = db.fornecedores.findIndex(x => x.fcnpj === f.fcnpj);
         return `
 <tr>
 <td>${f.fnome || ''}</td>
@@ -1698,8 +1712,7 @@ function renderPaginacaoCustom(lista, modulo, containerId){
 
 function carregarFornecedoresSelect(id){
 
-    const select =
-    document.getElementById(id);
+    const select = document.getElementById(id);
 
     if(!select) return;
 
@@ -1708,17 +1721,26 @@ function carregarFornecedoresSelect(id){
     select.innerHTML =
     '<option value="">Todos Fornecedores</option>';
 
-    (db.fornecedores || []).forEach(f=>{
+    (db.fornecedores || [])
+        .slice()
+        .sort((a, b) =>
+            (a.fnome || '').localeCompare(
+                b.fnome || '',
+                'pt-BR',
+                { sensitivity: 'base' }
+            )
+        )
+        .forEach(f => {
 
-        const valor = f.fnome;
+            const valor = f.fnome;
 
-        select.innerHTML += `
-        <option value="${valor}">
-            ${valor}
-        </option>
-        `;
+            select.innerHTML += `
+                <option value="${valor}">
+                    ${valor}
+                </option>
+            `;
 
-    });
+        });
 
     select.value = atual;
 
