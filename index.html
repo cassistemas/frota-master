@@ -3033,6 +3033,35 @@ if(mod === 'manutencoes' && obj.mveiculo && obj.mkm){
 
 }
 
+if (mod === 'fornecedores') {
+
+    const empresa = (obj.fnome || "").trim().toUpperCase();
+    const cnpj = (obj.fcnpj || "").replace(/\D/g, "");
+
+    for (let i = 0; i < db.fornecedores.length; i++) {
+
+        // Ignora o próprio registro durante a edição
+        if (idx !== "" && Number(idx) === i) continue;
+
+        const fornecedor = db.fornecedores[i];
+
+        const empresaBanco = (fornecedor.fnome || "").trim().toUpperCase();
+        const cnpjBanco = (fornecedor.fcnpj || "").replace(/\D/g, "");
+
+        // Bloqueia apenas se o nome estiver preenchido e for igual
+        if (empresa !== "" && empresaBanco === empresa) {
+            alert("Já existe um fornecedor com este nome.");
+            return;
+        }
+
+        // Bloqueia apenas se o CNPJ estiver preenchido e for igual
+        if (cnpj !== "" && cnpjBanco !== "" && cnpjBanco === cnpj) {
+            alert("Já existe um fornecedor com este CNPJ.");
+            return;
+        }
+    }
+}
+
 if(mod === 'combustivel' && obj.cveiculo && obj.ckm){
 
     let vei = db.veiculos.find(
