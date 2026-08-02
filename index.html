@@ -3583,10 +3583,6 @@ function iniciarSistema(){
    aplicarPermissoes();
    carregarPermissoesAdmin();
 }
-    function iniciarSistema(){
-    // ... restante do código existente ...
-
-    // 🔥 Adicione esta linha para garantir que o histórico do localStorage apareça ao entrar:
     if(typeof atualizarHistoricoBackup === "function"){
         atualizarHistoricoBackup();
     }
