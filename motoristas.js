@@ -121,6 +121,7 @@ function renderMotoristas() {
             <td>${m.motNome || '--'}</td>
             <td>${m.motCpf || '--'}</td>
             <td>${m.motCnh || '--'}</td>
+            <td>${m.mcnh || '--'}</td>
             <td>${m.motTel || '--'}</td>
             <td>${formatarDataBR(m.motVencCnh)}</td>
             <td>${formatarDataBR(m.motVencTox)}</td>
