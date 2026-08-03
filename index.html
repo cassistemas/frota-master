@@ -1462,7 +1462,8 @@ onclick="exportarExcel('saidaVeiculos')">
             <div class="row g-3">
                 <div class="col-md-4"><input id="motNome" class="form-control" placeholder="Nome"></div>
                 <div class="col-md-2"><input id="motCpf" class="form-control" placeholder="CPF" oninput="mascaraCPF(this)"></div>
-                <div class="col-md-2"><input id="motCnh" class="form-control" placeholder="CNH"></div>
+                <div class="col-md-2"><input id="motCnh" class="form-control" placeholder="Categoria CNH"></div>
+                <div class="col-md-3"><input id="mcnh" class="form-control" placeholder="N° CNH"></div>
                 <div class="col-md-2">
 <input id="motTel" class="form-control" placeholder="Telefone" oninput="mascaraTelefone(this)">
 </div>
@@ -1529,6 +1530,7 @@ flatpickr("#motFim", {
 'motNome',
 'motCpf',
 'motCnh',
+'mcnh',
 'motTel',
 'motInicio',
 'motFim',
@@ -1545,6 +1547,7 @@ flatpickr("#motFim", {
 'motNome',
 'motCpf',
 'motCnh',
+'mcnh',
 'motTel',
 'motInicio',
 'motFim',
@@ -1567,7 +1570,8 @@ flatpickr("#motFim", {
     <tr>
         <th>Nome</th>
         <th>CPF</th>
-        <th>CNH</th>
+        <th>Categoria</th>
+        <th>N° CNH</th>
         <th>Telefone</th>
         <th>Venc. CNH</th>
         <th>Toxicológico</th>
@@ -3704,6 +3708,7 @@ if(document.getElementById('agmotorista'))
 <td>${m.motNome}</td>
 <td>${m.motCpf}</td>
 <td>${m.motCnh}</td>
+<td>${m.mcnh || '--'}</td>
 <td>${m.motTel || '--'}</td>
 <td>${m.motInicio || '--'} às ${m.motFim || '--'}</td>
 ${btnSet('motoristas',i)}
