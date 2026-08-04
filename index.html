@@ -22,7 +22,7 @@
         .stat-card{border-left:4px solid var(--accent);padding:15px;background:#fff;border-radius:8px}
         .btn-edit{background:#eff6ff;color:#2563eb;border:none;padding:5px 12px;border-radius:6px;margin-right:5px;font-weight:600}
         .btn-del{background:#fee2e2;color:#dc2626;border:none;padding:5px 12px;border-radius:6px;font-weight:600}
-        .btn-excel{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:5px 12px;border-radius:6px;font-weight:600;transition: 0.2s;}
+        .btn-excel{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:4px 10px;border-radius:6px;font-weight:600;font-size:.8rem;line-height:1.2;white-space:nowrap;width:auto;flex:0 0 auto;align-self:center;transition: 0.2s;}
         .btn-excel:hover{background:#bbf7d0;}
         .search-box{margin-bottom:15px; border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px;}
         .status-vencido { color: var(--danger); font-weight: 800; background: #fee2e2; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--danger); }
@@ -358,12 +358,7 @@ Criar Conta
 
     <div class="glass-container">
 
-        <div class="d-flex justify-content-between mb-3">
-
-            <input type="text"
-            class="form-control search-box w-75"
-            placeholder="🔎 Pesquisar..."
-            onkeyup="filtrarTabela('listaDiarias', this.value)">
+        <div class="d-flex justify-content-end mb-3">
 
             <button class="btn-excel"
             onclick="exportarExcel('diarias')">
@@ -740,10 +735,6 @@ Limpar
 
     <div class="glass-container">
 
-        <input type="text" class="form-control search-box"
-        placeholder="🔎 Pesquisar..."
-        onkeyup="filtrarTabela('listaAgendamentos', this.value)">
-
         <table class="table mt-3">
             <thead>
                 <tr>
@@ -998,17 +989,7 @@ Limpar
 
 <div class="glass-container">
 
-<div class="d-flex justify-content-between mb-3">
-
-<input
-
-type="text"
-
-class="form-control search-box w-75"
-
-placeholder="🔎 Pesquisar..."
-
-onkeyup="filtrarTabela('listaSaidaVeiculos',this.value)">
+<div class="d-flex justify-content-end mb-3">
 
 <button
 
@@ -1382,7 +1363,7 @@ onclick="exportarExcel('saidaVeiculos')">
     </div>
 
 </div>
-            <div class="d-flex justify-content-between mb-3">
+            <div class="d-flex justify-content-end mb-3">
                 <button class="btn-excel" onclick="exportarExcel('multas')">📥 Exportar Excel</button>
             </div>
            <table class="table">
@@ -1458,9 +1439,31 @@ onclick="exportarExcel('saidaVeiculos')">
             </div>
         </div>
         <div class="glass-container">
-            <div class="d-flex justify-content-between mb-3">
-                <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaVeiculos', this.value)">
+            <div class="d-flex justify-content-end mb-3">
                 <button class="btn-excel" onclick="exportarExcel('veiculos')">📥 Exportar Excel</button>
+            </div>
+            <div class="filtros-avancados" data-filtro-mod="veiculos">
+                <div class="titulo-filtro">🔍 Filtros de Veículos</div>
+                <div class="row g-2">
+                    <div class="col-md-2"><input id="fvPlaca" class="form-control" placeholder="Placa"></div>
+                    <div class="col-md-2"><input id="fvModelo" class="form-control" placeholder="Modelo"></div>
+                    <div class="col-md-2"><select id="fvMotorista" class="form-select"><option value="">Todos os motoristas</option></select></div>
+                    <div class="col-md-2">
+                        <select id="fvStatus" class="form-select">
+                            <option value="">Todos os status</option>
+                            <option value="Ativo">Ativo</option>
+                            <option value="Indisponível">Indisponível</option>
+                            <option value="Vendido">Vendido</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1"><input id="fvKmMin" class="form-control" placeholder="KM mín"></div>
+                    <div class="col-md-1"><input id="fvKmMax" class="form-control" placeholder="KM máx"></div>
+                    <div class="col-md-2 d-flex gap-2">
+                        <button class="btn btn-primary w-100" onclick="aplicarFiltrosModulo('veiculos')">Filtrar</button>
+                        <button class="btn btn-outline-secondary w-100" onclick="limparFiltrosModulo('veiculos')">Limpar</button>
+                    </div>
+                    <div class="col-12 cont-filtro" id="contFiltro_veiculos"></div>
+                </div>
             </div>
             <table class="table align-middle"><thead><tr>
 <th>Placa</th>
@@ -1584,9 +1587,31 @@ flatpickr("#motFim", {
             </div>
         </div>
         <div class="glass-container">
-            <div class="d-flex justify-content-between mb-3">
-                <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaMotoristas', this.value)">
+            <div class="d-flex justify-content-end mb-3">
                 <button class="btn-excel" onclick="exportarExcel('motoristas')">📥 Exportar Excel</button>
+            </div>
+            <div class="filtros-avancados" data-filtro-mod="motoristas">
+                <div class="titulo-filtro">🔍 Filtros de Motoristas</div>
+                <div class="row g-2">
+                    <div class="col-md-3"><input id="fmNome" class="form-control" placeholder="Nome"></div>
+                    <div class="col-md-2"><input id="fmCpf" class="form-control" placeholder="CPF / N° CNH"></div>
+                    <div class="col-md-2"><input id="fmCat" class="form-control" placeholder="Categoria CNH"></div>
+                    <div class="col-md-2">
+                        <select id="fmStatus" class="form-select">
+                            <option value="">Todos os status</option>
+                            <option value="Ativo">Ativo</option>
+                            <option value="Inativo">Inativo</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2"><input type="date" id="fmVencCnhAte" class="form-control" title="CNH vencendo até"></div>
+                    <div class="col-md-1 d-flex gap-2">
+                        <button class="btn btn-primary w-100" onclick="aplicarFiltrosModulo('motoristas')">Filtrar</button>
+                    </div>
+                    <div class="col-12 d-flex justify-content-between align-items-center">
+                        <span class="cont-filtro" id="contFiltro_motoristas"></span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="limparFiltrosModulo('motoristas')">Limpar filtros</button>
+                    </div>
+                </div>
             </div>
             <table class="table">
 <thead>
@@ -1663,9 +1688,6 @@ flatpickr("#motFim", {
     </div>
 
     <div class="glass-container">
-        <input type="text" class="form-control search-box"
-            placeholder="🔎 Pesquisar..."
-            onkeyup="filtrarTabela('listaFerias', this.value)">
 
         <table class="table mt-3">
             <thead>
@@ -1891,18 +1913,7 @@ Limpar
 
     <div class="glass-container">
 
-        <div class="d-flex justify-content-between mb-3">
-
-            <input
-            type="text"
-            class="form-control search-box w-75"
-            placeholder="🔎 Pesquisar..."
-            onkeyup="
-            filtrarTabela(
-            'listaManutencao',
-            this.value
-            )
-            ">
+        <div class="d-flex justify-content-end mb-3">
 
             <button
             class="btn-excel"
@@ -1991,9 +2002,30 @@ Limpar
 
     <div class="glass-container">
 
-        <input type="text" class="form-control search-box"
-        placeholder="🔎 Pesquisar..."
-        onkeyup="filtrarTabela('listaCombustivel', this.value)">
+
+        <div class="filtros-avancados mt-3" data-filtro-mod="combustivel">
+            <div class="titulo-filtro">🔍 Filtros de Combustível</div>
+            <div class="row g-2">
+                <div class="col-md-2"><select id="fcVeiculo" class="form-select"><option value="">Todos os veículos</option></select></div>
+                <div class="col-md-2">
+                    <select id="fcTipo" class="form-select">
+                        <option value="">Todos os tipos</option>
+                        <option value="Gasolina">Gasolina</option>
+                        <option value="Diesel S500">Diesel S500</option>
+                        <option value="Diesel S10">Diesel S10</option>
+                        <option value="Arla32">Arla32</option>
+                    </select>
+                </div>
+                <div class="col-md-2"><input type="date" id="fcIni" class="form-control"></div>
+                <div class="col-md-2"><input type="date" id="fcFim" class="form-control"></div>
+                <div class="col-md-2"><input id="fcPosto" class="form-control" placeholder="Posto"></div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button class="btn btn-primary w-100" onclick="aplicarFiltrosModulo('combustivel')">Filtrar</button>
+                    <button class="btn btn-outline-secondary w-100" onclick="limparFiltrosModulo('combustivel')">Limpar</button>
+                </div>
+                <div class="col-12 cont-filtro" id="contFiltro_combustivel"></div>
+            </div>
+        </div>
 
         <table class="table">
             <thead>
@@ -2034,8 +2066,7 @@ Limpar
             </div>
         </div>
         <div class="glass-container">
-            <div class="d-flex justify-content-between mb-3">
-                <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaLicenciamento', this.value)">
+            <div class="d-flex justify-content-end mb-3">
                 <button class="btn-excel" onclick="exportarExcel('licenciamento')">📥 Exportar Excel</button>
             </div>
             <table class="table"><thead><tr><th>Veículo</th><th>Vencimento</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="listaLicenciamento"></tbody></table>
@@ -2057,8 +2088,7 @@ Limpar
             </div>
         </div>
         <div class="glass-container">
-            <div class="d-flex justify-content-between mb-3">
-                <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaTacografo', this.value)">
+            <div class="d-flex justify-content-end mb-3">
                 <button class="btn-excel" onclick="exportarExcel('tacografo')">📥 Exportar Excel</button>
             </div>
             <table class="table"><thead><tr><th>Veículo</th><th>Vencimento</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="listaTacografo"></tbody></table>
@@ -2080,8 +2110,7 @@ Limpar
             </div>
         </div>
         <div class="glass-container">
-            <div class="d-flex justify-content-between mb-3">
-                <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaSeguros', this.value)">
+            <div class="d-flex justify-content-end mb-3">
                 <button class="btn-excel" onclick="exportarExcel('seguros')">📥 Exportar Excel</button>
             </div>
             <table class="table"><thead><tr><th>Veículo</th><th>Seguradora</th><th>Vencimento</th><th>Ações</th></tr></thead><tbody id="listaSeguros"></tbody></table>
@@ -2103,8 +2132,7 @@ Limpar
             </div>
         </div>
         <div class="glass-container">
-            <div class="d-flex justify-content-between mb-3">
-                <input type="text" class="form-control search-box w-75" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaLicencas', this.value)">
+            <div class="d-flex justify-content-end mb-3">
                 <button class="btn-excel" onclick="exportarExcel('licencas')">📥 Exportar Excel</button>
             </div>
             <table class="table table-striped">
@@ -2263,12 +2291,7 @@ Limpar
 
 <div class="glass-container">
 
-        <div class="d-flex justify-content-between mb-3">
-
-            <input type="text"
-                   class="form-control search-box w-75"
-                   placeholder="🔎 Pesquisar revisão..."
-                   onkeyup="filtrarTabela('listaRevisoes',this.value)">
+        <div class="d-flex justify-content-end mb-3">
 
             <button class="btn-excel"
                     onclick="exportarExcel('revisoes')">
@@ -2426,11 +2449,25 @@ Limpar
             </div>
         </div>
         <div class="glass-container">
-            <div class="d-flex justify-content-between mb-3">
-                <input type="text" class="form-control search-box w-100" placeholder="🔎 Pesquisar..." onkeyup="filtrarTabela('listaFornecedores', this.value)">
+            <div class="d-flex justify-content-end mb-3">
                 <button class="btn-excel" onclick="exportarExcel('fornecedores')">📥 Exportar Excel</button>
             </div>
-            <table class="table"><thead>
+<div class="filtros-avancados" data-filtro-mod="fornecedores">
+    <div class="titulo-filtro">🔍 Filtros de Fornecedores</div>
+    <div class="row g-2">
+        <div class="col-md-3"><input id="ffEmpresa" class="form-control" placeholder="Empresa / Nome Fantasia"></div>
+        <div class="col-md-2"><input id="ffResp" class="form-control" placeholder="Responsável"></div>
+        <div class="col-md-2"><input id="ffCnpj" class="form-control" placeholder="CNPJ"></div>
+        <div class="col-md-2"><input id="ffCidade" class="form-control" placeholder="Cidade"></div>
+        <div class="col-md-1"><input id="ffUf" class="form-control" placeholder="UF"></div>
+        <div class="col-md-2 d-flex gap-2">
+            <button class="btn btn-primary w-100" onclick="aplicarFiltrosModulo('fornecedores')">Filtrar</button>
+            <button class="btn btn-outline-secondary w-100" onclick="limparFiltrosModulo('fornecedores')">Limpar</button>
+        </div>
+        <div class="col-12 cont-filtro" id="contFiltro_fornecedores"></div>
+    </div>
+</div>
+<table class="table"><thead>
 <tr>
 <th>Empresa</th>
 <th>Nome Fantasia</th>
@@ -2699,7 +2736,7 @@ oninput="calcularKMPneu()">
     <!-- ========================= -->
     <div class="glass-container">
 
-        <div class="d-flex justify-content-between mb-3">
+        <div class="d-flex justify-content-end mb-3">
 
             <button class="btn-excel"
             onclick="exportarExcel('pneus')">
@@ -5755,4 +5792,173 @@ function bloquearTela() {
 <script src="motoristas.js"></script>
 <script src="veiculos.js"></script>
 <script src="paginacao.js"></script>
+<script>
+/* ===== FILTROS AVANÇADOS (Fornecedores / Motoristas / Veículos / Combustível) ===== */
+(function(){
+
+  const MAPA = {
+    fornecedores: { tbody:'listaFornecedores', pag:'paginacaoFornecedores' },
+    motoristas:   { tbody:'listaMotoristas',   pag:'paginacaoMotoristas' },
+    veiculos:     { tbody:'listaVeiculos',     pag:'paginacaoVeiculos' },
+    combustivel:  { tbody:'listaCombustivel',  pag:'paginacaoCombustivel' }
+  };
+
+  const CAMPOS = {
+    fornecedores: ['ffEmpresa','ffResp','ffCnpj','ffCidade','ffUf'],
+    motoristas:   ['fmNome','fmCpf','fmCat','fmStatus','fmVencCnhAte'],
+    veiculos:     ['fvPlaca','fvModelo','fvMotorista','fvStatus','fvKmMin','fvKmMax'],
+    combustivel:  ['fcVeiculo','fcTipo','fcIni','fcFim','fcPosto']
+  };
+
+  const DB = () => (typeof db !== 'undefined' && db) ? db : {};
+
+  const v = id => { const e = document.getElementById(id); return e ? String(e.value||'').trim() : ''; };
+  const t = x => (x==null?'':String(x)).toLowerCase();
+  const contem = (campo, termo) => !termo || t(campo).includes(termo.toLowerCase());
+  const num = x => { const n = parseFloat(String(x==null?'':x).replace(/\./g,'').replace(',','.').replace(/[^\d.-]/g,'')); return isNaN(n)?0:n; };
+  const iso = s => {
+    if(!s) return null;
+    s = String(s).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    const m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? (m[3]+'-'+m[2]+'-'+m[1]) : null;
+  };
+  const acoes = (mod,i) => `<td><button class="btn-edit" onclick="editar('${mod}',${i})">✎</button><button class="btn-del" onclick="deletar('${mod}',${i})">✕</button></td>`;
+  const d = x => (x===undefined||x===null||x==='') ? '--' : x;
+
+  function temFiltro(mod){
+    return CAMPOS[mod].some(id => v(id) !== '');
+  }
+
+  function pintar(mod, html, filtrando){
+    const cfg = MAPA[mod];
+    const tb = document.getElementById(cfg.tbody);
+    if(!tb) return;
+    tb.innerHTML = html || `<tr><td colspan="12" class="text-center text-muted">Nenhum registro encontrado</td></tr>`;
+    const pag = document.getElementById(cfg.pag);
+    if(pag) pag.style.display = filtrando ? 'none' : '';
+    const cont = document.getElementById('contFiltro_'+mod);
+    if(cont) cont.textContent = filtrando ? (html ? (html.match(/<tr/g)||[]).length + ' registro(s) encontrado(s)' : '0 registro(s)') : '';
+  }
+
+  function linhas(mod){
+    const base = Array.isArray(DB()[mod]) ? DB()[mod] : [];
+
+    if(mod === 'fornecedores'){
+      const emp=v('ffEmpresa'), resp=v('ffResp'), cnpj=v('ffCnpj'), cid=v('ffCidade'), uf=v('ffUf');
+      return base.map((f,i)=>({f,i}))
+        .filter(({f}) =>
+          (contem(f.fnome,emp) || contem(f.ffantasia,emp)) &&
+          contem(f.fresp,resp) &&
+          contem(f.fcnpj,cnpj) &&
+          contem(f.fcidade,cid) &&
+          contem(f.fuf,uf))
+        .map(({f,i}) => `<tr><td><b>${d(f.fnome)}</b></td><td>${d(f.ffantasia)}</td><td>${d(f.fresp)}</td><td>${d(f.fcnpj)}</td><td>${d(f.ftel)}</td><td>${d(f.femail)}</td><td>${d(f.fcidade)}</td><td>${d(f.fuf)}</td>${acoes(mod,i)}</tr>`)
+        .join('');
+    }
+
+    if(mod === 'motoristas'){
+      const nome=v('fmNome'), cpf=v('fmCpf'), cat=v('fmCat'), st=v('fmStatus'), ate=iso(v('fmVencCnhAte'));
+      return base.map((m,i)=>({m,i}))
+        .filter(({m}) => {
+          if(!contem(m.motNome,nome)) return false;
+          if(!(contem(m.motCpf,cpf) || contem(m.mcnh,cpf))) return false;
+          if(!contem(m.motCnh,cat)) return false;
+          if(st && t(m.motStatus) !== t(st)) return false;
+          if(ate){ const vc = iso(m.motVencCnh); if(!vc || vc > ate) return false; }
+          return true;
+        })
+        .map(({m,i}) => `<tr><td>${d(m.motNome)}</td><td>${d(m.motCpf)}</td><td>${d(m.motCnh)}</td><td>${d(m.mcnh)}</td><td>${d(m.motTel)}</td><td>${d(m.motVencCnh)}</td><td>${d(m.motVencTox)}</td><td>${d(m.motInicio)} às ${d(m.motFim)}</td><td>${d(m.motStatus)}</td>${acoes(mod,i)}</tr>`)
+        .join('');
+    }
+
+    if(mod === 'veiculos'){
+      const pl=v('fvPlaca'), mo=v('fvModelo'), mt=v('fvMotorista'), st=v('fvStatus');
+      const kmin=v('fvKmMin'), kmax=v('fvKmMax');
+      return base.map((x,i)=>({x,i}))
+        .filter(({x}) => {
+          if(!contem(x.vplaca,pl)) return false;
+          if(!contem(x.vmodelo,mo)) return false;
+          if(!contem(x.vmotorista,mt)) return false;
+          if(st && t(x.vstatus) !== t(st)) return false;
+          if(kmin !== '' && num(x.vkm) < num(kmin)) return false;
+          if(kmax !== '' && num(x.vkm) > num(kmax)) return false;
+          return true;
+        })
+        .map(({x,i}) => `<tr><td><b>${d(x.vplaca)}</b></td><td>${d(x.vmodelo)}</td><td>${d(x.vkm)}</td><td>${d(x.vmotorista)}</td><td>${d(x.vtara)}</td><td>${d(x.vpliquido)}</td><td>${d(x.vm3)}</td><td>${d(x.vmedidas)}</td><td>${d(x.vstatus)}</td>${acoes(mod,i)}</tr>`)
+        .join('');
+    }
+
+    if(mod === 'combustivel'){
+      const ve=v('fcVeiculo'), tp=v('fcTipo'), ini=iso(v('fcIni')), fim=iso(v('fcFim')), po=v('fcPosto');
+      return base.map((c,i)=>({c,i}))
+        .filter(({c}) => {
+          if(ve && t(c.cveiculo) !== t(ve)) return false;
+          if(tp && t(c.ctipo) !== t(tp)) return false;
+          const dt = iso(c.cdata);
+          if(ini && (!dt || dt < ini)) return false;
+          if(fim && (!dt || dt > fim)) return false;
+          if(!contem(c.cposto,po)) return false;
+          return true;
+        })
+        .map(({c,i}) => `<tr><td>${d(c.cveiculo)}</td><td>${typeof formatarDataBR==='function'? formatarDataBR(c.cdata): d(c.cdata)}</td><td>${d(c.ctipo)}</td><td>${d(c.ckm)}</td><td>${d(c.clitros)}</td><td>${d(c.cvalorlitro)}</td><td>${d(c.ctotal)}</td><td>${d(c.cmedia)}</td><td>${d(c.cposto)}</td>${acoes(mod,i)}</tr>`)
+        .join('');
+    }
+
+    return '';
+  }
+
+  window.aplicarFiltrosModulo = function(mod){
+    if(!MAPA[mod]) return;
+    if(!temFiltro(mod)) return window.limparFiltrosModulo(mod);
+    pintar(mod, linhas(mod), true);
+  };
+
+  window.limparFiltrosModulo = function(mod){
+    if(!MAPA[mod]) return;
+    CAMPOS[mod].forEach(id => { const e = document.getElementById(id); if(e) e.value = ''; });
+    const cont = document.getElementById('contFiltro_'+mod);
+    if(cont) cont.textContent = '';
+    const pag = document.getElementById(MAPA[mod].pag);
+    if(pag) pag.style.display = '';
+    if(typeof renderModulo === 'function') renderModulo(mod);
+    else if(typeof renderTudo === 'function') renderTudo();
+  };
+
+  // preenche selects dinâmicos dos filtros
+  window.atualizarSelectsFiltros = function(){
+    if(!DB().veiculos && !DB().motoristas) return;
+    const selVeicComb = document.getElementById('fcVeiculo');
+    if(selVeicComb){
+      const atual = selVeicComb.value;
+      selVeicComb.innerHTML = '<option value="">Todos os veículos</option>' +
+        (DB().veiculos||[]).map(x=>`<option value="${x.vplaca}">${x.vplaca}</option>`).join('');
+      selVeicComb.value = atual;
+    }
+    const selMot = document.getElementById('fvMotorista');
+    if(selMot){
+      const atual = selMot.value;
+      selMot.innerHTML = '<option value="">Todos os motoristas</option>' +
+        (DB().motoristas||[]).map(m=>`<option value="${m.motNome}">${m.motNome}</option>`).join('');
+      selMot.value = atual;
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', () => setTimeout(window.atualizarSelectsFiltros, 1500));
+  setInterval(window.atualizarSelectsFiltros, 5000);
+
+  // Enter aplica o filtro
+  document.addEventListener('keyup', e => {
+    if(e.key !== 'Enter') return;
+    const box = e.target.closest('[data-filtro-mod]');
+    if(box) window.aplicarFiltrosModulo(box.getAttribute('data-filtro-mod'));
+  });
+
+})();
+</script>
+<style>
+.filtros-avancados{background:rgba(255,255,255,.65);border:1px solid #cbd5e1;border-radius:10px;padding:12px;margin-bottom:14px}
+.filtros-avancados .titulo-filtro{font-weight:600;font-size:.9rem;margin-bottom:8px;color:#334155}
+.filtros-avancados .cont-filtro{font-size:.8rem;color:#475569}
+</style>
 </html>
