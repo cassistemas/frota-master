@@ -122,6 +122,29 @@
     white-space:nowrap;
 
 }
+
+/* ===== GRADE DE TABELAS (linhas horizontais e verticais) ===== */
+.table{
+    border-collapse:collapse !important;
+    border:1px solid #cbd5e1 !important;
+}
+.table > :not(caption) > * > *{
+    border:1px solid #cbd5e1 !important;
+    box-shadow:none !important;
+}
+.table thead th{
+    background:#f1f5f9;
+    border:1px solid #94a3b8 !important;
+    font-weight:700;
+}
+.table thead.table-dark th{
+    background:#0f172a;
+    border-color:#334155 !important;
+}
+.table-responsive{
+    border-radius:6px;
+}
+
     </style>
 </head>
 <body>
@@ -3011,6 +3034,16 @@ function navegar(id, el) {
     }
 }
 
+function ordenarFornecedores(){
+
+    if(!db.fornecedores) db.fornecedores = [];
+
+    db.fornecedores.sort((a, b) =>
+        (a.fnome || '').localeCompare((b.fnome || ''), 'pt-BR', { sensitivity: 'base' })
+    );
+
+}
+
 function salvar(mod, campos, idCampo){
 
     let obj = {};
@@ -3065,10 +3098,48 @@ if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno){
 
 }
 
+    /*=====================================================
+    BLOQUEIO DE CADASTRO DUPLICADO - FORNECEDORES
+    =====================================================*/
+    if(mod === 'fornecedores'){
+
+        const soDigitos = v => (v || '').replace(/\D/g, '');
+        const norm = v => (v || '').trim().toLowerCase();
+
+        const cnpjNovo = soDigitos(obj.fcnpj);
+        const nomeNovo = norm(obj.fnome);
+
+        if(!nomeNovo){
+            alert('Informe o nome da empresa.');
+            return;
+        }
+
+        const duplicado = db.fornecedores.find((f, i) => {
+
+            if(idx !== "" && Number(i) === Number(idx)) return false;
+
+            if(cnpjNovo && soDigitos(f.fcnpj) === cnpjNovo) return true;
+
+            return norm(f.fnome) === nomeNovo;
+
+        });
+
+        if(duplicado){
+            alert('Fornecedor já cadastrado: ' + duplicado.fnome +
+                  (duplicado.fcnpj ? ' (' + duplicado.fcnpj + ')' : ''));
+            return;
+        }
+
+    }
+
     if(idx === ""){
         db[mod].push(obj);
     }else{
         db[mod][idx] = obj;
+    }
+
+    if(mod === 'fornecedores'){
+        ordenarFornecedores();
     }
 
     salvarNuvem();
@@ -3631,7 +3702,7 @@ if(document.getElementById('filtroManVeiculo')){
 if(document.getElementById('filtroManFornecedor')){
     document.getElementById('filtroManFornecedor').innerHTML =
         '<option value="">Todos Fornecedores</option>' +
-        db.fornecedores.map(f =>
+        (ordenarFornecedores(), db.fornecedores).map(f =>
             `<option value="${f.fnome}">${f.fnome}</option>`
         ).join('');
 }
@@ -3685,7 +3756,7 @@ if(document.getElementById('agveiculo'))
 if(document.getElementById('agmotorista'))
     document.getElementById('agmotorista').innerHTML = mOpt;
 
-    const fOpt = '<option value="">Fornecedor...</option>' + db.fornecedores.map(f=>`<option value="${f.fnome}">${f.fnome}</option>`).join('');
+    const fOpt = '<option value="">Fornecedor...</option>' + (ordenarFornecedores(), db.fornecedores).map(f=>`<option value="${f.fnome}">${f.fnome}</option>`).join('');
     
     ['sveiculo','mveiculo','lveiculo','tveiculo','leveiculo','rveiculo','muveiculo'].forEach(id=>{if(document.getElementById(id)) document.getElementById(id).innerHTML=vOpt});
     if(document.getElementById('mfornecedor')) document.getElementById('mfornecedor').innerHTML = fOpt;
@@ -3786,6 +3857,8 @@ db.licencas.map((le,i)=>`
 `).join('');
 
 renderRevisoes();
+
+    ordenarFornecedores();
 
     document.getElementById('listaFornecedores').innerHTML = db.fornecedores.map((f,i)=>`<tr><td><b>${f.fnome}</b></td><td>${f.fresp}</td><td>${f.fcnpj}</td><td>${f.ftel}</td>${btnSet('fornecedores',i)}</tr>`).join('');
 
@@ -5344,7 +5417,7 @@ function carregarPneuSelects(){
         fornecedores.innerHTML =
         '<option value=\"\">Selecione o fornecedor</option>' +
 
-        db.fornecedores.map(f =>
+        (ordenarFornecedores(), db.fornecedores).map(f =>
         `<option value=\"${f.fnome}\">${f.fnome}</option>`).join('');
 
     }
