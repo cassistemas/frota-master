@@ -1258,7 +1258,7 @@ if(modulo === 'terceiros'){
 
 <td>${t.tercarreta || '--'}</td>
 
-<td>${t.terano || '--'}</td>
+<td>${t.teranocarreta || '--'}</td>
 
 <td>${t.tertelefone || '--'}</td>
 
