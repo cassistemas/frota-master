@@ -467,7 +467,7 @@ Criar Conta
 </div>
 
 <div class="col-md-1">
-    <input id="terano"
+    <input id="teranocarreta"
            type="number"
            class="form-control"
            placeholder="Ano">
@@ -526,7 +526,7 @@ placeholder="Observações">
 'terplaca',
 'terano',
 'tercarreta',
-'terano',
+'teranocarreta',
 'tertelefone',
 'terfrete',
 'terstatus',
@@ -673,7 +673,7 @@ Limpar
 <th>Placa</th>
 <th>Ano</th>
 <th>Carreta</th>
-<th>Ano</th>
+<th>Ano Carreta</th>
 <th>Telefone</th>
 <th>Valor Frete</th>
 <th>Status</th>
@@ -4418,7 +4418,7 @@ function salvarTerceirosCustom(){
     terplaca: document.getElementById('terplaca').value,
     terano: document.getElementById('terano').value,
     tercarreta: document.getElementById('tercarreta').value,
-    terano: document.getElementById('terano').value,
+    teranocarreta: document.getElementById('teranocarreta').value,
     tertelefone: document.getElementById('tertelefone').value,
     terstatus: document.getElementById('terstatus').value,
     terobs: document.getElementById('terobs').value
@@ -4451,7 +4451,7 @@ function salvarTerceirosCustom(){
 'terplaca',
 'terano',
 'tercarreta',
-'terano',
+'teranocarreta',
 'terfrete',
 'terstatus',
 'terobs'
@@ -5642,7 +5642,7 @@ function navegarTerceiros() {
             <td>${t.terplaca || ''}</td>
             <td>${t.terano || ''}</td>
             <td>${t.tercarreta || ''}</td>
-            <td>${t.terano || ''}</td>
+            <td>${t.teranocarreta || ''}</td>
             <td>${t.tertelefone || ''}</td>
             <td>${t.terfrete || ''}</td>
             <td>${t.terstatus || ''}</td>
