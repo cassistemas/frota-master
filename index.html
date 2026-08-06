@@ -453,13 +453,6 @@ Criar Conta
            placeholder="Placa Veículo">
 </div>
 
-<div class="col-md-1">
-    <input id="terano"
-           type="number"
-           class="form-control"
-           placeholder="Ano">
-</div>
-
 <div class="col-md-2">
     <input id="tercarreta"
            class="form-control"
@@ -524,7 +517,6 @@ placeholder="Observações">
 'terantt',
 'tertipoveiculo',
 'terplaca',
-'terano',
 'tercarreta',
 'terano',
 'tertelefone',
@@ -671,7 +663,6 @@ Limpar
 <th>ANTT</th>
 <th>Tipo Veículo</th>
 <th>Placa</th>
-<th>Ano</th>
 <th>Carreta</th>
 <th>Ano</th>
 <th>Telefone</th>
@@ -4416,7 +4407,6 @@ function salvarTerceirosCustom(){
     terantt: document.getElementById('terantt').value,
     tertipoveiculo: document.getElementById('tertipoveiculo').value,
     terplaca: document.getElementById('terplaca').value,
-    terano: document.getElementById('terano').value,
     tercarreta: document.getElementById('tercarreta').value,
     terano: document.getElementById('terano').value,
     tertelefone: document.getElementById('tertelefone').value,
@@ -4449,7 +4439,6 @@ function salvarTerceirosCustom(){
 'terantt',
 'tertipoveiculo',
 'terplaca',
-'terano',
 'tercarreta',
 'terano',
 'terfrete',
@@ -5640,7 +5629,6 @@ function navegarTerceiros() {
             <td>${t.terantt || ''}</td>
             <td>${t.tertipoveiculo || ''}</td>
             <td>${t.terplaca || ''}</td>
-            <td>${t.terano || ''}</td>
             <td>${t.tercarreta || ''}</td>
             <td>${t.terano || ''}</td>
             <td>${t.tertelefone || ''}</td>
