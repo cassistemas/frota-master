@@ -1,0 +1,5976 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frota Master v23 - Gestão de Multas Integrada</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root{--sidebar:#0f172a;--accent:#3b82f6;--bg:#f8fafc;--danger:#ef4444;--warning:#f59e0b;--success:#10b981}
+        body{background:var(--bg);font-family:Inter,sans-serif;font-size:.85rem}
+        .sidebar{width:250px;height:100vh;background:var(--sidebar);position:fixed;padding:20px;color:#fff;overflow-y:auto;z-index:100}
+        .sidebar h4{color:var(--accent);font-weight:800;margin-bottom:25px;text-align:center}
+        .sidebar a{display:block;color:#94a3b8;padding:10px;border-radius:6px;text-decoration:none;margin-bottom:5px;cursor:pointer;transition:0.3s}
+        .sidebar a:hover,.sidebar a.active{background:#1e293b;color:#fff}
+        .main{margin-left:250px;padding:30px}
+        .hidden{display:none!important}
+        .glass-container{background:#fff;padding:20px;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.05)}
+        .stat-card{border-left:4px solid var(--accent);padding:15px;background:#fff;border-radius:8px}
+        .btn-edit{background:#eff6ff;color:#2563eb;border:none;padding:5px 12px;border-radius:6px;margin-right:5px;font-weight:600}
+        .btn-del{background:#fee2e2;color:#dc2626;border:none;padding:5px 12px;border-radius:6px;font-weight:600}
+        .btn-excel{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:4px 10px;border-radius:6px;font-weight:600;font-size:.8rem;line-height:1.2;white-space:nowrap;width:auto;flex:0 0 auto;align-self:center;transition: 0.2s;}
+        .btn-excel:hover{background:#bbf7d0;}
+        .search-box{margin-bottom:15px; border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px;}
+        .status-vencido { color: var(--danger); font-weight: 800; background: #fee2e2; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--danger); }
+        .status-atencao { color: #854d0e; font-weight: 800; background: #fef9c3; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--warning); }
+        .status-ok { color: var(--success); font-weight: 600; }
+        .alerta-item { padding: 8px; border-radius: 6px; margin-bottom: 5px; border-left: 5px solid transparent; }
+        .alerta-vencido { background: #fee2e2; border-left-color: var(--danger); color: #991b1b; }
+        .alerta-atencao { background: #fef9c3; border-left-color: var(--warning); color: #854d0e; }
+        .btn-cancelar{ margin-right:10px; }
+ /* ===== Cards do módulo Manutenções ===== */
+.man-card{
+    background:#fff;
+    border:2px solid #e2e8f0;
+    border-radius:16px;
+    padding:22px 18px;
+    text-align:center;
+    box-shadow:0 2px 8px rgba(15,23,42,.04);
+    transition:all .2s ease;
+}
+
+.man-card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 8px 20px rgba(15,23,42,.08);
+}
+
+.man-card h6{
+    color:#475569;
+    font-weight:600;
+    margin-bottom:8px;
+}
+
+.man-card h3{
+    margin:0;
+    font-weight:800;
+    font-size:2rem;
+    color:#0f172a;
+}
+
+/* cores das bordas */
+.man-card.primary{ border-color:#2563eb; }   /* azul */
+.man-card.success{ border-color:#10b981; }   /* verde */
+.man-card.warning{ border-color:#f59e0b; }   /* laranja */
+.man-card.danger{  border-color:#ef4444; }   /* vermelho */
+/* ==========================
+   PAGINAÇÃO GLOBAL
+========================== */
+
+.paginacao-global{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:20px;
+    gap:15px;
+}
+
+.paginacao-global button{
+    background:#6c757d;
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    padding:8px 18px;
+    font-weight:600;
+}
+
+.paginacao-global button:hover{
+    background:#5c636a;
+}
+
+.paginacao-global button:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+}
+
+.pagina-info{
+    font-size:24px;
+    font-weight:bold;
+}
+
+/* ===== Permissões do Admin ===== */
+
+#listaPermissoes{
+
+    display:grid;
+
+    grid-auto-flow:column;
+
+    grid-template-rows:repeat(10, auto);
+
+    gap:5px 30px;
+
+}
+
+#listaPermissoes .form-check{
+
+    margin:0;
+
+    white-space:nowrap;
+
+}
+
+/* ===== GRADE DE TABELAS (linhas horizontais e verticais) ===== */
+.table{
+    border-collapse:collapse !important;
+    border:1px solid #cbd5e1 !important;
+}
+.table > :not(caption) > * > *{
+    border:1px solid #cbd5e1 !important;
+    box-shadow:none !important;
+}
+.table thead th{
+    background:#f1f5f9;
+    border:1px solid #94a3b8 !important;
+    font-weight:700;
+}
+.table thead.table-dark th{
+    background:#0f172a;
+    border-color:#334155 !important;
+}
+.table-responsive{
+    border-radius:6px;
+}
+
+    </style>
+</head>
+<body>
+<!-- TELA DE LOGIN -->
+<div id="loginTela" style="height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a;">
+    
+    <div style="background:white;padding:40px;border-radius:12px;width:350px;text-align:center;">
+        <h3 class="fw-bold mb-4">Frota Master Login</h3>
+
+        <input id="loginUser" class="form-control mb-3" placeholder="Email">
+        <input id="loginPass" type="password" class="form-control mb-3" placeholder="Senha">
+
+        <button class="btn btn-primary w-100" onclick="fazerLogin()">Entrar</button>
+        <button class="btn btn-secondary w-100 mt-2" onclick="cadastrarUsuario()" style="display:none;">
+Criar Conta
+</button>
+
+        <div id="loginErro" style="color:red;margin-top:10px;"></div>
+    </div>
+
+</div>
+
+<div class="sidebar" id="sistema" style="display:none">
+    <h4>FROTA MASTER</h4>
+    <a onclick="navegar('dashboard',this)" class="active">📊 Dashboard</a>
+    <a onclick="navegar('agendamentos',this)">📅 Agendamentos</a>
+    <a onclick="navegar('saidaVeiculos',this)">🚚 Saída De Veículos</a>
+    <a onclick="navegar('veiculos',this)">🚗 Veículos</a>
+    <a onclick="navegar('pneus',this)">🛞 Pneus</a>
+    <a onclick="navegar('motoristas',this)">👥 Motoristas</a>
+    <a onclick="navegar('terceiros',this)">🚛 Terceiros</a>
+    <a onclick="navegar('diarias',this)">💰 Diárias</a>
+    <a onclick="navegar('ferias',this)">🏖 Férias</a>
+    <a onclick="navegar('multas',this)">🚫 Multas</a>
+    <a onclick="navegar('seguros',this)">🛡 Seguros</a>
+    <a onclick="navegar('licenciamento',this)">📜 Licenciamento</a>
+    <a onclick="navegar('tacografo',this)">⏱ Tacógrafo</a>
+    <a onclick="navegar('licencas',this)">📄 CIV / CIPP</a>
+    <a onclick="navegar('manutencoes',this)">🔧 Manutenções</a>
+    <a onclick="navegar('combustivel',this)">⛽ Combustível</a>
+    <a onclick="navegar('revisoes',this)">⏱ Revisões KM</a>
+    <a onclick="navegar('fornecedores',this)">🏭 Fornecedores</a>
+    <a onclick="navegar('backup',this)">📂 Backup</a>
+    <a id="menuAdmin" onclick="navegar('admin',this)">👑 Usuários (Admin)</a>
+    <a onclick="logout()">🚪 Sair</a>
+    <div id="nomeUsuario" style="
+    text-align:center;
+    font-size:13px;
+    margin-bottom:15px;
+    color:#94a3b8;
+"></div>
+</div>
+
+<div class="main" id="sistemaMain" style="display:none">
+
+<div id="diarias" class="hidden">
+
+    <h3>💰 Controle de Diárias</h3>
+
+    <div class="glass-container">
+
+        <input type="hidden" id="adm_uid">
+        <input type="hidden" id="di_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+    <select id="dimotorista" class="form-select"></select>
+</div>
+
+<div class="col-md-2">
+    <input type="date" id="didata" class="form-control">
+</div>
+
+<div class="col-md-2">
+    <input id="divalor"
+    class="form-control"
+    placeholder="Valor R$"
+    oninput="mascaraMoeda(this)">
+</div>
+
+<div class="col-md-2">
+    <input id="dicoleta"
+    class="form-control"
+    placeholder="N° Coleta/Entrega">
+</div>
+
+<div class="col-md-3">
+    <select id="distatus" class="form-select">
+        <option value="Pendente">Pendente</option>
+        <option value="Enviadas RH">Enviadas RH</option>
+        <option value="Pago">Pago</option>
+    </select>
+</div>
+
+<div class="col-md-12">
+    <textarea id="diobs"
+    class="form-control"
+    placeholder="Observações"></textarea>
+</div>
+            <div class="col-md-12 text-end">
+
+                <button id="btn_cancel_diarias"
+                class="btn btn-outline-secondary btn-cancelar"
+               onclick="limparForm(
+    'diarias',
+    ['didata','divalor','dicoleta','distatus','dimotorista','diobs'],
+    'di_idx'
+)">
+                    Cancelar
+                </button>
+
+                <button class="btn btn-success"
+                onclick="salvar(
+    'diarias',
+    ['didata','divalor','dicoleta','distatus','dimotorista','diobs'],
+    'di_idx'
+)">
+                    Salvar
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+<div class="glass-container">
+
+    <div class="row g-2">
+
+        <div class="col-md-3">
+            <select id="filtroDiMotorista" class="form-select"></select>
+        </div>
+
+        <div class="col-md-2">
+            <input type="date"
+            id="filtroDiDataIni"
+            class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <input type="date"
+            id="filtroDiDataFim"
+            class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <input type="number"
+            id="filtroDiValorMin"
+            class="form-control"
+            placeholder="Valor Min">
+        </div>
+
+        <div class="col-md-2">
+            <input type="number"
+            id="filtroDiValorMax"
+            class="form-control"
+            placeholder="Valor Max">
+        </div>
+
+      <div class="col-md-2">
+    <select id="filtroDiStatus" class="form-select">
+        <option value="">Status</option>
+        <option value="Pendente">Pendente</option>
+        <option value="Enviadas RH">Enviadas RH</option>
+        <option value="Pago">Pago</option>
+    </select>
+</div>
+
+        <div class="col-md-1">
+            <button class="btn btn-primary w-100"
+            onclick="aplicarFiltroDiarias()">
+            Filtrar
+            </button>
+        </div>
+
+        <div class="col-md-1">
+            <button class="btn btn-secondary w-100"
+            onclick="limparFiltroDiarias()">
+            Limpar
+            </button>
+        </div>
+
+    </div>
+
+</div>
+
+<div class="row mb-3">
+
+    <div class="col-md-6">
+        <div class="stat-card">
+            <h6>Quantidade de Diárias</h6>
+            <h3 id="totalDiariasQtd">0</h3>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="stat-card"
+        style="border-left-color: var(--success)">
+
+            <h6>Valor Total Diárias</h6>
+
+            <h3 id="totalDiariasValor">
+                R$ 0,00
+            </h3>
+
+        </div>
+    </div>
+
+</div>
+
+    <div class="glass-container">
+
+        <div class="d-flex justify-content-end mb-3">
+
+            <button class="btn-excel"
+            onclick="exportarExcel('diarias')">
+                📥 Exportar Excel
+            </button>
+
+        </div>
+
+        <table class="table">
+
+            <thead>
+                <tr>
+                    <th>Motorista</th>
+                    <th>Data</th>
+                    <th>Valor</th>
+                    <th>N° Coleta/Entrega</th>
+                    <th>Status</th>
+                    <th>Observações</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+
+            <tbody id="listaDiarias"></tbody>
+
+        </table>
+
+        <div id="paginacaoDiarias"></div>
+
+    </div>
+
+</div>
+
+<div id="terceiros" class="hidden">
+
+<h3>🚛 Cadastro de Terceiros</h3>
+
+<div class="glass-container">
+
+<input type="hidden" id="ter_idx">
+
+<div class="row g-3">
+
+<div class="col-md-2">
+    <input
+        type="date"
+        id="terdata"
+        class="form-control">
+</div>
+
+<div class="col-md-4">
+    <input id="ternome"
+           class="form-control"
+           placeholder="Nome Motorista">
+</div>
+
+<div class="col-md-3">
+    <input id="tertelmotorista"
+           class="form-control"
+           placeholder="Telefone do Motorista"
+           oninput="mascaraTelefone(this)">
+</div>
+
+<div class="col-md-4">
+    <input id="terempresa"
+           class="form-control"
+           placeholder="Empresa">
+</div>
+
+<div class="col-md-2">
+    <input id="tercnpj"
+           class="form-control"
+           placeholder="CNPJ"
+           oninput="mascaraCNPJ(this)"
+           onblur="buscarCNPJ()">
+</div>
+
+<div class="col-md-2">
+    <input id="terantt"
+           class="form-control"
+           placeholder="Registro ANTT">
+</div>
+
+<div class="col-md-3">
+    <input id="tertipoveiculo"
+           class="form-control"
+           placeholder="Tipo Veículo">
+</div>
+
+<div class="col-md-2">
+    <input id="terplaca"
+           class="form-control"
+           placeholder="Placa Veículo">
+</div>
+
+<div class="col-md-1">
+    <input id="terano"
+           type="number"
+           class="form-control"
+           placeholder="Ano">
+</div>
+
+<div class="col-md-2">
+    <input id="tercarreta"
+           class="form-control"
+           placeholder="Placa Carreta">
+</div>
+
+<div class="col-md-1">
+    <input id="terano"
+           type="number"
+           class="form-control"
+           placeholder="Ano">
+</div>
+
+<div class="col-md-2">
+    <input id="tertelefone"
+           class="form-control"
+           placeholder="telefone"
+           oninput="mascaraTelefone(this)">
+</div>
+
+<div class="col-md-2">
+    <select id="terstatus" class="form-select">
+    <option value="" selected disabled>Status</option>
+    <option value="Ativo">Ativo</option>
+    <option value="Bloqueado">Bloqueado</option>
+</select>
+</div>
+
+<div class="col-md-2">
+    <input id="terfrete"
+           class="form-control"
+           placeholder="Valor Frete"
+           oninput="mascaraMoeda(this)">
+</div>
+
+<div class="col-md-12">
+<textarea
+id="terobs"
+class="form-control"
+placeholder="Observações">
+</textarea>
+</div>
+
+<div class="col-md-12 text-end">
+
+    <button
+    class="btn btn-primary"
+    onclick="salvarTerceirosCustom()">
+        Salvar
+    </button>
+
+    <button
+    class="btn btn-outline-secondary"
+    onclick="limparForm(
+        'terceiros',
+        [
+'terdata',
+'ternome',
+'tertelmotorista',
+'tercnpj',
+'terempresa',
+'terantt',
+'tertipoveiculo',
+'terplaca',
+'terano',
+'tercarreta',
+'terano',
+'tertelefone',
+'terfrete',
+'terstatus',
+'terobs'
+],
+        'ter_idx'
+    )">
+        Cancelar
+    </button>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="glass-container">
+
+<div class="row g-2">
+
+<div class="col-md-2">
+<input
+id="filtroTerMotorista"
+class="form-control"
+placeholder="Motorista">
+</div>
+
+<div class="col-md-2">
+<input
+id="filtroTerEmpresa"
+class="form-control"
+placeholder="Empresa">
+</div>
+
+<div class="col-md-1">
+<input
+id="filtroTerPlaca"
+class="form-control"
+placeholder="Placa">
+</div>
+
+<div class="col-md-2">
+    <input
+        type="date"
+        id="filtroTerDataInicial"
+        class="form-control">
+</div>
+
+<div class="col-md-2">
+    <input
+        type="date"
+        id="filtroTerDataFinal"
+        class="form-control">
+</div>
+
+<div class="col-md-1">
+<select
+id="filtroTerStatus"
+class="form-select">
+
+<option value="">
+Todos
+</option>
+
+<option value="Ativo">
+Ativo
+</option>
+
+<option value="Bloqueado">
+Bloqueado
+</option>
+
+</select>
+</div>
+
+<div class="col-md-1">
+<button
+class="btn btn-primary w-100"
+onclick="aplicarFiltroTerceiros()">
+
+Filtrar
+
+</button>
+</div>
+
+<div class="col-md-1">
+<button
+class="btn btn-secondary w-100"
+onclick="limparFiltroTerceiros()">
+
+Limpar
+
+</button>
+</div>
+
+</div>
+
+</div>
+
+<div class="glass-container">
+
+    <div class="row g-3 mb-3">
+
+        <div class="col-md-4">
+            <div class="man-card primary">
+                <h6>🚛 Terceiros Cadastrados</h6>
+                <h2 id="totalTerceiros" class="fw-bold">0</h2>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="man-card warning">
+                <h6>📋 Contratações</h6>
+                <h2 id="totalContratacoes" class="fw-bold">0</h2>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="man-card success">
+                <h6>💰 Valor Total dos Fretes</h6>
+                <h2 id="valorTotalFretes" class="fw-bold">
+                    R$ 0,00
+                </h2>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<table class="table">
+
+<thead>
+
+<tr>
+
+<th>Data</th>
+<th>Nome</th>
+<th>Tel. Motorista</th>
+<th>CNPJ</th>
+<th>Empresa</th>
+<th>ANTT</th>
+<th>Tipo Veículo</th>
+<th>Placa</th>
+<th>Ano</th>
+<th>Carreta</th>
+<th>Ano</th>
+<th>Telefone</th>
+<th>Valor Frete</th>
+<th>Status</th>
+<th>Ações</th>
+
+</tr>
+
+</thead>
+
+<tbody id="listaTerceiros"></tbody>
+
+</table>
+
+<div id="paginacaoTerceiros"></div>
+
+</div>
+
+<div id="agendamentos" class="hidden">
+    <h3>📅 Agendamentos</h3>
+
+    <div class="glass-container">
+        <input type="hidden" id="ag_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+                <select id="agveiculo" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+                <select id="agmotorista" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+                <input type="date" id="agdata" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+                <input type="time" id="aghora" class="form-control">
+            </div>
+
+            <div class="col-md-8">
+                <input id="agdescricao" class="form-control" placeholder="Descrição">
+            </div>
+
+            <div class="col-md-4">
+                <select id="agstatus" class="form-select">
+                    <option value="Agendado">Agendado</option>
+                    <option value="Concluído">Concluído</option>
+                    <option value="Cancelado">Cancelado</option>
+                </select>
+            </div>
+
+            <div class="col-md-12 text-end">
+                <button id="btn_cancel_agendamentos" class="btn btn-outline-secondary btn-cancelar"
+                onclick="limparForm('agendamentos',
+                ['agveiculo','agmotorista','agdata','aghora','agdescricao','agstatus'],
+                'ag_idx')">Cancelar</button>
+
+                <button class="btn btn-primary"
+                onclick="salvar('agendamentos',
+                ['agveiculo','agmotorista','agdata','aghora','agdescricao','agstatus'],
+                'ag_idx')">Salvar</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="glass-container">
+
+        <table class="table mt-3">
+            <thead>
+                <tr>
+                    <th>Veículo</th>
+                    <th>Motorista</th>
+                    <th>Data</th>
+                    <th>Hora</th>
+                    <th>Descrição</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+
+            <tbody id="listaAgendamentos"></tbody>
+        </table>
+
+    </div>
+</div>
+
+<div id="saidaVeiculos" class="hidden">
+
+<h3>🚚 Saída De Veículos</h3>
+
+<div class="glass-container">
+
+<input type="hidden" id="sv_idx">
+
+<div class="row g-3">
+
+<div class="col-md-2">
+<label>Status da Reserva</label>
+
+<select id="svreserva" class="form-select">
+    <option value="Livre">Livre</option>
+    <option value="Reservado">Reservado</option>
+</select>
+
+</div>
+
+<div class="col-md-2">
+
+<label>Nº da Reserva</label>
+
+<input
+id="svnumeroreserva"
+class="form-control"
+placeholder="Número da Reserva">
+
+</div>
+
+<div class="col-md-2">
+<label>Veículo</label>
+<select
+id="svveiculo"
+class="form-select">
+</select>
+</div>
+
+<div class="col-md-3">
+
+<label>Motorista</label>
+
+<input
+id="svmotorista"
+class="form-control"
+placeholder="Digite o motorista">
+
+</div>
+
+<div class="col-md-3">
+<label>Destino</label>
+<input
+id="svdestino"
+class="form-control"
+placeholder="Destino">
+</div>
+
+<div class="col-md-2">
+<label>Data Saída</label>
+<input
+type="date"
+id="svdataSaida"
+class="form-control">
+</div>
+
+<div class="col-md-2">
+<label>Hora Saída</label>
+<input
+type="time"
+id="svhoraSaida"
+class="form-control">
+</div>
+
+<div class="col-md-2">
+<label>Data Chegada</label>
+<input
+type="date"
+id="svdataChegada"
+class="form-control">
+</div>
+
+<div class="col-md-2">
+<label>Hora Chegada</label>
+<input
+type="time"
+id="svhoraChegada"
+class="form-control">
+</div>
+
+<div class="col-md-2">
+
+<label>Status</label>
+
+<select
+id="svstatus"
+class="form-select">
+
+<option value="Em Viagem">
+Em Viagem
+</option>
+
+<option value="Finalizado">
+Finalizado
+</option>
+
+</select>
+
+</div>
+
+<div class="col-md-12">
+
+<label>Observação</label>
+
+<textarea
+id="svobs"
+class="form-control"
+rows="3"></textarea>
+
+</div>
+
+<div class="col-md-12 text-end">
+
+<button
+id="btn_cancel_saida"
+class="btn btn-outline-secondary btn-cancelar"
+
+onclick="limparForm(
+'saidaVeiculos',
+[
+'svreserva',
+'svnumeroreserva',
+'svveiculo',
+'svmotorista',
+'svdestino',
+'svdataSaida',
+'svhoraSaida',
+'svdataChegada',
+'svhoraChegada',
+'svstatus',
+'svobs'
+],
+'sv_idx'
+)">
+
+Cancelar
+
+</button>
+</button>
+<button class="btn btn-primary" onclick="salvarSaidaVeiculo()">Salvar</button>
+
+</button>
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+
+<div class="glass-container">
+
+<div class="row g-2">
+
+<div class="col-md-2">
+<input
+id="filtroSVReserva"
+class="form-control"
+placeholder="Reserva">
+</div>
+
+<div class="col-md-2">
+<select
+id="filtroSVVeiculo"
+class="form-select">
+<option value="">Veículo</option>
+</select>
+</div>
+
+<div class="col-md-2">
+
+<input
+id="filtroSVMotorista"
+class="form-control"
+placeholder="Motorista">
+
+</div>
+
+<div class="col-md-2">
+<input
+type="date"
+id="filtroSVDataIni"
+class="form-control">
+</div>
+
+<div class="col-md-2">
+<input
+type="date"
+id="filtroSVDataFim"
+class="form-control">
+</div>
+
+<div class="col-md-1">
+
+<button
+class="btn btn-primary w-100"
+onclick="aplicarFiltroSaidaVeiculos()">
+
+Filtrar
+
+</button>
+
+</div>
+
+<div class="col-md-1">
+
+<button
+class="btn btn-secondary w-100"
+onclick="limparFiltroSaidaVeiculos()">
+
+Limpar
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="glass-container">
+
+<div class="d-flex justify-content-end mb-3">
+
+<button
+
+class="btn-excel"
+
+onclick="exportarExcel('saidaVeiculos')">
+
+📥 Exportar Excel
+
+</button>
+
+</div>
+
+<table class="table table-striped table-hover">
+
+<thead>
+
+<tr>
+
+<th>Reserva</th>
+
+<th>Veículo</th>
+
+<th>Motorista</th>
+
+<th>Saída</th>
+
+<th>Chegada</th>
+
+<th>Destino</th>
+
+<th>Status</th>
+
+<th>Ações</th>
+
+</tr>
+
+</thead>
+
+<tbody id="listaSaidaVeiculos">
+
+</tbody>
+
+</table>
+
+<div id="paginacaoSaidaVeiculos"></div>
+
+</div>
+
+</div>
+
+    <div id="dashboard">
+        <h2 class="fw-bold mb-4">Painel de Controle</h2>
+        <div class="glass-container">
+    <div class="row g-2">
+
+<div class="glass-container">
+    <h6>Média de Consumo</h6>
+    <h3 id="mediaKM">--</h3>
+</div>
+
+        <div class="col-md-2">
+            <label>Data Inicial</label>
+            <input type="date" id="filtroDataIni" class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <label>Data Final</label>
+            <input type="date" id="filtroDataFim" class="form-control">
+        </div>
+
+        <div class="col-md-3">
+            <label>Placa</label>
+            <select id="filtroPlaca" class="form-select">
+                <option value="">Todas</option>
+            </select>
+        </div>
+
+      <div class="col-md-3">
+    <label>Motorista</label>
+    <select id="filtroMotorista" class="form-select">
+        <option value="">Todos</option>
+    </select>
+</div>
+
+        <div class="col-md-2">
+            <label>Tipo</label>
+            <select id="filtroTipo" class="form-select">
+                <option value="">Todos</option>
+                <option value="multas">Multas</option>
+                <option value="manutencoes">Manutenções</option>
+                <option value="combustivel">Combustível</option>
+            </select>
+        </div>
+
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-primary w-100" onclick="aplicarFiltroDashboard()">🔎 Filtrar</button>
+            <button class="btn btn-secondary w-100 mt-1" onclick="limparFiltroDashboard()">Limpar</button>
+        </div>
+
+    </div>
+</div>
+        <div class="row g-3 mb-4">
+            <div class="col-md-3"><div class="stat-card"><h6>Veículos</h6><h3 id="d_vei">0</h3></div></div>
+            <div class="col-md-3"><div class="stat-card" style="border-left-color: var(--danger)"><h6>Alertas</h6><h3 id="d_alertas">0</h3></div></div>
+            <div class="col-md-3"><div class="stat-card" style="border-left-color: var(--warning)"><h6>Multas em Aberto</h6><h3 id="d_multas_count">0</h3></div></div>
+            <div class="col-md-3"><div class="stat-card"><h6>Total Gasto</h6><h3 id="d_val">R$ 0,00</h3></div></div>
+        </div>
+        <div class="row">
+            <div class="col-md-7"><div class="glass-container"><h6>Investimento por Veículo</h6><canvas id="graficoCustos" height="150"></canvas></div></div>
+            <div class="col-md-5">
+
+    <div class="glass-container">
+
+        <h6>Alertas de Vencimento</h6>
+
+        <div id="listaAlertasRapidos"
+             style="max-height:420px;overflow-y:auto">
+        </div>
+
+        <div id="paginacaoAlertas"
+             class="d-flex justify-content-center mt-3">
+        </div>
+
+    </div>
+
+</div>
+        </div>
+    </div>
+
+    <div id="multas" class="hidden">
+        <h3>🚫 Controle de Multas</h3>
+        <div class="glass-container">
+            <input type="hidden" id="mu_idx">
+            <div class="row g-3">
+                <div class="col-md-3"><select id="muveiculo" class="form-select"></select></div>
+                <div class="col-md-3"><select id="mumotorista" class="form-select"></select></div>
+                <div class="col-md-3">
+    <select id="muinfracao" class="form-select">
+        <option value="">Selecione a Infração</option>
+
+        <option value="EXCESSO DE VELOCIDADE">
+            EXCESSO DE VELOCIDADE
+        </option>
+        
+       <option value="BALANÇA">
+            BALANÇA
+        </option>
+
+        <option value="PLACA INELEGÍVEL">
+            PLACA INELEGÍVEL
+        </option>
+
+        <option value="RODÍZIO DE PLACA">
+            RODÍZIO DE PLACA
+        </option>
+
+       <option value="NÃO INDICAR CONDUTOR">
+            NÃO INDICAR CONDUTOR
+        </option>
+
+        <option value="AVANÇO DE SINAL VERMELHO">
+            AVANÇO DE SINAL VERMELHO
+        </option>
+
+        <option value="ESTACIONAMENTO IRREGULAR">
+            ESTACIONAMENTO IRREGULAR
+        </option>
+
+        <option value="USO DE CELULAR">
+            USO DE CELULAR
+        </option>
+
+        <option value="NÃO USAR CINTO">
+            NÃO USAR CINTO
+        </option>
+
+        <option value="TRANSITAR EM LOCAL PROIBIDO">
+            TRANSITAR EM LOCAL PROIBIDO
+        </option>
+
+        <option value="ULTRAPASSAGEM PROIBIDA">
+            ULTRAPASSAGEM PROIBIDA"
+        </option>
+
+        <option value="DOCUMENTAÇÃO IRREGULAR">
+            DOCUMENTAÇÃO IRREGULAR
+        </option>
+
+        <option value="EXCESSO DE PESO">
+            EXCESSO DE PESO
+        </option>
+
+        <option value="OUTROS">
+            OUTROS
+        </option>
+    </select>
+</div>
+                <div class="col-md-3"><input id="muait" class="form-control" placeholder="Nº AIT / Auto"></div>
+                <div class="col-md-3"><input id="murenainf" class="form-control" placeholder="Renainf"></div>
+                <div class="col-md-3"><input type="date" id="mudata" class="form-control" title="Data da Infração"></div>
+                <div class="col-md-3"><input type="date" id="muvenc" class="form-control" title="Vencimento do Desconto"></div>
+                <div class="col-md-3"><input id="muvalor" class="form-control" placeholder="Valor R$" oninput="mascaraMoeda(this)"></div>
+                <div class="col-md-3">
+                    <select id="mustatus" class="form-select">
+                        <option value="Pendente">Pendente</option>
+                        <option value="Pago">Pago</option>
+                        <option value="Recurso">Em Recurso</option>
+                        <option value="Enviadas RH">Enviadas RH</option>
+                    </select>
+                </div>
+<div class="col-md-3">
+    <select id="muindicacao" class="form-select">
+        <option value="Não" selected>Indicação: Não</option>
+        <option value="Sim">Indicação: Sim</option>
+    </select>
+</div>
+<div class="col-md-12">
+    <label>Arquivos (opcional)</label>
+    <input type="file" id="muarquivos" class="form-control" multiple>
+</div>
+              <div class="col-md-12">
+    <input id="muobs" class="form-control" placeholder="Observações (ex: motorista contestou, radar escondido, etc)">
+</div>
+                <div class="col-md-12 text-end">
+                    <button id="btn_cancel_multas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('multas',['muveiculo','mumotorista','muinfracao','muait','murenainf','mudata','muvenc','muvalor','mustatus','muindicacao','muobs'],'mu_idx')">Cancelar</button>
+                    <button class="btn btn-danger" onclick="salvarMulta()">
+                    Salvar Multa
+                    </button>
+                </div>
+            </div>
+        </div>
+<div class="row g-2 mb-3">
+
+<div class="col-md-2">
+<select id="filtroMuVeiculo" class="form-select"></select>
+</div>
+
+<div class="col-md-2">
+<select id="filtroMuMotorista" class="form-select"></select>
+</div>
+
+<div class="col-md-2">
+    <select id="filtroMuInfracao" class="form-select">
+        <option value="">Todas Infrações</option>
+
+        <option value="EXCESSO DE VELOCIDADE">
+            EXCESSO DE VELOCIDADE
+        </option>
+
+        <option value="BALANÇA">
+            BALANÇA
+        </option>
+
+        <option value="PLACA INELEGÍVEL">
+            PLACA INELEGÍVEL
+        </option>
+
+        <option value="RODÍZIO DE PLACA">
+            RODÍZIO DE PLACA
+        </option>
+
+        <option value="NÃO INDICAR CONDUTOR">
+            NÃO INDICAR CONDUTOR
+        </option>
+
+        <option value="AVANÇO DE SINAL VERMELHO">
+            AVANÇO DE SINAL VERMELHO
+        </option>
+
+        <option value="ESTACIONAMENTO IRREGULAR">
+            ESTACIONAMENTO IRREGULAR
+        </option>
+
+        <option value="USO DE CELULAR">
+            USO DE CELULAR
+        </option>
+
+        <option value="NÃO USAR CINTO">
+            NÃO USAR CINTO
+        </option>
+
+        <option value="TRANSITAR EM LOCAL PROIBIDO">
+            TRANSITAR EM LOCAL PROIBIDO
+        </option>
+
+        <option value="ULTRAPASSAGEM PROIBIDA">
+            ULTRAPASSAGEM PROIBIDA
+        </option>
+
+        <option value="DOCUMENTAÇÃO IRREGULAR">
+            DOCUMENTAÇÃO IRREGULAR
+        </option>
+
+        <option value="EXCESSO DE PESO">
+            EXCESSO DE PESO
+        </option>
+
+        <option value="OUTROS">
+            OUTROS
+        </option>
+    </select>
+</div>
+
+<div class="col-md-2">
+<select id="filtroMuStatus" class="form-select">
+<option value="">Status</option>
+<option value="Pendente">Pendente</option>
+<option value="Pago">Pago</option>
+<option value="Recurso">Recurso</option>
+<option value="Enviadas RH">Enviadas RH</option>
+</select>
+</div>
+
+<div class="col-md-2">
+    <select id="filtroMuIndicacao" class="form-select">
+        <option value="">Indicação</option>
+        <option value="Sim">Sim</option>
+        <option value="Não">Não</option>
+    </select>
+</div>
+
+<div class="col-md-2">
+<input type="date" id="filtroMuDataIni" class="form-control">
+</div>
+
+<div class="col-md-2">
+<input type="date" id="filtroMuDataFim" class="form-control">
+</div>
+
+<div class="col-md-2">
+<input type="text" id="filtroMuAIT" class="form-control" placeholder="AIT">
+</div>
+
+<div class="col-md-2">
+<input type="text" id="filtroMuRenainf" class="form-control" placeholder="Renainf">
+</div>
+
+<div class="col-md-2">
+<input type="number" id="filtroMuValorMin" class="form-control" placeholder="Valor Min">
+</div>
+
+<div class="col-md-2">
+<input type="number" id="filtroMuValorMax" class="form-control" placeholder="Valor Max">
+</div>
+
+<div class="col-md-1">
+<button class="btn btn-primary w-100" onclick="aplicarFiltroMultas()">Filtrar</button>
+</div>
+
+<div class="col-md-1">
+<button class="btn btn-secondary w-100" onclick="limparFiltroMultas()">Limpar</button>
+</div>
+
+</div>
+        <div class="glass-container">
+         <div class="row mb-3">
+
+    <div class="col-md-6">
+        <div class="stat-card">
+            <h6>Total de Multas</h6>
+            <h3 id="quantidadeMultas">0</h3>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="stat-card" style="border-left-color: var(--danger)">
+            <h6>Valor Total das Multas</h6>
+            <h3 id="totalMultas">R$ 0,00</h3>
+        </div>
+    </div>
+
+</div>
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn-excel" onclick="exportarExcel('multas')">📥 Exportar Excel</button>
+            </div>
+           <table class="table">
+<thead>
+<tr>
+<th>Veículo</th>
+<th>Motorista</th>
+<th>Infração</th>
+<th>AIT</th>
+<th>Renainf</th>
+<th>Data</th>
+<th>Venc. Desconto</th>
+<th>Valor</th>
+<th>Status</th>
+<th>Indicação</th>
+<th>Obs</th>
+<th>Ações</th>
+</tr>
+</thead>
+<tbody id="listaMultas"></tbody>
+</table>
+<div id="paginacaoMultas"></div>
+        </div>
+    </div>
+
+    <div id="veiculos" class="hidden">
+        <h3>🚗 Veículos</h3>
+        <div class="glass-container">
+            <input type="hidden" id="v_idx">
+            <div class="row g-3">
+                <div class="col-md-2"><input id="vplaca" class="form-control" placeholder="Placa"></div>
+                <div class="col-md-3"><input id="vmodelo" class="form-control" placeholder="Modelo"></div>
+                <div class="col-md-2"><input id="vkm" class="form-control" type="number" placeholder="KM Atual"></div>
+                <div class="col-md-3"><select id="vmotorista" class="form-select"></select></div>
+                
+<div class="col-md-2">
+    <input id="vtara" class="form-control" placeholder="Tara (Kg)">
+</div>
+
+<div class="col-md-3">
+    <input id="vpliquido" class="form-control" placeholder="P. Líquido (Kg)">
+</div>
+
+<div class="col-md-2">
+    <input id="vm3" class="form-control" placeholder="M³">
+</div>
+
+<div class="col-md-3">
+    <input id="vmedidas" class="form-control" placeholder="Medidas">
+</div>
+
+<div class="col-md-3">
+    <select id="vstatus" class="form-select">
+        <option value="" selected disabled>Status</option>
+        <option value="Ativo">Ativo</option>
+        <option value="Indisponível">Indisponível</option>
+        <option value="Vendido">Vendido</option>
+    </select>
+</div>
+
+<div class="col-md-12 text-end mt-3">
+    <button id="btn_cancel_veiculos"
+        class="btn btn-outline-secondary btn-cancelar"
+        onclick="limparForm('veiculos',['vplaca','vmodelo','vkm','vmotorista','vtara','vpliquido','vm3','vmedidas','vstatus'],'v_idx')">
+        Cancelar
+    </button>
+
+    <button class="btn btn-primary"
+        onclick="salvar('veiculos',['vplaca','vmodelo','vkm','vmotorista','vtara','vpliquido','vm3','vmedidas','vstatus'],'v_idx')">
+        Salvar
+    </button>
+</div>
+            </div>
+        </div>
+        <div class="glass-container">
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn-excel" onclick="exportarExcel('veiculos')">📥 Exportar Excel</button>
+            </div>
+            <div class="filtros-avancados" data-filtro-mod="veiculos">
+                <div class="titulo-filtro">🔍 Filtros de Veículos</div>
+                <div class="row g-2">
+                    <div class="col-md-2"><input id="fvPlaca" class="form-control" placeholder="Placa"></div>
+                    <div class="col-md-2"><input id="fvModelo" class="form-control" placeholder="Modelo"></div>
+                    <div class="col-md-2"><select id="fvMotorista" class="form-select"><option value="">Todos os motoristas</option></select></div>
+                    <div class="col-md-2">
+                        <select id="fvStatus" class="form-select">
+                            <option value="">Todos os status</option>
+                            <option value="Ativo">Ativo</option>
+                            <option value="Indisponível">Indisponível</option>
+                            <option value="Vendido">Vendido</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1"><input id="fvKmMin" class="form-control" placeholder="KM mín"></div>
+                    <div class="col-md-1"><input id="fvKmMax" class="form-control" placeholder="KM máx"></div>
+                    <div class="col-md-2 d-flex gap-2">
+                        <button class="btn btn-primary w-100" onclick="aplicarFiltrosModulo('veiculos')">Filtrar</button>
+                        <button class="btn btn-outline-secondary w-100" onclick="limparFiltrosModulo('veiculos')">Limpar</button>
+                    </div>
+                    <div class="col-12 cont-filtro" id="contFiltro_veiculos"></div>
+                </div>
+            </div>
+            <table class="table align-middle"><thead><tr>
+<th>Placa</th>
+<th>Modelo</th>
+<th>KM Atual</th>
+<th>Motorista</th>
+<th>Tara</th>
+<th>P. Líquido</th>
+<th>M³</th>
+<th>Medidas</th>
+<th>Status</th>
+<th>Ações</th>
+</tr></thead><tbody id="listaVeiculos"></tbody></table>
+<div id="paginacaoVeiculos"></div>
+        </div>
+    </div>
+
+    <div id="motoristas" class="hidden">
+        <h3>👥 Motoristas</h3>
+        <div class="glass-container">
+            <input type="hidden" id="m_idx">
+            <div class="row g-3">
+                <div class="col-md-4"><input id="motNome" class="form-control" placeholder="Nome"></div>
+                <div class="col-md-2"><input id="motCpf" class="form-control" placeholder="CPF" oninput="mascaraCPF(this)"></div>
+                <div class="col-md-2"><input id="motCnh" class="form-control" placeholder="Categoria CNH"></div>
+                <div class="col-md-3"><input id="mcnh" class="form-control" placeholder="N° CNH"></div>
+                <div class="col-md-2">
+<input id="motTel" class="form-control" placeholder="Telefone" oninput="mascaraTelefone(this)">
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+<div class="col-md-2">
+    <input type="text" id="motVencCnh" class="form-control" placeholder="Vencimento da CNH">
+</div>
+
+<div class="col-md-2">
+    <input type="text" id="motVencTox" class="form-control" placeholder="Vencimento do Toxicológico">
+</div>
+
+<div class="col-md-2">
+    <input type="text" id="motInicio" class="form-control" placeholder="Entrada">
+</div>
+
+<div class="col-md-2">
+    <select id="motStatus" class="form-select">
+        <option selected disabled>Status</option>
+        <option value="Ativo">Ativo</option>
+        <option value="Inativo">Inativo</option>
+    </select>
+</div>
+
+<div class="col-md-2">
+    <input type="text" id="motFim" class="form-control" placeholder="Saída">
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
+
+<script>
+flatpickr("#motVencCnh", {
+    locale: "pt",
+    dateFormat: "d/m/Y"
+});
+
+flatpickr("#motVencTox", {
+    locale: "pt",
+    dateFormat: "d/m/Y"
+});
+
+flatpickr("#motInicio", {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    time_24hr: true
+});
+
+flatpickr("#motFim", {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    time_24hr: true
+});
+</script>
+
+<div class="col-md-12 text-end">
+<button id="btn_cancel_motoristas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm(
+'motoristas',
+[
+'motNome',
+'motCpf',
+'motCnh',
+'mcnh',
+'motTel',
+'motInicio',
+'motFim',
+'motVencCnh',
+'motVencTox',
+'motStatus'
+],
+'m_idx'
+)"
+>Cancelar</button>
+<button class="btn btn-primary" onclick="salvar(
+'motoristas',
+[
+'motNome',
+'motCpf',
+'motCnh',
+'mcnh',
+'motTel',
+'motInicio',
+'motFim',
+'motVencCnh',
+'motVencTox',
+'motStatus'
+],
+'m_idx'
+)">Salvar</button>
+                </div>
+            </div>
+        </div>
+        <div class="glass-container">
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn-excel" onclick="exportarExcel('motoristas')">📥 Exportar Excel</button>
+            </div>
+            <div class="filtros-avancados" data-filtro-mod="motoristas">
+                <div class="titulo-filtro">🔍 Filtros de Motoristas</div>
+                <div class="row g-2">
+                    <div class="col-md-3"><input id="fmNome" class="form-control" placeholder="Nome"></div>
+                    <div class="col-md-2"><input id="fmCpf" class="form-control" placeholder="CPF / N° CNH"></div>
+                    <div class="col-md-2"><input id="fmCat" class="form-control" placeholder="Categoria CNH"></div>
+                    <div class="col-md-2">
+                        <select id="fmStatus" class="form-select">
+                            <option value="">Todos os status</option>
+                            <option value="Ativo">Ativo</option>
+                            <option value="Inativo">Inativo</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2"><input type="date" id="fmVencCnhAte" class="form-control" title="CNH vencendo até"></div>
+                    <div class="col-md-1 d-flex gap-2">
+                        <button class="btn btn-primary w-100" onclick="aplicarFiltrosModulo('motoristas')">Filtrar</button>
+                    </div>
+                    <div class="col-12 d-flex justify-content-between align-items-center">
+                        <span class="cont-filtro" id="contFiltro_motoristas"></span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="limparFiltrosModulo('motoristas')">Limpar filtros</button>
+                    </div>
+                </div>
+            </div>
+            <table class="table">
+<thead>
+    <tr>
+        <th>Nome</th>
+        <th>CPF</th>
+        <th>Categoria</th>
+        <th>N° CNH</th>
+        <th>Telefone</th>
+        <th>Venc. CNH</th>
+        <th>Toxicológico</th>
+        <th>Horário</th>
+        <th>Status</th>
+        <th>Ações</th>
+    </tr>
+</thead>
+<tbody id="listaMotoristas"></tbody></table>
+<div id="paginacaoMotoristas"></div>
+        </div>
+    </div>
+
+<div id="ferias" class="hidden">
+    <h3>🏖 Controle de Férias</h3>
+
+    <!-- 🔥 BOTÃO RELATÓRIO -->
+    <div class="text-end mb-3">
+        <button class="btn btn-dark" onclick="gerarRelatorioFerias()">
+            📄 Gerar Relatório de Férias
+        </button>
+    </div>
+
+    <div class="glass-container">
+        <input type="hidden" id="fe_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+                <select id="femotorista" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+                <input type="date" id="feinicio" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+                <input type="date" id="fefim" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+                <select id="festatus" class="form-select">
+                    <option value="Agendada">Agendada</option>
+                    <option value="Em andamento">Em andamento</option>
+                    <option value="Concluída">Concluída</option>
+                </select>
+            </div>
+
+            <div class="col-md-12">
+                <input id="feobs" class="form-control" placeholder="Observações">
+            </div>
+
+            <div class="col-md-12 text-end">
+                <button id="btn_cancel_ferias" class="btn btn-outline-secondary btn-cancelar"
+                    onclick="limparForm('ferias',['femotorista','feinicio','fefim','festatus','feobs'],'fe_idx')">
+                    Cancelar
+                </button>
+
+                <button class="btn btn-warning"
+                    onclick="salvar('ferias',['femotorista','feinicio','fefim','festatus','feobs'],'fe_idx')">
+                    Salvar
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="glass-container">
+
+        <table class="table mt-3">
+            <thead>
+                <tr>
+                    <th>Motorista</th>
+                    <th>Início</th>
+                    <th>Fim</th>
+                    <th>Status</th>
+                    <th>Obs</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="listaFerias"></tbody>
+        </table>
+    </div>
+</div>
+    
+<div id="manutencoes" class="hidden">
+
+    <h3>🔧 Manutenções</h3>
+
+    <!-- FORMULÁRIO -->
+
+    <div class="glass-container">
+
+        <input type="hidden" id="man_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-2">
+                <select id="mveiculo" class="form-select"></select>
+            </div>
+
+            <div class="col-md-2">
+                <input type="date" id="mdata" class="form-control">
+            </div>
+
+            <div class="col-md-2">
+                <input id="mkm"
+                       class="form-control"
+                       type="number"
+                       placeholder="KM">
+            </div>
+
+            <div class="col-md-2">
+                <input id="mvalor"
+                       class="form-control"
+                       placeholder="Valor R$"
+                       oninput="mascaraMoeda(this)">
+            </div>
+
+            <div class="col-md-1">
+                <input id="mnf"
+                       class="form-control"
+                       placeholder="Nº NF">
+            </div>
+
+            <div class="col-md-3">
+                <select id="mfornecedor"
+                        class="form-select"></select>
+            </div>
+
+            <div class="col-md-12">
+                <input id="mservico"
+                       class="form-control"
+                       placeholder="Descrição do Serviço">
+            </div>
+
+            <div class="col-md-12 text-end">
+
+                <button
+                id="btn_cancel_manutencoes"
+                class="btn btn-outline-secondary btn-cancelar"
+                onclick="limparForm(
+                'manutencoes',
+                ['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico','mnf'],
+                'man_idx'
+                )">
+                Cancelar
+                </button>
+
+                <button
+                class="btn btn-success"
+                onclick="salvar(
+                'manutencoes',
+                ['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico','mnf'],
+                'man_idx'
+                )">
+                Salvar
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- CARDS -->
+
+    <div class="row g-3 mb-3">
+
+    <div class="col-md-3">
+        <div class="man-card primary">
+            <small>Manutenções</small>
+            <h4 id="totalManutencoesQtd">0</h4>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="man-card success">
+            <small>Total Gasto</small>
+            <h4 id="totalManutencoesValor">
+                R$ 0,00
+            </h4>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="man-card warning">
+            <small>Ticket Médio</small>
+            <h4 id="ticketMedioManutencao">
+                R$ 0,00
+            </h4>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="man-card danger">
+            <small>Última Manutenção</small>
+            <h4 id="ultimaManutencao">
+                --
+            </h4>
+        </div>
+    </div>
+
+</div>
+
+    <!-- FILTROS -->
+
+    <div class="glass-container">
+
+        <div class="row g-2">
+
+            <div class="col-md-3">
+                <select id="filtroManVeiculo"
+                        class="form-select">
+                    <option value="">Todos Veículos</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <select id="filtroManFornecedor"
+                        class="form-select">
+                    <option value="">Todos Fornecedores</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <input type="date"
+                       id="filtroManDataIni"
+                       class="form-control">
+            </div>
+
+            <div class="col-md-2">
+                <input type="date"
+                       id="filtroManDataFim"
+                       class="form-control">
+            </div>
+
+            <div class="col-md-2">
+                <input type="number"
+                       id="filtroManKmMin"
+                       class="form-control"
+                       placeholder="KM Min">
+            </div>
+
+            <div class="col-md-2">
+                <input type="number"
+                       id="filtroManKmMax"
+                       class="form-control"
+                       placeholder="KM Max">
+            </div>
+
+            <div class="col-md-2">
+                <input id="filtroManNF"
+                       class="form-control"
+                       placeholder="NF">
+            </div>
+
+            <div class="col-md-3">
+                <input id="filtroManServico"
+class="form-control"
+placeholder="Serviço">
+</div>
+
+<div class="col-md-2">
+
+<button
+class="btn btn-primary w-100"
+onclick="aplicarFiltroManutencoes()">
+
+🔎 Filtrar
+
+</button>
+
+</div>
+
+<div class="col-md-2">
+
+<button
+class="btn btn-secondary w-100"
+onclick="limparFiltroManutencoes()">
+
+Limpar
+
+</button>
+
+</div>
+ </div>
+    </div>
+
+    <!-- LISTA -->
+
+    <div class="glass-container">
+
+        <div class="d-flex justify-content-end mb-3">
+
+            <button
+            class="btn-excel"
+            onclick="exportarExcel('manutencoes')">
+            📥 Exportar Excel
+            </button>
+
+        </div>
+
+        <table class="table">
+
+            <thead>
+
+                <tr>
+
+                    <th>Veículo</th>
+                    <th>Data</th>
+                    <th>KM</th>
+                    <th>Valor</th>
+                    <th>NF</th>
+                    <th>Fornecedor</th>
+                    <th>Serviço</th>
+                    <th>Ações</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody id="listaManutencao"></tbody>
+
+        </table>
+
+        <div id="paginacaoManutencoes"></div>
+
+    </div>
+
+</div>
+
+
+<div id="combustivel" class="hidden">
+    <h3>⛽ Controle de Combustível</h3>
+
+    <div class="glass-container">
+        <input type="hidden" id="c_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+                <select id="cveiculo" class="form-select"></select>
+            </div>
+
+            <div class="col-md-2">
+                <input type="date" id="cdata" class="form-control">
+            </div>
+
+            <div class="col-md-2">
+                <select id="ctipo" class="form-select">
+                    <option>Gasolina</option>
+                    <option>Diesel S500</option>
+                    <option>Diesel S10</option>
+                    <option>Arla32</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <input id="clitros" type="number" class="form-control" placeholder="Litros">
+            </div>
+
+            <div class="col-md-2">
+                <input id="cvalorlitro" class="form-control" placeholder="Valor/L">
+            </div>
+
+            <div class="col-md-2">
+            <input id="ckm" class="form-control" placeholder="KM Atual">
+            </div>
+
+            <div class="col-md-3">
+                <input id="cposto" class="form-control" placeholder="Posto">
+            </div>
+
+            <div class="col-md-12 text-end">
+                <button class="btn btn-primary" onclick="salvarCombustivelCustom()">Salvar</button>
+                <button class="btn btn-outline-secondary" onclick="limparForm('combustivel', ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'cposto'], 'c_idx')">Cancelar</button>            </div>
+        </div>
+    </div>
+
+    <div class="glass-container">
+
+
+        <div class="filtros-avancados mt-3" data-filtro-mod="combustivel">
+            <div class="titulo-filtro">🔍 Filtros de Combustível</div>
+            <div class="row g-2">
+                <div class="col-md-2"><select id="fcVeiculo" class="form-select"><option value="">Todos os veículos</option></select></div>
+                <div class="col-md-2">
+                    <select id="fcTipo" class="form-select">
+                        <option value="">Todos os tipos</option>
+                        <option value="Gasolina">Gasolina</option>
+                        <option value="Diesel S500">Diesel S500</option>
+                        <option value="Diesel S10">Diesel S10</option>
+                        <option value="Arla32">Arla32</option>
+                    </select>
+                </div>
+                <div class="col-md-2"><input type="date" id="fcIni" class="form-control"></div>
+                <div class="col-md-2"><input type="date" id="fcFim" class="form-control"></div>
+                <div class="col-md-2"><input id="fcPosto" class="form-control" placeholder="Posto"></div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button class="btn btn-primary w-100" onclick="aplicarFiltrosModulo('combustivel')">Filtrar</button>
+                    <button class="btn btn-outline-secondary w-100" onclick="limparFiltrosModulo('combustivel')">Limpar</button>
+                </div>
+                <div class="col-12 cont-filtro" id="contFiltro_combustivel"></div>
+            </div>
+        </div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Veículo</th>
+                    <th>Data</th>
+                    <th>Tipo</th>
+                    <th>KM</th>
+                    <th>Litros</th>
+                    <th>Valor/L</th>
+                    <th>Total</th>
+                    <th>Média</th>
+                    <th>Posto</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+
+            <tbody id="listaCombustivel"></tbody>
+        </table>
+
+        <div id="paginacaoCombustivel"></div>
+
+    </div>
+</div>
+
+    <div id="licenciamento" class="hidden">
+        <h3>📜 Licenciamento</h3>
+        <div class="glass-container">
+            <input type="hidden" id="l_idx">
+            <div class="row g-3">
+                <div class="col-md-4"><select id="lveiculo" class="form-select"></select></div>
+                <div class="col-md-4"><input type="date" id="lvencimento" class="form-control"></div>
+                <div class="col-md-4"><input id="lvalor" class="form-control" placeholder="Valor R$" oninput="mascaraMoeda(this)"></div>
+                <div class="col-md-12 text-end">
+                    <button id="btn_cancel_licenciamento" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('licenciamento',['lveiculo','lvencimento','lvalor'],'l_idx')">Cancelar</button>
+                    <button class="btn btn-primary" onclick="salvar('licenciamento',['lveiculo','lvencimento','lvalor'],'l_idx')">Salvar</button>
+                </div>
+            </div>
+        </div>
+        <div class="glass-container">
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn-excel" onclick="exportarExcel('licenciamento')">📥 Exportar Excel</button>
+            </div>
+            <table class="table"><thead><tr><th>Veículo</th><th>Vencimento</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="listaLicenciamento"></tbody></table>
+        </div>
+    </div>
+
+    <div id="tacografo" class="hidden">
+        <h3>⏱ Tacógrafo</h3>
+        <div class="glass-container">
+            <input type="hidden" id="t_idx">
+            <div class="row g-3">
+                <div class="col-md-4"><select id="tveiculo" class="form-select"></select></div>
+                <div class="col-md-4"><input type="date" id="tvencimento" class="form-control"></div>
+                <div class="col-md-4"><input id="tvalor" class="form-control" placeholder="Valor R$" oninput="mascaraMoeda(this)"></div>
+                <div class="col-md-12 text-end">
+                    <button id="btn_cancel_tacografo" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('tacografo',['tveiculo','tvencimento','tvalor'],'t_idx')">Cancelar</button>
+                    <button class="btn btn-primary" onclick="salvar('tacografo',['tveiculo','tvencimento','tvalor'],'t_idx')">Salvar</button>
+                </div>
+            </div>
+        </div>
+        <div class="glass-container">
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn-excel" onclick="exportarExcel('tacografo')">📥 Exportar Excel</button>
+            </div>
+            <table class="table"><thead><tr><th>Veículo</th><th>Vencimento</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="listaTacografo"></tbody></table>
+        </div>
+    </div>
+
+    <div id="seguros" class="hidden">
+        <h3>🛡 Seguros</h3>
+        <div class="glass-container">
+            <input type="hidden" id="s_idx">
+            <div class="row g-3">
+                <div class="col-md-4"><select id="sveiculo" class="form-select"></select></div>
+                <div class="col-md-4"><input id="sseguradora" class="form-control" placeholder="Seguradora"></div>
+                <div class="col-md-4"><input type="date" id="svencimento" class="form-control"></div>
+                <div class="col-md-12 text-end">
+                    <button id="btn_cancel_seguros" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('seguros',['sveiculo','sseguradora','svencimento'],'s_idx')">Cancelar</button>
+                    <button class="btn btn-primary" onclick="salvar('seguros',['sveiculo','sseguradora','svencimento'],'s_idx')">Salvar</button>
+                </div>
+            </div>
+        </div>
+        <div class="glass-container">
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn-excel" onclick="exportarExcel('seguros')">📥 Exportar Excel</button>
+            </div>
+            <table class="table"><thead><tr><th>Veículo</th><th>Seguradora</th><th>Vencimento</th><th>Ações</th></tr></thead><tbody id="listaSeguros"></tbody></table>
+        </div>
+    </div>
+    
+    <div id="licencas" class="hidden">
+        <h3>📄 CIV / CIPP</h3>
+        <div class="glass-container">
+            <input type="hidden" id="le_idx">
+            <div class="row g-3">
+                <div class="col-md-12"><select id="leveiculo" class="form-select"></select></div>
+                <div class="col-md-6"><h6>CIV</h6><input type="date" id="venciv" class="form-control mb-2"><input id="numciv" class="form-control" placeholder="Nº CIV"></div>
+                <div class="col-md-6"><h6>CIPP</h6><input type="date" id="vencipp" class="form-control mb-2"><input id="numcipp" class="form-control" placeholder="Nº CIPP"></div>
+                <div class="col-md-12 text-end mt-2">
+                    <button id="btn_cancel_licencas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('licencas',['leveiculo','venciv','numciv','vencipp','numcipp'],'le_idx')">Cancelar</button>
+                    <button class="btn btn-primary" onclick="salvar('licencas',['leveiculo','venciv','numciv','vencipp','numcipp'],'le_idx')">Salvar</button>
+                </div>
+            </div>
+        </div>
+        <div class="glass-container">
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn-excel" onclick="exportarExcel('licencas')">📥 Exportar Excel</button>
+            </div>
+            <table class="table table-striped">
+<thead>
+<tr>
+    <th>Veículo</th>
+    <th>Nº CIV</th>
+    <th>Venc. CIV</th>
+    <th>Nº CIPP</th>
+    <th>Venc. CIPP</th>
+    <th>Ações</th>
+</tr>
+</thead>
+<tbody id="listaLicencas"></tbody>
+</table>
+        </div>
+    </div>
+    
+   <div id="revisoes" class="hidden">
+
+    <h3>⏱ Revisões KM</h3>
+
+    <div class="glass-container">
+
+        <input type="hidden" id="r_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+                <label class="form-label">Veículo</label>
+                <select id="rveiculo"
+                        class="form-select"
+                        onchange="atualizarKMAtualRevisao()">
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">KM Atual</label>
+                <input id="rkmatual"
+                       class="form-control text-end fw-bold"
+                       readonly>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Última Revisão</label>
+                <input id="rkmultima"
+                       type="number"
+                       class="form-control text-end"
+                       oninput="calcularRevisao()">
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Trocar a cada (KM)</label>
+                <input id="rkm"
+                       type="number"
+                       class="form-control text-end"
+                       placeholder="10000"
+                       oninput="calcularRevisao()">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Serviço</label>
+                <input id="rtipo"
+                       class="form-control"
+                       placeholder="Ex.: Troca de óleo">
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Próxima Revisão</label>
+                <input id="rkmproxima"
+                       class="form-control text-end fw-bold"
+                       readonly>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">KM Faltantes</label>
+                <input id="rkmfaltante"
+                       class="form-control text-end fw-bold"
+                       readonly>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+
+                <div id="rstatus"
+                     class="form-control text-center fw-bold">
+
+                    Em Dia
+
+                </div>
+
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Data Revisão</label>
+                <input id="rdata"
+                       type="date"
+                       class="form-control">
+            </div>
+
+            <div class="col-md-12">
+                <label class="form-label">Observações</label>
+                <textarea id="robs"
+                          class="form-control"
+                          rows="2"></textarea>
+            </div>
+
+            <div class="col-md-12 text-end">
+
+                <button id="btn_cancel_revisoes"
+                        class="btn btn-outline-secondary btn-cancelar"
+                        style="display:none"
+                        onclick="limparFormularioRevisao()">
+
+                    Cancelar
+
+                </button>
+
+                <button class="btn btn-warning"
+                        onclick="salvarRevisao()">
+
+                    💾 Salvar Revisão
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="row g-3 mb-4">
+
+    <div class="col-md-4">
+        <div class="man-card danger">
+            <h6>🚨 Vencidas</h6>
+            <h2 id="dashRevVencidas">0</h2>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="man-card warning">
+            <h6>⚠️ Atenção</h6>
+            <h2 id="dashRevAtencao">0</h2>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="man-card success">
+            <h6>✅ Em Dia</h6>
+            <h2 id="dashRevEmDia">0</h2>
+        </div>
+    </div>
+
+</div>
+
+<div class="glass-container">
+
+        <div class="d-flex justify-content-end mb-3">
+
+            <button class="btn-excel"
+                    onclick="exportarExcel('revisoes')">
+
+                📥 Exportar Excel
+
+            </button>
+
+        </div>
+
+        <div class="table-responsive">
+
+            <table class="table table-hover align-middle">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Veículo</th>
+
+                        <th>Serviço</th>
+
+                        <th class="text-end">KM Atual</th>
+
+                        <th class="text-end">Última</th>
+
+                        <th class="text-end">Troca</th>
+
+                        <th class="text-end">Próxima</th>
+
+                        <th class="text-end">Faltam</th>
+
+                        <th>Status</th>
+
+                        <th>Data</th>
+ 
+                        <th>Observações</th>
+
+                        <th>Ações</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="listaRevisoes">
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+    
+    <div id="fornecedores" class="hidden">
+        <h3>🏭 Fornecedores</h3>
+        <div class="glass-container">
+            <input type="hidden" id="f_idx">
+            <div class="row g-3">
+
+    <div class="col-md-3">
+        <input id="fnome" class="form-control" placeholder="Empresa">
+    </div>
+
+    <div class="col-md-3">
+    <input id="ffantasia" class="form-control" placeholder="Nome Fantasia">
+</div>
+
+<div class="col-md-3">
+    <input id="fresp" class="form-control" placeholder="Responsável">
+</div>
+
+    <div class="col-md-2">
+        <input id="fcnpj" class="form-control"
+               placeholder="CNPJ"
+               oninput="mascaraCNPJ(this); verificarCNPJFornecedor();">
+    </div>
+
+    <div class="col-md-2">
+        <input id="ftel" class="form-control"
+               placeholder="Telefone"
+               oninput="mascaraTelefone(this)">
+    </div>
+
+    <div class="col-md-3">
+        <input id="femail" class="form-control"
+               placeholder="E-mail">
+    </div>
+
+    <div class="col-md-2">
+        <input id="fcep" class="form-control"
+               placeholder="CEP">
+    </div>
+
+    <div class="col-md-4">
+        <input id="fendereco" class="form-control"
+               placeholder="Endereço">
+    </div>
+
+    <div class="col-md-2">
+        <input id="fnumero" class="form-control"
+               placeholder="Número">
+    </div>
+
+    <div class="col-md-3">
+        <input id="fbairro" class="form-control"
+               placeholder="Bairro">
+    </div>
+
+    <div class="col-md-3">
+        <input id="fcidade" class="form-control"
+               placeholder="Cidade">
+    </div>
+
+    <div class="col-md-1">
+        <input id="fuf" class="form-control"
+               placeholder="UF">
+    </div>
+                <div class="col-md-12 d-flex justify-content-end gap-2">
+<button id="btn_cancel_fornecedores" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('fornecedores',
+[
+'fnome',
+'ffantasia',
+'fresp',
+'fcnpj',
+'ftel',
+'femail',
+'fcep',
+'fendereco',
+'fnumero',
+'fbairro',
+'fcidade',
+'fuf'
+],
+'f_idx')">Cancelar</button>
+<button class="btn btn-primary" onclick="salvar('fornecedores',
+[
+'fnome',
+'ffantasia',
+'fresp',
+'fcnpj',
+'ftel',
+'femail',
+'fcep',
+'fendereco',
+'fnumero',
+'fbairro',
+'fcidade',
+'fuf'
+],
+'f_idx')">Salvar</button>
+                </div>
+            </div>
+        </div>
+        <div class="glass-container">
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn-excel" onclick="exportarExcel('fornecedores')">📥 Exportar Excel</button>
+            </div>
+<div class="filtros-avancados" data-filtro-mod="fornecedores">
+    <div class="titulo-filtro">🔍 Filtros de Fornecedores</div>
+    <div class="row g-2">
+        <div class="col-md-3"><input id="ffEmpresa" class="form-control" placeholder="Empresa / Nome Fantasia"></div>
+        <div class="col-md-2"><input id="ffResp" class="form-control" placeholder="Responsável"></div>
+        <div class="col-md-2"><input id="ffCnpj" class="form-control" placeholder="CNPJ"></div>
+        <div class="col-md-2"><input id="ffCidade" class="form-control" placeholder="Cidade"></div>
+        <div class="col-md-1"><input id="ffUf" class="form-control" placeholder="UF"></div>
+        <div class="col-md-2 d-flex gap-2">
+            <button class="btn btn-primary w-100" onclick="aplicarFiltrosModulo('fornecedores')">Filtrar</button>
+            <button class="btn btn-outline-secondary w-100" onclick="limparFiltrosModulo('fornecedores')">Limpar</button>
+        </div>
+        <div class="col-12 cont-filtro" id="contFiltro_fornecedores"></div>
+    </div>
+</div>
+<table class="table"><thead>
+<tr>
+<th>Empresa</th>
+<th>Nome Fantasia</th>
+<th>Responsável</th>
+<th>CNPJ</th>
+<th>Telefone</th>
+<th>E-mail</th>
+<th>Cidade</th>
+<th>UF</th>
+<th>Ações</th>
+</tr>
+</thead><tbody id="listaFornecedores"></tbody></table>
+<div id="paginacaoFornecedores"></div>
+        </div>
+    </div>
+
+   <div id="admin" class="hidden">
+    <h3>👑 Gerenciamento de Usuários</h3>
+
+    <div class="glass-container">
+    <input type="hidden" id="adm_idx">
+        <div class="row g-3">
+        <div class="col-md-4">
+    <input id="admNome" class="form-control mb-2" placeholder="Nome">
+    <input id="admEmail" class="form-control mb-2" placeholder="Email">
+</div>
+
+<div class="col-md-4">
+    <input id="admSenha" type="password" class="form-control mb-2" placeholder="Senha">
+
+    <select id="admTipo" class="form-select">
+        <option value="user">Usuário</option>
+        <option value="admin">Admin</option>
+    </select>
+</div>
+
+<div class="col-md-4">
+    <label class="fw-bold">Permissões de acesso:</label>
+    <div id="listaPermissoes"></div>
+</div>
+
+            <div class="col-md-12 text-end">
+                <button
+id="btnSalvarUsuario"
+class="btn btn-dark"
+onclick="criarUsuarioAdmin()">
+
+Criar Usuário
+
+</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Tipo</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="listaUsuarios"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========================= -->
+<!-- MÓDULO PNEUS -->
+<!-- ========================= -->
+<div id="pneus" class="hidden">
+
+    <h3>🛞 Gestão de Pneus</h3>
+
+    <!-- ========================= -->
+    <!-- FORMULÁRIO -->
+    <!-- ========================= -->
+    <div class="glass-container">
+
+        <input type="hidden" id="p_idx">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+                <input id="pnumero" class="form-control" placeholder="Número do Pneu">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pmarca" class="form-control" placeholder="Marca">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pmodelo" class="form-control" placeholder="Modelo">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pmedida" class="form-control" placeholder="Medida">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pdot" class="form-control" placeholder="DOT">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pvalor" class="form-control" placeholder="Valor Compra" oninput="mascaraMoeda(this)">
+            </div>
+
+            <div class="col-md-3">
+                <input type="date" id="pdata" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pvida" type="number" class="form-control" placeholder="Vida Útil KM">
+            </div>
+
+            <div class="col-md-3">
+                <input id="psulco" class="form-control" placeholder="Sulco Inicial">
+            </div>
+
+            <div class="col-md-3">
+                <select id="pveiculo" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+                <select id="pfornecedor" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+                <select id="pposicao" class="form-select">
+                    <option>Dianteiro Esquerdo</option>
+                    <option>Dianteiro Direito</option>
+                    <option>Tração E.Externo</option>
+                    <option>Tração E.Dentro</option>
+                    <option>Tração D.Externo</option>
+                    <option>Tração D.Dentro</option>
+                    <option>Truck E.Externo</option>
+                    <option>Truck E.Dentro</option>
+                    <option>Truck D.Externo</option>
+                    <option>Truck D.Dentro</option>
+                    <option>Estepe 1</option>
+                    <option>Estepe 2</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <input id="pkminstalacao"
+type="number"
+class="form-control"
+placeholder="KM Instalação"
+oninput="calcularKMPneu()">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pkmatual"
+type="number"
+class="form-control"
+placeholder="KM Atual"
+oninput="calcularKMPneu()">
+            </div>
+
+            <div class="col-md-3">
+                <input id="pkmrodado"class="form-control"placeholder="KM Rodado Automático"readonly>
+            </div>
+
+            <div class="col-md-3">
+                <select id="pstatus" class="form-select">
+                    <option>Em Uso</option>
+                    <option>Estoque</option>
+                    <option>Recapado</option>
+                    <option>Descartado</option>
+                </select>
+            </div>
+
+            <div class="col-md-12">
+                <textarea id="pobs" class="form-control" placeholder="Observações"></textarea>
+            </div>
+
+            <div class="col-md-12 text-end">
+
+                <button id="btn_cancel_pneus"
+                class="btn btn-outline-secondary btn-cancelar"
+                onclick="limparForm('pneus',
+                ['pnumero','pmarca','pmodelo','pmedida','pdot','pvalor','pdata','pvida','psulco','pveiculo','pfornecedor','pposicao','pkminstalacao','pkmatual','pkmrodado','pstatus','pobs'],
+                'p_idx')">
+                Cancelar
+                </button>
+
+                <button class="btn btn-dark"
+                onclick="salvarPneu()">
+                Salvar Pneu
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- FILTROS -->
+    <!-- ========================= -->
+    <div class="glass-container">
+
+        <div class="row g-2">
+
+            <div class="col-md-3">
+                <input type="text"
+                id="filtroPneu"
+                class="form-control"
+                placeholder="Pesquisar Pneu">
+            </div>
+
+            <div class="col-md-3">
+                <select id="filtroPVeiculo" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+                <select id="filtroPStatus" class="form-select">
+                    <option value="">Status</option>
+                    <option>Em Uso</option>
+                    <option>Estoque</option>
+                    <option>Recapado</option>
+                    <option>Descartado</option>
+                </select>
+            </div>
+
+            <div class="col-md-3 d-flex gap-2">
+
+    <button class="btn btn-primary w-100"
+    onclick="renderModulo('pneus')">
+    Filtrar
+    </button>
+
+    <button class="btn btn-secondary w-100"
+    onclick="limparFiltrosPneus()">
+    Limpar
+    </button>
+
+</div>
+
+        </div>
+
+    </div>
+<!-- RESUMO PNEUS -->
+<div class="row mb-3">
+
+    <div class="col-md-6">
+        <div class="stat-card">
+            <h6>Total de Pneus</h6>
+            <h3 id="totalPneus">0</h3>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="stat-card" style="border-left-color: var(--success)">
+            <h6>Valor Total em Pneus</h6>
+            <h3 id="valorTotalPneus">R$ 0,00</h3>
+        </div>
+    </div>
+
+</div>
+
+    <!-- ========================= -->
+    <!-- TABELA -->
+    <!-- ========================= -->
+    <div class="glass-container">
+
+        <div class="d-flex justify-content-end mb-3">
+
+            <button class="btn-excel"
+            onclick="exportarExcel('pneus')">
+            📥 Exportar Excel
+            </button>
+
+        </div>
+
+        <table class="table">
+
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th>Marca</th>
+                    <th>Veículo</th>
+                    <th>Posição</th>
+                    <th>KM Rodado</th>
+                    <th>Status</th>
+                    <th>Fornecedor</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+
+            <tbody id="listaPneus"></tbody>
+
+        </table>
+
+        <div id="paginacaoPneus"></div>
+
+    </div>
+
+</div>
+
+    <div id="backup" class="hidden">
+    <h3>📂 Backup</h3>
+
+    <div class="row">
+
+        <div class="col-md-12">
+            <div class="glass-container">
+                <h5>Segurança de Dados</h5>
+
+                <button class="btn btn-success w-100 mb-2" onclick="exportarBackup()">
+                    💾 Exportar Backup (.json)
+                </button>
+
+                <button class="btn btn-outline-primary w-100"
+                    onclick="document.getElementById('fileIn').click()">
+                    📥 Importar Backup
+                </button>
+
+                <input type="file"
+                       id="fileIn"
+                       style="display:none"
+                       onchange="importarBackup(event)">
+            </div>
+        </div>
+
+        <!-- Histórico -->
+        <div class="col-md-12 mt-4">
+            <div class="glass-container">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">🕘 Últimos 10 Backups</h5>
+                    <span class="badge bg-primary" id="totalBackups">0 Backups</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle">
+
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Data/Hora</th>
+                                <th>Arquivo</th>
+                                <th>Tamanho</th>
+                                <th>Status</th>
+                                <th width="220">Ações</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="listaBackups">
+                        </tbody>
+
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+<script>
+
+let historicoBackups =
+JSON.parse(localStorage.getItem("historicoBackups")) || [];
+
+function atualizarHistoricoBackup(){
+
+    historicoBackups.sort(
+        (a,b)=>new Date(b.data)-new Date(a.data)
+    );
+
+    historicoBackups = historicoBackups.slice(0,10);
+
+    localStorage.setItem(
+        "historicoBackups",
+        JSON.stringify(historicoBackups)
+    );
+
+    let html="";
+
+    historicoBackups.forEach((b,i)=>{
+
+        html += `
+        <tr>
+
+            <td>${i+1}</td>
+
+            <td>${new Date(b.data).toLocaleString()}</td>
+
+            <td>${b.nome}</td>
+
+            <td>${b.tamanho}</td>
+
+            <td>
+                <span class="badge bg-success">
+                    Concluído
+                </span>
+            </td>
+
+            <td>
+
+                <button class="btn btn-success btn-sm"
+                    onclick="baixarBackup(${i})">⬇</button>
+
+                <button class="btn btn-warning btn-sm"
+                    onclick="restaurarBackup(${i})">🔄</button>
+
+                <button class="btn btn-danger btn-sm"
+                    onclick="excluirBackup(${i})">🗑</button>
+
+            </td>
+
+        </tr>
+        `;
+
+    });
+
+    document.getElementById("listaBackups").innerHTML = html;
+
+}
+
+function formatarDataBR(data){
+    if(!data) return '--';
+    let partes = data.split('-');
+    if(partes.length !== 3) return data;
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
+</script>
+
+<script src="paginacao.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCM4rujKma6_ggBuET2DkDdCnTt-LcjRXY",
+  authDomain: "frotamastercarlos.firebaseapp.com",
+  projectId: "frotamastercarlos"
+};
+
+firebase.initializeApp(firebaseConfig);
+firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+const auth = firebase.auth();
+const dbCloud = firebase.firestore();
+const MAP={
+    veiculos:'FM_V',
+    motoristas:'FM_M',
+    terceiros:'FM_TER',
+    diarias:'FM_DI',
+    pneus:'FM_P',
+    multas:'FM_MU',
+    manutencoes:'FM_MAN',
+    revisoes:'FM_R',
+    seguros:'FM_SEG',
+    licenciamento:'FM_L',
+    tacografo:'FM_TAC',
+    licencas:'FM_LE',
+    fornecedores:'FM_F',
+    ferias:'FM_FE',
+    agendamentos:'FM_AG',
+    combustivel:'FM_C',
+    saidaVeiculos:'FM_SV',
+};
+const MODULOS = Object.keys(MAP);
+let db={}
+let chart
+let usuarioLogado = null;
+
+Object.keys(MAP).forEach(k=>{
+    db[k] = []
+})
+const ID_MAP_INDEX = {
+
+    veiculos:'v_idx',
+    motoristas:'m_idx',
+    terceiros:'ter_idx',
+    diarias:'di_idx',
+    seguros:'s_idx',
+    manutencoes:'man_idx',
+    revisoes:'r_idx',
+    fornecedores:'f_idx',
+    licenciamento:'l_idx',
+    tacografo:'t_idx',
+    licencas:'le_idx',
+    multas:'mu_idx',
+    ferias:'fe_idx',
+    agendamentos:'ag_idx',
+    combustivel:'c_idx',
+    pneus:'p_idx',
+    saidaVeiculos:'sv_idx',
+
+};
+
+function exportarExcel(modulo) {
+    const dados = db[modulo];
+    if (dados.length === 0) { alert("Não existem dados cadastrados neste módulo!"); return; }
+    const worksheet = XLSX.utils.json_to_sheet(dados);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, modulo.toUpperCase());
+    XLSX.writeFile(workbook, `FrotaMaster_${modulo}_${new Date().toLocaleDateString()}.xlsx`);
+}
+
+function mascaraMoeda(i) {
+    let v = i.value.replace(/\D/g,'');
+    v = (v/100).toFixed(2) + '';
+    v = v.replace(".", ",");
+    v = v.replace(/(\d)(\d{3})(\d{3}),/g, "$1.$2.$3,");
+    v = v.replace(/(\d)(\d{3}),/g, "$1.$2,");
+    i.value = "R$ " + v;
+}
+function mascaraTelefone(i) {
+    let v = i.value.replace(/\D/g, "");
+    if (v.length > 11) v = v.slice(0, 11);
+    if (v.length > 10) v = v.replace(/^(\d{2})(\d{5})(\d{4}).*/, "($1) $2-$3");
+    else if (v.length > 2) v = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, "($1) $2-$3");
+    else if (v.length > 0) v = v.replace(/^(\d*)/, "($1");
+    i.value = v;
+}
+function mascaraCNPJ(i) {
+    let v = i.value.replace(/\D/g, "");
+    if (v.length > 14) v = v.slice(0, 14);
+    v = v.replace(/^(\d{2})(\d)/, "$1.$2");
+    v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+    v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
+    v = v.replace(/(\d{4})(\d)/, "$1-$2");
+    i.value = v;
+}
+function mascaraCPF(i) {
+    let v = i.value.replace(/\D/g, "");
+    if (v.length > 11) v = v.slice(0, 11);
+    v = v.replace(/(\d{3})(\d)/, "$1.$2");
+    v = v.replace(/(\d{3})(\d)/, "$1.$2");
+    v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    i.value = v;
+}
+function moedaParaFloat(v) {
+    if(!v) return 0;
+    return parseFloat(v.replace("R$ ","").replace(/\./g,"").replace(",","."));
+
+}
+function floatParaMoeda(v) {
+    return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function salvarNuvem(){
+
+    Object.keys(db).forEach(mod => {
+
+        dbCloud.collection("frota")
+        .doc(mod)
+        .set({
+            dados: db[mod]
+        }, { merge: true });
+
+    });
+
+}
+
+function navegar(id, el) {
+    // 🔐 bloqueio por permissão
+    if (usuarioLogado.tipo !== "admin") {
+        let p = usuarioLogado.permissoes || {};
+        if (p[id] === false) {
+            alert("Acesso negado!");
+            return;
+        }
+    }
+
+    // 🔐 bloqueio de segurança
+    if (id === "admin" && (!usuarioLogado || usuarioLogado.tipo !== "admin")) {
+        alert("Acesso restrito!");
+        return;
+    }
+
+    // Esconde todos e mostra o selecionado
+    document.querySelectorAll('.main>div').forEach(d => d.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+    
+    // Gerencia o menu ativo
+    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+    el.classList.add('active');
+
+    // Carregamento específico por módulo
+    if (id === 'combustivel') {
+        carregarVeiculosSelect('cveiculo');
+    }
+
+    if (id === 'saidaVeiculos') {
+        carregarVeiculosSelect('svveiculo');
+        carregarVeiculosSelect('filtroSVVeiculo');
+    }
+
+    // Renderizações globais e cálculos
+    renderTudo();
+
+    if (id === 'dashboard') { // Alterado de 'modulo' para 'id' para consistência
+        calcularMediaConsumo();
+    }
+}
+
+function ordenarFornecedores(){
+
+    if(!db.fornecedores) db.fornecedores = [];
+
+    db.fornecedores.sort((a, b) =>
+        (a.fnome || '').localeCompare((b.fnome || ''), 'pt-BR', { sensitivity: 'base' })
+    );
+
+}
+
+function salvar(mod, campos, idCampo){
+
+    let obj = {};
+
+    let idx = document.getElementById(idCampo).value;
+
+    campos.forEach(c => obj[c] = document.getElementById(c).value);
+
+    /*=====================================================
+ATUALIZA KM DOS VEÍCULOS
+=====================================================*/
+
+if(mod === 'manutencoes' && obj.mveiculo && obj.mkm){
+
+    let vei = db.veiculos.find(
+        v => v.vplaca === obj.mveiculo
+    );
+
+    if(vei){
+
+        vei.vkm = Number(obj.mkm);
+
+    }
+
+}
+
+if(mod === 'combustivel' && obj.cveiculo && obj.ckm){
+
+    let vei = db.veiculos.find(
+        v => v.vplaca === obj.cveiculo
+    );
+
+    if(vei){
+
+        vei.vkm = Number(obj.ckm);
+
+    }
+
+}
+
+if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno){
+
+    let vei = db.veiculos.find(
+        v => v.vplaca === obj.svveiculo
+    );
+
+    if(vei){
+
+        vei.vkm = Number(obj.svkmretorno);
+
+    }
+
+}
+
+    /*=====================================================
+    BLOQUEIO DE CADASTRO DUPLICADO - FORNECEDORES
+    =====================================================*/
+    if(mod === 'fornecedores'){
+
+        const soDigitos = v => (v || '').replace(/\D/g, '');
+        const norm = v => (v || '').trim().toLowerCase();
+
+        const cnpjNovo = soDigitos(obj.fcnpj);
+        const nomeNovo = norm(obj.fnome);
+
+        if(!nomeNovo){
+            alert('Informe o nome da empresa.');
+            return;
+        }
+
+        const duplicado = db.fornecedores.find((f, i) => {
+
+            if(idx !== "" && Number(i) === Number(idx)) return false;
+
+            if(cnpjNovo && soDigitos(f.fcnpj) === cnpjNovo) return true;
+
+            return norm(f.fnome) === nomeNovo;
+
+        });
+
+        if(duplicado){
+            alert('Fornecedor já cadastrado: ' + duplicado.fnome +
+                  (duplicado.fcnpj ? ' (' + duplicado.fcnpj + ')' : ''));
+            return;
+        }
+
+    }
+
+    if(idx === ""){
+        db[mod].push(obj);
+    }else{
+        db[mod][idx] = obj;
+    }
+
+    if(mod === 'fornecedores'){
+        ordenarFornecedores();
+    }
+
+    salvarNuvem();
+
+if(typeof sincronizarRevisoes === "function"){
+
+    sincronizarRevisoes();
+
+}
+
+    if(typeof PAGINACAO !== "undefined"){
+
+        if(PAGINACAO.paginas[mod] === undefined){
+            PAGINACAO.paginas[mod] = 1;
+        }
+
+        localStorage.setItem(
+            "pagina_" + mod,
+            PAGINACAO.paginas[mod]
+        );
+    }
+
+    renderModulo(mod);
+if(mod==="veiculos"){
+
+    renderModulo("revisoes");
+
+}
+
+if(mod==="manutencoes"){
+
+    renderModulo("revisoes");
+
+}
+
+if(mod==="combustivel"){
+
+    renderModulo("revisoes");
+
+}
+
+if(mod==="saidaVeiculos"){
+
+    renderModulo("revisoes");
+
+}
+
+    limparForm(mod, campos, idCampo);
+
+    switch(mod){
+
+        case "motoristas":
+            atualizarDashboardMotoristas();
+            break;
+
+        case "veiculos":
+            carregarVeiculosSelect("cveiculo");
+            atualizarDashboardVeiculos();
+            break;
+
+        case "multas":
+            atualizarDashboardMultas();
+            break;
+
+        case "manutencoes":
+            atualizarDashboardManutencoes();
+            break;
+    }
+}
+
+function limparForm(mod, campos, idCampo) {
+    campos.forEach(c=>document.getElementById(c).value='');
+    document.getElementById(idCampo).value='';
+
+    const btnCancel = document.getElementById('btn_cancel_' + mod);
+
+    if(btnCancel)
+        btnCancel.style.display = 'inline-block';
+}
+
+function editar(mod,i){
+    let item=db[mod][i]
+    Object.keys(item).forEach(k=>{let el=document.getElementById(k); if(el) el.value=item[k]})
+    document.getElementById(ID_MAP_INDEX[mod]).value=i;
+    const btnCancel = document.getElementById('btn_cancel_' + mod);
+    if(btnCancel) btnCancel.style.display = 'inline-block';
+    window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function salvarSaidaVeiculo() {
+    const idx = document.getElementById("sv_idx").value;
+    const veiculo = document.getElementById("svveiculo").value;
+    const reserva = document.getElementById("svreserva").value;
+    const data = document.getElementById("svdataSaida").value;
+    const hora = document.getElementById("svhoraSaida").value;
+    
+    // Garante que a lista exista, se não existir inicia como array vazio
+    const listaVeiculos = db.saidaVeiculos || [];
+
+    // 1. GERAR NÚMERO AUTOMÁTICO (Fora do IF para garantir que funcione)
+    const inputNumReserva = document.getElementById("svnumeroreserva");
+    
+    if (inputNumReserva && (!inputNumReserva.value || inputNumReserva.value.trim() === "")) {
+        console.log("Campo do número da reserva está vazio. Gerando número...");
+        
+        // Mapeia os números existentes salvos no banco
+        const numeros = listaVeiculos
+            .map(s => parseInt(s.svnumeroreserva))
+            .filter(n => !isNaN(n));
+        
+        // Se houver números, pega o maior e soma 1. Se não, começa em 1.
+        const proximoNumero = numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
+        
+        inputNumReserva.value = proximoNumero;
+        console.log("Novo número gerado e inserido no input:", proximoNumero);
+    }
+
+    // 2. VALIDAÇÃO DE CONFLITO DE PERÍODO
+
+const horaChegada = document.getElementById("svhoraChegada").value;
+const dataChegada = document.getElementById("svdataChegada").value;
+
+if (!dataChegada) {
+    alert("Informe a data de chegada.");
+    return;
+}
+
+if (!horaChegada) {
+    alert("Informe a hora de chegada.");
+    return;
+}
+
+const inicioNovo = new Date(`${data}T${hora}`);
+const fimNovo = new Date(`${dataChegada}T${horaChegada}`);
+
+if (fimNovo <= inicioNovo) {
+    alert("A data/hora de chegada deve ser maior que a data/hora de saída.");
+    return;
+}
+
+const existe = listaVeiculos.some((item, i) => {
+
+    // Ignora o próprio registro na edição
+    if (idx !== "" && i === Number(idx)) {
+        return false;
+    }
+
+    // Veículo diferente
+    if (item.svveiculo !== veiculo) {
+        return false;
+    }
+
+    // Somente reservas ativas
+    if (item.svreserva !== "Reservado") {
+        return false;
+    }
+
+    const inicioExistente = new Date(
+        `${item.svdataSaida}T${item.svhoraSaida}`
+    );
+
+    const fimExistente = new Date(
+        `${item.svdataChegada}T${item.svhoraChegada}`
+    );
+
+    // Existe conflito se os períodos se cruzarem
+    return (
+        inicioNovo < fimExistente &&
+        fimNovo > inicioExistente
+    );
+
+});
+
+if (existe) {
+    alert(
+        "Este veículo já possui uma reserva neste período."
+    );
+    return;
+}
+
+    // 3. EXECUTA O SALVAMENTO PADRÃO
+    console.log("Chamando a função salvar genérica...");
+    // Guarda a página atual
+const paginaAtual = PAGINACAO.paginas["saidaVeiculos"] || 1;
+
+// Salva
+salvar(
+    "saidaVeiculos",
+    [
+        "svreserva",
+        "svnumeroreserva",
+        "svveiculo",
+        "svmotorista",
+        "svdestino",
+        "svdataSaida",
+        "svhoraSaida",
+        "svdataChegada",
+        "svhoraChegada",
+        "svstatus",
+        "svobs"
+    ],
+    "sv_idx"
+);
+
+// Restaura a página
+PAGINACAO.paginas["saidaVeiculos"] = paginaAtual;
+
+// Atualiza somente a tabela
+renderModulo("saidaVeiculos");
+}
+
+function gerarProximoNumeroReserva() {
+    if (!db.saidaVeiculos || db.saidaVeiculos.length === 0) return 1;
+
+    // Pega todos os números de reserva, converte para número e filtra vazios
+    const numeros = db.saidaVeiculos
+        .map(s => parseInt(s.svnumeroreserva))
+        .filter(n => !isNaN(n));
+
+    if (numeros.length === 0) return 1;
+
+    // Retorna o maior valor encontrado + 1
+    return Math.max(...numeros) + 1;
+}
+
+function deletar(mod, i){
+
+    if(!confirm("Excluir registro?")) return;
+
+    const paginaAtual = PAGINACAO.paginas[mod] || 1;
+
+    db[mod].splice(Number(i), 1);
+
+    // Calcula a última página existente após excluir
+    const totalPaginas = Math.max(
+        1,
+        Math.ceil(db[mod].length / PAGINACAO.itensPorPagina)
+    );
+
+    // Mantém a página atual, mas se ela deixar de existir,
+    // volta apenas uma página.
+    PAGINACAO.paginas[mod] = Math.min(paginaAtual, totalPaginas);
+    localStorage.setItem(
+    "pagina_" + mod,
+    PAGINACAO.paginas[mod]
+);
+
+    salvarNuvem();
+
+    renderModulo(mod);
+
+    if(mod === "motoristas"){
+        atualizarDashboardMotoristas();
+    }
+}
+
+function filtrarTabela(idTabela, termo) {
+
+    const tbody = document.getElementById(idTabela);
+    if (!tbody) return;
+
+    termo = termo.toLowerCase().trim();
+
+    Array.from(tbody.rows).forEach(linha => {
+
+        const texto = linha.textContent.toLowerCase();
+
+        linha.style.display = texto.includes(termo)
+            ? ""
+            : "none";
+
+    });
+
+}
+
+function formatarVencimento(dataStr){
+
+    if(!dataStr) return '<span class="text-muted">---</span>';
+
+    const hoje = new Date();
+    const venc = new Date(dataStr);
+    const diff = (venc - hoje) / 86400000;
+
+    let dataFormatada = formatarDataBR(dataStr);
+
+    if(diff < 0) return `<span class="status-vencido">${dataFormatada}</span>`;
+    if(diff <= 15) return `<span class="status-atencao">${dataFormatada}</span>`;
+
+    return `<span class="status-ok">${dataFormatada}</span>`;
+}
+
+function carregarFiltroVeiculosComb(){
+
+    const select = document.getElementById('filtroVeiculoComb');
+    if(!select) return;
+
+    select.innerHTML = '<option value="">Todos</option>' +
+        db.veiculos.map(v =>
+            `<option value="${v.vplaca}">${v.vplaca}</option>`
+        ).join('');
+}
+
+function salvarCombustivelCustom() {
+    const campos = ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'ckm', 'cposto'];
+    const idxCampo = 'c_idx';
+
+    let km = document.getElementById('ckm').value;
+km = parseFloat(km) || 0;
+
+document.getElementById('ckm').value = km;
+
+    // 🔥 PEGAR VALORES
+    let litros = document.getElementById('clitros').value;
+    let valor = document.getElementById('cvalorlitro').value;
+
+    // 🔥 CORRIGIR VÍRGULA → PONTO
+    litros = parseFloat(String(litros).replace(',', '.')) || 0;
+    valor = parseFloat(String(valor).replace(',', '.')) || 0;
+
+    // 🔥 CALCULAR TOTAL
+    const total = litros * valor;
+
+    // 🔥 SALVAR NOS CAMPOS
+    document.getElementById('clitros').value = litros;
+    document.getElementById('cvalorlitro').value = valor;
+
+    // salva normalmente
+    salvar('combustivel', campos, idxCampo);
+
+    // 🔥 SALVAR TOTAL NO ÚLTIMO REGISTRO
+    const ultimo = db.combustivel.length - 1;
+    db.combustivel[ultimo].ctotal = total;
+
+    // atualizar tela
+    irParaUltimaPagina('combustivel');
+    renderModulo('combustivel');
+    calcularMediaConsumo();
+    document.getElementById('mediaKM').innerText = calcularMediaKM();
+
+// 🔥 ATUALIZA MÉDIA
+    document.getElementById('mediaKM').innerText = calcularMediaKM();
+
+// AUTO-UPDATE DASHBOARD
+    calcularMediaConsumo();
+
+}
+
+function filtrarCombustivel(){
+
+    const v = document.getElementById('filtroVeiculoComb').value;
+    const t = document.getElementById('filtroTipoComb').value;
+    const di = document.getElementById('filtroDataIniComb').value;
+    const df = document.getElementById('filtroDataFimComb').value;
+
+    let dados = db.combustivel;
+
+    dados = dados.filter(c => {
+        return (!v || c.cveiculo == v) &&
+               (!t || c.ctipo == t) &&
+               (!di || c.cdata >= di) &&
+               (!df || c.cdata <= df);
+    });
+
+    document.getElementById('listaCombustivel').innerHTML =
+    dados.map(c => {
+
+        // 🔥 GARANTIR NÚMEROS CORRETOS
+        const litros = parseFloat(String(c.clitros).replace(',', '.')) || 0;
+        const valor = parseFloat(String(c.cvalorlitro).replace(',', '.')) || 0;
+
+        // 🔥 CALCULAR TOTAL SEMPRE
+        const total = litros * valor;
+
+        // 🔥 FORMATAR BONITO
+        const totalFormatado = total.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        });
+
+        const valorFormatado = valor.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        });
+
+        return `
+        <tr>
+        <td>${c.cveiculo}</td>
+        <td>${formatarDataBR(c.cdata)}</td>
+        <td>${c.ctipo}</td>
+        <td>${c.ckm || '--'}</td>
+        <td>${litros}</td>
+        <td>${valorFormatado}</td>
+        <td><b>${totalFormatado}</b></td>
+        <td>--</td>
+        <td>${c.cposto}</td>
+        <td></td>
+        </tr>
+        `;
+    }).join('');
+}
+
+function calcularMediaConsumo() {
+    // 1. Pegar valores dos filtros diretamente da tela
+    const filtroPlaca = document.getElementById('filtroPlaca')?.value || '';
+    const filtroDataIni = document.getElementById('filtroDataIni')?.value || '';
+    const filtroDataFim = document.getElementById('filtroDataFim')?.value || '';
+
+    if (!db.combustivel || db.combustivel.length < 2) {
+        document.getElementById('mediaKM').innerText = '--';
+        return;
+    }
+
+    // 2. Filtrar os dados
+    let dados = [...db.combustivel];
+
+    if (filtroPlaca) {
+        dados = dados.filter(c => c.cveiculo === filtroPlaca);
+    }
+    if (filtroDataIni) {
+        dados = dados.filter(c => c.cdata >= filtroDataIni);
+    }
+    if (filtroDataFim) {
+        dados = dados.filter(c => c.cdata <= filtroDataFim);
+    }
+
+    // 3. Ordenar por KM para garantir que o cálculo de distância faça sentido
+    dados.sort((a, b) => (parseFloat(a.ckm) || 0) - (parseFloat(b.ckm) || 0));
+
+    if (dados.length < 2) {
+        document.getElementById('mediaKM').innerText = '--';
+        return;
+    }
+
+    // 4. Cálculo de Média (Diferença de KM / Soma de Litros)
+    const kmInicial = parseFloat(dados[0].ckm) || 0;
+    const kmFinal = parseFloat(dados[dados.length - 1].ckm) || 0;
+    const distTotal = kmFinal - kmInicial;
+
+    // Somamos os litros de todos os abastecimentos exceto o primeiro 
+    // (Pois o primeiro KM apenas inicia a contagem do ciclo)
+    let totalLitros = 0;
+    for (let i = 1; i < dados.length; i++) {
+        totalLitros += parseFloat(String(dados[i].clitros).replace(',', '.')) || 0;
+    }
+
+    if (totalLitros > 0 && distTotal > 0) {
+        const media = distTotal / totalLitros;
+        document.getElementById('mediaKM').innerText = media.toFixed(2) + ' km/L';
+    } else {
+        document.getElementById('mediaKM').innerText = '--';
+    }
+}
+
+function mediaPorVeiculo(placa){
+
+    const dados = db.combustivel
+        .filter(c => c.cveiculo === placa)
+        .sort((a,b) => new Date(a.cdata) - new Date(b.cdata));
+
+    if (dados.length < 2) return '--';
+
+    let totalKm = 0;
+    let totalLitros = 0;
+
+    for (let i = 1; i < dados.length; i++) {
+
+        const kmAtual = parseFloat(dados[i].ckm) || 0;
+        const kmAnterior = parseFloat(dados[i-1].ckm) || 0;
+        const litros = parseFloat(dados[i].clitros) || 0;
+
+        const distancia = kmAtual - kmAnterior;
+
+        if (distancia > 0 && litros > 0) {
+            totalKm += distancia;
+            totalLitros += litros;
+        }
+    }
+
+    if (totalLitros === 0) return '--';
+
+    return (totalKm / totalLitros).toFixed(2) + ' km/L';
+}
+
+function iniciarSistema(){
+
+    // 🔥 garante tipo salvo
+    if(!usuarioLogado.tipo){
+        usuarioLogado.tipo = "admin";
+
+        dbCloud.collection("usuarios")
+        .doc(auth.currentUser.uid)
+        .set(usuarioLogado, { merge: true });
+    }
+
+    // 🔐 controle de acesso
+    let menu = document.getElementById("menuAdmin");
+
+    if(usuarioLogado.tipo !== "admin"){
+        if(menu) menu.style.display = "none";
+    } else {
+        if(menu) menu.style.display = "block";
+    }
+
+    document.getElementById("loginTela").style.display="none";
+    document.getElementById("sistema").style.display="block";
+    document.getElementById("sistemaMain").style.display="block";
+    document.getElementById("nomeUsuario").innerText =
+    "👤 " + (usuarioLogado.nome || usuarioLogado.email);
+
+    Object.keys(MAP).forEach(mod=>{
+        escutarDados(mod);
+    });
+
+    // 🔥 IMPORTANTE: carregar lista usuários
+    escutarUsuarios();
+   aplicarPermissoes();
+   carregarPermissoesAdmin();
+}
+    if(typeof atualizarHistoricoBackup === "function"){
+        atualizarHistoricoBackup();
+    }
+
+function escutarDados(modulo){
+
+    dbCloud.collection("frota")
+    .doc(modulo)
+    .onSnapshot(doc => {
+
+        if(doc.exists){
+            db[modulo] = doc.data().dados || [];
+            renderModulo(modulo);
+            renderTudo();
+        }
+
+    });
+
+}
+
+function renderTudo(){
+
+    let filtroPlaca = document.getElementById("filtroPlaca");
+
+let filtroMotorista = document.getElementById("filtroMotorista");
+
+if(filtroMotorista){
+    filtroMotorista.innerHTML = '<option value="">Todos</option>' +
+        db.motoristas.map(m => `<option value="${m.motNome}">${m.motNome}</option>`).join('');
+}
+
+// Filtro de veículos manutenção
+if(document.getElementById('filtroManVeiculo')){
+    document.getElementById('filtroManVeiculo').innerHTML =
+        '<option value="">Todos Veículos</option>' +
+        db.veiculos.map(v =>
+            `<option value="${v.vplaca}">${v.vplaca}</option>`
+        ).join('');
+}
+
+// Filtro de fornecedores manutenção
+if(document.getElementById('filtroManFornecedor')){
+    document.getElementById('filtroManFornecedor').innerHTML =
+        '<option value="">Todos Fornecedores</option>' +
+        (ordenarFornecedores(), db.fornecedores).map(f =>
+            `<option value="${f.fnome}">${f.fnome}</option>`
+        ).join('');
+}
+
+// LISTA
+document.getElementById('listaAgendamentos').innerHTML =
+    db.agendamentos.map((a,i)=>`
+<tr>
+<td>${a.agveiculo}</td>
+<td>${a.agmotorista}</td>
+<td>${formatarDataBR(a.agdata)}</td>
+<td>${a.aghora}</td>
+<td>${a.agdescricao}</td>
+
+<td>
+    <span class="badge ${
+        a.agstatus === 'Concluído'
+            ? 'bg-success'
+            : a.agstatus === 'Cancelado'
+            ? 'bg-danger'
+            : 'bg-warning text-dark'
+    }">
+        ${a.agstatus}
+    </span>
+</td>
+
+<td>
+<button class="btn-edit" onclick="editar('agendamentos',${i})">✎</button>
+<button class="btn-del" onclick="deletar('agendamentos',${i})">✕</button>
+</td>
+</tr>
+`).join('');
+
+if(filtroPlaca){
+    filtroPlaca.innerHTML = '<option value="">Todas</option>' +
+        db.veiculos.map(v => `<option value="${v.vplaca}">${v.vplaca}</option>`).join('');
+}
+
+    const vOpt =
+'<option value="">Veículo...</option>' +
+
+db.veiculos
+.filter(v => (v.vstatus || "").toUpperCase() !== "VENDIDO")
+.map(v=>`<option value="${v.vplaca}">${v.vplaca}</option>`)
+.join('');
+    const mOpt = '<option value="">Motorista...</option>' + db.motoristas.map(m=>`<option value="${m.motNome}">${m.motNome}</option>`).join('');
+// SELECTS
+if(document.getElementById('agveiculo'))
+    document.getElementById('agveiculo').innerHTML = vOpt;
+
+if(document.getElementById('agmotorista'))
+    document.getElementById('agmotorista').innerHTML = mOpt;
+
+    const fOpt = '<option value="">Fornecedor...</option>' + (ordenarFornecedores(), db.fornecedores).map(f=>`<option value="${f.fnome}">${f.fnome}</option>`).join('');
+    
+    ['sveiculo','mveiculo','lveiculo','tveiculo','leveiculo','rveiculo','muveiculo'].forEach(id=>{if(document.getElementById(id)) document.getElementById(id).innerHTML=vOpt});
+    if(document.getElementById('mfornecedor')) document.getElementById('mfornecedor').innerHTML = fOpt;
+    if(document.getElementById('vmotorista')) document.getElementById('vmotorista').innerHTML = mOpt;
+    if(document.getElementById('mumotorista')) document.getElementById('mumotorista').innerHTML = mOpt;
+
+    const btnSet = (m,i) => `<td><button class="btn-edit" onclick="editar('${m}',${i})">✎</button><button class="btn-del" onclick="deletar('${m}',${i})">✕</button></td>`;
+    
+    renderModulo('veiculos');
+    
+('multas');
+    renderModulo('fornecedores');
+    renderModulo('manutencoes');
+    renderModulo('diarias');
+    sincronizarRevisoes();
+    renderDashboard();
+
+    document.getElementById('listaMotoristas').innerHTML = db.motoristas.map((m,i)=>`
+<tr>
+<td>${m.motNome}</td>
+<td>${m.motCpf}</td>
+<td>${m.motCnh}</td>
+<td>${m.mcnh || '--'}</td>
+<td>${m.motTel || '--'}</td>
+<td>${m.motInicio || '--'} às ${m.motFim || '--'}</td>
+${btnSet('motoristas',i)}
+</tr>
+`).join('');
+
+// ===== FÉRIAS =====
+
+// SELECT MOTORISTA
+if(document.getElementById('femotorista')){
+    document.getElementById('femotorista').innerHTML =
+        '<option value="">Motorista...</option>' +
+        db.motoristas.map(m=>`<option value="${m.motNome}">${m.motNome}</option>`).join('');
+}
+
+// LISTA
+document.getElementById('listaFerias').innerHTML =
+
+    db.ferias
+
+    // mantém índice original
+    .map((f, i) => ({ ...f, originalIndex: i }))
+
+    // ordena pela data
+    .sort((a, b) => new Date(a.feinicio) - new Date(b.feinicio))
+
+    .map(f => `
+<tr>
+
+<td>${f.femotorista}</td>
+
+<td>${formatarDataBR(f.feinicio)}</td>
+
+<td>${formatarDataBR(f.fefim)}</td>
+
+<td>
+    <span class="badge ${
+        f.festatus === 'Concluída'
+            ? 'bg-success'
+            : f.festatus === 'Em andamento'
+            ? 'bg-warning text-dark'
+            : 'bg-danger'
+    }">
+        ${f.festatus}
+    </span>
+</td>
+
+<td>${f.feobs || '--'}</td>
+
+<td>
+<button class="btn-edit" onclick="editar('ferias',${f.originalIndex})">✎</button>
+
+<button class="btn-del" onclick="deletar('ferias',${f.originalIndex})">✕</button>
+</td>
+
+</tr>
+`).join('');
+   
+    document.getElementById('listaSeguros').innerHTML = db.seguros.map((s,i)=>`<tr><td>${s.sveiculo}</td><td>${s.sseguradora}</td><td>${formatarVencimento(s.svencimento)}</td>${btnSet('seguros',i)}</tr>`).join('');
+    document.getElementById('listaLicenciamento').innerHTML = db.licenciamento.map((l,i)=>`<tr><td>${l.lveiculo}</td><td>${formatarVencimento(l.lvencimento)}</td><td><b>${l.lvalor}</b></td>${btnSet('licenciamento',i)}</tr>`).join('');
+    document.getElementById('listaTacografo').innerHTML = db.tacografo.map((t,i)=>`<tr><td>${t.tveiculo}</td><td>${formatarVencimento(t.tvencimento)}</td><td><b>${t.tvalor}</b></td>${btnSet('tacografo',i)}</tr>`).join('');
+    document.getElementById('listaLicencas').innerHTML =
+db.licencas.map((le,i)=>`
+<tr>
+    <td>${le.leveiculo || '--'}</td>
+
+    <td>${le.numciv || '--'}</td>
+    <td>${formatarVencimento(le.venciv)}</td>
+
+    <td>${le.numcipp || '--'}</td>
+    <td>${formatarVencimento(le.vencipp)}</td>
+
+    ${btnSet('licencas',i)}
+</tr>
+`).join('');
+
+renderRevisoes();
+
+    ordenarFornecedores();
+
+    document.getElementById('listaFornecedores').innerHTML = db.fornecedores.map((f,i)=>`<tr><td><b>${f.fnome}</b></td><td>${f.fresp}</td><td>${f.fcnpj}</td><td>${f.ftel}</td>${btnSet('fornecedores',i)}</tr>`).join('');
+
+    ativarPaginacao();
+}
+
+function salvarCombustivel(){
+
+    const veiculo = document.getElementById('cveiculo').value;
+    const data = document.getElementById('cdata').value;
+    const tipo = document.getElementById('ctipo').value;
+    const litros = parseFloat(document.getElementById('clitros').value || 0);
+    const valorLitro = parseFloat(document.getElementById('cvalorlitro').value || 0);
+    const posto = document.getElementById('cposto').value;
+
+    const total = litros * valorLitro;
+
+    // média automática (base KM do veículo)
+    const veic = db.veiculos.find(v => v.vplaca == veiculo);
+    let media = '--';
+
+    if(veic && litros > 0){
+        media = (veic.vkm / litros).toFixed(2);
+    }
+
+    db.combustivel.push({
+        cveiculo: veiculo,
+        cdata: data,
+        ctipo: tipo,
+        clitros: litros,
+        cvalorlitro: valorLitro,
+        ctotal: total,
+        cmedia: media,
+        cposto: posto
+    });
+
+    irParaUltimaPagina('combustivel');
+    renderModulo('combustivel');
+    document.getElementById('mediaKM').innerText = calcularMediaKM();
+}
+
+function renderDashboard(){
+    if(!document.getElementById('d_vei')) return;
+    if(typeof sincronizarRevisoes==="function"){
+    sincronizarRevisoes();
+}
+    document.getElementById('d_vei').innerText = db.veiculos.length;
+    let totalGasto = db.manutencoes.reduce((a,b)=>a + moedaParaFloat(b.mvalor),0);
+    totalGasto += db.multas
+    .filter(m => 
+        m.mustatus === 'Pago' || 
+        m.mustatus === 'Enviadas RH'
+    )
+    .reduce((a,b)=>a + moedaParaFloat(b.muvalor),0);
+    totalGasto += db.licenciamento.reduce((a,b)=>a + moedaParaFloat(b.lvalor),0);
+    totalGasto += db.tacografo.reduce((a,b)=>a + moedaParaFloat(b.tvalor),0);
+    document.getElementById('d_val').innerText = floatParaMoeda(totalGasto);
+    let multasPendentes = db.multas.filter(m =>
+    m.mustatus !== 'Pago' &&
+    m.mustatus !== 'Enviadas RH'
+).length;
+    document.getElementById('d_multas_count').innerText = multasPendentes;
+    let alertas = [];
+    // ALERTA DE FÉRIAS
+db.ferias.forEach(f => {
+
+    if(!f.feinicio || !f.fefim) return;
+
+    const hoje = new Date();
+    const inicio = new Date(f.feinicio);
+    const fim = new Date(f.fefim);
+
+    if(hoje >= inicio && hoje <= fim){
+        alertas.push(`
+            <div class="alerta-item alerta-atencao">
+                🏖 ${f.femotorista} em férias
+            </div>
+        `);
+    }
+
+});
+
+// ===============================
+// 📅 ALERTAS DE AGENDAMENTOS
+// ===============================
+db.agendamentos.forEach(a => {
+    if(!a.agdata) return;
+
+    // Remove o alerta se não estiver "Agendado" (ex: ao concluir, ele some)
+    if(a.agstatus !== "Agendado") return;
+
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    const dataAg = new Date(a.agdata);
+    dataAg.setHours(0,0,0,0);
+
+    const diff = Math.ceil((dataAg - hoje) / 86400000);
+
+    // Só processa se estiver no intervalo de 30 dias (atrasados ou próximos)
+    if(diff <= 30) {
+        let classeAlerta = "";
+        if(diff < 0) classeAlerta = "alerta-vencido";
+        else if(diff <= 7) classeAlerta = "alerta-atencao";
+
+        // LÓGICA SOLICITADA: Se não tem veículo (placa), mostra o motorista
+        const identificador = a.agveiculo && a.agveiculo.trim() !== "" 
+            ? a.agveiculo 
+            : (a.agmotorista || "Sem Identificação");
+
+        alertas.push(`
+            <div class="alerta-item ${classeAlerta}">
+                📅 <b>${identificador}</b>: ${a.agdescricao}
+                <br><small>Data: ${formatarDataBR(a.agdata)} às ${a.aghora || "--"}</small>
+            </div>
+        `);
+    }
+});
+
+    const hoje = new Date();
+    const analisar = (placa, tipo, data) => {
+        if(!data) return;
+        const d = new Date(data);
+        const diff = (d - hoje) / 86400000;
+        if(diff < 0) alertas.push(`<div class="alerta-item alerta-vencido"><b>${placa}</b>: ${tipo} VENCIDO</div>`);
+        else if(diff <= 30) alertas.push(`<div class="alerta-item alerta-atencao"><b>${placa}</b>: ${tipo} Próximo</div>`);
+    };
+    db.seguros.forEach(s=>analisar(s.sveiculo,'Seguro',s.svencimento));
+    db.licenciamento.forEach(l=>analisar(l.lveiculo,'Licenc.',l.lvencimento));
+    db.tacografo.forEach(t=>analisar(t.tveiculo,'Tacógrafo',t.tvencimento));
+    db.multas
+    .filter(m =>
+        m.mustatus !== 'Pago' &&
+        m.mustatus !== 'Enviadas RH'
+    )
+    .forEach(mu => analisar(mu.muveiculo, 'Desc. Multa', mu.muvenc));
+    db.licencas.forEach(le=>{ analisar(le.leveiculo,'CIV',le.venciv); analisar(le.leveiculo,'CIPP',le.vencipp); });
+
+// ===============================
+// 🔧 ALERTAS DE REVISÕES
+// ===============================
+
+db.revisoes.forEach(r=>{
+
+    if(!r.rveiculo) return;
+const veiculo = db.veiculos.find(v=>v.vplaca===r.rveiculo);
+
+if(!veiculo) return;
+
+if((veiculo.vstatus || "").toUpperCase()=="VENDIDO")
+    return;
+
+    const faltam = Number(r.rkmfaltante || 0);
+
+    // REVISÃO VENCIDA
+    if(faltam <= 0){
+
+        alertas.push(`
+            <div class="alerta-item alerta-vencido">
+                🔧 <b>${r.rveiculo}</b>
+                <br>
+                <small>
+                    ${r.rtipo}<br>
+                    Revisão VENCIDA
+                </small>
+            </div>
+        `);
+
+    }
+
+    // ALERTA COM 5.000 KM
+    else if(faltam <= 5000){
+
+        alertas.push(`
+            <div class="alerta-item alerta-atencao">
+                🔧 <b>${r.rveiculo}</b>
+                <br>
+                <small>
+                    ${r.rtipo}<br>
+                    Faltam ${faltam.toLocaleString("pt-BR")} km
+                </small>
+            </div>
+        `);
+
+    }
+
+});
+
+    // ===============================
+    // 🪪 ALERTAS DE MOTORISTAS (CNH e TOX)
+    // ===============================
+    const alertasMotoristas = obterAlertasMotoristas();
+    alertasMotoristas.forEach(a => {
+        // Define o ícone com base no tipo
+        const icone = a.tipo === 'CNH' ? '🪪' : '🧪';
+        
+        // Formata o texto para ficar igual aos outros alertas
+        // (Nome - Vencimento)
+        const partes = a.texto.split('-');
+        const titulo = partes[0].trim();
+        const desc = partes[1] ? partes[1].trim() : "";
+
+        alertas.push(`
+            <div class="alerta-item ${a.classe}">
+                ${icone} <b>${titulo}</b>
+                <br>
+                <small>${desc}</small>
+            </div>
+        `);
+    });
+   
+    // ===============================
+// 🚚 ALERTAS DE SAÍDA DE VEÍCULOS
+// ===============================
+
+const hojeSaida = new Date();
+hojeSaida.setHours(0,0,0,0);
+
+db.saidaVeiculos.forEach(s => {
+
+    // ==========================
+    // ALERTA 1 DIA ANTES DA SAÍDA
+    // ==========================
+    if (s.svdataSaida) {
+
+        const dataSaida = new Date(s.svdataSaida + "T00:00:00");
+
+        const diferencaDias = Math.round(
+    (dataSaida.getTime() - hojeSaida.getTime()) / 86400000
+);
+
+        if (
+            diferencaDias === 1 &&
+            String(s.svreserva).toLowerCase() === "reservado"
+        ) {
+
+            alertas.push(`
+                <div class="alerta-item alerta-atencao">
+                    🚚 <b>${s.svveiculo}</b> possui saída amanhã
+                    <br>
+                    <small>
+                        Reserva Nº ${s.svnumeroreserva || "--"}<br>
+                        Motorista: ${s.svmotorista || "--"}<br>
+                        Destino: ${s.svdestino || "--"}<br>
+                        Data: ${formatarDataBR(s.svdataSaida)}
+                        às ${s.svhoraSaida || "--"}
+                    </small>
+                </div>
+            `);
+
+        }
+
+    }
+
+    // ==========================
+    // VEÍCULO EM VIAGEM
+    // ==========================
+    if (
+        s.svstatus === "Em Viagem" &&
+        (!s.svdataChegada || !s.svhoraChegada)
+    ) {
+
+        alertas.push(`
+            <div class="alerta-item alerta-vencido">
+                🚚 <b>${s.svveiculo}</b> em viagem
+                <br>
+                <small>
+                    Motorista: ${s.svmotorista || "--"}<br>
+                    Destino: ${s.svdestino || "--"}<br>
+                    Saída: ${formatarDataBR(s.svdataSaida)}
+                    às ${s.svhoraSaida || "--"}
+                </small>
+            </div>
+        `);
+
+    }
+
+});
+
+    document.getElementById('listaAlertasRapidos').innerHTML = alertas.join('');
+    document.getElementById('d_alertas').innerText = alertas.length;
+    document.getElementById('d_alertas').innerText = alertas.length;
+    window.totalAlertas = alertas.length;
+
+const pagina = getAlertasPaginados(alertas);
+
+document.getElementById("listaAlertasRapidos").innerHTML =
+
+pagina.length
+
+? pagina.join("")
+
+: '<div class="text-success p-3">✅ Frota em dia</div>';
+
+renderPaginacaoAlertas(alertas.length);
+    let mData={};
+    db.manutencoes.forEach(x=>mData[x.mveiculo]=(mData[x.mveiculo]||0)+moedaParaFloat(x.mvalor));
+    db.multas.forEach(x=>mData[x.muveiculo]=(mData[x.muveiculo]||0)+moedaParaFloat(x.muvalor));
+    if(chart) chart.destroy();
+    let ctx=document.getElementById('graficoCustos');
+    if(ctx && Object.keys(mData).length)
+        chart = new Chart(ctx,{type:'bar',data:{labels:Object.keys(mData),datasets:[{label:'Investimento Total R$',data:Object.values(mData),backgroundColor:'#3b82f6'}]}});
+}
+
+function gerarRelatorioPDF() { window.print(); }
+
+function exportarBackup(){
+
+    const blob = new Blob(
+        [JSON.stringify(db)],
+        {type:'application/json'}
+    );
+
+    const a = document.createElement('a');
+
+    a.href = URL.createObjectURL(blob);
+
+    // Gera um nome único com data e hora
+    const agora = new Date();
+
+    const nomeArquivo =
+    `frota_master_${
+    agora.getFullYear()}-${
+    String(agora.getMonth()+1).padStart(2,'0')}-${
+    String(agora.getDate()).padStart(2,'0')}_${
+    String(agora.getHours()).padStart(2,'0')}-${
+    String(agora.getMinutes()).padStart(2,'0')}-${
+    String(agora.getSeconds()).padStart(2,'0')}.json`;
+
+    // Usa o nome gerado
+    a.download = nomeArquivo;
+
+    a.click();
+
+    URL.revokeObjectURL(a.href);
+
+    historicoBackups.unshift({
+
+        nome: nomeArquivo,
+
+        data: new Date(),
+
+        tamanho: (blob.size/1024).toFixed(2) + " KB",
+
+        conteudo: JSON.parse(JSON.stringify(db))
+
+    });
+
+    atualizarHistoricoBackup();
+
+}
+
+function baixarBackup(i){
+
+    const b = historicoBackups[i];
+
+    const blob = new Blob(
+        [JSON.stringify(b.conteudo,null,2)],
+        {type:"application/json"}
+    );
+
+    const a=document.createElement("a");
+
+    a.href=URL.createObjectURL(blob);
+
+    a.download=b.nome;
+
+    a.click();
+    
+    URL.revokeObjectURL(a.href);
+
+}
+
+function restaurarBackup(i){
+
+    if(!confirm("Deseja restaurar este backup?\n\nOs dados atuais serão substituídos."))
+        return;
+
+    db = JSON.parse(JSON.stringify(historicoBackups[i].conteudo));
+
+    salvarNuvem();
+
+    alert("Backup restaurado com sucesso.");
+
+    location.reload();
+
+}
+
+function excluirBackup(i){
+
+    if(!confirm("Excluir este backup?"))
+        return;
+
+    historicoBackups.splice(i,1);
+
+    localStorage.setItem(
+        "historicoBackups",
+        JSON.stringify(historicoBackups)
+    );
+
+    atualizarHistoricoBackup();
+
+}
+
+function salvarMulta(){
+
+let idx = document.getElementById("mu_idx").value
+
+let obj = {
+
+    muveiculo: document.getElementById("muveiculo").value,
+    mumotorista: document.getElementById("mumotorista").value,
+    muinfracao: document.getElementById("muinfracao").value,
+    muait: document.getElementById("muait").value,
+    murenainf: document.getElementById("murenainf").value,
+    mudata: document.getElementById("mudata").value,
+    muvenc: document.getElementById("muvenc").value,
+    muvalor: document.getElementById("muvalor").value,
+    mustatus: document.getElementById("mustatus").value,
+    muindicacao: document.getElementById("muindicacao").value,
+    muobs: document.getElementById("muobs").value,
+    arquivos: []
+
+}
+
+// SE ESTIVER EDITANDO MANTÉM OS ANEXOS
+if(idx !== '' && db.multas[idx] && db.multas[idx].arquivos){
+    obj.arquivos = [...db.multas[idx].arquivos];
+}
+const files = document.getElementById("muarquivos").files
+const LIMITE_MB = 0.7;
+
+for(let file of files){
+    if(file.size > LIMITE_MB * 1024 * 1024){
+        alert(`Arquivo ${file.name} excede ${LIMITE_MB}MB`);
+        return;
+    }
+}
+
+if(files.length === 0){
+salvarRegistroMulta(obj, idx)
+return
+}
+
+let carregados = 0
+
+for(let file of files){
+
+const reader = new FileReader()
+
+reader.onload = function(e){
+
+obj.arquivos.push({
+
+nome:file.name,
+tipo:file.type,
+dados:e.target.result
+
+})
+
+carregados++
+
+if(carregados === files.length){
+
+salvarRegistroMulta(obj, idx)
+
+}
+
+}
+
+reader.readAsDataURL(file)
+
+}
+
+}
+function importarBackup(event){
+    const reader=new FileReader();
+    reader.onload=ev=>{ db=JSON.parse(ev.target.result); salvarNuvem(); location.reload(); };
+    reader.readAsText(event.target.files[0]);
+}
+function salvarRegistroMulta(obj,idx){
+
+if(idx==='') db.multas.push(obj)
+else db.multas[idx]=obj
+
+document.getElementById("muarquivos").value=""
+
+limparForm(
+'multas',
+['muveiculo','mumotorista','muinfracao','muait','murenainf','mudata','muvenc','muvalor','mustatus',"muindicacao",'muobs'],
+'mu_idx'
+)
+
+salvarNuvem()
+
+
+}
+
+function salvarTerceirosCustom(){
+
+    const idx = document.getElementById('ter_idx').value;
+
+    const obj = {
+    terdata: document.getElementById('terdata').value,
+    ternome: document.getElementById('ternome').value,
+    tertelmotorista: document.getElementById('tertelmotorista').value,
+    tercnpj: document.getElementById('tercnpj').value,
+    terempresa: document.getElementById('terempresa').value,
+    terfrete: document.getElementById('terfrete').value,
+    terantt: document.getElementById('terantt').value,
+    tertipoveiculo: document.getElementById('tertipoveiculo').value,
+    terplaca: document.getElementById('terplaca').value,
+    terano: document.getElementById('terano').value,
+    tercarreta: document.getElementById('tercarreta').value,
+    terano: document.getElementById('terano').value,
+    tertelefone: document.getElementById('tertelefone').value,
+    terstatus: document.getElementById('terstatus').value,
+    terobs: document.getElementById('terobs').value
+};
+
+    if(idx === ''){
+        db.terceiros.push(obj);
+    }else{
+        db.terceiros[idx] = obj;
+    }
+
+    if(!PAGINACAO.paginas['terceiros']){
+        PAGINACAO.paginas['terceiros'] = 1;
+    }
+
+    renderModulo('terceiros');
+
+    salvarNuvem();
+
+    limparForm(
+        'terceiros',
+        [
+'terdata',
+'ternome',
+'tertelmotorista',
+'tercnpj',
+'terempresa',
+'terantt',
+'tertipoveiculo',
+'terplaca',
+'terano',
+'tercarreta',
+'terano',
+'terfrete',
+'terstatus',
+'terobs'
+],
+        'ter_idx'
+    );
+}
+
+function verAnexos(i){
+
+let multa = db.multas[i]
+
+if(!multa.arquivos || multa.arquivos.length === 0){
+alert("Nenhum anexo nesta multa")
+return
+}
+
+let html = ""
+
+multa.arquivos.forEach((a,index)=>{
+
+html += `
+<div style="border:1px solid #e2e8f0;padding:10px;border-radius:6px;margin-bottom:8px;">
+<b>${a.nome}</b>
+<div class="mt-2">
+
+<button class="btn btn-sm btn-primary"
+onclick="abrirArquivo(${i},${index})">
+👁 Visualizar
+</button>
+
+<button class="btn btn-sm btn-success"
+onclick="baixarArquivo(${i},${index})">
+⬇ Baixar
+</button>
+
+<button class="btn btn-sm btn-danger"
+onclick="excluirAnexo(${i},${index})">
+🗑 Excluir
+</button>
+
+</div>
+</div>
+`;
+   if(a.tipo.startsWith("image/")){
+    html += `<img src="${a.dados}" style="width:100%;border-radius:6px;margin-top:5px;">`;
+}
+
+})
+
+document.getElementById("listaArquivos").innerHTML = html
+document.getElementById("modalAnexos").style.display="flex"
+
+}
+
+function verificarCNPJFornecedor() {
+
+    const cnpj = document
+        .getElementById('fcnpj')
+        .value
+        .replace(/\D/g, '');
+
+    if (cnpj.length === 14) {
+        buscarCNPJFornecedor();
+    }
+}
+
+async function buscarCNPJFornecedor() {
+
+    const cnpj = document
+        .getElementById('fcnpj')
+        .value
+        .replace(/\D/g, '');
+
+    if (cnpj.length !== 14) return;
+
+    try {
+
+        let dados;
+
+        // 1ª tentativa - BrasilAPI
+        let resp = await fetch(
+            `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`
+        );
+
+        if (resp.ok) {
+
+            dados = await resp.json();
+
+            document.getElementById('fnome').value =
+                dados.razao_social || '';
+
+            document.getElementById('ffantasia').value =
+                dados.nome_fantasia || '';
+
+            document.getElementById('ftel').value =
+                dados.ddd_telefone_1 || '';
+
+            document.getElementById('femail').value =
+                dados.email || '';
+
+            document.getElementById('fcep').value =
+                dados.cep || '';
+
+            document.getElementById('fendereco').value =
+                dados.logradouro || '';
+
+            document.getElementById('fnumero').value =
+                dados.numero || '';
+
+            document.getElementById('fbairro').value =
+                dados.bairro || '';
+
+            document.getElementById('fcidade').value =
+                dados.municipio || '';
+
+            document.getElementById('fuf').value =
+                dados.uf || '';
+
+            return;
+        }
+
+        // 2ª tentativa - ReceitaWS
+        resp = await fetch(
+            `https://receitaws.com.br/v1/cnpj/${cnpj}`
+        );
+
+        dados = await resp.json();
+
+        if (dados.status === "ERROR") {
+            throw new Error();
+        }
+
+        document.getElementById('fnome').value =
+            dados.nome || '';
+
+        document.getElementById('ffantasia').value =
+            dados.fantasia || '';
+
+        document.getElementById('ftel').value =
+            dados.telefone || '';
+
+        document.getElementById('femail').value =
+            dados.email || '';
+
+        document.getElementById('fcep').value =
+            dados.cep || '';
+
+        document.getElementById('fendereco').value =
+            dados.logradouro || '';
+
+        document.getElementById('fnumero').value =
+            dados.numero || '';
+
+        document.getElementById('fbairro').value =
+            dados.bairro || '';
+
+        document.getElementById('fcidade').value =
+            dados.municipio || '';
+
+        document.getElementById('fuf').value =
+            dados.uf || '';
+
+    }
+    catch (erro) {
+
+        alert("CNPJ não encontrado.");
+
+    }
+
+}
+
+async function buscarCNPJ() {
+
+    const cnpj = document
+        .getElementById('tercnpj')
+        .value
+        .replace(/\D/g, '');
+
+    if (cnpj.length !== 14) return;
+
+    try {
+
+        let dados;
+
+        // 1ª tentativa - BrasilAPI
+        let resp = await fetch(
+            `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`
+        );
+
+        if (resp.ok) {
+
+            dados = await resp.json();
+
+            document.getElementById('terempresa').value =
+                dados.razao_social || '';
+
+            // Preenche o telefone caso esteja vazio
+            if (document.getElementById('tertelefone').value === '') {
+                document.getElementById('tertelefone').value =
+                    dados.ddd_telefone_1 || '';
+                mascaraTelefone(document.getElementById('tertelefone'));
+            }
+
+            return;
+        }
+
+        // 2ª tentativa - ReceitaWS
+        resp = await fetch(
+            `https://receitaws.com.br/v1/cnpj/${cnpj}`
+        );
+
+        dados = await resp.json();
+
+        if (dados.status === "ERROR") {
+            throw new Error();
+        }
+
+        document.getElementById('terempresa').value =
+            dados.nome || '';
+
+        if (document.getElementById('tertelefone').value === '') {
+            document.getElementById('tertelefone').value =
+                dados.telefone || '';
+            mascaraTelefone(document.getElementById('tertelefone'));
+        }
+
+    }
+    catch (erro) {
+
+        alert("CNPJ não encontrado.");
+
+    }
+
+}
+
+function abrirArquivo(i,index){
+
+let arq = db.multas[i].arquivos[index]
+
+window.open(arq.dados,"_blank")
+
+}
+function baixarArquivo(i,index){
+
+let arq = db.multas[i].arquivos[index]
+
+let link = document.createElement("a")
+
+link.href = arq.dados
+link.download = arq.nome
+
+document.body.appendChild(link)
+link.click()
+document.body.removeChild(link)
+}
+function fecharAnexos(){
+
+document.getElementById("modalAnexos").style.display="none"
+
+}
+// ===== LOGIN =====
+
+function fazerLogin(){
+
+    let email = document.getElementById("loginUser").value;
+    let senha = document.getElementById("loginPass").value;
+
+    if(!email || !senha){
+        document.getElementById("loginErro").innerText = "Preencha email e senha";
+        return;
+    }
+
+    document.getElementById("loginErro").innerText = "Entrando...";
+
+    auth.signInWithEmailAndPassword(email, senha)
+    .catch((erro) => {
+        document.getElementById("loginErro").innerText = erro.message;
+    });
+}
+
+function escutarUsuarios(){
+
+    dbCloud.collection("usuarios")
+    .onSnapshot(snapshot => {
+
+        let html = "";
+
+        snapshot.forEach(doc => {
+
+            let u = doc.data();
+
+            html += `
+            <tr>
+                <td><b>${u.nome || '---'}</b><br><small>${u.email}</small></td>
+                <td>
+                    <select onchange="alterarTipoUsuario('${doc.id}', this.value)">
+                        <option value="user" ${u.tipo === 'user' ? 'selected' : ''}>Usuário</option>
+                        <option value="admin" ${u.tipo === 'admin' ? 'selected' : ''}>Admin</option>
+                    </select>
+                </td>
+                <td>
+
+<button
+class="btn btn-primary btn-sm"
+onclick="editarUsuario('${doc.id}')">
+
+Editar
+
+</button>
+
+<button
+class="btn btn-danger btn-sm"
+onclick="excluirUsuario('${doc.id}')">
+
+Excluir
+
+</button>
+
+</td>
+            </tr>
+            `;
+        });
+
+        document.getElementById("listaUsuarios").innerHTML = html;
+
+    });
+
+}
+
+function editarUsuario(uid){
+
+dbCloud.collection("usuarios")
+.doc(uid)
+.get()
+.then(doc=>{
+
+let u=doc.data();
+
+document.getElementById("adm_uid").value=uid;
+
+document.getElementById("admNome").value=u.nome;
+
+document.getElementById("admEmail").value=u.email;
+
+document.getElementById("admTipo").value=u.tipo;
+
+// limpa permissões
+
+document.querySelectorAll("#listaPermissoes input")
+.forEach(c=>c.checked=false);
+
+// marca permissões
+
+if(u.permissoes){
+
+Object.keys(u.permissoes).forEach(p=>{
+
+let ck=document.getElementById("perm_"+p);
+
+if(ck){
+
+ck.checked=u.permissoes[p];
+
+}
+
+});
+
+}
+
+document.getElementById("btnSalvarUsuario").innerHTML="Salvar Alterações";
+
+});
+
+}
+
+function criarUsuarioAdmin(){
+ 
+    let nome = document.getElementById("admNome").value;
+    let email = document.getElementById("admEmail").value;
+    let senha = document.getElementById("admSenha").value;
+    let tipo = document.getElementById("admTipo").value;
+   let permissoes = {};
+   let uid=document.getElementById("adm_uid").value;
+
+MODULOS.forEach(mod => {
+    let el = document.getElementById("perm_" + mod);
+    permissoes[mod] = el ? el.checked : false;
+});
+
+   if(!uid){
+
+if(!nome || !email || !senha){
+
+alert("Preencha nome, email e senha");
+
+return;
+
+}
+
+}
+
+if(uid){
+
+dbCloud.collection("usuarios")
+.doc(uid)
+.update({
+
+nome:nome,
+
+tipo:tipo,
+
+permissoes:permissoes
+
+})
+
+.then(()=>{
+
+alert("Usuário atualizado!");
+
+document.getElementById("adm_uid").value="";
+
+document.getElementById("admNome").value="";
+
+document.getElementById("admEmail").value="";
+
+document.getElementById("admSenha").value="";
+
+document.getElementById("admTipo").value="user";
+
+document.querySelectorAll("#listaPermissoes input")
+.forEach(c=>c.checked=false);
+
+document.getElementById("btnSalvarUsuario").innerHTML="Criar Usuário";
+
+});
+
+return;
+
+}
+
+    let secondaryApp;
+
+    // 🔥 evita erro de app duplicado
+    try {
+        secondaryApp = firebase.app("Secondary");
+    } catch (e) {
+        secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
+    }
+
+    const auth2 = secondaryApp.auth();
+
+    auth2.createUserWithEmailAndPassword(email, senha)
+    .then(userCredential => {
+
+        let uid = userCredential.user.uid;
+
+        return dbCloud.collection("usuarios").doc(uid).set({
+    nome: nome,
+    email: email,
+    tipo: tipo,
+    permissoes: permissoes // 🔥 aqui salva
+});
+
+    })
+    .then(() => {
+
+    alert("Usuário criado com sucesso!");
+
+    // 🔥 LIMPAR CAMPOS
+    document.getElementById("admNome").value = "";
+    document.getElementById("admEmail").value = "";
+    document.getElementById("admSenha").value = "";
+    document.getElementById("admTipo").value = "user";
+
+    return auth2.signOut();
+
+})
+
+    .then(() => {
+        return secondaryApp.delete();
+    })
+    .catch(e => {
+        console.error(e);
+        alert("Erro: " + e.message);
+    });
+}
+
+function alterarTipoUsuario(uid, tipo){
+    dbCloud.collection("usuarios").doc(uid).update({ tipo });
+}
+
+function excluirUsuario(uid){
+    if(!confirm("Excluir usuário?")) return;
+    dbCloud.collection("usuarios").doc(uid).delete();
+}
+
+auth.onAuthStateChanged(user => {
+
+    if(user){
+
+        dbCloud.collection("usuarios")
+        .doc(user.uid)
+        .get()
+        .then(doc => {
+
+            if(doc.exists){
+                usuarioLogado = doc.data();
+
+// 🔥 fallback
+if(!usuarioLogado.nome){
+    usuarioLogado.nome = usuarioLogado.email;
+}
+            } else {
+                usuarioLogado = {
+                    email: user.email,
+                    tipo: "admin"
+                };
+
+                dbCloud.collection("usuarios")
+                .doc(user.uid)
+                .set(usuarioLogado);
+            }
+
+            // 🔥 GARANTE ADMIN
+            if(!usuarioLogado.tipo){
+                usuarioLogado.tipo = "admin";
+            }
+
+            iniciarSistema();
+
+        });
+
+    }
+
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+
+    const dropArea = document.getElementById("dropArea");
+    const inputFile = document.getElementById("muarquivos");
+
+    if(!dropArea || !inputFile) return;
+
+    dropArea.addEventListener("click", () => inputFile.click());
+
+    dropArea.addEventListener("dragover", e => {
+        e.preventDefault();
+        dropArea.style.background = "#e0f2fe";
+    });
+
+    dropArea.addEventListener("dragleave", () => {
+        dropArea.style.background = "#f8fafc";
+    });
+
+    dropArea.addEventListener("drop", e => {
+        e.preventDefault();
+        dropArea.style.background = "#f8fafc";
+
+        inputFile.files = e.dataTransfer.files;
+        mostrarPreviewArquivos(inputFile.files);
+    });
+
+    inputFile.addEventListener("change", () => {
+        mostrarPreviewArquivos(inputFile.files);
+    });
+
+});
+    
+function mostrarPreviewArquivos(files){
+
+    let preview = document.getElementById("previewArquivos");
+    if(!preview) return;
+
+    preview.innerHTML = "";
+
+    if(!files || files.length === 0) return;
+
+    for(let file of files){
+
+        let item = document.createElement("div");
+        item.style = "font-size:13px;margin-bottom:5px;display:flex;align-items:center;gap:10px;";
+
+        if(file.type.startsWith("image/")){
+            let img = document.createElement("img");
+            img.src = URL.createObjectURL(file);
+            img.style = "width:60px;height:60px;object-fit:cover;border-radius:6px;";
+            item.appendChild(img);
+        }
+
+        let info = document.createElement("span");
+        info.innerText = `📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+
+        item.appendChild(info);
+        preview.appendChild(item);
+    }
+}
+
+function excluirAnexo(i, index){
+
+    if(!confirm("Deseja realmente excluir este anexo?")) return;
+
+    // Remove o anexo
+    db.multas[i].arquivos.splice(index, 1);
+
+    // Salva no sistema
+    salvarNuvem();
+
+    // Atualiza o modal na hora
+    verAnexos(i);
+}
+
+function carregarVeiculosSelect(idElemento) {
+
+    const select = document.getElementById(idElemento);
+    if (!select) return;
+
+    const valorAtual = select.value;
+
+    select.innerHTML = '<option value="">Selecione o Veículo</option>';
+
+    db.veiculos.forEach(v => {
+
+        const option = document.createElement("option");
+        option.value = v.vplaca;
+        option.textContent = v.vplaca;
+
+        if (v.vplaca === valorAtual) {
+            option.selected = true;
+        }
+
+        select.appendChild(option);
+
+    });
+
+}
+
+function aplicarFiltroDashboard(){
+
+    let dataIni = document.getElementById("filtroDataIni").value;
+    let dataFim = document.getElementById("filtroDataFim").value;
+    let placa = document.getElementById("filtroPlaca").value;
+    let tipo = document.getElementById("filtroTipo").value;
+    let motorista = document.getElementById("filtroMotorista").value;
+
+
+    // ✅ PASSO MAIS IMPORTANTE
+    // Se não tiver nenhum filtro → volta pro dashboard normal
+    if(!dataIni && !dataFim && !placa && !tipo){
+        renderDashboard();
+        return;
+    }
+
+    let dados = [];
+
+    // 🔴 MULTAS
+    if(tipo === '' || tipo === 'multas'){
+        db.multas.forEach(m => {
+    dados.push({
+        tipo: 'Multa',
+        placa: m.muveiculo,
+        motorista: m.mumotorista,
+        data: m.mudata,
+        valor: moedaParaFloat(m.muvalor)
+    });
+});
+    }
+
+    // 🟡 MANUTENÇÕES
+    if(tipo === '' || tipo === 'manutencoes'){
+        db.manutencoes.forEach(m => {
+
+    let vei = db.veiculos.find(v => v.vplaca === m.mveiculo);
+
+    dados.push({
+        tipo: 'Manutenção',
+        placa: m.mveiculo,
+        motorista: vei ? vei.vmotorista : '',
+        data: m.mdata,
+        valor: moedaParaFloat(m.mvalor)
+    });
+
+});
+    }
+
+
+// ⛽ COMBUSTÍVEL
+if(tipo === '' || tipo === 'combustivel'){
+
+    db.combustivel.forEach(c => {
+
+        let vei = db.veiculos.find(v => v.vplaca === c.cveiculo);
+
+        const valor = parseFloat(String(c.cvalorlitro).replace(',', '.')) || 0;
+        const litros = parseFloat(String(c.clitros).replace(',', '.')) || 0;
+
+        dados.push({
+            tipo: 'Combustivel',
+            placa: c.cveiculo,
+            motorista: vei ? vei.vmotorista : '',
+            data: c.cdata,
+            valor: valor * litros
+        });
+
+    });
+}
+
+    // 🔍 APLICAR FILTRO
+    dados = dados.filter(d => {
+
+        let ok = true;
+
+        if(placa && d.placa !== placa) ok = false;
+
+        if(motorista && d.motorista !== motorista) ok = false;
+
+        if(dataIni){
+            ok = ok && (new Date(d.data) >= new Date(dataIni));
+        }
+
+        if(dataFim){
+            ok = ok && (new Date(d.data) <= new Date(dataFim));
+        }
+
+        return ok;
+    });
+
+    atualizarDashboardFiltrado(dados);
+}
+
+function atualizarDashboardFiltrado(dados){
+
+    let total = dados.reduce((soma, d) => soma + d.valor, 0);
+    document.getElementById('d_val').innerText = floatParaMoeda(total);
+
+    let multas = dados.filter(d => d.tipo === 'Multa').length;
+    document.getElementById('d_multas_count').innerText = multas;
+
+    // AGRUPAR POR VEÍCULO
+    let agrupado = {};
+
+    dados.forEach(d => {
+        agrupado[d.placa] = (agrupado[d.placa] || 0) + d.valor;
+    });
+
+    // ATUALIZAR GRÁFICO
+    if(chart) chart.destroy();
+
+    let ctx = document.getElementById('graficoCustos');
+
+    if(ctx){
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(agrupado),
+                datasets: [{
+                    label: 'Valor R$',
+                    data: Object.values(agrupado),
+                    backgroundColor: '#3b82f6'
+                }]
+            }
+        });
+    }
+
+    // LISTA
+    let lista = dados.map(d => `
+        <div class="alerta-item">
+            <b>${d.placa}</b> - ${d.tipo} (${formatarDataBR(d.data)})
+        </div>
+    `).join('');
+
+    document.getElementById('listaAlertasRapidos').innerHTML =
+        lista || '<div class="text-muted">Sem dados</div>';
+}
+
+function limparFiltroDashboard(){
+
+    document.getElementById("filtroDataIni").value = "";
+    document.getElementById("filtroDataFim").value = "";
+    document.getElementById("filtroPlaca").value = "";
+    document.getElementById("filtroTipo").value = "";
+    document.getElementById("filtroMotorista").value = "";
+
+    // 🔥 volta ao normal (com alertas)
+    renderDashboard();
+}
+
+function logout(){
+
+    auth.signOut()
+    .then(() => {
+
+        // 🔥 limpa variável
+        usuarioLogado = null;
+
+        // 🔥 limpa dados locais
+        db = {};
+        Object.keys(MAP).forEach(k => db[k] = []);
+
+        // 🔥 esconde sistema
+        document.getElementById("sistema").style.display = "none";
+        document.getElementById("sistemaMain").style.display = "none";
+
+        // 🔥 mostra login
+        document.getElementById("loginTela").style.display = "flex";
+    
+      // 🔥 LIMPAR CAMPOS DE LOGIN
+document.getElementById("loginUser").value = "";
+document.getElementById("loginPass").value = "";
+document.getElementById("loginErro").innerText = "";
+
+    })
+    .catch(err => {
+        console.error("Erro ao sair:", err);
+        alert("Erro ao sair");
+    });
+
+}
+
+function aplicarPermissoes(){
+
+    if(!usuarioLogado || usuarioLogado.tipo === "admin") return;
+
+    let p = usuarioLogado.permissoes || {};
+
+    document.querySelectorAll(".sidebar a").forEach(a => {
+
+        let onclick = a.getAttribute("onclick");
+        if(!onclick) return;
+
+        MODULOS.forEach(mod => {
+
+            if(onclick.includes(`'${mod}'`) && !p[mod]){
+                a.style.display = "none";
+            }
+
+        });
+
+    });
+
+}
+
+function gerarRelatorioFerias(){
+
+    if(!db.ferias || db.ferias.length === 0){
+        alert("Nenhum registro de férias encontrado!");
+        return;
+    }
+
+    let html = `
+    <html>
+    <head>
+        <title>Relatório de Férias</title>
+        <style>
+            body{font-family:Arial;padding:20px}
+            h2{text-align:center;margin-bottom:20px}
+            table{width:100%;border-collapse:collapse;margin-top:20px}
+            th,td{border:1px solid #ccc;padding:8px;text-align:left}
+            th{background:#f1f5f9}
+            .status{font-weight:bold}
+        </style>
+    </head>
+    <body>
+
+    <h2>📊 Relatório de Férias</h2>
+    <p><b>Data:</b> ${new Date().toLocaleDateString()}</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Motorista</th>
+                <th>Início</th>
+                <th>Fim</th>
+                <th>Status</th>
+                <th>Observações</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+
+    db.ferias.forEach(f => {
+
+        html += `
+        <tr>
+            <td>${f.femotorista}</td>
+            <td>${formatarDataBR(f.feinicio)}</td>
+            <td>${formatarDataBR(f.fefim)}</td>
+            <td class="status">${f.festatus}</td>
+            <td>${f.feobs || '--'}</td>
+        </tr>
+        `;
+
+    });
+
+    html += `
+        </tbody>
+    </table>
+
+    <script>
+        window.onload = () => window.print();
+    <\/script>
+
+    </body>
+    </html>
+    `;
+
+    let win = window.open('', '', 'width=900,height=700');
+    win.document.write(html);
+    win.document.close();
+}
+
+    function limparFiltrosPneus(){
+
+    document.getElementById('filtroPneu').value='';
+
+    document.getElementById('filtroPVeiculo').selectedIndex=0;
+
+    document.getElementById('filtroPStatus').selectedIndex=0;
+
+    renderModulo('pneus');
+}
+
+// =========================
+// SALVAR PNEU
+// =========================
+function salvarPneu(){
+
+    let obj = {
+
+        pnumero: document.getElementById('pnumero').value,
+        pmarca: document.getElementById('pmarca').value,
+        pmodelo: document.getElementById('pmodelo').value,
+        pmedida: document.getElementById('pmedida').value,
+        pdot: document.getElementById('pdot').value,
+        pvalor: document.getElementById('pvalor').value,
+        pdata: document.getElementById('pdata').value,
+        pvida: document.getElementById('pvida').value,
+        psulco: document.getElementById('psulco').value,
+        pveiculo: document.getElementById('pveiculo').value,
+        pfornecedor: document.getElementById('pfornecedor').value,
+        pposicao: document.getElementById('pposicao').value,
+        pkminstalacao: document.getElementById('pkminstalacao').value,
+        pkmatual: document.getElementById('pkmatual').value,
+        pkmrodado: document.getElementById('pkmrodado').value,
+        pstatus: document.getElementById('pstatus').value,
+        pobs: document.getElementById('pobs').value,
+        pdatacadastro: new Date().toISOString()
+
+    };
+
+    const idx = document.getElementById('p_idx').value;
+
+    if(idx === ''){
+        db.pneus.push(obj);
+
+        // vai para última página
+        irParaUltimaPagina('pneus');
+
+    } else {
+        db.pneus[idx] = obj;
+    }
+
+    salvarNuvem();
+
+    renderModulo('pneus');
+
+    limparForm(
+        'pneus',
+        [
+            'pnumero','pmarca','pmodelo','pmedida','pdot',
+            'pvalor','pdata','pvida','psulco','pveiculo',
+            'pfornecedor','pposicao','pkminstalacao',
+            'pkmatual','pkmrodado','pstatus','pobs'
+        ],
+        'p_idx'
+    );
+}
+
+// =========================
+// SELECTS
+// =========================
+function carregarPneuSelects(){
+
+    const veiculos = document.getElementById('pveiculo');
+    const filtroVeiculo = document.getElementById('filtroPVeiculo');
+
+    if(veiculos){
+
+        veiculos.innerHTML =
+        '<option value=\"\">Selecione o veículo</option>' +
+
+        db.veiculos.map(v =>
+        `<option value=\"${v.vplaca}\">${v.vplaca}</option>`).join('');
+
+    }
+
+    if(filtroVeiculo){
+
+        filtroVeiculo.innerHTML =
+        '<option value=\"\">Todos</option>' +
+
+        db.veiculos.map(v =>
+        `<option value=\"${v.vplaca}\">${v.vplaca}</option>`).join('');
+
+    }
+
+    const fornecedores = document.getElementById('pfornecedor');
+
+    if(fornecedores){
+
+        fornecedores.innerHTML =
+        '<option value=\"\">Selecione o fornecedor</option>' +
+
+        (ordenarFornecedores(), db.fornecedores).map(f =>
+        `<option value=\"${f.fnome}\">${f.fnome}</option>`).join('');
+
+    }
+
+}
+// =========================
+// RENDER
+// =========================
+const oldRenderModulo = renderModulo;
+
+renderModulo = function(modulo){
+
+    oldRenderModulo(modulo);
+
+    if(modulo === 'pneus'){
+
+        carregarPneuSelects();
+
+        let lista = [...db.pneus];
+
+        const filtro = document.getElementById('filtroPneu')?.value?.toLowerCase() || '';
+        const veiculo = document.getElementById('filtroPVeiculo')?.value || '';
+        const status = document.getElementById('filtroPStatus')?.value || '';
+
+        lista = lista.filter(p => {
+
+            return (
+                (!filtro ||
+                p.pnumero.toLowerCase().includes(filtro) ||
+                p.pmarca.toLowerCase().includes(filtro))
+                &&
+                (!veiculo || p.pveiculo === veiculo)
+                &&
+                (!status || p.pstatus === status)
+            );
+
+        });
+
+        const totalPneus = db.pneus.length;
+
+const valorTotal = db.pneus.reduce((total, p) => {
+
+    let valor = String(p.pvalor || '0')
+        .replace('R$', '')
+        .replace(/\./g, '')
+        .replace(',', '.')
+        .trim();
+
+    return total + (parseFloat(valor) || 0);
+
+}, 0);
+
+document.getElementById('totalPneus').innerText =
+totalPneus;
+
+document.getElementById('valorTotalPneus').innerText =
+valorTotal.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+});
+
+        const dados = getDadosPaginadosCustom(lista,'pneus');
+
+        document.getElementById('listaPneus').innerHTML =
+        dados.map(p=>{
+
+            const realIndex = db.pneus.indexOf(p);
+
+            return `
+            <tr>
+
+            <td><b>${p.pnumero}</b></td>
+
+            <td>${p.pmarca}</td>
+
+            <td>${p.pveiculo}</td>
+
+            <td>${p.pposicao}</td>
+
+            <td>${p.pkmrodado || 0} KM</td>
+
+            <td>
+                <span class="badge bg-dark">
+                ${p.pstatus}
+                </span>
+            </td>
+
+            <td>${p.pfornecedor}</td>
+
+            <td>
+
+                <button class="btn-edit"
+                onclick="editar('pneus',${realIndex})">
+                ✎
+                </button>
+
+                <button class="btn-del"
+                onclick="deletar('pneus',${realIndex})">
+                ✕
+                </button>
+
+            </td>
+
+            </tr>
+            `;
+
+        }).join('');
+
+        renderPaginacaoCustom(lista,'pneus','paginacaoPneus');
+
+    }
+
+}
+
+// =========================
+// ALERTAS
+// =========================
+function alertasPneus(){
+
+    let alertas = [];
+
+    db.pneus.forEach(p=>{
+
+        const kmRodado = parseFloat(p.pkmrodado || 0);
+        const vida = parseFloat(p.pvida || 0);
+
+        if(kmRodado >= (vida * 0.9)){
+
+            alertas.push(
+                `⚠️ Pneu ${p.pnumero} próximo da troca`
+            );
+
+        }
+
+    });
+
+    return alertas;
+}
+
+function calcularKMPneu(){
+
+    const kmInstalacao =
+    parseFloat(document.getElementById('pkminstalacao').value) || 0;
+
+    const kmAtual =
+    parseFloat(document.getElementById('pkmatual').value) || 0;
+
+    let total = 0;
+
+    if(kmAtual > kmInstalacao){
+
+        total = kmAtual - kmInstalacao;
+
+    }
+
+    document.getElementById('pkmrodado').value = total;
+
+}
+
+function navegarTerceiros() {
+
+    let html = '';
+
+    db.terceiros.forEach((t, i) => {
+
+        html += `
+        <tr>
+            <td>${t.ternome || ''}</td>
+            <td>${t.tertelmotorista || ''}</td>
+            <td>${t.tercnpj || ''}</td>
+            <td>${t.terempresa || ''}</td>
+            <td>${t.terantt || ''}</td>
+            <td>${t.tertipoveiculo || ''}</td>
+            <td>${t.terplaca || ''}</td>
+            <td>${t.terano || ''}</td>
+            <td>${t.tercarreta || ''}</td>
+            <td>${t.terano || ''}</td>
+            <td>${t.tertelefone || ''}</td>
+            <td>${t.terfrete || ''}</td>
+            <td>${t.terstatus || ''}</td>
+            <td>
+                <button class="btn btn-sm btn-warning"
+                    onclick="editarTerceiro(${i})">
+                    ✏️
+                </button>
+
+                <button class="btn btn-sm btn-danger"
+                    onclick="excluir('terceiros',${i})">
+                    🗑️
+                </button>
+            </td>
+        </tr>
+        `;
+    });
+
+    document.getElementById('listaTerceiros').innerHTML = html;
+}
+
+function carregarPermissoesAdmin(){
+
+    let container = document.getElementById("listaPermissoes");
+
+    if(!container) return;
+
+    container.innerHTML = "";
+
+    MODULOS.forEach(mod => {
+
+        container.innerHTML += `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="perm_${mod}">
+                <label class="form-check-label">${mod.toUpperCase()}</label>
+            </div>
+        `;
+
+    });
+
+}
+
+</script>
+<!-- MODAL DE ANEXOS -->
+<div id="modalAnexos" style="
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.6);
+display:none;
+align-items:center;
+justify-content:center;
+z-index:9999;
+">
+
+<div style="
+background:white;
+padding:20px;
+border-radius:10px;
+width:420px;
+max-height:80%;
+overflow:auto;
+">
+
+<h5 class="mb-3">📎 Arquivos da Multa</h5>
+
+<div id="listaArquivos"></div>
+
+<hr>
+
+<!-- VISUALIZADOR -->
+<iframe 
+id="visualizadorArquivo" 
+style="width:100%; height:400px; border:none;">
+</iframe>
+
+<div class="text-end mt-3">
+<button class="btn btn-secondary" onclick="fecharAnexos()">Fechar</button>
+</div>
+</div>
+</div>
+
+    <script>
+
+// BLOQUEAR F12
+document.addEventListener('keydown', function(e) {
+
+    // F12
+    if (e.key === 'F12') {
+        e.preventDefault();
+        bloquearTela();
+    }
+
+    // CTRL + SHIFT + I
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        bloquearTela();
+    }
+
+    // CTRL + SHIFT + J
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        bloquearTela();
+    }
+
+    // CTRL + U
+    if (e.ctrlKey && e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        bloquearTela();
+    }
+
+});
+
+// FUNÇÃO BLOQUEIO VISUAL
+function bloquearTela() {
+
+    // evita duplicar
+    if (document.getElementById('bloqueioDevtools')) return;
+
+    const div = document.createElement('div');
+
+    div.id = 'bloqueioDevtools';
+
+    div.innerHTML = `
+        <div style="
+            position:fixed;
+            top:0;
+            left:0;
+            width:100%;
+            height:100%;
+            background:#000;
+            z-index:999999;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-direction:column;
+            color:white;
+            font-family:Arial;
+        ">
+            <h1>⚠ ACESSO BLOQUEADO</h1>
+            <p>Ferramentas do desenvolvedor desativadas.</p>
+        </div>
+    `;
+
+    document.body.appendChild(div);
+
+    // ESCONDE SISTEMA
+    document.body.style.overflow = 'hidden';
+}
+
+</script>
+
+</div>
+</div>
+</body>
+<script src="revisoes.js"></script>
+<script src="motoristas.js"></script>
+<script src="veiculos.js"></script>
+<script src="paginacao.js"></script>
+<script>
+/* ===== FILTROS AVANÇADOS (Fornecedores / Motoristas / Veículos / Combustível) ===== */
+(function(){
+
+  const MAPA = {
+    fornecedores: { tbody:'listaFornecedores', pag:'paginacaoFornecedores' },
+    motoristas:   { tbody:'listaMotoristas',   pag:'paginacaoMotoristas' },
+    veiculos:     { tbody:'listaVeiculos',     pag:'paginacaoVeiculos' },
+    combustivel:  { tbody:'listaCombustivel',  pag:'paginacaoCombustivel' }
+  };
+
+  const CAMPOS = {
+    fornecedores: ['ffEmpresa','ffResp','ffCnpj','ffCidade','ffUf'],
+    motoristas:   ['fmNome','fmCpf','fmCat','fmStatus','fmVencCnhAte'],
+    veiculos:     ['fvPlaca','fvModelo','fvMotorista','fvStatus','fvKmMin','fvKmMax'],
+    combustivel:  ['fcVeiculo','fcTipo','fcIni','fcFim','fcPosto']
+  };
+
+  const DB = () => (typeof db !== 'undefined' && db) ? db : {};
+
+  const v = id => { const e = document.getElementById(id); return e ? String(e.value||'').trim() : ''; };
+  const t = x => (x==null?'':String(x)).toLowerCase();
+  const contem = (campo, termo) => !termo || t(campo).includes(termo.toLowerCase());
+  const num = x => { const n = parseFloat(String(x==null?'':x).replace(/\./g,'').replace(',','.').replace(/[^\d.-]/g,'')); return isNaN(n)?0:n; };
+  const iso = s => {
+    if(!s) return null;
+    s = String(s).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    const m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? (m[3]+'-'+m[2]+'-'+m[1]) : null;
+  };
+  const acoes = (mod,i) => `<td><button class="btn-edit" onclick="editar('${mod}',${i})">✎</button><button class="btn-del" onclick="deletar('${mod}',${i})">✕</button></td>`;
+  const d = x => (x===undefined||x===null||x==='') ? '--' : x;
+
+  function temFiltro(mod){
+    return CAMPOS[mod].some(id => v(id) !== '');
+  }
+
+  function pintar(mod, html, filtrando){
+    const cfg = MAPA[mod];
+    const tb = document.getElementById(cfg.tbody);
+    if(!tb) return;
+    tb.innerHTML = html || `<tr><td colspan="12" class="text-center text-muted">Nenhum registro encontrado</td></tr>`;
+    const pag = document.getElementById(cfg.pag);
+    if(pag) pag.style.display = filtrando ? 'none' : '';
+    const cont = document.getElementById('contFiltro_'+mod);
+    if(cont) cont.textContent = filtrando ? (html ? (html.match(/<tr/g)||[]).length + ' registro(s) encontrado(s)' : '0 registro(s)') : '';
+  }
+
+  function linhas(mod){
+    const base = Array.isArray(DB()[mod]) ? DB()[mod] : [];
+
+    if(mod === 'fornecedores'){
+      const emp=v('ffEmpresa'), resp=v('ffResp'), cnpj=v('ffCnpj'), cid=v('ffCidade'), uf=v('ffUf');
+      return base.map((f,i)=>({f,i}))
+        .filter(({f}) =>
+          (contem(f.fnome,emp) || contem(f.ffantasia,emp)) &&
+          contem(f.fresp,resp) &&
+          contem(f.fcnpj,cnpj) &&
+          contem(f.fcidade,cid) &&
+          contem(f.fuf,uf))
+        .map(({f,i}) => `<tr><td><b>${d(f.fnome)}</b></td><td>${d(f.ffantasia)}</td><td>${d(f.fresp)}</td><td>${d(f.fcnpj)}</td><td>${d(f.ftel)}</td><td>${d(f.femail)}</td><td>${d(f.fcidade)}</td><td>${d(f.fuf)}</td>${acoes(mod,i)}</tr>`)
+        .join('');
+    }
+
+    if(mod === 'motoristas'){
+      const nome=v('fmNome'), cpf=v('fmCpf'), cat=v('fmCat'), st=v('fmStatus'), ate=iso(v('fmVencCnhAte'));
+      return base.map((m,i)=>({m,i}))
+        .filter(({m}) => {
+          if(!contem(m.motNome,nome)) return false;
+          if(!(contem(m.motCpf,cpf) || contem(m.mcnh,cpf))) return false;
+          if(!contem(m.motCnh,cat)) return false;
+          if(st && t(m.motStatus) !== t(st)) return false;
+          if(ate){ const vc = iso(m.motVencCnh); if(!vc || vc > ate) return false; }
+          return true;
+        })
+        .map(({m,i}) => `<tr><td>${d(m.motNome)}</td><td>${d(m.motCpf)}</td><td>${d(m.motCnh)}</td><td>${d(m.mcnh)}</td><td>${d(m.motTel)}</td><td>${d(m.motVencCnh)}</td><td>${d(m.motVencTox)}</td><td>${d(m.motInicio)} às ${d(m.motFim)}</td><td>${d(m.motStatus)}</td>${acoes(mod,i)}</tr>`)
+        .join('');
+    }
+
+    if(mod === 'veiculos'){
+      const pl=v('fvPlaca'), mo=v('fvModelo'), mt=v('fvMotorista'), st=v('fvStatus');
+      const kmin=v('fvKmMin'), kmax=v('fvKmMax');
+      return base.map((x,i)=>({x,i}))
+        .filter(({x}) => {
+          if(!contem(x.vplaca,pl)) return false;
+          if(!contem(x.vmodelo,mo)) return false;
+          if(!contem(x.vmotorista,mt)) return false;
+          if(st && t(x.vstatus) !== t(st)) return false;
+          if(kmin !== '' && num(x.vkm) < num(kmin)) return false;
+          if(kmax !== '' && num(x.vkm) > num(kmax)) return false;
+          return true;
+        })
+        .map(({x,i}) => `<tr><td><b>${d(x.vplaca)}</b></td><td>${d(x.vmodelo)}</td><td>${d(x.vkm)}</td><td>${d(x.vmotorista)}</td><td>${d(x.vtara)}</td><td>${d(x.vpliquido)}</td><td>${d(x.vm3)}</td><td>${d(x.vmedidas)}</td><td>${d(x.vstatus)}</td>${acoes(mod,i)}</tr>`)
+        .join('');
+    }
+
+    if(mod === 'combustivel'){
+      const ve=v('fcVeiculo'), tp=v('fcTipo'), ini=iso(v('fcIni')), fim=iso(v('fcFim')), po=v('fcPosto');
+      return base.map((c,i)=>({c,i}))
+        .filter(({c}) => {
+          if(ve && t(c.cveiculo) !== t(ve)) return false;
+          if(tp && t(c.ctipo) !== t(tp)) return false;
+          const dt = iso(c.cdata);
+          if(ini && (!dt || dt < ini)) return false;
+          if(fim && (!dt || dt > fim)) return false;
+          if(!contem(c.cposto,po)) return false;
+          return true;
+        })
+        .map(({c,i}) => `<tr><td>${d(c.cveiculo)}</td><td>${typeof formatarDataBR==='function'? formatarDataBR(c.cdata): d(c.cdata)}</td><td>${d(c.ctipo)}</td><td>${d(c.ckm)}</td><td>${d(c.clitros)}</td><td>${d(c.cvalorlitro)}</td><td>${d(c.ctotal)}</td><td>${d(c.cmedia)}</td><td>${d(c.cposto)}</td>${acoes(mod,i)}</tr>`)
+        .join('');
+    }
+
+    return '';
+  }
+
+  window.aplicarFiltrosModulo = function(mod){
+    if(!MAPA[mod]) return;
+    if(!temFiltro(mod)) return window.limparFiltrosModulo(mod);
+    pintar(mod, linhas(mod), true);
+  };
+
+  window.limparFiltrosModulo = function(mod){
+    if(!MAPA[mod]) return;
+    CAMPOS[mod].forEach(id => { const e = document.getElementById(id); if(e) e.value = ''; });
+    const cont = document.getElementById('contFiltro_'+mod);
+    if(cont) cont.textContent = '';
+    const pag = document.getElementById(MAPA[mod].pag);
+    if(pag) pag.style.display = '';
+    if(typeof renderModulo === 'function') renderModulo(mod);
+    else if(typeof renderTudo === 'function') renderTudo();
+  };
+
+  // preenche selects dinâmicos dos filtros
+  window.atualizarSelectsFiltros = function(){
+    if(!DB().veiculos && !DB().motoristas) return;
+    const selVeicComb = document.getElementById('fcVeiculo');
+    if(selVeicComb){
+      const atual = selVeicComb.value;
+      selVeicComb.innerHTML = '<option value="">Todos os veículos</option>' +
+        (DB().veiculos||[]).map(x=>`<option value="${x.vplaca}">${x.vplaca}</option>`).join('');
+      selVeicComb.value = atual;
+    }
+    const selMot = document.getElementById('fvMotorista');
+    if(selMot){
+      const atual = selMot.value;
+      selMot.innerHTML = '<option value="">Todos os motoristas</option>' +
+        (DB().motoristas||[]).map(m=>`<option value="${m.motNome}">${m.motNome}</option>`).join('');
+      selMot.value = atual;
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', () => setTimeout(window.atualizarSelectsFiltros, 1500));
+  setInterval(window.atualizarSelectsFiltros, 5000);
+
+  // Enter aplica o filtro
+  document.addEventListener('keyup', e => {
+    if(e.key !== 'Enter') return;
+    const box = e.target.closest('[data-filtro-mod]');
+    if(box) window.aplicarFiltrosModulo(box.getAttribute('data-filtro-mod'));
+  });
+
+})();
+</script>
+<style>
+.filtros-avancados{background:rgba(255,255,255,.65);border:1px solid #cbd5e1;border-radius:10px;padding:12px;margin-bottom:14px}
+.filtros-avancados .titulo-filtro{font-weight:600;font-size:.9rem;margin-bottom:8px;color:#334155}
+.filtros-avancados .cont-filtro{font-size:.8rem;color:#475569}
+</style>
+</html>
