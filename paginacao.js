@@ -1254,6 +1254,8 @@ if(modulo === 'terceiros'){
 
 <td>${t.terplaca || '--'}</td>
 
+<td>${t.terano || '--'}</td>
+
 <td>${t.tercarreta || '--'}</td>
 
 <td>${t.terano || '--'}</td>
