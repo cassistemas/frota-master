@@ -369,6 +369,22 @@ function badgeStatusRevisao(status){
 }
 
 /*=============================================================
+VEÍCULO VENDIDO?  (revisões de veículos vendidos são ignoradas)
+=============================================================*/
+
+function revisaoVeiculoAtivo(revisao){
+
+    const veiculo = db.veiculos.find(
+        v => v.vplaca === revisao.rveiculo
+    );
+
+    if(!veiculo) return false;
+
+    return (veiculo.vstatus || "").toUpperCase() !== "VENDIDO";
+
+}
+
+/*=============================================================
 SINCRONIZA TODAS AS REVISÕES
 =============================================================*/
 
@@ -377,21 +393,8 @@ function sincronizarRevisoes(){
     if(!db.revisoes) return;
 
     db.revisoes.forEach(r=>{
-const veiculo = db.veiculos.find(v=>v.vplaca===r.rveiculo);
 
-    if(!veiculo) return;
-// Ignora veículo vendido
-if ((veiculo.vstatus || "").toUpperCase() === "VENDIDO") {
-    return;
-}
-
-    if((veiculo.vstatus || "").toUpperCase() === "VENDIDO")
-        return;
-
-if(!veiculo) return;
-
-if((veiculo.vstatus || "").toUpperCase()=="VENDIDO")
-    return;
+        if(!revisaoVeiculoAtivo(r)) return;
 
         atualizarRevisao(r);
 
@@ -464,6 +467,8 @@ function atualizarDashboardRevisoes(){
 
     db.revisoes.forEach(r=>{
 
+        if(!revisaoVeiculoAtivo(r)) return;
+
         atualizarRevisao(r);
 
         switch(r.rstatus){
@@ -502,15 +507,7 @@ function renderRevisoes(){
 
     sincronizarRevisoes();
 
-    let lista = db.revisoes.filter(r=>{
-
-    const veiculo = db.veiculos.find(v=>v.vplaca===r.rveiculo);
-
-    if(!veiculo) return false;
-
-    return (veiculo.vstatus || "").toUpperCase() !== "VENDIDO";
-
-});
+    let lista = db.revisoes.filter(r => revisaoVeiculoAtivo(r));
 
     lista.sort((a,b)=>{
 
@@ -642,6 +639,8 @@ function getAlertasRevisoes(){
     let alertas = [];
 
     db.revisoes.forEach(r=>{
+
+        if(!revisaoVeiculoAtivo(r)) return;
 
         atualizarRevisao(r);
 
