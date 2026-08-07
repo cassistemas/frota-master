@@ -3346,8 +3346,16 @@ if(mod==="saidaVeiculos"){
 }
 
 function limparForm(mod, campos, idCampo) {
-    campos.forEach(c=>document.getElementById(c).value='');
-    document.getElementById(idCampo).value='';
+    campos.forEach(c=>{
+        const el = document.getElementById(c);
+        if(!el) return;
+        el.value = '';
+        if(el.tagName === 'SELECT'){
+            el.selectedIndex = 0;
+        }
+    });
+    const idx = document.getElementById(idCampo);
+    if(idx) idx.value='';
 
     const btnCancel = document.getElementById('btn_cancel_' + mod);
 
