@@ -12,11 +12,77 @@
     <style>
         :root{--sidebar:#0f172a;--accent:#3b82f6;--bg:#f8fafc;--danger:#ef4444;--warning:#f59e0b;--success:#10b981}
         body{background:var(--bg);font-family:Inter,sans-serif;font-size:.85rem}
-        .sidebar{width:250px;height:100vh;background:var(--sidebar);position:fixed;padding:20px;color:#fff;overflow-y:auto;z-index:100}
-        .sidebar h4{color:var(--accent);font-weight:800;margin-bottom:25px;text-align:center}
-        .sidebar a{display:block;color:#94a3b8;padding:10px;border-radius:6px;text-decoration:none;margin-bottom:5px;cursor:pointer;transition:0.3s}
-        .sidebar a:hover,.sidebar a.active{background:#1e293b;color:#fff}
-        .main{margin-left:250px;padding:30px}
+        /* ===== SIDEBAR PROFISSIONAL v2 ===== */
+        .sidebar{width:262px;height:100vh;position:fixed;top:0;left:0;z-index:100;color:#fff;
+            background:linear-gradient(180deg,#0a1120 0%,#0f172a 50%,#101a2e 100%);
+            border-right:1px solid rgba(148,163,184,.12);
+            box-shadow:6px 0 32px rgba(2,6,23,.45);
+            padding:0;overflow:hidden;
+            display:flex;flex-direction:column}
+        .sidebar::after{content:"";position:absolute;inset:0;pointer-events:none;
+            background:radial-gradient(520px 200px at 0% 0%,rgba(59,130,246,.14),transparent 70%)}
+        /* ---- marca ---- */
+        .sb-brand{position:relative;z-index:1;display:flex;align-items:center;gap:11px;
+            padding:18px 16px 16px;border-bottom:1px solid rgba(148,163,184,.12)}
+        .sb-logo{width:38px;height:38px;flex:0 0 38px;border-radius:11px;display:grid;place-items:center;
+            font-size:1.05rem;background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+            box-shadow:0 6px 16px rgba(37,99,235,.45),inset 0 1px 0 rgba(255,255,255,.25)}
+        .sb-brand .bt{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+        .sb-brand .bt b{font-size:.92rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff}
+        .sb-brand .bt span{font-size:.63rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#64748b}
+        /* ---- área rolável ---- */
+        .sb-nav{position:relative;z-index:1;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;
+            padding:10px 12px 16px;scrollbar-width:thin;scrollbar-color:#334155 transparent}
+        .sb-nav::-webkit-scrollbar{width:6px}
+        .sb-nav::-webkit-scrollbar-thumb{background:#334155;border-radius:99px}
+        .sb-nav::-webkit-scrollbar-thumb:hover{background:#475569}
+        .sb-nav::-webkit-scrollbar-track{background:transparent}
+        .sidebar .sb-label{display:flex;align-items:center;gap:8px;
+            font-size:.62rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase;
+            color:#5b6b85;padding:14px 10px 7px}
+        .sidebar .sb-label::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(148,163,184,.22),transparent)}
+        .sidebar a{position:relative;display:flex;align-items:center;gap:10px;
+            color:#a3b1c6;padding:8px 11px;border-radius:10px;text-decoration:none;margin-bottom:3px;
+            font-size:.83rem;font-weight:600;line-height:1.2;cursor:pointer;overflow:hidden;
+            border:1px solid transparent;
+            transition:background .18s ease,color .18s ease,transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+        .sidebar a .ic{flex:0 0 26px;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+            font-size:.86rem;background:rgba(148,163,184,.09);border:1px solid rgba(148,163,184,.10);
+            transition:background .18s ease,border-color .18s ease,transform .18s ease}
+        .sidebar a::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);
+            width:3px;height:0;border-radius:0 4px 4px 0;background:var(--accent);transition:height .22s ease}
+        .sidebar a:hover{background:rgba(148,163,184,.09);color:#fff;transform:translateX(3px)}
+        .sidebar a:hover .ic{background:rgba(59,130,246,.18);border-color:rgba(59,130,246,.28);transform:scale(1.06)}
+        .sidebar a:hover::before{height:42%}
+        .sidebar a.active{color:#fff;
+            background:linear-gradient(90deg,rgba(59,130,246,.30),rgba(59,130,246,.05));
+            border-color:rgba(59,130,246,.38);box-shadow:0 4px 14px rgba(37,99,235,.20)}
+        .sidebar a.active .ic{background:linear-gradient(135deg,#3b82f6,#1d4ed8);border-color:transparent;
+            box-shadow:0 3px 10px rgba(37,99,235,.5)}
+        .sidebar a.active::before{height:66%;box-shadow:0 0 12px rgba(59,130,246,.95)}
+        .sidebar a.active::after{content:"";position:absolute;right:11px;width:5px;height:5px;border-radius:50%;
+            background:var(--accent);box-shadow:0 0 8px rgba(59,130,246,.9)}
+        /* ---- rodapé / usuário ---- */
+        .sb-foot{position:relative;z-index:1;flex:0 0 auto;padding:12px;
+            border-top:1px solid rgba(148,163,184,.12);background:rgba(2,6,23,.35)}
+        #nomeUsuario{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding:9px 10px;
+            border-radius:12px;text-align:left !important;color:#cbd5e1 !important;
+            background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.13)}
+        #userAvatar{flex:0 0 32px;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;
+            font-size:.74rem;font-weight:800;color:#fff;letter-spacing:.04em;
+            background:linear-gradient(135deg,#3b82f6,#1d4ed8);box-shadow:0 4px 12px rgba(37,99,235,.4)}
+        #userInfo{min-width:0;display:flex;flex-direction:column;line-height:1.25}
+        #userNome{font-size:.78rem;font-weight:700;color:#e2e8f0;
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        #userTipo{font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#64748b}
+        #userTipo::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+            background:var(--success);box-shadow:0 0 8px rgba(16,185,129,.8);margin-right:6px;vertical-align:middle}
+        .sidebar a.sb-logout{margin:0;justify-content:center;color:#fca5a5;
+            background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.22)}
+        .sidebar a.sb-logout:hover{background:rgba(239,68,68,.20);color:#fff;transform:none}
+        .sidebar a.sb-logout .ic{background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.25)}
+        .sidebar a.sb-logout::before{display:none}
+        .main{margin-left:262px;padding:30px}
         .hidden{display:none!important}
         .glass-container{background:#fff;padding:20px;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.05)}
         .stat-card{border-left:4px solid var(--accent);padding:15px;background:#fff;border-radius:8px}
@@ -168,34 +234,55 @@ Criar Conta
 </div>
 
 <div class="sidebar" id="sistema" style="display:none">
-    <h4>FROTA MASTER</h4>
-    <a onclick="navegar('dashboard',this)" class="active">📊 Dashboard</a>
-    <a onclick="navegar('agendamentos',this)">📅 Agendamentos</a>
-    <a onclick="navegar('saidaVeiculos',this)">🚚 Saída De Veículos</a>
-    <a onclick="navegar('veiculos',this)">🚗 Veículos</a>
-    <a onclick="navegar('pneus',this)">🛞 Pneus</a>
-    <a onclick="navegar('motoristas',this)">👥 Motoristas</a>
-    <a onclick="navegar('terceiros',this)">🚛 Terceiros</a>
-    <a onclick="navegar('diarias',this)">💰 Diárias</a>
-    <a onclick="navegar('ferias',this)">🏖 Férias</a>
-    <a onclick="navegar('multas',this)">🚫 Multas</a>
-    <a onclick="navegar('seguros',this)">🛡 Seguros</a>
-    <a onclick="navegar('licenciamento',this)">📜 Licenciamento</a>
-    <a onclick="navegar('tacografo',this)">⏱ Tacógrafo</a>
-    <a onclick="navegar('licencas',this)">📄 CIV / CIPP</a>
-    <a onclick="navegar('manutencoes',this)">🔧 Manutenções</a>
-    <a onclick="navegar('combustivel',this)">⛽ Combustível</a>
-    <a onclick="navegar('revisoes',this)">⏱ Revisões KM</a>
-    <a onclick="navegar('fornecedores',this)">🏭 Fornecedores</a>
-    <a onclick="navegar('backup',this)">📂 Backup</a>
-    <a id="menuAdmin" onclick="navegar('admin',this)">👑 Usuários (Admin)</a>
-    <a onclick="logout()">🚪 Sair</a>
-    <div id="nomeUsuario" style="
-    text-align:center;
-    font-size:13px;
-    margin-bottom:15px;
-    color:#94a3b8;
-"></div>
+    <div class="sb-brand">
+        <div class="sb-logo">🚛</div>
+        <div class="bt"><b>Frota Master</b><span>Gestão de Frota</span></div>
+    </div>
+
+    <nav class="sb-nav">
+        <div class="sb-label">Visão Geral</div>
+        <a onclick="navegar('dashboard',this)" class="active"><span class="ic">📊</span><span>Dashboard</span></a>
+        <a onclick="navegar('agendamentos',this)"><span class="ic">📅</span><span>Agendamentos</span></a>
+        <a onclick="navegar('saidaVeiculos',this)"><span class="ic">🚚</span><span>Saída de Veículos</span></a>
+
+        <div class="sb-label">Frota</div>
+        <a onclick="navegar('veiculos',this)"><span class="ic">🚗</span><span>Veículos</span></a>
+        <a onclick="navegar('pneus',this)"><span class="ic">🛞</span><span>Pneus</span></a>
+
+        <div class="sb-label">Pessoas</div>
+        <a onclick="navegar('motoristas',this)"><span class="ic">👥</span><span>Motoristas</span></a>
+        <a onclick="navegar('terceiros',this)"><span class="ic">🚛</span><span>Terceiros</span></a>
+        <a onclick="navegar('diarias',this)"><span class="ic">💰</span><span>Diárias</span></a>
+        <a onclick="navegar('ferias',this)"><span class="ic">🏖</span><span>Férias</span></a>
+
+        <div class="sb-label">Documentação</div>
+        <a onclick="navegar('multas',this)"><span class="ic">🚫</span><span>Multas</span></a>
+        <a onclick="navegar('seguros',this)"><span class="ic">🛡</span><span>Seguros</span></a>
+        <a onclick="navegar('licenciamento',this)"><span class="ic">📜</span><span>Licenciamento</span></a>
+        <a onclick="navegar('tacografo',this)"><span class="ic">⏱</span><span>Tacógrafo</span></a>
+        <a onclick="navegar('licencas',this)"><span class="ic">📄</span><span>CIV / CIPP</span></a>
+
+        <div class="sb-label">Operação</div>
+        <a onclick="navegar('manutencoes',this)"><span class="ic">🔧</span><span>Manutenções</span></a>
+        <a onclick="navegar('combustivel',this)"><span class="ic">⛽</span><span>Combustível</span></a>
+        <a onclick="navegar('revisoes',this)"><span class="ic">⏱</span><span>Revisões KM</span></a>
+        <a onclick="navegar('fornecedores',this)"><span class="ic">🏭</span><span>Fornecedores</span></a>
+
+        <div class="sb-label">Sistema</div>
+        <a onclick="navegar('backup',this)"><span class="ic">📂</span><span>Backup</span></a>
+        <a id="menuAdmin" onclick="navegar('admin',this)"><span class="ic">👑</span><span>Usuários (Admin)</span></a>
+    </nav>
+
+    <div class="sb-foot">
+        <div id="nomeUsuario">
+            <div id="userAvatar">--</div>
+            <div id="userInfo">
+                <div id="userNome">Usuário</div>
+                <div id="userTipo">Online</div>
+            </div>
+        </div>
+        <a class="sb-logout" onclick="logout()"><span class="ic">🚪</span><span>Sair do sistema</span></a>
+    </div>
 </div>
 
 <div class="main" id="sistemaMain" style="display:none">
@@ -2920,7 +3007,9 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+// SESSÃO: ao fechar o navegador o login é encerrado.
+// Nunca entra automaticamente: sempre pede usuário e senha.
+firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
 const auth = firebase.auth();
 const dbCloud = firebase.firestore();
@@ -3690,10 +3779,16 @@ function iniciarSistema(){
     }
 
     document.getElementById("loginTela").style.display="none";
-    document.getElementById("sistema").style.display="block";
+    document.getElementById("sistema").style.display="flex";
     document.getElementById("sistemaMain").style.display="block";
-    document.getElementById("nomeUsuario").innerText =
-    "👤 " + (usuarioLogado.nome || usuarioLogado.email);
+    (function(){
+        const nome = usuarioLogado.nome || usuarioLogado.email || "Usuário";
+        const iniciais = nome.trim().split(/\s+/).slice(0,2).map(p=>p[0]).join("").toUpperCase();
+        document.getElementById("userAvatar").innerText = iniciais || "U";
+        document.getElementById("userNome").innerText = nome;
+        document.getElementById("userNome").title = nome;
+        document.getElementById("userTipo").innerText = (usuarioLogado.tipo === "admin" ? "Administrador" : "Usuário");
+    })();
 
     Object.keys(MAP).forEach(mod=>{
         escutarDados(mod);
@@ -5726,79 +5821,6 @@ style="width:100%; height:400px; border:none;">
 </div>
 </div>
 </div>
-
-    <script>
-
-// BLOQUEAR F12
-document.addEventListener('keydown', function(e) {
-
-    // F12
-    if (e.key === 'F12') {
-        e.preventDefault();
-        bloquearTela();
-    }
-
-    // CTRL + SHIFT + I
-    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'i') {
-        e.preventDefault();
-        bloquearTela();
-    }
-
-    // CTRL + SHIFT + J
-    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'j') {
-        e.preventDefault();
-        bloquearTela();
-    }
-
-    // CTRL + U
-    if (e.ctrlKey && e.key.toLowerCase() === 'u') {
-        e.preventDefault();
-        bloquearTela();
-    }
-
-});
-
-// FUNÇÃO BLOQUEIO VISUAL
-function bloquearTela() {
-
-    // evita duplicar
-    if (document.getElementById('bloqueioDevtools')) return;
-
-    const div = document.createElement('div');
-
-    div.id = 'bloqueioDevtools';
-
-    div.innerHTML = `
-        <div style="
-            position:fixed;
-            top:0;
-            left:0;
-            width:100%;
-            height:100%;
-            background:#000;
-            z-index:999999;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            flex-direction:column;
-            color:white;
-            font-family:Arial;
-        ">
-            <h1>⚠ ACESSO BLOQUEADO</h1>
-            <p>Ferramentas do desenvolvedor desativadas.</p>
-        </div>
-    `;
-
-    document.body.appendChild(div);
-
-    // ESCONDE SISTEMA
-    document.body.style.overflow = 'hidden';
-}
-
-</script>
-
-</div>
-</div>
 </body>
 <script src="revisoes.js"></script>
 <script src="motoristas.js"></script>
@@ -5973,4 +5995,5 @@ function bloquearTela() {
 .filtros-avancados .titulo-filtro{font-weight:600;font-size:.9rem;margin-bottom:8px;color:#334155}
 .filtros-avancados .cont-filtro{font-size:.8rem;color:#475569}
 </style>
+<script src="seguranca.js"></script>
 </html>
