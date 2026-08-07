@@ -151,9 +151,16 @@
     ["dtEspecie", "Espécie / Tipo", "text"],
     ["dtMunicipio", "Município", "text"],
     ["dtUf", "UF", "text"],
-    ["dtProprietario", "Proprietário", "text"],
+    ["dtProprietario", "Proprietário", "select", [
+      ["MVT LOCADORA DE VEÍCULOS LTDA", "MVT LOCADORA DE VEÍCULOS LTDA"],
+      ["CARGOCENTER AGÊNCIA DE CARGAS LTDA", "CARGOCENTER AGÊNCIA DE CARGAS LTDA"],
+    ]],
     ["dtLicVenc", "Venc. Licenciamento", "date"],
-    ["dtIpva", "Situação IPVA", "text"],
+    ["dtIpva", "Situação IPVA", "select", [
+      ["Pago", "Pago"],
+      ["Pendente", "Pendente"],
+      ["Atrasado", "Atrasado"],
+    ]],
     ["dtRestricao", "Restrições", "text"],
     ["dtSituacao", "Situação do Veículo", "text"],
     ["dtObs", "Observações", "text"],
@@ -264,6 +271,23 @@
 
   function campoHtml(c, larg) {
     var tipo = c[2] === "date" ? "date" : c[2];
+    if (c[2] === "select") {
+      return (
+        '<div class="col-md-' +
+        (larg || 3) +
+        '"><label class="fm-lbl">' +
+        c[1] +
+        '</label><select id="' +
+        c[0] +
+        '" class="form-select"><option value="">Selecione...</option>' +
+        (c[3] || [])
+          .map(function (op) {
+            return '<option value="' + esc(op[0]) + '">' + esc(op[1]) + "</option>";
+          })
+          .join("") +
+        "</select></div>"
+      );
+    }
     return (
       '<div class="col-md-' +
       (larg || 3) +
@@ -588,7 +612,15 @@
   window.verDetran = function (i) {
     var tr = document.getElementById("fmDet" + i);
     if (!tr) return;
-    tr.style.display = tr.style.display === "none" ? "" : "none";
+    var visivel = tr.style.display !== "none";
+    tr.style.display = visivel ? "none" : "";
+    tr.setAttribute("aria-hidden", visivel ? "true" : "false");
+    var btn = document.querySelector('[data-ver-detran="' + i + '"]');
+    if (btn) {
+      btn.textContent = visivel ? "👁️" : "🙈";
+      btn.title = visivel ? "Ver todos os dados salvos" : "Ocultar dados salvos";
+      btn.setAttribute("aria-expanded", visivel ? "false" : "true");
+    }
   };
 
   /* ---------------- render + paginação ---------------- */
@@ -633,7 +665,7 @@
               "</td><td>" +
               d(x.dtSituacao) +
               '</td><td class="text-nowrap">' +
-              '<button class="btn btn-sm btn-outline-secondary me-1" onclick="verDetran(' +
+               '<button class="btn btn-sm btn-outline-secondary me-1" data-ver-detran="' + o.i + '" aria-expanded="false" onclick="verDetran(' +
               o.i +
               ')" title="Ver todos os dados salvos">👁️</button>' +
               '<button class="btn btn-sm btn-outline-primary me-1" onclick="editarDetran(' +
@@ -643,7 +675,7 @@
               o.i +
               ')">🗑️</button>' +
               "</td></tr>" +
-              '<tr class="fm-det-row" id="fmDet' + o.i + '">' +
+              '<tr class="fm-det-row" id="fmDet' + o.i + '" style="display:none" aria-hidden="true">' +
               '<td colspan="10">' + detalheHtml(x) + "</td></tr>"
             );
           })
