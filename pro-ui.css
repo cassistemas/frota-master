@@ -1,0 +1,273 @@
+/* ============================================================
+   FROTA MASTER - CAMADA VISUAL PROFISSIONAL (pro-ui.css)
+   Aplicada por cima do Bootstrap, sem alterar o HTML original.
+   ============================================================ */
+
+:root {
+  --pro-ink: #0f172a;
+  --pro-ink-2: #334155;
+  --pro-mute: #64748b;
+  --pro-line: #e2e8f0;
+  --pro-surface: #ffffff;
+  --pro-bg: #f1f5f9;
+  --pro-accent: #2563eb;
+  --pro-accent-2: #1d4ed8;
+  --pro-shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 8px 24px -12px rgba(15, 23, 42, .18);
+  --pro-radius: 14px;
+}
+
+body {
+  background: var(--pro-bg) !important;
+  color: var(--pro-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Cabeçalho de módulo ---------- */
+.pro-modhead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  margin: 0 0 18px;
+  background: linear-gradient(135deg, #0f172a 0%, #17233d 55%, #1e3a8a 140%);
+  color: #fff;
+  border-radius: var(--pro-radius);
+  box-shadow: var(--pro-shadow);
+  position: relative;
+  overflow: hidden;
+}
+.pro-modhead::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(460px 160px at 0% 0%, rgba(59, 130, 246, .28), transparent 70%);
+  pointer-events: none;
+}
+.pro-modhead .pro-ic {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, .45), inset 0 1px 0 rgba(255, 255, 255, .25);
+  position: relative;
+  z-index: 1;
+}
+.pro-modhead .pro-ic svg { width: 22px; height: 22px; }
+.pro-modhead .pro-tt { position: relative; z-index: 1; min-width: 0; }
+.pro-modhead .pro-tt b {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+.pro-modhead .pro-tt span {
+  display: block;
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+.pro-modhead .pro-badge {
+  margin-left: auto;
+  position: relative;
+  z-index: 1;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, .16);
+  border: 1px solid rgba(148, 163, 184, .28);
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
+/* ---------- Cartões / blocos ---------- */
+.card,
+.pro-modhead + .card {
+  border: 1px solid var(--pro-line) !important;
+  border-radius: var(--pro-radius) !important;
+  box-shadow: var(--pro-shadow);
+  background: var(--pro-surface);
+}
+.card-header {
+  background: #f8fafc !important;
+  border-bottom: 1px solid var(--pro-line) !important;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--pro-ink);
+}
+.card-body { padding: 18px; }
+
+/* ---------- Tabelas ---------- */
+.table {
+  --bs-table-bg: transparent;
+  margin-bottom: 0;
+  border-color: var(--pro-line);
+}
+.table > thead > tr > th {
+  background: #f8fafc;
+  color: var(--pro-mute);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--pro-line) !important;
+  padding: 12px 12px;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.table > tbody > tr > td {
+  padding: 11px 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: var(--pro-ink-2);
+  font-size: .84rem;
+}
+.table > tbody > tr:nth-child(even) > td { background: #fcfdff; }
+.table > tbody > tr:hover > td { background: #eff6ff; }
+.table-responsive,
+.pro-tablewrap {
+  border: 1px solid var(--pro-line);
+  border-radius: var(--pro-radius);
+  overflow: auto;
+  background: var(--pro-surface);
+  box-shadow: var(--pro-shadow);
+}
+
+/* ---------- Badges ---------- */
+.badge {
+  font-weight: 700;
+  letter-spacing: .03em;
+  padding: .42em .7em;
+  border-radius: 999px;
+  font-size: .7rem;
+}
+
+/* ---------- Formulários ---------- */
+.form-control,
+.form-select {
+  border-radius: 10px;
+  border: 1px solid var(--pro-line);
+  padding: .5rem .7rem;
+  font-size: .84rem;
+  background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+}
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--pro-accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .14);
+}
+label, .form-label {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--pro-mute);
+}
+
+/* ---------- Botões ---------- */
+.btn {
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: .8rem;
+  letter-spacing: .02em;
+  padding: .48rem .95rem;
+  transition: transform .08s ease, filter .15s ease, box-shadow .15s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--pro-accent), var(--pro-accent-2));
+  border: none;
+  box-shadow: 0 6px 16px -8px rgba(37, 99, 235, .8);
+}
+.btn-primary:hover { filter: brightness(1.06); }
+
+.btn-edit, .btn-del {
+  border: 1px solid var(--pro-line);
+  background: #fff;
+  border-radius: 9px;
+  width: 30px;
+  height: 30px;
+  line-height: 1;
+  margin-right: 5px;
+  color: var(--pro-ink-2);
+  transition: all .15s ease;
+}
+.btn-edit:hover { background: #eff6ff; border-color: #bfdbfe; color: var(--pro-accent); }
+.btn-del:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+
+/* ---------- Paginação (global + universal) ---------- */
+.paginacao-global,
+.pro-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: var(--pro-surface);
+  border: 1px solid var(--pro-line);
+  border-radius: var(--pro-radius);
+  box-shadow: var(--pro-shadow);
+}
+.paginacao-global button,
+.pro-pager button {
+  background: #fff !important;
+  color: var(--pro-ink-2) !important;
+  border: 1px solid var(--pro-line) !important;
+  border-radius: 9px !important;
+  padding: 7px 14px !important;
+  font-weight: 700;
+  font-size: .78rem;
+  transition: all .15s ease;
+}
+.paginacao-global button:hover:not(:disabled),
+.pro-pager button:hover:not(:disabled) {
+  background: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: var(--pro-accent) !important;
+}
+.paginacao-global button:disabled,
+.pro-pager button:disabled { opacity: .45; cursor: not-allowed; }
+
+.paginacao-global .pagina-info,
+.pro-pager .pro-pager-info {
+  font-size: .78rem !important;
+  font-weight: 700 !important;
+  color: var(--pro-mute);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.pro-pager .pro-pager-nav { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- Estado vazio ---------- */
+.pro-empty {
+  text-align: center;
+  padding: 34px 16px;
+  color: var(--pro-mute);
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+/* ---------- Ajustes gerais ---------- */
+h2, h3, h4, h5 { font-weight: 800; letter-spacing: -.01em; color: var(--pro-ink); }
+hr { border-color: var(--pro-line); opacity: 1; }
+
+@media (max-width: 768px) {
+  .pro-modhead { padding: 13px 14px; }
+  .pro-modhead .pro-tt b { font-size: .92rem; }
+  .pro-modhead .pro-badge { display: none; }
+}

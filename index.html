@@ -11,11 +11,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="pro-ui.css">
     <style>
         :root{--sidebar:#0f172a;--accent:#3b82f6;--bg:#f8fafc;--danger:#ef4444;--warning:#f59e0b;--success:#10b981}
         body{background:var(--bg);font-family:Inter,sans-serif;font-size:.85rem}
         /* ===== SIDEBAR PROFISSIONAL v2 ===== */
-        .sidebar{width:262px;height:100vh;position:fixed;top:0;left:0;z-index:100;color:#fff;
+        .sidebar{width:274px;height:100vh;position:fixed;top:0;left:0;z-index:100;color:#fff;
             background:linear-gradient(180deg,#0a1120 0%,#0f172a 50%,#101a2e 100%);
             border-right:1px solid rgba(148,163,184,.12);
             box-shadow:6px 0 32px rgba(2,6,23,.45);
@@ -29,9 +30,26 @@
         .sb-logo{width:38px;height:38px;flex:0 0 38px;border-radius:11px;display:grid;place-items:center;
             font-size:1.05rem;background:linear-gradient(135deg,#3b82f6,#1d4ed8);
             box-shadow:0 6px 16px rgba(37,99,235,.45),inset 0 1px 0 rgba(255,255,255,.25)}
+        .sb-logo svg{width:21px;height:21px}
         .sb-brand .bt{display:flex;flex-direction:column;line-height:1.15;min-width:0}
         .sb-brand .bt b{font-size:.92rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff}
         .sb-brand .bt span{font-size:.63rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#64748b}
+        .sb-collapse{margin-left:auto;width:28px;height:28px;flex:0 0 28px;display:grid;place-items:center;
+            border:1px solid rgba(148,163,184,.18);border-radius:8px;background:rgba(148,163,184,.08);
+            color:#94a3b8;cursor:pointer;transition:transform .2s ease,background .2s ease,color .2s ease}
+        .sb-collapse svg{width:15px;height:15px;transition:transform .2s ease}
+        .sb-collapse:hover{background:rgba(59,130,246,.2);color:#fff}
+        .sb-tools{padding:2px 0 2px}
+        .sb-search{height:38px;display:flex;align-items:center;gap:8px;padding:0 10px;
+            background:rgba(15,23,42,.62);border:1px solid rgba(148,163,184,.16);border-radius:10px;
+            color:#64748b;transition:border-color .18s ease,box-shadow .18s ease}
+        .sb-search:focus-within{border-color:rgba(96,165,250,.75);box-shadow:0 0 0 3px rgba(59,130,246,.13)}
+        .sb-search svg{width:15px;height:15px;flex:0 0 15px}
+        .sb-search input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:#e2e8f0;
+            font:600 .74rem Inter,sans-serif}
+        .sb-search input::placeholder{color:#64748b}
+        .sb-search kbd{font:600 .58rem Inter,sans-serif;color:#64748b;border:1px solid rgba(148,163,184,.18);
+            border-radius:5px;padding:2px 5px;white-space:nowrap}
         /* ---- área rolável ---- */
         .sb-nav{position:relative;z-index:1;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;
             padding:10px 12px 16px;scrollbar-width:thin;scrollbar-color:#334155 transparent}
@@ -51,6 +69,11 @@
         .sidebar a .ic{flex:0 0 26px;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
             font-size:.86rem;background:rgba(148,163,184,.09);border:1px solid rgba(148,163,184,.10);
             transition:background .18s ease,border-color .18s ease,transform .18s ease}
+        .sidebar a .ic svg{width:15px;height:15px}
+        .sidebar a>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .sb-count{margin-left:auto;min-width:20px;height:18px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;
+            border-radius:6px;background:rgba(148,163,184,.10);color:#71819a;font:700 .58rem Inter,sans-serif}
+        .sb-count:empty{display:none}
         .sidebar a::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);
             width:3px;height:0;border-radius:0 4px 4px 0;background:var(--accent);transition:height .22s ease}
         .sidebar a:hover{background:rgba(148,163,184,.09);color:#fff;transform:translateX(3px)}
@@ -84,7 +107,23 @@
         .sidebar a.sb-logout:hover{background:rgba(239,68,68,.20);color:#fff;transform:none}
         .sidebar a.sb-logout .ic{background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.25)}
         .sidebar a.sb-logout::before{display:none}
-        .main{margin-left:262px;padding:30px}
+        .sb-mobile-toggle,.sb-backdrop{display:none}
+        .sidebar.sb-collapsed{width:78px}
+        .sidebar.sb-collapsed .sb-brand{justify-content:center;padding-left:10px;padding-right:10px}
+        .sidebar.sb-collapsed .sb-brand .bt,.sidebar.sb-collapsed .sb-collapse svg{display:none}
+        .sidebar.sb-collapsed .sb-collapse{position:absolute;right:10px;top:62px}
+        .sidebar.sb-collapsed .sb-collapse svg{display:block;transform:rotate(180deg)}
+        .sidebar.sb-collapsed .sb-tools,.sidebar.sb-collapsed .sb-label,.sidebar.sb-collapsed a>span:nth-child(2),
+        .sidebar.sb-collapsed .sb-count,.sidebar.sb-collapsed #userInfo{display:none}
+        .sidebar.sb-collapsed .sb-nav{padding-left:10px;padding-right:10px}
+        .sidebar.sb-collapsed a{justify-content:center;padding-left:8px;padding-right:8px}
+        .sidebar.sb-collapsed a .ic{margin:0}
+        .sidebar.sb-collapsed .sb-foot{padding:10px 8px}
+        .sidebar.sb-collapsed #nomeUsuario{justify-content:center;padding:8px}
+        .sidebar.sb-collapsed .sb-logout{padding:8px}
+        .sidebar.sb-collapsed .sb-logout .ic{margin:0}
+        body.sb-is-collapsed .main{margin-left:78px}
+        .main{margin-left:274px;padding:30px}
         .hidden{display:none!important}
         .glass-container{background:#fff;padding:20px;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.05)}
         .stat-card{border-left:4px solid var(--accent);padding:15px;background:#fff;border-radius:8px}
@@ -112,6 +151,32 @@
         @media(max-width:1100px){.stock-overview{grid-template-columns:repeat(3,minmax(0,1fr))}}
         @media(max-width:760px){.stock-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media(max-width:760px){.dashboard-heading{display:block}.dashboard-date{display:inline-block;margin-top:14px}.fuel-overview{grid-template-columns:1fr}}
+        @media(max-width:900px){
+            .sidebar{width:288px;transform:translateX(-102%);transition:transform .25s ease}
+            .sidebar.sb-mobile-open{transform:translateX(0);box-shadow:12px 0 34px rgba(2,6,23,.45)}
+            .sidebar.sb-collapsed{width:288px}
+            .sidebar.sb-collapsed .sb-brand{justify-content:flex-start;padding-left:16px;padding-right:16px}
+            .sidebar.sb-collapsed .sb-brand .bt,.sidebar.sb-collapsed .sb-tools,.sidebar.sb-collapsed .sb-label,
+            .sidebar.sb-collapsed a>span:nth-child(2),.sidebar.sb-collapsed .sb-count,.sidebar.sb-collapsed #userInfo{display:flex}
+            .sidebar.sb-collapsed .sb-brand .bt{display:flex}
+            .sidebar.sb-collapsed .sb-tools,.sidebar.sb-collapsed .sb-label{display:block}
+            .sidebar.sb-collapsed a>span:nth-child(2){display:inline}
+            .sidebar.sb-collapsed .sb-count{display:inline-flex}
+            .sidebar.sb-collapsed #userInfo{display:flex}
+            .sidebar.sb-collapsed .sb-collapse{position:static}
+            .sidebar.sb-collapsed .sb-collapse svg{display:block;transform:none}
+            .sidebar.sb-collapsed .sb-nav{padding-left:12px;padding-right:12px}
+            .sidebar.sb-collapsed a{justify-content:flex-start;padding-left:11px;padding-right:11px}
+            .sidebar.sb-collapsed .sb-foot{padding:12px}
+            .sidebar.sb-collapsed #nomeUsuario{justify-content:flex-start;padding:9px 10px}
+            body.sb-is-collapsed .main,.main{margin-left:0;padding:22px 16px}
+            .sb-mobile-toggle{position:fixed;display:grid;place-items:center;left:16px;top:16px;z-index:90;
+                width:40px;height:40px;border:1px solid #dbe3ef;border-radius:12px;background:#fff;color:#1d4ed8;
+                box-shadow:0 8px 22px rgba(15,23,42,.12);cursor:pointer}
+            .sb-mobile-toggle svg{width:19px;height:19px}
+            .sb-backdrop{position:fixed;inset:0;z-index:99;background:rgba(2,6,23,.48)}
+            body.sb-mobile-open .sb-backdrop{display:block}
+        }
         .btn-edit{background:#eff6ff;color:#2563eb;border:none;padding:5px 12px;border-radius:6px;margin-right:5px;font-weight:600}
         .btn-del{background:#fee2e2;color:#dc2626;border:none;padding:5px 12px;border-radius:6px;font-weight:600}
         .btn-excel{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:4px 10px;border-radius:6px;font-weight:600;font-size:.8rem;line-height:1.2;white-space:nowrap;width:auto;flex:0 0 auto;align-self:center;transition: 0.2s;}
@@ -261,43 +326,58 @@ Criar Conta
 
 <div class="sidebar" id="sistema" style="display:none">
     <div class="sb-brand">
-        <div class="sb-logo">🚛</div>
+        <div class="sb-logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M3 6.5h11v10H3zM14 10h3.5l3.5 3.5V16h-7z"/>
+                <path d="M6.5 16.5a2 2 0 1 0 4 0M16.5 16.5a2 2 0 1 0 4 0"/>
+            </svg>
+        </div>
         <div class="bt"><b>Frota Master</b><span>Gestão de Frota</span></div>
+        <button class="sb-collapse" id="sbCollapse" type="button" aria-label="Recolher menu" title="Recolher menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
     </div>
 
     <nav class="sb-nav">
+        <div class="sb-tools">
+            <label class="sb-search" for="sbSearch">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+                <input id="sbSearch" type="search" placeholder="Buscar módulo..." autocomplete="off">
+                <kbd>⌘ K</kbd>
+            </label>
+        </div>
         <div class="sb-label">Visão Geral</div>
-        <a onclick="navegar('dashboard',this)" class="active"><span class="ic">📊</span><span>Dashboard</span></a>
-        <a onclick="navegar('agendamentos',this)"><span class="ic">📅</span><span>Agendamentos</span></a>
-        <a onclick="navegar('saidaVeiculos',this)"><span class="ic">🚚</span><span>Saída de Veículos</span></a>
+        <a data-module="dashboard" onclick="navegar('dashboard',this)" class="active"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></span><span>Dashboard</span><em class="sb-count" data-count-for="dashboard"></em></a>
+        <a data-module="agendamentos" onclick="navegar('agendamentos',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6"/></svg></span><span>Agendamentos</span><em class="sb-count" data-count-for="agendamentos"></em></a>
+        <a data-module="saidaVeiculos" onclick="navegar('saidaVeiculos',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6.5h11v10H3zM14 10h3.5l3.5 3.5V16h-7z"/><path d="M6.5 16.5a2 2 0 1 0 4 0M16.5 16.5a2 2 0 1 0 4 0"/></svg></span><span>Saída de Veículos</span><em class="sb-count" data-count-for="saidaVeiculos"></em></a>
 
         <div class="sb-label">Frota</div>
-        <a onclick="navegar('veiculos',this)"><span class="ic">🚗</span><span>Veículos</span></a>
-        <a onclick="navegar('pneus',this)"><span class="ic">🛞</span><span>Pneus</span></a>
-        <a onclick="navegar('estoque',this)"><span class="ic">📦</span><span>Estoque</span></a>
+        <a data-module="veiculos" onclick="navegar('veiculos',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 16V9l2-3h10l2 3v7"/><path d="M4 16h16M7 9h10M7 19h2M15 19h2"/><circle cx="7" cy="16" r="1.5"/><circle cx="17" cy="16" r="1.5"/></svg></span><span>Veículos</span><em class="sb-count" data-count-for="veiculos"></em></a>
+        <a data-module="pneus" onclick="navegar('pneus',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4.5v5M19.5 12h-5M12 19.5v-5M4.5 12h5"/></svg></span><span>Pneus</span><em class="sb-count" data-count-for="pneus"></em></a>
+        <a data-module="estoque" onclick="navegar('estoque',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 8 4.2v9.6L12 21l-8-4.2V7.2z"/><path d="m4.2 7.2 7.8 4 7.8-4M12 11.2V21"/></svg></span><span>Estoque</span><em class="sb-count" data-count-for="estoque"></em></a>
 
         <div class="sb-label">Pessoas</div>
-        <a onclick="navegar('motoristas',this)"><span class="ic">👥</span><span>Motoristas</span></a>
-        <a onclick="navegar('terceiros',this)"><span class="ic">🚛</span><span>Terceiros</span></a>
-        <a onclick="navegar('diarias',this)"><span class="ic">💰</span><span>Diárias</span></a>
-        <a onclick="navegar('ferias',this)"><span class="ic">🏖</span><span>Férias</span></a>
+        <a data-module="motoristas" onclick="navegar('motoristas',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3"/><path d="M5.5 20c.7-3.4 2.8-5 6.5-5s5.8 1.6 6.5 5M18 5.5a2.5 2.5 0 0 1 0 5M19 15c1.9.5 2.8 2.1 3 4"/></svg></span><span>Motoristas</span><em class="sb-count" data-count-for="motoristas"></em></a>
+        <a data-module="terceiros" onclick="navegar('terceiros',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6.5h11v10H3zM14 10h3.5l3.5 3.5V16h-7z"/><path d="M6.5 16.5a2 2 0 1 0 4 0M16.5 16.5a2 2 0 1 0 4 0"/></svg></span><span>Terceiros</span><em class="sb-count" data-count-for="terceiros"></em></a>
+        <a data-module="diarias" onclick="navegar('diarias',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M14.8 9.5c-.6-.7-1.5-1.1-2.7-1.1-1.4 0-2.4.7-2.4 1.7 0 2.6 5.3 1 5.3 3.7 0 1-.9 1.8-2.6 1.8-1.2 0-2.2-.4-2.9-1.2M12 6v12"/></svg></span><span>Diárias</span><em class="sb-count" data-count-for="diarias"></em></a>
+        <a data-module="ferias" onclick="navegar('ferias',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19c3-7 6-10 16-11-1 7-4 10-16 11Z"/><path d="M4 19c2-4 5-7 10-9"/></svg></span><span>Férias</span><em class="sb-count" data-count-for="ferias"></em></a>
 
         <div class="sb-label">Documentação</div>
-        <a onclick="navegar('multas',this)"><span class="ic">🚫</span><span>Multas</span></a>
-        <a onclick="navegar('seguros',this)"><span class="ic">🛡</span><span>Seguros</span></a>
-        <a onclick="navegar('licenciamento',this)"><span class="ic">📜</span><span>Licenciamento</span></a>
-        <a onclick="navegar('tacografo',this)"><span class="ic">⏱</span><span>Tacógrafo</span></a>
-        <a onclick="navegar('licencas',this)"><span class="ic">📄</span><span>CIV / CIPP</span></a>
+        <a data-module="multas" onclick="navegar('multas',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="m9 9 6 6M15 9l-6 6"/></svg></span><span>Multas</span><em class="sb-count" data-count-for="multas"></em></a>
+        <a data-module="seguros" onclick="navegar('seguros',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 19 6v5c0 4.7-3 8.2-7 10-4-1.8-7-5.3-7-10V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span>Seguros</span><em class="sb-count" data-count-for="seguros"></em></a>
+        <a data-module="licenciamento" onclick="navegar('licenciamento',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l3 3v15H6zM14 3v4h4M9 12h6M9 16h6"/></svg></span><span>Licenciamento</span><em class="sb-count" data-count-for="licenciamento"></em></a>
+        <a data-module="tacografo" onclick="navegar('tacografo',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span><span>Tacógrafo</span><em class="sb-count" data-count-for="tacografo"></em></a>
+        <a data-module="licencas" onclick="navegar('licencas',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l3 3v15H6zM14 3v4h4M9 12h6M9 16h4"/></svg></span><span>CIV / CIPP</span><em class="sb-count" data-count-for="licencas"></em></a>
 
         <div class="sb-label">Operação</div>
-        <a onclick="navegar('manutencoes',this)"><span class="ic">🔧</span><span>Manutenções</span></a>
-        <a onclick="navegar('combustivel',this)"><span class="ic">⛽</span><span>Combustível</span></a>
-        <a onclick="navegar('revisoes',this)"><span class="ic">⏱</span><span>Revisões KM</span></a>
-        <a onclick="navegar('fornecedores',this)"><span class="ic">🏭</span><span>Fornecedores</span></a>
+        <a data-module="manutencoes" onclick="navegar('manutencoes',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m14.5 6.5 3-3 3 3-3 3M4 20l7.5-7.5M13 5a5 5 0 0 0 6 6l-4 4-6-6 4-4Z"/></svg></span><span>Manutenções</span><em class="sb-count" data-count-for="manutencoes"></em></a>
+        <a data-module="combustivel" onclick="navegar('combustivel',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 20V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v15M5 8h11M7 20h11M18 8l2 2v6a2 2 0 0 1-4 0v-3"/></svg></span><span>Combustível</span><em class="sb-count" data-count-for="combustivel"></em></a>
+        <a data-module="revisoes" onclick="navegar('revisoes',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2M8 4l-2-2M16 4l2-2"/></svg></span><span>Revisões KM</span><em class="sb-count" data-count-for="revisoes"></em></a>
+        <a data-module="fornecedores" onclick="navegar('fornecedores',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V8l8-5 8 5v12H4Z"/><path d="M8 20v-6h8v6M8 10h.01M12 10h.01M16 10h.01"/></svg></span><span>Fornecedores</span><em class="sb-count" data-count-for="fornecedores"></em></a>
 
         <div class="sb-label">Sistema</div>
-        <a onclick="navegar('backup',this)"><span class="ic">📂</span><span>Backup</span></a>
-        <a id="menuAdmin" onclick="navegar('admin',this)"><span class="ic">👑</span><span>Usuários (Admin)</span></a>
+        <a data-module="backup" onclick="navegar('backup',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h6l2 2"/></svg></span><span>Backup</span><em class="sb-count" data-count-for="backup"></em></a>
+        <a id="menuAdmin" data-module="admin" onclick="navegar('admin',this)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 2 2 3-.2.8 2.8 2.5 1.6-1.3 2.7 1.3 2.7-2.5 1.6-.8 2.8-3-.2-2 2-2-2-3 .2-.8-2.8-2.5-1.6 1.3-2.7-1.3-2.7 2.5-1.6.8-2.8 3 .2z"/><circle cx="12" cy="12" r="3"/></svg></span><span>Usuários (Admin)</span></a>
     </nav>
 
     <div class="sb-foot">
@@ -308,9 +388,14 @@ Criar Conta
                 <div id="userTipo">Online</div>
             </div>
         </div>
-        <a class="sb-logout" onclick="logout()"><span class="ic">🚪</span><span>Sair do sistema</span></a>
+        <a class="sb-logout" onclick="logout()"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></svg></span><span>Sair do sistema</span></a>
     </div>
 </div>
+
+<button class="sb-mobile-toggle" id="sbMobileToggle" type="button" aria-label="Abrir menu" title="Abrir menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
+<div class="sb-backdrop" id="sbBackdrop" aria-hidden="true"></div>
 
 <div class="main" id="sistemaMain" style="display:none">
 
@@ -6305,4 +6390,135 @@ style="width:100%; height:400px; border:none;">
 .filtros-avancados .cont-filtro{font-size:.8rem;color:#475569}
 </style>
 <script src="seguranca.js"></script>
+<script>
+/* ============================================================
+   SIDEBAR PROFISSIONAL — busca, modo compacto, contadores e mobile
+   Mantém a navegação original dos módulos.
+============================================================ */
+(function () {
+    "use strict";
+
+    function qs(id) {
+        return document.getElementById(id);
+    }
+
+    function atualizarContadoresSidebar() {
+        if (typeof db === "undefined" || !db) return;
+
+        document.querySelectorAll("[data-count-for]").forEach(function (badge) {
+            var modulo = badge.getAttribute("data-count-for");
+            var total = Array.isArray(db[modulo]) ? db[modulo].length : 0;
+            badge.textContent = total > 0 ? String(total > 99 ? "99+" : total) : "";
+            badge.setAttribute("aria-label", total + " registros");
+        });
+    }
+
+    function organizarBuscaSidebar(valor) {
+        var termo = String(valor || "").trim().toLocaleLowerCase("pt-BR");
+        var nav = document.querySelector(".sb-nav");
+        if (!nav) return;
+
+        nav.querySelectorAll("a[data-module]").forEach(function (link) {
+            var nome = String(link.textContent || "").toLocaleLowerCase("pt-BR");
+            link.style.display = !termo || nome.indexOf(termo) >= 0 ? "" : "none";
+        });
+
+        nav.querySelectorAll(".sb-label").forEach(function (label) {
+            if (!termo) {
+                label.style.display = "";
+                return;
+            }
+            var possuiResultado = false;
+            var proximo = label.nextElementSibling;
+            while (proximo && !proximo.classList.contains("sb-label")) {
+                if (proximo.matches && proximo.matches("a[data-module]") && proximo.style.display !== "none") {
+                    possuiResultado = true;
+                    break;
+                }
+                proximo = proximo.nextElementSibling;
+            }
+            label.style.display = possuiResultado ? "" : "none";
+        });
+    }
+
+    function fecharMenuMobile() {
+        var sidebar = qs("sistema");
+        if (sidebar) sidebar.classList.remove("sb-mobile-open");
+        document.body.classList.remove("sb-mobile-open");
+    }
+
+    function iniciarSidebarProfissional() {
+        var sidebar = qs("sistema");
+        var busca = qs("sbSearch");
+        var recolher = qs("sbCollapse");
+        var mobile = qs("sbMobileToggle");
+        var backdrop = qs("sbBackdrop");
+        if (!sidebar) return;
+
+        var compacto = localStorage.getItem("frota_sidebar_compacto") === "1";
+        if (compacto && window.innerWidth > 900) {
+            sidebar.classList.add("sb-collapsed");
+            document.body.classList.add("sb-is-collapsed");
+        }
+
+        if (busca) {
+            busca.addEventListener("input", function () {
+                organizarBuscaSidebar(busca.value);
+            });
+        }
+
+        if (recolher) {
+            recolher.addEventListener("click", function () {
+                if (window.innerWidth <= 900) {
+                    fecharMenuMobile();
+                    return;
+                }
+                var agoraCompacto = sidebar.classList.toggle("sb-collapsed");
+                document.body.classList.toggle("sb-is-collapsed", agoraCompacto);
+                localStorage.setItem("frota_sidebar_compacto", agoraCompacto ? "1" : "0");
+                recolher.setAttribute("aria-label", agoraCompacto ? "Expandir menu" : "Recolher menu");
+                recolher.setAttribute("title", agoraCompacto ? "Expandir menu" : "Recolher menu");
+            });
+        }
+
+        if (mobile) {
+            mobile.addEventListener("click", function () {
+                sidebar.classList.add("sb-mobile-open");
+                document.body.classList.add("sb-mobile-open");
+            });
+        }
+
+        if (backdrop) backdrop.addEventListener("click", fecharMenuMobile);
+
+        document.addEventListener("keydown", function (event) {
+            if ((event.ctrlKey || event.metaKey) && String(event.key).toLowerCase() === "k") {
+                event.preventDefault();
+                if (window.innerWidth <= 900) {
+                    sidebar.classList.add("sb-mobile-open");
+                    document.body.classList.add("sb-mobile-open");
+                }
+                if (busca) busca.focus();
+            }
+            if (event.key === "Escape") {
+                fecharMenuMobile();
+                if (busca && document.activeElement === busca) busca.blur();
+            }
+        });
+
+        document.querySelectorAll(".sidebar a[data-module]").forEach(function (link) {
+            link.addEventListener("click", fecharMenuMobile);
+        });
+
+        atualizarContadoresSidebar();
+        setInterval(atualizarContadoresSidebar, 5000);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", iniciarSidebarProfissional);
+    } else {
+        iniciarSidebarProfissional();
+    }
+})();
+</script>
 </html>
+<script src="paginacao-universal.js"></script>
