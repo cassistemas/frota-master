@@ -271,3 +271,205 @@ hr { border-color: var(--pro-line); opacity: 1; }
   .pro-modhead .pro-tt b { font-size: .92rem; }
   .pro-modhead .pro-badge { display: none; }
 }
+
+/* ============================================================
+   CAMADA PROFISSIONAL v2 — refinamentos globais
+   ============================================================ */
+
+/* ---------- Área principal ---------- */
+.main { padding: 22px 26px 40px !important; }
+@media (max-width: 768px) { .main { padding: 14px 14px 32px !important; } }
+
+/* ---------- Cartões de indicadores (KPI) ---------- */
+.stat-card {
+  position: relative;
+  border-left: 4px solid var(--pro-accent);
+  border-radius: var(--pro-radius) !important;
+  padding: 16px 18px !important;
+  background: var(--pro-surface);
+  border-top: 1px solid var(--pro-line);
+  border-right: 1px solid var(--pro-line);
+  border-bottom: 1px solid var(--pro-line);
+  box-shadow: var(--pro-shadow);
+  overflow: hidden;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.stat-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(320px 120px at 100% 0%, rgba(37, 99, 235, .07), transparent 70%);
+  pointer-events: none;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, .06), 0 18px 38px -18px rgba(15, 23, 42, .35);
+}
+.stat-card h3, .stat-card h4, .stat-card .valor, .stat-card b, .stat-card strong {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+.stat-card small, .stat-card .label, .stat-card p {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--pro-mute);
+  margin-bottom: 0;
+}
+
+/* ---------- Números e datas alinhados ---------- */
+.table td, .table th { font-variant-numeric: tabular-nums; }
+
+/* ---------- Modais ---------- */
+.modal-content {
+  border: 1px solid var(--pro-line) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 30px 80px -30px rgba(15, 23, 42, .55) !important;
+  overflow: hidden;
+}
+.modal-header {
+  background: linear-gradient(135deg, #0f172a 0%, #17233d 60%, #1e3a8a 150%);
+  color: #fff;
+  border-bottom: none !important;
+  padding: 15px 20px;
+}
+.modal-header .modal-title {
+  font-size: .95rem;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.modal-header .btn-close { filter: invert(1) grayscale(1); opacity: .8; }
+.modal-body { padding: 20px; }
+.modal-footer { border-top: 1px solid var(--pro-line) !important; background: #f8fafc; }
+.modal-backdrop.show { opacity: .58; }
+
+/* ---------- Abas ---------- */
+.nav-tabs { border-bottom: 1px solid var(--pro-line); gap: 4px; }
+.nav-tabs .nav-link {
+  border: none !important;
+  border-radius: 10px 10px 0 0;
+  font-weight: 700;
+  font-size: .78rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--pro-mute);
+  padding: .55rem 1rem;
+}
+.nav-tabs .nav-link:hover { background: #eff6ff; color: var(--pro-accent); }
+.nav-tabs .nav-link.active {
+  color: var(--pro-accent) !important;
+  background: #fff !important;
+  box-shadow: inset 0 -2px 0 var(--pro-accent);
+}
+
+/* ---------- Alertas ---------- */
+.alert {
+  border: 1px solid var(--pro-line);
+  border-radius: 12px;
+  font-size: .82rem;
+  font-weight: 600;
+  box-shadow: var(--pro-shadow);
+}
+
+/* ---------- Botões auxiliares ---------- */
+.btn-outline-secondary, .btn-secondary, .btn-light {
+  border-radius: 10px;
+  border-color: var(--pro-line);
+}
+.btn-success { background: linear-gradient(135deg, #10b981, #059669); border: none; }
+.btn-danger  { background: linear-gradient(135deg, #ef4444, #dc2626); border: none; }
+.btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); border: none; color: #fff; }
+.btn-group .btn { box-shadow: none; }
+
+/* ---------- Inputs em grupo ---------- */
+.input-group-text {
+  background: #f8fafc;
+  border: 1px solid var(--pro-line);
+  border-radius: 10px;
+  color: var(--pro-mute);
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+/* ---------- Barra de rolagem global ---------- */
+* { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- Seleção de texto ---------- */
+::selection { background: rgba(37, 99, 235, .18); }
+
+/* ---------- Foco acessível ---------- */
+:focus-visible { outline: 2px solid var(--pro-accent); outline-offset: 2px; border-radius: 6px; }
+
+/* ---------- Transição de entrada dos módulos ---------- */
+.module { animation: proFade .28s ease both; }
+@keyframes proFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------- Impressão ---------- */
+@media print {
+  .sidebar, .pro-pager, .btn, .modal, .no-print { display: none !important; }
+  .main { margin: 0 !important; padding: 0 !important; }
+  .pro-modhead { background: #0f172a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .card, .table-responsive { box-shadow: none !important; border: 1px solid #ccc !important; }
+}
+@media print { .table > tbody > tr { display: table-row !important; } }
+
+/* ---------- Tela de login ---------- */
+#loginTela {
+  background:
+    radial-gradient(900px 420px at 12% 8%, rgba(59,130,246,.28), transparent 62%),
+    radial-gradient(760px 420px at 88% 92%, rgba(29,78,216,.24), transparent 62%),
+    linear-gradient(160deg, #060b16 0%, #0f172a 55%, #101a2e 100%) !important;
+  position: relative;
+  overflow: hidden;
+}
+#loginTela::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(148,163,184,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148,163,184,.06) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(circle at 50% 50%, #000 30%, transparent 78%);
+  pointer-events: none;
+}
+#loginTela > div {
+  position: relative;
+  z-index: 1;
+  width: 390px !important;
+  padding: 38px 34px 32px !important;
+  border-radius: 18px !important;
+  background: rgba(255,255,255,.98) !important;
+  border: 1px solid rgba(148,163,184,.28);
+  box-shadow: 0 40px 90px -35px rgba(2,6,23,.9), 0 0 0 1px rgba(255,255,255,.05) inset;
+  animation: proFade .35s ease both;
+}
+#loginTela h3 {
+  font-size: 1.15rem !important;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: 4px !important;
+}
+#loginTela h3::after {
+  content: "Acesso ao sistema de gestão de frota";
+  display: block;
+  margin: 6px 0 22px;
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--pro-mute);
+}
+#loginTela .form-control { height: 44px; font-size: .88rem; }
+#loginTela .btn { height: 44px; font-size: .82rem; letter-spacing: .08em; text-transform: uppercase; }
+#loginErro { font-size: .78rem; font-weight: 700; }
