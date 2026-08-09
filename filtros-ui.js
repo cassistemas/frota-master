@@ -54,7 +54,7 @@
       var ref = slug(
         (el.id || "") + " " + (el.name || "") + " " + (el.getAttribute("placeholder") || "")
       );
-      if (!/(filtro|filtrar|busca|buscar|pesquis|search)/.test(ref)) return;
+      if (!/(filtro|filtrar|busca|buscar|pesquis|search|localizar|consulta)/.test(ref)) return;
 
       el.classList.add("fm-fcampo");
       el.setAttribute("data-fm-campo", "1");
