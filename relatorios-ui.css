@@ -127,40 +127,15 @@ table tbody tr:hover > td,
 }
 
 .fm-fcampo {
-  border: 1px solid #1d4ed8 !important;
+  border: 1px solid #cbd5e1 !important;
   border-radius: 9px !important;
-  padding: 8px 12px !important;
+  padding: 7px 11px !important;
   font-size: 0.82rem !important;
-  font-weight: 600 !important;
-  background: linear-gradient(135deg, #0f172a 0%, #172554 55%, #1e3a8a 140%) !important;
-  color: #fff !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: #fff !important;
+  color: #0f172a !important;
 }
-.fm-fcampo::placeholder { color: #94a3b8 !important; opacity: 1 !important; }
 .fm-fcampo:focus {
   outline: none !important;
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #1d4ed8 140%) !important;
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15) !important;
 }
-.fm-fcampo option { background: #0f172a; color: #fff; }
-
-/* Campos de busca/filtro: mesma cor da busca da barra lateral */
-input[type="search"],
-input[id*="busca" i], input[id*="filtro" i], input[id*="pesquis" i], input[id*="search" i],
-select[id*="filtro" i], select[id*="busca" i],
-input[name*="busca" i], input[name*="filtro" i], input[name*="pesquis" i],
-input[placeholder*="Buscar" i], input[placeholder*="Pesquis" i], input[placeholder*="Filtr" i],
-.search-box input, .search-box select {
-  background: linear-gradient(135deg, #0f172a 0%, #172554 55%, #1e3a8a 140%) !important;
-  color: #fff !important;
-  border: 1px solid #1d4ed8 !important;
-  border-radius: 9px !important;
-}
-input[type="search"]::placeholder,
-input[id*="busca" i]::placeholder, input[id*="filtro" i]::placeholder,
-input[id*="pesquis" i]::placeholder, input[placeholder*="Buscar" i]::placeholder,
-input[placeholder*="Pesquis" i]::placeholder, .search-box input::placeholder {
-  color: #94a3b8 !important; opacity: 1 !important;
-}
-.search-box { background: transparent !important; border-color: #1d4ed8 !important; }

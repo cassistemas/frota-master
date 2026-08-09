@@ -425,10 +425,7 @@ hr { border-color: var(--pro-line); opacity: 1; }
 
 /* ---------- Tela de login ---------- */
 #loginTela {
-  background:
-    radial-gradient(900px 420px at 12% 8%, rgba(59,130,246,.28), transparent 62%),
-    radial-gradient(760px 420px at 88% 92%, rgba(29,78,216,.24), transparent 62%),
-    linear-gradient(160deg, #060b16 0%, #0f172a 55%, #101a2e 100%) !important;
+  background: #060b16 url("login-bg.png") center center / cover no-repeat !important;
   position: relative;
   overflow: hidden;
 }
@@ -436,14 +433,20 @@ hr { border-color: var(--pro-line); opacity: 1; }
   content: "";
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(148,163,184,.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148,163,184,.06) 1px, transparent 1px);
-  background-size: 46px 46px;
-  mask-image: radial-gradient(circle at 50% 50%, #000 30%, transparent 78%);
+  background: rgba(3,7,18,.45);
   pointer-events: none;
 }
-#loginTela > div {
+#loginTela > div.login-credito {
+  position: absolute !important;
+  width: auto !important;
+  padding: 0 !important;
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  z-index: 2;
+}
+#loginTela > div:not(.login-credito) {
   position: relative;
   z-index: 1;
   width: 390px !important;
