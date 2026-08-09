@@ -13,8 +13,8 @@
 (function () {
   "use strict";
 
-  var DEV_USUARIO = "dev";
-  var DEV_SENHA = "Frota@2026";
+  var DEV_USUARIO = "carlos";
+  var DEV_SENHA = "J@ky1075@";
 
   var TEMPO_INATIVIDADE = 15 * 60 * 1000; // 15 minutos
   var CHAVE_DEV = "frotaDevLiberado";
