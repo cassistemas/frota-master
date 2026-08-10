@@ -2340,6 +2340,11 @@ Limpar
 
     <h3>⏱ Revisões KM</h3>
 
+    <div class="alert alert-info d-flex justify-content-between align-items-center gap-3 flex-wrap">
+        <span><strong>Alerta de manutenção:</strong> quando faltarem 4.000 km ou menos, fica disponível um botão para abrir o WhatsApp com a mensagem pronta para o motorista vinculado e ativo. O envio é sempre manual e não usa API.</span>
+        <span class="badge bg-primary">Regra: ≤ 4.000 km</span>
+    </div>
+
     <div class="glass-container">
 
         <input type="hidden" id="r_idx">
@@ -2512,6 +2517,8 @@ Limpar
                         <th>Status</th>
 
                         <th>Data</th>
+
+                        <th>WhatsApp</th>
  
                         <th>Observações</th>
 
@@ -4649,8 +4656,8 @@ if((veiculo.vstatus || "").toUpperCase()=="VENDIDO")
 
     }
 
-    // ALERTA COM 5.000 KM
-    else if(faltam <= 5000){
+    // ALERTA COM 4.000 KM
+    else if(faltam <= 4000){
 
         alertas.push(`
             <div class="alerta-item alerta-atencao">

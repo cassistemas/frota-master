@@ -5,7 +5,8 @@
 
 const REVISOES = {
 
-    alerta:1000,
+    // A mensagem é preparada quando faltarem 4.000 km ou menos.
+    alerta:4000,
 
     vencido:0
 
@@ -106,7 +107,7 @@ function calcularRevisao(){
 
     const troca=
     Number(
-        document.getElementById("rkmtroca").value
+        document.getElementById("rkm").value
     )||0;
 
     const proxima=
@@ -444,6 +445,153 @@ function atualizarRevisoesAutomatico(){
 }
 
 /*=============================================================
+ALERTA MANUAL DE WHATSAPP PARA MOTORISTA ATIVO
+
+Não existe envio automático ou chamada de API. O usuário decide
+quando enviar e o botão abre o WhatsApp com a mensagem preenchida.
+=============================================================*/
+
+function textoNormalizado(valor){
+
+    return String(valor || "")
+        .trim()
+        .toLocaleLowerCase("pt-BR");
+
+}
+
+function motoristaAtivoDaRevisao(revisao){
+
+    const veiculo = db.veiculos.find(
+        v => textoNormalizado(v.vplaca) === textoNormalizado(revisao.rveiculo)
+    );
+
+    if(!veiculo) return { veiculo:null, motorista:null };
+
+    const statusVeiculo = String(veiculo.vstatus || "").toUpperCase();
+
+    if(statusVeiculo !== "ATIVO")
+        return { veiculo, motorista:null };
+
+    const nome = textoNormalizado(veiculo.vmotorista);
+
+    const motorista = (db.motoristas || []).find(m =>
+        textoNormalizado(m.motNome) === nome &&
+        String(m.motStatus || "").toUpperCase() === "ATIVO"
+    );
+
+    return { veiculo, motorista: motorista || null };
+
+}
+
+function telefoneWhatsApp(valor){
+
+    let telefone = String(valor || "").replace(/\D/g, "");
+
+    if(telefone.length === 10 || telefone.length === 11)
+        telefone = "55" + telefone;
+
+    return telefone;
+
+}
+
+function mensagemWhatsAppRevisao(revisao, veiculo, motorista){
+
+    const faltam = Math.max(0, Number(revisao.rkmfaltante || 0));
+
+    return [
+        `Olá, ${motorista.motNome || "motorista"}!`,
+        "",
+        `A revisão do veículo ${veiculo.vplaca || revisao.rveiculo}${veiculo.vmodelo ? ` (${veiculo.vmodelo})` : ""} está próxima.`,
+        `Serviço: ${revisao.rtipo || "Revisão"}.`,
+        `Faltam ${faltam.toLocaleString("pt-BR")} km para a manutenção.`,
+        `Próxima revisão em ${Number(revisao.rkmproxima || 0).toLocaleString("pt-BR")} km.`,
+        "",
+        "Favor programar a parada para manutenção."
+    ].join("\n");
+
+}
+
+function dadosAlertaWhatsAppRevisao(revisao){
+
+    const vinculo = motoristaAtivoDaRevisao(revisao);
+
+    if(!vinculo.veiculo || !vinculo.motorista){
+        return {
+            ...vinculo,
+            telefone:"",
+            mensagem:"",
+            situacao:"sem-motorista"
+        };
+    }
+
+    const telefone = telefoneWhatsApp(vinculo.motorista.motTel);
+
+    return {
+        ...vinculo,
+        telefone,
+        mensagem: mensagemWhatsAppRevisao(
+            revisao,
+            vinculo.veiculo,
+            vinculo.motorista
+        ),
+        situacao: telefone ? "pendente" : "sem-telefone"
+    };
+
+}
+
+function enviarAlertaRevisaoWhatsApp(indice){
+
+    const revisao = db.revisoes[indice];
+
+    if(!revisao) return;
+
+    atualizarRevisao(revisao);
+
+    const alerta = dadosAlertaWhatsAppRevisao(revisao);
+
+    if(!alerta.motorista){
+        alert("Não há motorista vinculado e ativo no veículo e no cadastro de motoristas.");
+        return;
+    }
+
+    if(!alerta.telefone){
+        alert(`O motorista ${alerta.motorista.motNome || ""} não possui telefone válido cadastrado.`);
+        return;
+    }
+
+    const url = `https://wa.me/${alerta.telefone}?text=${encodeURIComponent(alerta.mensagem)}`;
+    const janela = window.open(url, "_blank", "noopener,noreferrer");
+
+    if(!janela){
+        alert("O navegador bloqueou a abertura do WhatsApp. Permita pop-ups e tente novamente.");
+        return;
+    }
+
+    revisao.whatsappAlertaStatus = "link-aberto";
+    revisao.whatsappAlertaEnviadoEm = new Date().toISOString();
+    salvarNuvem();
+    renderRevisoes();
+
+}
+
+function statusWhatsAppRevisao(revisao){
+
+    const alerta = dadosAlertaWhatsAppRevisao(revisao);
+
+    if(alerta.situacao === "sem-motorista")
+        return '<span class="badge bg-secondary">Sem motorista ativo</span>';
+
+    if(alerta.situacao === "sem-telefone")
+        return '<span class="badge bg-secondary">Sem telefone</span>';
+
+    if(revisao.whatsappAlertaStatus === "link-aberto")
+        return '<span class="badge bg-success">Link aberto</span>';
+
+    return '<span class="badge bg-warning text-dark">Pendente</span>';
+
+}
+
+/*=============================================================
 UTILITÁRIO
 =============================================================*/
 
@@ -601,6 +749,19 @@ ${r.rdata
 
 </td>
 
+<td style="min-width:150px;">
+
+${Number(r.rkmfaltante || 0) <= REVISOES.alerta
+    ? `${statusWhatsAppRevisao(r)}
+        <button
+            class="btn btn-success btn-sm mt-1"
+            onclick="enviarAlertaRevisaoWhatsApp(${indice})">
+            WhatsApp
+        </button>`
+    : '<span class="text-muted">Não necessário</span>'}
+
+</td>
+
 <td style="max-width:250px; white-space:normal;">
 
 ${r.robs || "--"}
@@ -657,7 +818,7 @@ function getAlertasRevisoes(){
                 prioridade:1
             });
 
-        }else if(faltam <= 5000){
+        }else if(faltam <= REVISOES.alerta){
 
             alertas.push({
                 tipo:"Revisão Próxima",
