@@ -3313,6 +3313,8 @@ function floatParaMoeda(v) {
 
 function salvarNuvem(){
 
+    if(typeof carimbarRegistros === "function") carimbarRegistros();
+
     Object.keys(db).forEach(mod => {
 
         dbCloud.collection("frota")
@@ -3326,11 +3328,11 @@ function salvarNuvem(){
 }
 
 function navegar(id, el) {
-    // 🔐 bloqueio por permissão
-    if (usuarioLogado.tipo !== "admin") {
-        let p = usuarioLogado.permissoes || {};
-        if (p[id] === false) {
-            alert("Acesso negado!");
+    // 🔐 bloqueio por permissão (usuário comum só acessa módulos liberados)
+    if (!usuarioLogado || usuarioLogado.tipo !== "admin") {
+        let p = (usuarioLogado && usuarioLogado.permissoes) || {};
+        if (p[id] !== true) {
+            alert("Acesso negado! Você só pode acessar os módulos liberados pelo administrador.");
             return;
         }
     }
@@ -3947,7 +3949,7 @@ function iniciarSistema(){
 
     // 🔥 garante tipo salvo
     if(!usuarioLogado.tipo){
-        usuarioLogado.tipo = "admin";
+        usuarioLogado.tipo = "user";
 
         dbCloud.collection("usuarios")
         .doc(auth.currentUser.uid)
@@ -3996,6 +3998,7 @@ function escutarDados(modulo){
 
         if(doc.exists){
             db[modulo] = doc.data().dados || [];
+            if(typeof marcarRegistrosCarregados === "function") marcarRegistrosCarregados(db[modulo]);
             renderModulo(modulo);
             renderTudo();
         }
@@ -5720,21 +5723,66 @@ function aplicarPermissoes(){
     if(!usuarioLogado || usuarioLogado.tipo === "admin") return;
 
     let p = usuarioLogado.permissoes || {};
+    let liberados = [];
 
     document.querySelectorAll(".sidebar a").forEach(a => {
 
-        let onclick = a.getAttribute("onclick");
-        if(!onclick) return;
+        let mod = a.getAttribute("data-module");
 
-        MODULOS.forEach(mod => {
+        if(!mod){
+            let onclick = a.getAttribute("onclick") || "";
+            let m = onclick.match(/navegar\('([^']+)'/);
+            mod = m ? m[1] : null;
+        }
 
-            if(onclick.includes(`'${mod}'`) && !p[mod]){
-                a.style.display = "none";
-            }
+        if(!mod) return;
 
-        });
+        // usuário comum: só permanece o que o admin liberou (dashboard, backup e admin ficam ocultos)
+        if(p[mod] === true && mod !== "admin"){
+            liberados.push(mod);
+            a.style.display = "";
+            a.dataset.bloqueado = "0";
+        }else{
+            a.style.display = "none";
+            a.dataset.bloqueado = "1";
+        }
 
     });
+
+    // esconde títulos de seções sem nenhum item liberado
+    document.querySelectorAll(".sidebar .sb-label").forEach(label => {
+        let temItem = false;
+        let prox = label.nextElementSibling;
+        while(prox && !prox.classList.contains("sb-label")){
+            if(prox.matches && prox.matches("a[data-module]") && prox.dataset.bloqueado !== "1"){
+                temItem = true;
+                break;
+            }
+            prox = prox.nextElementSibling;
+        }
+        label.style.display = temItem ? "" : "none";
+    });
+
+    // fecha qualquer tela aberta e abre apenas o primeiro módulo liberado
+    document.querySelectorAll('.main>div').forEach(d => d.classList.add('hidden'));
+    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+
+    if(liberados.length){
+        let primeiro = liberados[0];
+        let tela = document.getElementById(primeiro);
+        let link = document.querySelector('.sidebar a[data-module="' + primeiro + '"]');
+        if(tela) tela.classList.remove('hidden');
+        if(link) link.classList.add('active');
+    }else{
+        let main = document.querySelector('.main');
+        if(main && !document.getElementById("semAcessoAviso")){
+            let aviso = document.createElement("div");
+            aviso.id = "semAcessoAviso";
+            aviso.style.cssText = "padding:40px;text-align:center;color:#64748b;font-weight:600";
+            aviso.innerHTML = "Nenhum módulo liberado para o seu usuário.<br>Solicite acesso ao administrador.";
+            main.appendChild(aviso);
+        }
+    }
 
 }
 
@@ -6430,6 +6478,7 @@ style="width:100%; height:400px; border:none;">
         if (!nav) return;
 
         nav.querySelectorAll("a[data-module]").forEach(function (link) {
+            if (link.dataset.bloqueado === "1") { link.style.display = "none"; return; }
             var nome = String(link.textContent || "").toLocaleLowerCase("pt-BR");
             link.style.display = !termo || nome.indexOf(termo) >= 0 ? "" : "none";
         });
@@ -6442,7 +6491,7 @@ style="width:100%; height:400px; border:none;">
             var possuiResultado = false;
             var proximo = label.nextElementSibling;
             while (proximo && !proximo.classList.contains("sb-label")) {
-                if (proximo.matches && proximo.matches("a[data-module]") && proximo.style.display !== "none") {
+                if (proximo.matches && proximo.matches("a[data-module]") && proximo.dataset.bloqueado !== "1" && proximo.style.display !== "none") {
                     possuiResultado = true;
                     break;
                 }
@@ -6532,6 +6581,7 @@ style="width:100%; height:400px; border:none;">
 })();
 </script>
 </html>
+<script src="./registro-usuario.js?v=1"></script>
 <script src="./paginacao-universal.js"></script>
 <script src="./relatorios-universal.js?v=3"></script>
 <script src="./filtros-ui.js?v=3"></script>
