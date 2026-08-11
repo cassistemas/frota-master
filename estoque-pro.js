@@ -4,8 +4,10 @@
 (function () {
   "use strict";
 
-  var ITENS_POR_PAGINA = 10;
-  var pag = { entrada: 1, saida: 1 };
+  function itensPorPagina() {
+    return (typeof PAGINACAO !== "undefined" && PAGINACAO && PAGINACAO.itensPorPagina) || 15;
+  }
+  var pag = { entrada: 1, saida: 1, saldo: 1 };
   var abaAtual = "entrada";
 
   function num(v) {
@@ -22,7 +24,18 @@
   function moeda(v) { return typeof floatParaMoeda === "function" ? floatParaMoeda(v) : "R$ " + (Number(v) || 0).toFixed(2); }
   function nBR(v) { return (Number(v) || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 }); }
   function dataBRx(v) { return typeof formatarDataBR === "function" ? formatarDataBR(v) : (v || "--"); }
-  function movimentos() { return (window.db && db.estoque) || []; }
+
+  /* O sistema declara o banco com "let db" (escopo lexical global), portanto ele
+     NAO existe em window.db. Sem isto o modulo lia um objeto vazio: os produtos
+     ja cadastrados nao apareciam e os veiculos nao eram carregados. */
+  function raiz() {
+    try { if (typeof db !== "undefined" && db) return db; } catch (e) {}
+    if (!window.db) window.db = {};
+    return window.db;
+  }
+  window.dbEstoqueRaiz = raiz;
+
+  function movimentos() { return lista(); }
 
   /* ---- persistência segura ----
      O doc "estoque" pode não existir ainda na nuvem; nesse caso db.estoque fica
@@ -31,9 +44,9 @@
   var LS_KEY = "frota_estoque_backup";
 
   function lista() {
-    if (!window.db) window.db = {};
-    if (!Array.isArray(window.db.estoque)) window.db.estoque = [];
-    return window.db.estoque;
+    var raizDb = raiz();
+    if (!Array.isArray(raizDb.estoque)) raizDb.estoque = [];
+    return raizDb.estoque;
   }
   window.listaEstoque = lista;
 
@@ -59,13 +72,14 @@
 
   // Restaura a cópia local caso a nuvem ainda não tenha o documento de estoque.
   function restaurarBackupLocal() {
-    if (Array.isArray(window.db && window.db.estoque) && window.db.estoque.length) return;
+    if (lista().length) return;
     try {
       var raw = localStorage.getItem(LS_KEY);
       if (!raw) return;
       var arr = JSON.parse(raw);
       if (Array.isArray(arr) && arr.length) {
-        lista().push.apply(window.db.estoque, arr);
+        var atual = lista();
+        atual.push.apply(atual, arr);
         if (typeof renderModulo === "function") renderModulo("estoque");
       }
     } catch (e) {}
@@ -138,12 +152,18 @@
   /* ---- selects / datalist ---- */
   function preencherSelectVeiculos(id) {
     var sel = document.getElementById(id);
-    if (!sel || !window.db || !db.veiculos) return;
+    if (!sel) return;
+    var veiculos = raiz().veiculos;
+    if (!Array.isArray(veiculos)) return;
     var atual = sel.value;
     sel.innerHTML = '<option value="">Veículo...</option>' +
-      db.veiculos.map(function (v) { return '<option value="' + v.vplaca + '">' + v.vplaca + " - " + (v.vmodelo || "") + "</option>"; }).join("");
-    sel.value = atual;
+      veiculos
+        .filter(function (v) { return String(v.vstatus || "").toUpperCase() !== "VENDIDO"; })
+        .map(function (v) { return '<option value="' + v.vplaca + '">' + v.vplaca + " - " + (v.vmodelo || "") + "</option>"; })
+        .join("");
+    if (atual) sel.value = atual;
   }
+  window.recarregarVeiculosEstoque = function () { preencherSelectVeiculos("splaca"); };
 
   function preencherItensSaida() {
     var sel = document.getElementById("sitem");
@@ -343,27 +363,40 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  window.aplicarFiltrosEstoque = function () { pag.entrada = 1; pag.saida = 1; renderModulo("estoque"); };
+  window.aplicarFiltrosEstoque = function () { pag.entrada = 1; pag.saida = 1; pag.saldo = 1; renderModulo("estoque"); };
   window.limparFiltrosEstoque = function () {
     ["filtroEstoqueItem", "filtroEstoqueCategoria", "filtroEstoqueIni", "filtroEstoqueFim"]
       .forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ""; });
-    pag.entrada = 1; pag.saida = 1;
+    pag.entrada = 1; pag.saida = 1; pag.saldo = 1;
     renderModulo("estoque");
   };
 
-  /* ---- paginação simples ---- */
-  window.estoquePagina = function (tipo, p) { pag[tipo] = p; renderModulo("estoque"); };
+  /* ---- paginação no padrão dos outros módulos ---- */
+  window.estoquePagina = function (tipo, p) {
+    pag[tipo] = Math.max(1, Number(p) || 1);
+    renderModulo("estoque");
+  };
+  window.estoqueMudarPagina = function (tipo, direcao) {
+    window.estoquePagina(tipo, (pag[tipo] || 1) + Number(direcao));
+  };
+
   function pager(tipo, total, containerId) {
     var el = document.getElementById(containerId);
     if (!el) return;
-    var totalPag = Math.max(1, Math.ceil(total / ITENS_POR_PAGINA));
+    var porPagina = itensPorPagina();
+    var totalPag = Math.max(1, Math.ceil(total / porPagina));
     if (pag[tipo] > totalPag) pag[tipo] = totalPag;
-    if (totalPag <= 1) { el.innerHTML = ""; return; }
-    var html = "";
-    for (var i = 1; i <= totalPag; i++) {
-      html += '<button class="est-page' + (i === pag[tipo] ? " active" : "") + '" onclick="estoquePagina(\'' + tipo + "'," + i + ')">' + i + "</button>";
-    }
-    el.innerHTML = html + '<span class="est-page-info">' + total + " registro(s)</span>";
+    if (pag[tipo] < 1) pag[tipo] = 1;
+    var atual = pag[tipo];
+    var ini = "estoquePagina('" + tipo + "',";
+    el.innerHTML =
+      '<div class="paginacao-global">' +
+        '<button ' + (atual === 1 ? "disabled" : "") + ' onclick="' + ini + '1)">&lt;&lt; Primeira</button>' +
+        '<button ' + (atual === 1 ? "disabled" : "") + " onclick=\"estoqueMudarPagina('" + tipo + "',-1)\">&lt; Anterior</button>" +
+        '<div class="pagina-info">Página ' + atual + " de " + totalPag + "</div>" +
+        '<button ' + (atual === totalPag ? "disabled" : "") + " onclick=\"estoqueMudarPagina('" + tipo + "',1)\">Próxima &gt;</button>" +
+        '<button ' + (atual === totalPag ? "disabled" : "") + ' onclick="' + ini + totalPag + ')">Última &gt;&gt;</button>' +
+      "</div>";
   }
 
   /* ---- render ---- */
@@ -396,10 +429,10 @@
     // tabela entradas
     var ent = filtrados("Entrada");
     pager("entrada", ent.length, "pagEstoqueEntradas");
-    var iniE = (pag.entrada - 1) * ITENS_POR_PAGINA;
+    var iniE = (pag.entrada - 1) * itensPorPagina();
     var tbE = document.getElementById("listaEstoqueEntradas");
     if (tbE) {
-      tbE.innerHTML = ent.length ? ent.slice(iniE, iniE + ITENS_POR_PAGINA).map(function (x) {
+      tbE.innerHTML = ent.length ? ent.slice(iniE, iniE + itensPorPagina()).map(function (x) {
         var m = x.mov;
         return '<tr><td><b>' + (m.eitem || "--") + "</b></td><td>" + (m.ecategoria || "--") + "</td><td>" + dataBRx(m.edata) +
           "</td><td>" + nBR(m.equantidade) + "</td><td>" + moeda(num(m.evalorunitario)) +
@@ -413,10 +446,10 @@
     // tabela saídas
     var sai = filtrados("Saída");
     pager("saida", sai.length, "pagEstoqueSaidas");
-    var iniS = (pag.saida - 1) * ITENS_POR_PAGINA;
+    var iniS = (pag.saida - 1) * itensPorPagina();
     var tbS = document.getElementById("listaEstoqueSaidas");
     if (tbS) {
-      tbS.innerHTML = sai.length ? sai.slice(iniS, iniS + ITENS_POR_PAGINA).map(function (x) {
+      tbS.innerHTML = sai.length ? sai.slice(iniS, iniS + itensPorPagina()).map(function (x) {
         var m = x.mov;
         return '<tr><td><b>' + (m.eitem || "--") + "</b></td><td>" + (m.ecategoria || "--") + "</td><td>" + dataBRx(m.edata) +
           "</td><td>" + nBR(m.equantidade) + "</td><td>" + moeda(num(m.evalorunitario)) +
@@ -432,9 +465,11 @@
     var listaPos = lista.filter(function (it) {
       return (!termo || it.item.toLowerCase().indexOf(termo) >= 0) && (!f.cat || it.categoria === f.cat);
     });
+    pager("saldo", listaPos.length, "pagEstoqueSaldo");
+    var iniP = (pag.saldo - 1) * itensPorPagina();
     var tbP = document.getElementById("listaEstoqueSaldo");
     if (tbP) {
-      tbP.innerHTML = listaPos.length ? listaPos.map(function (it) {
+      tbP.innerHTML = listaPos.length ? listaPos.slice(iniP, iniP + itensPorPagina()).map(function (it) {
         var badge = it.saldo <= 0
           ? '<span class="badge bg-danger">Sem estoque</span>'
           : (it.minimo > 0 && it.saldo <= it.minimo
@@ -476,5 +511,9 @@
 
   if (document.readyState === "complete" || document.readyState === "interactive") setTimeout(iniciar, 0);
   else document.addEventListener("DOMContentLoaded", iniciar);
-  window.addEventListener("load", function () { setTimeout(function () { try { renderEstoquePro(); } catch (e) {} }, 300); });
+  window.addEventListener("load", function () {
+    [300, 1500, 3000, 5000].forEach(function (t) {
+      setTimeout(function () { try { renderEstoquePro(); } catch (e) {} }, t);
+    });
+  });
 })();
