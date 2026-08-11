@@ -2831,7 +2831,6 @@ oninput="calcularKMPneu()">
                     <option>Em Uso</option>
                     <option>Estoque</option>
                     <option>Recapado</option>
-                    <option>Veículo Vendido</option>
                     <option>Descartado</option>
                 </select>
             </div>
@@ -2885,7 +2884,6 @@ oninput="calcularKMPneu()">
                     <option>Em Uso</option>
                     <option>Estoque</option>
                     <option>Recapado</option>
-                    <option>Veículo Vendido</option>
                     <option>Descartado</option>
                 </select>
             </div>
@@ -2931,19 +2929,11 @@ oninput="calcularKMPneu()">
     <!-- ========================= -->
     <div class="glass-container">
 
-        <div class="d-flex justify-content-end mb-3 gap-2">
+        <div class="d-flex justify-content-end mb-3">
 
             <button class="btn-excel"
-            onclick="exportarExcel('pneus')"
-            title="Exportar os pneus filtrados">
+            onclick="exportarExcel('pneus')">
             📥 Exportar Excel
-            </button>
-
-            <button class="btn-excel"
-            onclick="downloadTudoPneus()"
-            style="background: linear-gradient(135deg, #2563eb, #1e40af);"
-            title="Baixar todos os pneus cadastrados">
-            📦 Download de tudo
             </button>
 
         </div>
@@ -3332,29 +3322,6 @@ function exportarExcel(modulo) {
     XLSX.utils.book_append_sheet(workbook, worksheet, modulo.toUpperCase());
     XLSX.writeFile(workbook, `FrotaMaster_${modulo}_${new Date().toLocaleDateString()}.xlsx`);
 }
-
-function downloadTudoPneus() {
-    const dados = db.pneus;
-    if (dados.length === 0) { alert("Não existem pneus cadastrados!"); return; }
-
-    const colunas = ['pnumero','pmarca','pmodelo','pmedida','pdot','pvalor','pdata','pvida','psulco','pveiculo','pposicao','pfornecedor','pkminstalacao','pkmatual','pkmrodado','pstatus','pobs'];
-    const titulos = ['Número','Marca','Modelo','Medida','DOT','Valor Compra','Data Compra','Vida Útil KM','Sulco Inicial','Veículo','Posição','Fornecedor','KM Instalação','KM Atual','KM Rodado','Status','Observações'];
-
-    const planilha = dados.map(p => {
-        const linha = {};
-        colunas.forEach((c, i) => {
-            linha[titulos[i]] = p[c] ?? '';
-        });
-        return linha;
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(planilha);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'PNEUS');
-    XLSX.writeFile(workbook, `FrotaMaster_Pneus_Tudo_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
-}
-
-
 
 function mascaraMoeda(i) {
     let v = i.value.replace(/\D/g,'');
