@@ -476,3 +476,28 @@ hr { border-color: var(--pro-line); opacity: 1; }
 #loginTela .form-control { height: 44px; font-size: .88rem; }
 #loginTela .btn { height: 44px; font-size: .82rem; letter-spacing: .08em; text-transform: uppercase; }
 #loginErro { font-size: .78rem; font-weight: 700; }
+
+/* ===== PNEUS: linhas ocultas + painel do olho ===== */
+.btn-olho{
+  border:1px solid #d7dbe3;background:#fff;color:#334155;border-radius:10px;
+  width:38px;height:34px;display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:.2s;
+}
+.btn-olho:hover{background:#eef2ff;border-color:#c7d2fe;color:#3730a3}
+.btn-olho.ativo{background:#111827;border-color:#111827;color:#fff}
+tr.pneu-detalhe > td{background:#f8fafc;border-top:0}
+.pneu-painel{padding:14px 12px}
+.pneu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px}
+.pneu-info{display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:6px 10px}
+.pneu-info span{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b}
+.pneu-info b{font-size:13.5px;color:#0f172a;word-break:break-word}
+.pneu-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:14px}
+.pneu-cols h6{font-weight:700;margin-bottom:8px}
+.pneu-hist{list-style:none;margin:0;padding:0;max-height:230px;overflow:auto}
+.pneu-hist li{display:flex;gap:8px;align-items:baseline;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:6px 8px;margin-bottom:6px;font-size:12.5px}
+.pneu-hist-data{color:#64748b;white-space:nowrap}
+.pneu-hist-tipo{font-weight:700;color:#1e293b;white-space:nowrap}
+.pneu-hist-tipo.in{color:#047857}
+.pneu-hist-tipo.out{color:#b45309}
+.pneu-hist-txt{color:#475569}
+.pneu-acoes{margin-top:14px;text-align:right}
