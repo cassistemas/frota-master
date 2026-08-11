@@ -137,7 +137,7 @@
       return;
     }
 
-    if (status === "Recapado" || status === "Descartado") {
+    if (status === "Recapado" || status === "Descartado" || status === "Veículo Vendido") {
       if (saldo > 0) saida(p, p.pveiculo || "", "Baixa por status: " + status);
       registrar(p, status, "Pneu marcado como " + status);
     }
@@ -303,15 +303,19 @@
     tbody.innerHTML = dados.length ? dados.map(function (p) {
       var realIndex = b.pneus.indexOf(p);
       var id = p.pid;
-      var badge = p.pstatus === "Estoque" ? "bg-success" : (p.pstatus === "Em Uso" ? "bg-primary" : "bg-secondary");
+      var badge = p.pstatus === "Estoque" ? "bg-success" : (p.pstatus === "Em Uso" ? "bg-primary" : (p.pstatus === "Veículo Vendido" ? "bg-warning text-dark" : "bg-secondary"));
       return '<tr class="pneu-linha">' +
         "<td><b>" + esc(vazio(p.pnumero)) + "</b></td>" +
         "<td>" + esc(vazio(p.pmarca)) + "</td>" +
         "<td>" + esc(p.pveiculo ? p.pveiculo : "Em estoque") + "</td>" +
         '<td><span class="badge ' + badge + '">' + esc(vazio(p.pstatus)) + "</span></td>" +
-        '<td class="text-end"><button type="button" id="pneuOlho_' + esc(id) + '" class="btn-olho' + (abertos[id] ? " ativo" : "") + '" title="Ver informações" onclick="togglePneuDetalhe(\'' + esc(id) + '\')">' +
-          '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>' +
-        "</button></td>" +
+        '<td class="text-end"><div class="pneu-acoes-linha">' +
+          '<button type="button" id="pneuOlho_' + esc(id) + '" class="btn-olho' + (abertos[id] ? " ativo" : "") + '" title="Ver informações" onclick="togglePneuDetalhe(\'' + esc(id) + '\')">' +
+            '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>' +
+          "</button>" +
+          '<button type="button" class="btn-edit" title="Editar" onclick="editar(\'pneus\',' + realIndex + ')">&#9998;</button>' +
+          '<button type="button" class="btn-del" title="Excluir" onclick="deletar(\'pneus\',' + realIndex + ')">&#10005;</button>' +
+        "</div></td>" +
       "</tr>" + detalhes(p, realIndex);
     }).join("") : '<tr><td colspan="5" class="text-center text-muted">Nenhum pneu encontrado</td></tr>';
 
@@ -332,7 +336,7 @@
     if (!tbody) return;
     var thead = tbody.parentElement && tbody.parentElement.querySelector("thead tr");
     if (thead && !thead.dataset.pneuAjustado) {
-      thead.innerHTML = "<th>Número</th><th>Marca</th><th>Veículo</th><th>Status</th><th class='text-end'>Ver</th>";
+      thead.innerHTML = "<th>Número</th><th>Marca</th><th>Veículo</th><th>Status</th><th class='text-end'>Ações</th>";
       thead.dataset.pneuAjustado = "1";
     }
   }
