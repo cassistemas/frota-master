@@ -43,9 +43,62 @@
      lista, gravamos na nuvem com tratamento de erro e mantemos cópia local. */
   var LS_KEY = "frota_estoque_backup";
 
+  function extrairArray(valor, nomes) {
+    if (Array.isArray(valor)) return valor;
+    if (!valor || typeof valor !== "object") return [];
+    for (var i = 0; i < nomes.length; i++) {
+      if (Array.isArray(valor[nomes[i]])) return valor[nomes[i]];
+    }
+    return [];
+  }
+
+  function lerLocal(chaves, nomes) {
+    for (var i = 0; i < chaves.length; i++) {
+      try {
+        var raw = localStorage.getItem(chaves[i]);
+        if (!raw) continue;
+        var dados = extrairArray(JSON.parse(raw), nomes);
+        if (dados.length) return dados;
+      } catch (e) {}
+    }
+    return [];
+  }
+
+  function normalizarMovimento(m) {
+    m = m || {};
+    var item = m.eitem || m.item || m.nome || m.nomeProduto || m.produto || m.descricao || "";
+    var tipo = String(m.etipo || m.tipo || m.movimento || "Entrada").toLowerCase();
+    return Object.assign({}, m, {
+      eitem: item,
+      ecategoria: m.ecategoria || m.categoria || "",
+      etipo: tipo.indexOf("sa") === 0 ? "Saída" : "Entrada",
+      equantidade: m.equantidade != null ? m.equantidade : (m.quantidade != null ? m.quantidade : (m.estoqueAtual != null ? m.estoqueAtual : (m.saldo != null ? m.saldo : 0))),
+      evalorunitario: m.evalorunitario != null ? m.evalorunitario : (m.valorunitario != null ? m.valorunitario : (m.valorUnitario != null ? m.valorUnitario : (m.valor != null ? m.valor : 0))),
+      edata: m.edata || m.data || m.dataCadastro || "",
+      efornecedor: m.efornecedor || m.fornecedor || "",
+      elote: m.elote || m.lote || m.nf || "",
+      eplaca: m.eplaca || m.placa || m.veiculo || "",
+      eobservacoes: m.eobservacoes || m.observacoes || m.obs || ""
+    });
+  }
+
+  function normalizarVeiculo(v) {
+    v = v || {};
+    return Object.assign({}, v, {
+      vplaca: v.vplaca || v.placa || "",
+      vmodelo: v.vmodelo || v.modelo || v.descricao || "",
+      vstatus: v.vstatus || v.status || ""
+    });
+  }
+
   function lista() {
     var raizDb = raiz();
-    if (!Array.isArray(raizDb.estoque)) raizDb.estoque = [];
+    if (!Array.isArray(raizDb.estoque)) {
+      raizDb.estoque = extrairArray(raizDb.estoque, ["dados", "estoque", "produtos", "movimentacoes"]);
+    }
+    if (raizDb.estoque.length && raizDb.estoque.some(function (m) { return !m.eitem && (m.item || m.nome || m.nomeProduto || m.produto || m.descricao); })) {
+      raizDb.estoque = raizDb.estoque.map(normalizarMovimento).filter(function (m) { return !!m.eitem; });
+    }
     return raizDb.estoque;
   }
   window.listaEstoque = lista;
@@ -69,6 +122,62 @@
     }
   }
   window.persistirEstoque = persistir;
+
+  /* Compatibilidade com versões anteriores. Algumas versões gravavam pelos
+     códigos FM_EST/FM_V (localmente e também como documentos na nuvem), enquanto
+     a atual escuta estoque/veiculos. Só usamos o legado quando a base atual está
+     vazia, evitando substituir cadastros novos. */
+  var compatibilidadeExecutada = false;
+  function carregarCompatibilidade() {
+    if (compatibilidadeExecutada) return;
+    compatibilidadeExecutada = true;
+    var base = raiz();
+    var estoqueLocal = lerLocal(["FM_EST", "frota_estoque", "estoque", LS_KEY], ["dados", "estoque", "produtos", "movimentacoes"]);
+    var veiculosLocal = lerLocal(["FM_V", "frota_veiculos", "veiculos"], ["dados", "veiculos"]);
+
+    if ((!Array.isArray(base.estoque) || !base.estoque.length) && estoqueLocal.length) {
+      base.estoque = estoqueLocal.map(normalizarMovimento).filter(function (m) { return !!m.eitem; });
+    }
+    if ((!Array.isArray(base.veiculos) || !base.veiculos.length) && veiculosLocal.length) {
+      base.veiculos = veiculosLocal.map(normalizarVeiculo).filter(function (v) { return !!v.vplaca; });
+    }
+
+    if (typeof dbCloud === "undefined" || !dbCloud || !dbCloud.collection) {
+      if ((base.estoque || []).length || (base.veiculos || []).length) renderModulo("estoque");
+      return;
+    }
+
+    Promise.all([
+      dbCloud.collection("frota").doc("FM_EST").get().catch(function () { return null; }),
+      dbCloud.collection("frota").doc("FM_V").get().catch(function () { return null; })
+    ]).then(function (docs) {
+      var mudouEstoque = false, mudouVeiculos = false;
+      var legadoEstoque = docs[0] && docs[0].exists
+        ? extrairArray(docs[0].data(), ["dados", "estoque", "produtos", "movimentacoes"]) : [];
+      var legadoVeiculos = docs[1] && docs[1].exists
+        ? extrairArray(docs[1].data(), ["dados", "veiculos"]) : [];
+
+      if ((!Array.isArray(base.estoque) || !base.estoque.length) && legadoEstoque.length) {
+        base.estoque = legadoEstoque.map(normalizarMovimento).filter(function (m) { return !!m.eitem; });
+        mudouEstoque = base.estoque.length > 0;
+      }
+      if ((!Array.isArray(base.veiculos) || !base.veiculos.length) && legadoVeiculos.length) {
+        base.veiculos = legadoVeiculos.map(normalizarVeiculo).filter(function (v) { return !!v.vplaca; });
+        mudouVeiculos = base.veiculos.length > 0;
+      }
+
+      if (mudouEstoque) dbCloud.collection("frota").doc("estoque").set({ dados: base.estoque }, { merge: true });
+      if (mudouVeiculos) dbCloud.collection("frota").doc("veiculos").set({ dados: base.veiculos }, { merge: true });
+      preencherSelectVeiculos("splaca");
+      renderModulo("estoque");
+    }).catch(function (err) {
+      compatibilidadeExecutada = false;
+      console.error("Falha ao carregar cadastros anteriores do estoque:", err);
+    });
+  }
+  window.carregarDadosAnterioresEstoque = carregarCompatibilidade;
+  setTimeout(carregarCompatibilidade, 800);
+  setTimeout(carregarCompatibilidade, 2500);
 
   // Restaura a cópia local caso a nuvem ainda não tenha o documento de estoque.
   function restaurarBackupLocal() {
@@ -154,7 +263,15 @@
     var sel = document.getElementById(id);
     if (!sel) return;
     var veiculos = raiz().veiculos;
-    if (!Array.isArray(veiculos)) return;
+    if (!Array.isArray(veiculos)) {
+      veiculos = extrairArray(veiculos, ["dados", "veiculos"]);
+      raiz().veiculos = veiculos;
+    }
+    if (!Array.isArray(veiculos) || !veiculos.length) {
+      carregarCompatibilidade();
+      return;
+    }
+    veiculos = veiculos.map(normalizarVeiculo).filter(function (v) { return !!v.vplaca; });
     var atual = sel.value;
     sel.innerHTML = '<option value="">Veículo...</option>' +
       veiculos
