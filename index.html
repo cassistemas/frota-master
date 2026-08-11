@@ -12,6 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <link rel="stylesheet" href="./pro-ui.css">
+<link rel="stylesheet" href="./estoque-pro.css?v=1">
     <link rel="stylesheet" href="./relatorios-ui.css">
     <style>
         :root{--sidebar:#0f172a;--accent:#3b82f6;--bg:#f8fafc;--danger:#ef4444;--warning:#f59e0b;--success:#10b981}
@@ -2966,11 +2967,11 @@ oninput="calcularKMPneu()">
     <!-- MÓDULO ESTOQUE -->
     <!-- ========================= -->
     <div id="estoque" class="hidden">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
             <div>
                 <span class="dashboard-eyebrow">Materiais e movimentações</span>
                 <h3 class="mb-1">📦 Controle de Estoque</h3>
-                <p class="text-muted mb-0">Controle entradas, saídas, saldo e valores dos itens da frota.</p>
+                <p class="text-muted mb-0">Entradas e saídas sincronizadas, com baixa automática do saldo.</p>
             </div>
             <div class="d-flex gap-2">
                 <button class="btn-excel" onclick="exportarExcel('estoque')">📥 Exportar Excel</button>
@@ -2985,74 +2986,133 @@ oninput="calcularKMPneu()">
             <div class="stock-card in"><span>Entradas</span><strong id="estoqueEntradas">0</strong></div>
             <div class="stock-card out"><span>Saídas</span><strong id="estoqueSaidas">0</strong></div>
             <div class="stock-card value"><span>Valor em estoque</span><strong id="estoqueValor">R$ 0,00</strong></div>
+            <div class="stock-card alert"><span>Itens zerados</span><strong id="estoqueZerados">0</strong></div>
+        </div>
+
+        <div class="est-tabs" role="tablist">
+            <button type="button" class="est-tab active" data-est-tab="entrada" onclick="estoqueTab('entrada')">⬇️ Entrada</button>
+            <button type="button" class="est-tab" data-est-tab="saida" onclick="estoqueTab('saida')">⬆️ Saída</button>
+            <button type="button" class="est-tab" data-est-tab="saldo" onclick="estoqueTab('saldo')">📊 Posição de estoque</button>
         </div>
 
         <div class="glass-container">
-            <input type="hidden" id="e_idx">
-            <div class="row g-3">
-                <div class="col-md-3"><input id="eitem" class="form-control" placeholder="Item / material" required></div>
+            <div class="row g-2 align-items-center">
+                <div class="col-md-3"><input id="filtroEstoqueItem" class="form-control" placeholder="Pesquisar item" oninput="renderModulo('estoque')"></div>
                 <div class="col-md-2">
-                    <select id="ecategoria" class="form-select">
-                        <option value="">Categoria...</option>
-                        <option>Peças</option><option>Lubrificantes</option><option>Ferramentas</option>
-                        <option>EPIs</option><option>Limpeza</option><option>Pneus</option><option>Acessórios</option><option>Outros</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <select id="etipo" class="form-select" onchange="atualizarCampoPlacaEstoque()">
-                        <option value="Entrada">Entrada</option>
-                        <option value="Saída">Saída</option>
-                    </select>
-                </div>
-                <div class="col-md-2 hidden" id="wrap_eplaca">
-                    <select id="eplaca" class="form-select"><option value="">Veículo...</option></select>
-                </div>
-                <div class="col-md-2"><input id="equantidade" type="number" min="0.01" step="0.01" class="form-control" placeholder="Quantidade"></div>
-                <div class="col-md-3"><input id="evalorunitario" class="form-control" placeholder="Valor unitário" oninput="mascaraMoeda(this)"></div>
-                <div class="col-md-2"><input id="edata" type="date" class="form-control"></div>
-                <div class="col-md-3"><select id="efornecedor" class="form-select"><option value="">Fornecedor...</option></select></div>
-                <div class="col-md-2"><input id="elote" class="form-control" placeholder="Lote / NF"></div>
-                <div class="col-md-5"><input id="eobservacoes" class="form-control" placeholder="Observações"></div>
-                <div class="col-md-12 text-end">
-                    <button id="btn_cancel_estoque" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('estoque',['eitem','ecategoria','etipo','equantidade','evalorunitario','edata','efornecedor','elote','eobservacoes','eplaca'],'e_idx')">Cancelar</button>
-                    <button class="btn btn-primary" onclick="salvarEstoque()">Salvar Movimentação</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="glass-container">
-            <div class="row g-2">
-                <div class="col-md-3"><input id="filtroEstoqueItem" class="form-control" placeholder="Pesquisar item"></div>
-                <div class="col-md-2">
-                    <select id="filtroEstoqueCategoria" class="form-select">
+                    <select id="filtroEstoqueCategoria" class="form-select" onchange="renderModulo('estoque')">
                         <option value="">Todas categorias</option>
                         <option>Peças</option><option>Lubrificantes</option><option>Ferramentas</option>
                         <option>EPIs</option><option>Limpeza</option><option>Pneus</option><option>Acessórios</option><option>Outros</option>
                     </select>
                 </div>
-                <div class="col-md-2"><select id="filtroEstoqueTipo" class="form-select"><option value="">Entradas e saídas</option><option>Entrada</option><option>Saída</option></select></div>
-                <div class="col-md-2"><input id="filtroEstoqueIni" type="date" class="form-control" aria-label="Data inicial"></div>
-                <div class="col-md-2"><input id="filtroEstoqueFim" type="date" class="form-control" aria-label="Data final"></div>
+                <div class="col-md-2"><input id="filtroEstoqueIni" type="date" class="form-control" aria-label="Data inicial" onchange="renderModulo('estoque')"></div>
+                <div class="col-md-2"><input id="filtroEstoqueFim" type="date" class="form-control" aria-label="Data final" onchange="renderModulo('estoque')"></div>
                 <div class="col-md-3 d-flex gap-2">
                     <button class="btn btn-primary w-100" onclick="aplicarFiltrosEstoque()">Filtrar</button>
-                    <button class="btn btn-outline-secondary w-100" onclick="limparFiltrosEstoque()">Limpar Filtros</button>
+                    <button class="btn btn-outline-secondary w-100" onclick="limparFiltrosEstoque()">Limpar</button>
                 </div>
             </div>
+            <input type="hidden" id="filtroEstoqueTipo" value="">
             <div id="contFiltro_estoque" class="text-muted small mt-2"></div>
         </div>
 
-        <div class="glass-container">
-            <div class="table-responsive">
-                <table class="table align-middle">
-                    <thead><tr>
-                        <th>Item</th><th>Categoria</th><th>Tipo</th><th>Data</th><th>Quantidade</th>
-                        <th>Valor unitário</th><th>Valor total</th><th>Fornecedor</th><th>Placa</th><th>Lote / NF</th><th>Observações</th><th>Ações</th>
-                    </tr></thead>
-                    <tbody id="listaEstoque"></tbody>
-                </table>
+        <!-- ABA ENTRADA -->
+        <div class="est-pane" id="estPane_entrada">
+            <div class="glass-container">
+                <h6 class="est-form-title">Registrar entrada</h6>
+                <input type="hidden" id="e_idx">
+                <input type="hidden" id="etipo" value="Entrada">
+                <div class="row g-3">
+                    <div class="col-md-3"><input id="eitem" class="form-control" list="estoqueItensCadastrados" placeholder="Item / material" required></div>
+                    <div class="col-md-2">
+                        <select id="ecategoria" class="form-select">
+                            <option value="">Categoria...</option>
+                            <option>Peças</option><option>Lubrificantes</option><option>Ferramentas</option>
+                            <option>EPIs</option><option>Limpeza</option><option>Pneus</option><option>Acessórios</option><option>Outros</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2"><input id="equantidade" type="number" min="0.01" step="0.01" class="form-control" placeholder="Quantidade"></div>
+                    <div class="col-md-2"><input id="evalorunitario" class="form-control" placeholder="Valor unitário" oninput="mascaraMoeda(this)"></div>
+                    <div class="col-md-3"><input id="edata" type="date" class="form-control"></div>
+                    <div class="col-md-3"><select id="efornecedor" class="form-select"><option value="">Fornecedor...</option></select></div>
+                    <div class="col-md-2"><input id="elote" class="form-control" placeholder="Lote / NF"></div>
+                    <div class="col-md-2"><input id="eestoqueminimo" type="number" min="0" step="0.01" class="form-control" placeholder="Estoque mínimo"></div>
+                    <div class="col-md-5"><input id="eobservacoes" class="form-control" placeholder="Observações"></div>
+                    <input type="hidden" id="eplaca">
+                    <div class="col-md-12 text-end">
+                        <button id="btn_cancel_estoque" class="btn btn-outline-secondary btn-cancelar" onclick="limparFormEstoqueEntrada()">Cancelar</button>
+                        <button class="btn btn-primary" onclick="salvarEstoque()">Salvar entrada</button>
+                    </div>
+                </div>
             </div>
-            <div id="paginacaoEstoque"></div>
+            <div class="glass-container">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead><tr>
+                            <th>Item</th><th>Categoria</th><th>Data</th><th>Quantidade</th>
+                            <th>Valor unitário</th><th>Valor total</th><th>Fornecedor</th><th>Lote / NF</th><th>Observações</th><th>Ações</th>
+                        </tr></thead>
+                        <tbody id="listaEstoqueEntradas"></tbody>
+                    </table>
+                </div>
+                <div id="pagEstoqueEntradas" class="est-pager"></div>
+            </div>
         </div>
+
+        <!-- ABA SAÍDA -->
+        <div class="est-pane hidden" id="estPane_saida">
+            <div class="glass-container">
+                <h6 class="est-form-title">Registrar saída</h6>
+                <input type="hidden" id="s_idx">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <select id="sitem" class="form-select" onchange="atualizarSaldoItemSaida()"><option value="">Selecione o item...</option></select>
+                        <div id="saldoItemSaida" class="est-hint">Selecione um item para ver o saldo disponível.</div>
+                    </div>
+                    <div class="col-md-2"><input id="squantidade" type="number" min="0.01" step="0.01" class="form-control" placeholder="Quantidade" oninput="atualizarSaldoItemSaida(true)"></div>
+                    <div class="col-md-2"><input id="sdata" type="date" class="form-control"></div>
+                    <div class="col-md-2"><select id="splaca" class="form-select"><option value="">Veículo...</option></select></div>
+                    <div class="col-md-2"><input id="sresponsavel" class="form-control" placeholder="Responsável"></div>
+                    <div class="col-md-2"><input id="slote" class="form-control" placeholder="Lote / Requisição"></div>
+                    <div class="col-md-6"><input id="sobservacoes" class="form-control" placeholder="Observações / destino"></div>
+                    <div class="col-md-4 text-end">
+                        <button id="btn_cancel_estoqueSaida" class="btn btn-outline-secondary" onclick="limparFormEstoqueSaida()">Cancelar</button>
+                        <button id="btnSalvarSaidaEstoque" class="btn btn-primary" onclick="salvarSaidaEstoque()">Salvar saída</button>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-container">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead><tr>
+                            <th>Item</th><th>Categoria</th><th>Data</th><th>Quantidade</th>
+                            <th>Custo unitário</th><th>Valor total</th><th>Veículo</th><th>Responsável</th><th>Requisição</th><th>Observações</th><th>Ações</th>
+                        </tr></thead>
+                        <tbody id="listaEstoqueSaidas"></tbody>
+                    </table>
+                </div>
+                <div id="pagEstoqueSaidas" class="est-pager"></div>
+            </div>
+        </div>
+
+        <!-- ABA SALDO -->
+        <div class="est-pane hidden" id="estPane_saldo">
+            <div class="glass-container">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead><tr>
+                            <th>Item</th><th>Categoria</th><th>Entradas</th><th>Saídas</th><th>Saldo</th>
+                            <th>Custo médio</th><th>Valor em estoque</th><th>Situação</th><th>Ação</th>
+                        </tr></thead>
+                        <tbody id="listaEstoqueSaldo"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <datalist id="estoqueItensCadastrados"></datalist>
+        <div id="listaEstoque" class="hidden"></div>
+        <div id="paginacaoEstoque" class="hidden"></div>
     </div>
 
     <div id="backup" class="hidden">
@@ -6585,3 +6645,4 @@ style="width:100%; height:400px; border:none;">
 <script src="./paginacao-universal.js"></script>
 <script src="./relatorios-universal.js?v=3"></script>
 <script src="./filtros-ui.js?v=3"></script>
+<script src="./estoque-pro.js?v=1"></script>

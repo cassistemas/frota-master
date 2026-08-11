@@ -1,0 +1,16 @@
+/* Estoque Pro — abas e componentes */
+.est-tabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap}
+.est-tab{border:1px solid #dfe3ea;background:#fff;color:#475569;font-weight:600;font-size:14px;
+  padding:10px 18px;border-radius:12px;cursor:pointer;transition:.15s;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.est-tab:hover{border-color:#94a3b8;color:#1e293b}
+.est-tab.active{background:#0d6efd;border-color:#0d6efd;color:#fff;box-shadow:0 6px 16px rgba(13,110,253,.25)}
+.est-form-title{font-weight:700;color:#334155;margin-bottom:14px;text-transform:uppercase;letter-spacing:.04em;font-size:12px}
+.est-hint{font-size:12px;margin-top:6px;color:#64748b}
+.est-hint.ok{color:#0f766e;font-weight:600}
+.est-hint.danger{color:#b91c1c;font-weight:600}
+.est-pager{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px}
+.est-page{border:1px solid #dfe3ea;background:#fff;color:#475569;border-radius:8px;min-width:34px;height:34px;cursor:pointer;font-weight:600}
+.est-page.active{background:#0d6efd;border-color:#0d6efd;color:#fff}
+.est-page-info{margin-left:auto;font-size:12px;color:#64748b}
+.stock-card.alert strong{color:#b91c1c}
+.est-pane.hidden{display:none}
