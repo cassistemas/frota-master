@@ -24,6 +24,54 @@
   function dataBRx(v) { return typeof formatarDataBR === "function" ? formatarDataBR(v) : (v || "--"); }
   function movimentos() { return (window.db && db.estoque) || []; }
 
+  /* ---- persistência segura ----
+     O doc "estoque" pode não existir ainda na nuvem; nesse caso db.estoque fica
+     indefinido e o push quebrava silenciosamente (nada era salvo). Garantimos a
+     lista, gravamos na nuvem com tratamento de erro e mantemos cópia local. */
+  var LS_KEY = "frota_estoque_backup";
+
+  function lista() {
+    if (!window.db) window.db = {};
+    if (!Array.isArray(window.db.estoque)) window.db.estoque = [];
+    return window.db.estoque;
+  }
+  window.listaEstoque = lista;
+
+  function persistir() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(lista())); } catch (e) {}
+    try {
+      if (typeof carimbarRegistros === "function") carimbarRegistros();
+      if (typeof dbCloud !== "undefined" && dbCloud && dbCloud.collection) {
+        var p = dbCloud.collection("frota").doc("estoque").set({ dados: lista() }, { merge: true });
+        if (p && p.catch) p.catch(function (err) {
+          console.error("Erro ao salvar estoque na nuvem:", err);
+          alert("Não foi possível salvar o estoque na nuvem: " + (err && err.message ? err.message : err) +
+            "\nOs dados ficaram salvos neste navegador.");
+        });
+      } else if (typeof salvarNuvem === "function") {
+        salvarNuvem();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  window.persistirEstoque = persistir;
+
+  // Restaura a cópia local caso a nuvem ainda não tenha o documento de estoque.
+  function restaurarBackupLocal() {
+    if (Array.isArray(window.db && window.db.estoque) && window.db.estoque.length) return;
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length) {
+        lista().push.apply(window.db.estoque, arr);
+        if (typeof renderModulo === "function") renderModulo("estoque");
+      }
+    } catch (e) {}
+  }
+  setTimeout(restaurarBackupLocal, 2500);
+
   /* ---- posição de estoque por item ---- */
   function posicaoEstoque(ignorarIndice) {
     var mapa = {};
@@ -173,11 +221,11 @@
       // editar entrada não pode deixar saldo negativo
       var saldoSem = saldoDoItem(item, idx);
       if (saldoSem + quantidade < 0) { alert("Esta alteração deixaria o saldo negativo."); return; }
-      db.estoque[Number(idx)] = obj;
+      lista()[Number(idx)] = obj;
     } else {
-      db.estoque.push(obj);
+      lista().push(obj);
     }
-    if (typeof salvarNuvem === "function") salvarNuvem();
+    persistir();
     limparFormEstoqueEntrada();
     renderModulo("estoque");
     if (typeof renderDashboard === "function") renderDashboard();
@@ -212,10 +260,10 @@
       eplaca: document.getElementById("splaca").value || "",
       etotal: quantidade * pos.custoMedio
     };
-    if (idx !== "") db.estoque[Number(idx)] = obj;
-    else db.estoque.push(obj);
+    if (idx !== "") lista()[Number(idx)] = obj;
+    else lista().push(obj);
 
-    if (typeof salvarNuvem === "function") salvarNuvem();
+    persistir();
     limparFormEstoqueSaida();
     renderModulo("estoque");
     if (typeof renderDashboard === "function") renderDashboard();
@@ -280,8 +328,8 @@
       }
     }
     if (!confirm("Excluir esta movimentação?")) return;
-    db.estoque.splice(i, 1);
-    if (typeof salvarNuvem === "function") salvarNuvem();
+    lista().splice(i, 1);
+    persistir();
     renderModulo("estoque");
     if (typeof renderDashboard === "function") renderDashboard();
   };
