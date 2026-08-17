@@ -698,6 +698,8 @@
       "</div>";
   }
 
+  window.dtRenderTabela = renderDetran;
+
   window.pagDetran = function (p) {
     PAG.pagina = p;
     renderDetran();
