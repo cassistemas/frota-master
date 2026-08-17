@@ -505,36 +505,3 @@ tr.pneu-detalhe > td{background:#f8fafc;border-top:0}
 /* Ações inline na tabela de pneus (olho + editar + excluir) */
 .pneu-acoes-linha{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end}
 .pneu-acoes-linha .btn-edit,.pneu-acoes-linha .btn-del{line-height:1}
-
-/* ---------- Campos com rótulo interno (form-floating) ---------- */
-.form-floating > .form-control,
-.form-floating > .form-select {
-  height: 54px;
-  padding: 1.35rem .7rem .35rem;
-  line-height: 1.2;
-}
-.form-floating > label {
-  padding: .55rem .75rem;
-  font-size: .72rem;
-  font-weight: 700;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  color: var(--pro-mute);
-  opacity: 1;
-  border: 0;
-  background: transparent;
-}
-.form-floating > .form-control:focus ~ label,
-.form-floating > .form-control:not(:placeholder-shown) ~ label,
-.form-floating > .form-control[type="date"] ~ label,
-.form-floating > .form-select ~ label {
-  transform: scale(.82) translateY(-.4rem) translateX(.1rem);
-  opacity: 1;
-  color: var(--pro-mute);
-}
-.form-floating > .form-control:not(:focus):placeholder-shown::placeholder {
-  color: transparent;
-}
-.form-floating > .form-control[type="date"] {
-  padding-top: 1.4rem;
-}

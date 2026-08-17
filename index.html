@@ -1565,35 +1565,34 @@ onclick="exportarExcel('saidaVeiculos')">
         <div class="glass-container">
             <input type="hidden" id="v_idx">
             <div class="row g-3">
-                <div class="col-md-2 form-floating"><input id="vplaca" class="form-control" placeholder="Placa"><label for="vplaca">Placa</label></div>
-                <div class="col-md-3 form-floating"><input id="vmodelo" class="form-control" placeholder="Modelo"><label for="vmodelo">Modelo</label></div>
-                <div class="col-md-2 form-floating"><input id="vkm" class="form-control" type="number" placeholder="KM Atual"><label for="vkm">KM Atual</label></div>
-                <div class="col-md-3 form-floating"><select id="vmotorista" class="form-select"></select><label for="vmotorista">Motorista</label></div>
+                <div class="col-md-2"><input id="vplaca" class="form-control" placeholder="Placa"></div>
+                <div class="col-md-3"><input id="vmodelo" class="form-control" placeholder="Modelo"></div>
+                <div class="col-md-2"><input id="vkm" class="form-control" type="number" placeholder="KM Atual"></div>
+                <div class="col-md-3"><select id="vmotorista" class="form-select"></select></div>
                 
-<div class="col-md-2 form-floating">
-    <input id="vtara" class="form-control" placeholder="Tara (Kg)"><label for="vtara">Tara (Kg)</label>
+<div class="col-md-2">
+    <input id="vtara" class="form-control" placeholder="Tara (Kg)">
 </div>
 
-<div class="col-md-3 form-floating">
-    <input id="vpliquido" class="form-control" placeholder="P. Líquido (Kg)"><label for="vpliquido">P. Líquido (Kg)</label>
+<div class="col-md-3">
+    <input id="vpliquido" class="form-control" placeholder="P. Líquido (Kg)">
 </div>
 
-<div class="col-md-2 form-floating">
-    <input id="vm3" class="form-control" placeholder="M³"><label for="vm3">M³</label>
+<div class="col-md-2">
+    <input id="vm3" class="form-control" placeholder="M³">
 </div>
 
-<div class="col-md-3 form-floating">
-    <input id="vmedidas" class="form-control" placeholder="Medidas"><label for="vmedidas">Medidas</label>
+<div class="col-md-3">
+    <input id="vmedidas" class="form-control" placeholder="Medidas">
 </div>
 
-<div class="col-md-3 form-floating">
+<div class="col-md-3">
     <select id="vstatus" class="form-select">
         <option value="" selected disabled>Status</option>
         <option value="Ativo">Ativo</option>
         <option value="Indisponível">Indisponível</option>
         <option value="Vendido">Vendido</option>
     </select>
-    <label for="vstatus">Status</label>
 </div>
 
 <div class="col-md-12 text-end mt-3">
@@ -1820,63 +1819,38 @@ flatpickr("#motFim", {
 
         <div class="row g-3">
 
-            <div class="col-md-3 form-floating">
+            <div class="col-md-3">
                 <select id="femotorista" class="form-select"></select>
-                <label for="femotorista">Motorista</label>
             </div>
 
-            <div class="col-md-3 form-floating">
-                <input type="date" id="feinicio" class="form-control" placeholder="Data de início"
-                    onchange="atualizarDatasFerias()">
-                <label for="feinicio">Data de início</label>
+            <div class="col-md-3">
+                <input type="date" id="feinicio" class="form-control">
             </div>
 
-            <div class="col-md-3 form-floating">
-                <input type="number" id="fequantidade" class="form-control"
-                    min="1" step="1" placeholder="Dias de férias"
-                    oninput="atualizarDatasFerias()">
-                <label for="fequantidade">Dias de férias</label>
+            <div class="col-md-3">
+                <input type="date" id="fefim" class="form-control">
             </div>
 
-            <div class="col-md-3 form-floating">
-                <input type="date" id="fefim" class="form-control" placeholder="Data final" readonly>
-                <label for="fefim">Data final</label>
-            </div>
-
-            <div class="col-md-3 form-floating">
-                <input type="date" id="feretorno" class="form-control" placeholder="Data de retorno" readonly>
-                <label for="feretorno">Data de retorno</label>
-            </div>
-
-            <div class="col-md-3 form-floating">
-                <input type="number" id="fetolerancia" class="form-control"
-                    min="0" step="1" value="0" placeholder="Tolerância (dias)"
-                    title="0 bloqueia qualquer conflito; 1 permite uma sobreposição de 1 dia; o valor é aplicado também aos agendamentos">
-                <label for="fetolerancia">Tolerância de sobreposição (dias)</label>
-            </div>
-
-            <div class="col-md-3 form-floating">
+            <div class="col-md-3">
                 <select id="festatus" class="form-select">
                     <option value="Agendada">Agendada</option>
                     <option value="Em andamento">Em andamento</option>
                     <option value="Concluída">Concluída</option>
                 </select>
-                <label for="festatus">Status</label>
             </div>
 
-            <div class="col-md-12 form-floating">
+            <div class="col-md-12">
                 <input id="feobs" class="form-control" placeholder="Observações">
-                <label for="feobs">Observações</label>
             </div>
 
             <div class="col-md-12 text-end">
                 <button id="btn_cancel_ferias" class="btn btn-outline-secondary btn-cancelar"
-                    onclick="limparForm('ferias',['femotorista','feinicio','fequantidade','fefim','feretorno','fetolerancia','festatus','feobs'],'fe_idx')">
+                    onclick="limparForm('ferias',['femotorista','feinicio','fefim','festatus','feobs'],'fe_idx')">
                     Cancelar
                 </button>
 
                 <button class="btn btn-warning"
-                    onclick="salvar('ferias',['femotorista','feinicio','fequantidade','fefim','feretorno','fetolerancia','festatus','feobs'],'fe_idx')">
+                    onclick="salvar('ferias',['femotorista','feinicio','fefim','festatus','feobs'],'fe_idx')">
                     Salvar
                 </button>
             </div>
@@ -1891,9 +1865,7 @@ flatpickr("#motFim", {
                 <tr>
                     <th>Motorista</th>
                     <th>Início</th>
-                    <th>Dias</th>
                     <th>Fim</th>
-                    <th>Retorno</th>
                     <th>Status</th>
                     <th>Obs</th>
                     <th>Ações</th>
@@ -3301,11 +3273,6 @@ firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
 const auth = firebase.auth();
 const dbCloud = firebase.firestore();
-// Cache offline: os dados continuam disponíveis sem internet
-try{
-    dbCloud.enablePersistence({ synchronizeTabs: true })
-        .catch(e => console.warn("Persistência offline indisponível:", e && e.code));
-}catch(e){ console.warn("Persistência offline indisponível:", e); }
 const MAP={
     veiculos:'FM_V',
     motoristas:'FM_M',
@@ -3444,16 +3411,11 @@ function salvarNuvem(){
 
     Object.keys(db).forEach(mod => {
 
-        try{
-            localStorage.setItem("FM_CACHE_" + mod, JSON.stringify(db[mod] || []));
-        }catch(e){ /* armazenamento local cheio */ }
-
         dbCloud.collection("frota")
         .doc(mod)
         .set({
             dados: db[mod]
-        }, { merge: true })
-        .catch(e => console.warn("Sem conexão: " + mod + " salvo apenas no dispositivo.", e));
+        }, { merge: true });
 
     });
 
@@ -3516,204 +3478,6 @@ function ordenarFornecedores(){
 
 }
 
-function dataISOComDias(data, deslocamento){
-    if(!data) return '';
-
-    const partes = String(data).split('-').map(Number);
-    if(partes.length !== 3 || partes.some(Number.isNaN)) return '';
-
-    const dataUTC = new Date(Date.UTC(partes[0], partes[1] - 1, partes[2] + Number(deslocamento || 0)));
-    return dataUTC.toISOString().slice(0, 10);
-}
-
-function quantidadeDiasEntreDatas(inicio, fim){
-    if(!inicio || !fim) return 0;
-
-    const inicioUTC = new Date(`${inicio}T00:00:00Z`).getTime();
-    const fimUTC = new Date(`${fim}T00:00:00Z`).getTime();
-    const dias = Math.round((fimUTC - inicioUTC) / 86400000) + 1;
-
-    return dias > 0 ? dias : 0;
-}
-
-function quantidadeDiasFerias(f){
-    return Number(f && f.fequantidade) > 0
-        ? Number(f.fequantidade)
-        : quantidadeDiasEntreDatas(f && f.feinicio, f && f.fefim);
-}
-
-function atualizarDatasFerias(){
-    const inicio = document.getElementById('feinicio')?.value || '';
-    const quantidadeEl = document.getElementById('fequantidade');
-    const fimEl = document.getElementById('fefim');
-    const retornoEl = document.getElementById('feretorno');
-    const quantidade = Number(quantidadeEl?.value || 0);
-
-    if(!inicio || !Number.isInteger(quantidade) || quantidade < 1){
-        if(fimEl) fimEl.value = '';
-        if(retornoEl) retornoEl.value = '';
-        return;
-    }
-
-    const fim = dataISOComDias(inicio, quantidade - 1);
-    const retorno = dataISOComDias(inicio, quantidade);
-
-    if(fimEl) fimEl.value = fim;
-    if(retornoEl) retornoEl.value = retorno;
-}
-
-function prepararFormularioFerias(){
-    const inicio = document.getElementById('feinicio')?.value || '';
-    const fim = document.getElementById('fefim')?.value || '';
-    const quantidadeEl = document.getElementById('fequantidade');
-    const toleranciaEl = document.getElementById('fetolerancia');
-
-    if(quantidadeEl && (!quantidadeEl.value || Number(quantidadeEl.value) < 1)){
-        const quantidade = quantidadeDiasEntreDatas(inicio, fim);
-        if(quantidade > 0) quantidadeEl.value = quantidade;
-    }
-
-    if(toleranciaEl && toleranciaEl.value === ''){
-        toleranciaEl.value = '0';
-    }
-
-    atualizarDatasFerias();
-}
-
-function obterPeriodoFerias(registro){
-    const inicio = registro?.feinicio || '';
-    const quantidade = quantidadeDiasFerias(registro);
-    const fim = registro?.fefim || dataISOComDias(inicio, quantidade - 1);
-    const retorno = registro?.feretorno || dataISOComDias(inicio, quantidade);
-
-    return { inicio, fim, retorno, quantidade };
-}
-
-function diasSobrepostos(inicioA, fimA, inicioB, fimB){
-    if(!inicioA || !fimA || !inicioB || !fimB) return 0;
-
-    const inicioAUTC = new Date(`${inicioA}T00:00:00Z`).getTime();
-    const fimAUTC = new Date(`${fimA}T00:00:00Z`).getTime();
-    const inicioBUTC = new Date(`${inicioB}T00:00:00Z`).getTime();
-    const fimBUTC = new Date(`${fimB}T00:00:00Z`).getTime();
-    const inicio = Math.max(inicioAUTC, inicioBUTC);
-    const fim = Math.min(fimAUTC, fimBUTC);
-
-    if(fim < inicio) return 0;
-    return Math.floor((fim - inicio) / 86400000) + 1;
-}
-
-function validarConflitoFerias(novoRegistro, indiceEdicao){
-    const motorista = String(novoRegistro.femotorista || '').trim();
-    const inicioNovo = novoRegistro.feinicio;
-    const quantidadeNova = Number(novoRegistro.fequantidade);
-    const tolerancia = Math.max(0, Math.floor(Number(novoRegistro.fetolerancia || 0)));
-
-    if(!motorista){
-        alert('Selecione o motorista.');
-        return false;
-    }
-
-    if(!inicioNovo){
-        alert('Informe a data de início das férias.');
-        return false;
-    }
-
-    if(!Number.isInteger(quantidadeNova) || quantidadeNova < 1){
-        alert('Informe uma quantidade de dias de férias maior que zero.');
-        return false;
-    }
-
-    const fimNovo = dataISOComDias(inicioNovo, quantidadeNova - 1);
-
-    const conflito = (db.ferias || []).find((existente, i) => {
-        if(indiceEdicao !== '' && Number(indiceEdicao) === i) return false;
-
-        const periodoExistente = obterPeriodoFerias(existente);
-        if(!periodoExistente.inicio || !periodoExistente.fim) return false;
-
-        return diasSobrepostos(
-            inicioNovo,
-            fimNovo,
-            periodoExistente.inicio,
-            periodoExistente.fim
-        ) > tolerancia;
-    });
-
-    if(conflito){
-        const periodo = obterPeriodoFerias(conflito);
-        alert(
-            `Conflito de férias entre motoristas.\n` +
-            `Motorista selecionado: ${motorista}.\n` +
-            `Motorista já cadastrado: ${conflito.femotorista || 'não informado'}.\n` +
-            `Já existe um período de ${formatarDataBR(periodo.inicio)} a ${formatarDataBR(periodo.fim)}.\n` +
-            `Ajuste as datas ou informe uma tolerância suficiente para a sobreposição.`
-        );
-        return false;
-    }
-
-    const agendamentoConflitante = (db.agendamentos || []).find(agendamento => {
-        if(String(agendamento.agstatus || '') !== 'Agendado') return false;
-        if(!agendamento.agdata) return false;
-
-        const sobreposicao = diasSobrepostos(
-            inicioNovo,
-            fimNovo,
-            agendamento.agdata,
-            agendamento.agdata
-        );
-
-        return sobreposicao > tolerancia;
-    });
-
-    if(agendamentoConflitante){
-        alert(
-            `Não é possível salvar as férias de ${motorista}.\n` +
-            `Existe um agendamento ativo para ${agendamentoConflitante.agmotorista || 'motorista não informado'} ` +
-            `na data de ` +
-            `${formatarDataBR(agendamentoConflitante.agdata)}.\n` +
-            `A tolerância informada é de ${tolerancia} dia(s).`
-        );
-        return false;
-    }
-
-    return true;
-}
-
-function validarAgendamentoContraFerias(agendamento){
-    if(String(agendamento.agstatus || '') !== 'Agendado') return true;
-
-    const data = agendamento.agdata || '';
-    if(!data) return true;
-
-    const conflito = (db.ferias || []).find(ferias => {
-        const periodo = obterPeriodoFerias(ferias);
-        const tolerancia = Math.max(0, Math.floor(Number(ferias.fetolerancia || 0)));
-        const sobreposicao = diasSobrepostos(
-            periodo.inicio,
-            periodo.fim,
-            data,
-            data
-        );
-
-        return sobreposicao > tolerancia;
-    });
-
-    if(conflito){
-        const periodo = obterPeriodoFerias(conflito);
-        const tolerancia = Math.max(0, Math.floor(Number(conflito.fetolerancia || 0)));
-        alert(
-            `Agendamento bloqueado: existe férias cadastrada para ` +
-            `${conflito.femotorista || 'outro motorista'} de ` +
-            `${formatarDataBR(periodo.inicio)} a ${formatarDataBR(periodo.fim)}.\n` +
-            `A tolerância configurada para este período é de ${tolerancia} dia(s).`
-        );
-        return false;
-    }
-
-    return true;
-}
-
 function salvar(mod, campos, idCampo){
 
     let obj = {};
@@ -3721,22 +3485,6 @@ function salvar(mod, campos, idCampo){
     let idx = document.getElementById(idCampo).value;
 
     campos.forEach(c => obj[c] = document.getElementById(c).value);
-
-    if(mod === 'ferias'){
-        atualizarDatasFerias();
-        obj.fequantidade = String(Number(document.getElementById('fequantidade')?.value || 0));
-        obj.fefim = document.getElementById('fefim')?.value || '';
-        obj.feretorno = document.getElementById('feretorno')?.value || '';
-        obj.fetolerancia = String(Math.max(0, Math.floor(Number(document.getElementById('fetolerancia')?.value || 0))));
-
-        if(!obj.fefim || !obj.feretorno || !validarConflitoFerias(obj, idx)){
-            return;
-        }
-    }
-
-    if(mod === 'agendamentos' && !validarAgendamentoContraFerias(obj)){
-        return;
-    }
 
     /*=====================================================
 ATUALIZA KM DOS VEÍCULOS
@@ -3918,7 +3666,6 @@ function editar(mod,i){
     let item=db[mod][i]
     Object.keys(item).forEach(k=>{let el=document.getElementById(k); if(el) el.value=item[k]})
     document.getElementById(ID_MAP_INDEX[mod]).value=i;
-    if(mod === 'ferias') prepararFormularioFerias();
     const btnCancel = document.getElementById('btn_cancel_' + mod);
     if(btnCancel) btnCancel.style.display = 'inline-block';
     if(mod === 'estoque' && typeof atualizarCampoPlacaEstoque === 'function') atualizarCampoPlacaEstoque();
@@ -4324,13 +4071,9 @@ function iniciarSistema(){
         document.getElementById("userTipo").innerText = (usuarioLogado.tipo === "admin" ? "Administrador" : "Usuário");
     })();
 
-    carregarCacheLocal();
-    renderTudo();
-
     Object.keys(MAP).forEach(mod=>{
         escutarDados(mod);
     });
-    escutarDetran();
 
     // 🔥 IMPORTANTE: carregar lista usuários
     escutarUsuarios();
@@ -4341,34 +4084,6 @@ function iniciarSistema(){
         atualizarHistoricoBackup();
     }
 
-function cacheLocalKey(modulo){ return "FM_CACHE_" + modulo; }
-
-function salvarCacheLocal(modulo){
-    try{
-        localStorage.setItem(cacheLocalKey(modulo), JSON.stringify(db[modulo] || []));
-    }catch(e){ console.warn("Cache local indisponível:", e); }
-}
-
-function salvarCacheLocalTudo(){
-    Object.keys(db).forEach(m => salvarCacheLocal(m));
-}
-
-function carregarCacheLocal(){
-    Object.keys(MAP).forEach(mod => {
-        try{
-            const bruto = localStorage.getItem(cacheLocalKey(mod));
-            if(bruto){
-                const dados = JSON.parse(bruto);
-                if(Array.isArray(dados)) db[mod] = dados;
-            }
-        }catch(e){ /* ignora cache corrompido */ }
-    });
-    try{
-        const detran = JSON.parse(localStorage.getItem("FM_DETRAN") || "[]");
-        if(Array.isArray(detran)) db.detran = detran;
-    }catch(e){}
-}
-
 function escutarDados(modulo){
 
     dbCloud.collection("frota")
@@ -4377,29 +4092,13 @@ function escutarDados(modulo){
 
         if(doc.exists){
             db[modulo] = doc.data().dados || [];
-            salvarCacheLocal(modulo);
             if(typeof marcarRegistrosCarregados === "function") marcarRegistrosCarregados(db[modulo]);
             renderModulo(modulo);
             renderTudo();
         }
 
-    }, err => {
-        console.warn("Sem conexão com a nuvem (" + modulo + "). Exibindo dados salvos no dispositivo.", err);
-        renderModulo(modulo);
-        renderTudo();
     });
 
-}
-
-// Consulta DETRAN também sincroniza com a nuvem
-function escutarDetran(){
-    dbCloud.collection("frota").doc("detran").onSnapshot(doc => {
-        if(doc.exists){
-            db.detran = doc.data().dados || [];
-            try{ localStorage.setItem("FM_DETRAN", JSON.stringify(db.detran)); }catch(e){}
-            if(typeof window.dtRenderTabela === "function") window.dtRenderTabela();
-        }
-    }, err => console.warn("Detran offline:", err));
 }
 
 function renderTudo(){
@@ -4536,11 +4235,7 @@ document.getElementById('listaFerias').innerHTML =
 
 <td>${formatarDataBR(f.feinicio)}</td>
 
-<td>${quantidadeDiasFerias(f)} dia${quantidadeDiasFerias(f) === 1 ? '' : 's'}</td>
-
-<td>${formatarDataBR(f.fefim || dataISOComDias(f.feinicio, quantidadeDiasFerias(f) - 1))}</td>
-
-<td>${formatarDataBR(f.feretorno || dataISOComDias(f.feinicio, quantidadeDiasFerias(f)))}</td>
+<td>${formatarDataBR(f.fefim)}</td>
 
 <td>
     <span class="badge ${
@@ -6215,9 +5910,7 @@ function gerarRelatorioFerias(){
             <tr>
                 <th>Motorista</th>
                 <th>Início</th>
-                <th>Dias</th>
                 <th>Fim</th>
-                <th>Retorno</th>
                 <th>Status</th>
                 <th>Observações</th>
             </tr>
@@ -6231,9 +5924,7 @@ function gerarRelatorioFerias(){
         <tr>
             <td>${f.femotorista}</td>
             <td>${formatarDataBR(f.feinicio)}</td>
-            <td>${quantidadeDiasFerias(f)}</td>
-            <td>${formatarDataBR(f.fefim || dataISOComDias(f.feinicio, quantidadeDiasFerias(f) - 1))}</td>
-            <td>${formatarDataBR(f.feretorno || dataISOComDias(f.feinicio, quantidadeDiasFerias(f)))}</td>
+            <td>${formatarDataBR(f.fefim)}</td>
             <td class="status">${f.festatus}</td>
             <td>${f.feobs || '--'}</td>
         </tr>
