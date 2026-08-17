@@ -4364,8 +4364,8 @@ function carregarCacheLocal(){
         }catch(e){ /* ignora cache corrompido */ }
     });
     try{
-        const detran = JSON.parse(localStorage.getItem("FM_DETRAN") || localStorage.getItem("FM_CACHE_detran") || "[]");
-        if(Array.isArray(detran) && detran.length) db.detran = detran;
+        const detran = JSON.parse(localStorage.getItem("FM_DETRAN") || "[]");
+        if(Array.isArray(detran)) db.detran = detran;
     }catch(e){}
 }
 
@@ -4393,10 +4393,13 @@ function escutarDados(modulo){
 
 // Consulta DETRAN também sincroniza com a nuvem
 function escutarDetran(){
-    // A sincronizacao do DETRAN e feita pelo proprio modulo (veiculos-detran.js),
-    // que mescla nuvem + dispositivo em vez de sobrescrever.
-    if(typeof window.dtSincronizar === "function"){ window.dtSincronizar(); return; }
-    setTimeout(escutarDetran, 1000);
+    dbCloud.collection("frota").doc("detran").onSnapshot(doc => {
+        if(doc.exists){
+            db.detran = doc.data().dados || [];
+            try{ localStorage.setItem("FM_DETRAN", JSON.stringify(db.detran)); }catch(e){}
+            if(typeof window.dtRenderTabela === "function") window.dtRenderTabela();
+        }
+    }, err => console.warn("Detran offline:", err));
 }
 
 function renderTudo(){

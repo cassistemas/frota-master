@@ -166,253 +166,31 @@
     ["dtObs", "Observações", "text"],
   ];
 
-  /* ---------------- base de dados + SINCRONIZACAO FIREBASE ---------------- */
-  var CACHE2 = "FM_CACHE_detran";   // chave usada por salvarNuvem() do index.html
-  var syncOn = false;               // listener da nuvem ja ativo?
-  var gravando = false;             // evita eco do snapshot durante gravacao
-
-  function raiz() {
-    if (typeof db === "undefined" || !db) window.db = {};
-    return typeof db !== "undefined" ? db : window.db;
-  }
-
-  function lerLocal() {
-    var out = [];
-    [STORAGE, CACHE2].forEach(function (k) {
-      try {
-        var a = JSON.parse(localStorage.getItem(k) || "[]");
-        if (Array.isArray(a)) out = mesclar(out, a);
-      } catch (e) {}
-    });
-    return out;
-  }
-
-  function chaveReg(r) {
-    var p = norm(r && r.dtPlaca);
-    var v = norm(r && r.dtRenavam);
-    return p || (v ? "R" + v : "");
-  }
-
-  // mescla duas listas por placa/renavam mantendo o registro mais recente
-  function mesclar(a, b) {
-    var mapa = [];
-    var idx = {};
-    function put(r) {
-      if (!r || typeof r !== "object") return;
-      var k = chaveReg(r);
-      if (!k) {
-        mapa.push(r);
-        return;
-      }
-      if (idx[k] === undefined) {
-        idx[k] = mapa.length;
-        mapa.push(r);
-        return;
-      }
-      var atual = mapa[idx[k]];
-      var dA = String(atual.dtAtualizado || "");
-      var dB = String(r.dtAtualizado || "");
-      if (dB >= dA) mapa[idx[k]] = r;
-    }
-    (a || []).forEach(put);
-    (b || []).forEach(put);
-    return mapa;
-  }
-
+  /* ---------------- base de dados ---------------- */
   function base() {
-    var raizDb = raiz();
-    if (!Array.isArray(raizDb.detran)) raizDb.detran = lerLocal();
-    return raizDb.detran;
-  }
-
-  function salvarLocal() {
-    var txt = JSON.stringify(base());
-    try {
-      localStorage.setItem(STORAGE, txt);
-    } catch (e) {}
-    try {
-      localStorage.setItem(CACHE2, txt);
-    } catch (e) {}
-  }
-
-  var PEND = "FM_DETRAN_PENDENTE";  // ha alteracoes locais ainda nao confirmadas na nuvem
-  var persistenciaOk = false;
-
-  function nuvem() {
-    if (typeof dbCloud !== "undefined" && dbCloud) return dbCloud;
-    if (typeof firebase !== "undefined" && firebase.apps && firebase.apps.length)
-      return firebase.firestore();
-    return null;
-  }
-
-  function logado() {
-    try {
-      return !!(typeof firebase !== "undefined" && firebase.auth().currentUser);
-    } catch (e) {
-      return false;
+    if (typeof db === "undefined") window.db = {};
+    if (!db.detran) {
+      var s = null;
+      try {
+        s = JSON.parse(localStorage.getItem(STORAGE) || "[]");
+      } catch (e) {
+        s = [];
+      }
+      db.detran = Array.isArray(s) ? s : [];
     }
-  }
-
-  function online() {
-    return typeof navigator === "undefined" || navigator.onLine !== false;
-  }
-
-  function marcarPendente(v) {
-    try {
-      if (v) localStorage.setItem(PEND, "1");
-      else localStorage.removeItem(PEND);
-    } catch (e) {}
-    atualizarAviso();
-  }
-
-  function temPendente() {
-    try {
-      return localStorage.getItem(PEND) === "1";
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // Cache offline do proprio Firestore: mantem leitura e ENFILEIRA as gravacoes
-  // feitas sem internet, enviando sozinho assim que a conexao voltar.
-  function ativarPersistencia() {
-    if (persistenciaOk) return;
-    var fs = nuvem();
-    if (!fs || typeof fs.enablePersistence !== "function") return;
-    persistenciaOk = true;
-    try {
-      fs.enablePersistence({ synchronizeTabs: true }).catch(function (e) {
-        console.warn("DETRAN: cache offline do Firestore indisponivel.", e && e.code);
-      });
-    } catch (e) {}
-  }
-
-  // aviso discreto de estado (offline / pendente de envio)
-  function atualizarAviso() {
-    var el = document.getElementById("dtSyncAviso");
-    if (!el) return;
-    if (!online()) {
-      el.style.display = "";
-      el.className = "fm-status fm-warn";
-      el.textContent =
-        "📴 Sem internet — exibindo os dados salvos no dispositivo. As alterações continuam sendo gravadas e serão enviadas ao Firebase assim que a conexão voltar.";
-    } else if (temPendente()) {
-      el.style.display = "";
-      el.className = "fm-status fm-warn";
-      el.textContent = "⏳ Enviando alterações pendentes para o Firebase...";
-    } else {
-      el.style.display = "none";
-      el.textContent = "";
-    }
-  }
-
-  // grava SOMENTE o documento frota/detran (nao sobrescreve os demais modulos)
-  function gravarNuvem() {
-    var fs = nuvem();
-    if (!fs || !logado()) {
-      marcarPendente(true);
-      return;
-    }
-    ativarPersistencia();
-    gravando = true;
-    marcarPendente(true);
-    // Offline: esta promise so resolve quando o Firestore confirmar no servidor,
-    // mas a gravacao ja fica enfileirada localmente e sai sozinha ao reconectar.
-    fs.collection("frota")
-      .doc("detran")
-      .set({ dados: base(), atualizadoEm: new Date().toISOString() }, { merge: true })
-      .then(function () {
-        marcarPendente(false);
-      })
-      .catch(function (e) {
-        console.warn("DETRAN: gravacao pendente (sem conexao).", e);
-      })
-      .then(function () {
-        setTimeout(function () {
-          gravando = false;
-        }, 300);
-      });
-    atualizarAviso();
+    return db.detran;
   }
 
   function persistir() {
-    salvarLocal();     // 1) sempre grava no dispositivo (funciona offline)
-    renderDetran();    // 2) a tela mostra o dado na hora, com ou sem internet
-    gravarNuvem();     // 3) e envia/enfileira para o Firebase
-  }
-
-  // ouve o documento frota/detran e mescla com o que ja existe no dispositivo
-  function escutarNuvem() {
-    if (syncOn) return;
-    var fs = nuvem();
-    if (!fs || !logado()) return;
-    ativarPersistencia();
-    syncOn = true;
-    fs.collection("frota")
-      .doc("detran")
-      .onSnapshot(
-        { includeMetadataChanges: true },
-        function (doc) {
-          if (gravando) return;
-          var remoto = doc.exists && Array.isArray(doc.data().dados) ? doc.data().dados : [];
-          var local = base();
-          var final = mesclar(remoto, local);
-          raiz().detran = final;
-          salvarLocal();
-          renderDetran();
-          var meta = doc.metadata || {};
-          // confirmado no servidor e sem escritas pendentes
-          if (!meta.fromCache && !meta.hasPendingWrites) marcarPendente(false);
-          atualizarAviso();
-          // o dispositivo tinha registros que ainda nao estavam na nuvem
-          if (final.length > remoto.length && !meta.fromCache) gravarNuvem();
-        },
-        function (e) {
-          syncOn = false;
-          console.warn("DETRAN offline — usando dados do dispositivo:", e);
-          renderDetran();
-          atualizarAviso();
-        }
-      );
-  }
-
-  // aguarda o firebase/login para ligar a sincronizacao
-  function iniciarSync() {
-    ativarPersistencia();
     try {
-      if (typeof firebase !== "undefined" && firebase.apps && firebase.apps.length) {
-        firebase.auth().onAuthStateChanged(function (u) {
-          if (u) escutarNuvem();
-        });
-      }
+      localStorage.setItem(STORAGE, JSON.stringify(base()));
     } catch (e) {}
-
-    if (typeof window !== "undefined" && window.addEventListener) {
-      window.addEventListener("online", function () {
-        atualizarAviso();
-        escutarNuvem();
-        if (temPendente()) gravarNuvem();
-      });
-      window.addEventListener("offline", atualizarAviso);
+    if (typeof salvarNuvem === "function") {
+      try {
+        salvarNuvem();
+      } catch (e) {}
     }
-
-    var tentativas = 0;
-    var t = setInterval(function () {
-      tentativas++;
-      if (tentativas > 600) {
-        clearInterval(t);
-        return;
-      }
-      if (!syncOn) escutarNuvem();
-      if (syncOn && online() && temPendente() && !gravando) gravarNuvem();
-    }, 1000);
-
-    atualizarAviso();
   }
-
-  window.dtSincronizar = escutarNuvem;
-
-
 
   function norm(v) {
     return String(v || "")
@@ -563,7 +341,6 @@
       '<div class="col-md-2"><label class="fm-lbl">&nbsp;</label>' +
       '<button class="btn btn-primary w-100" id="fipeBtnPreco">Aplicar FIPE</button></div>' +
       "</div>" +
-      '<div id="dtSyncAviso" class="fm-status fm-warn" style="display:none"></div>' +
       '<div id="dtStatus" class="fm-status"></div>' +
       "</div>" +
 
@@ -848,10 +625,8 @@
 
   /* ---------------- render + paginação ---------------- */
   function renderDetran() {
-    atualizarAviso();
     var tbody = document.getElementById("listaDetran");
     if (!tbody) return;
-
 
     var lista = filtrados();
     var total = lista.length;
@@ -922,8 +697,6 @@
       '<button ' + (PAG.pagina === totalPag ? "disabled" : "") + ' onclick="pagDetran(' + totalPag + ')">Última »</button>' +
       "</div>";
   }
-
-  window.dtRenderTabela = renderDetran;
 
   window.pagDetran = function (p) {
     PAG.pagina = p;
@@ -1347,12 +1120,7 @@
   }
 
   /* ---------------- boot ---------------- */
-  function iniciar() {
-    montar();
-    iniciarSync();
-  }
   if (document.readyState === "loading")
-    document.addEventListener("DOMContentLoaded", iniciar);
-  else iniciar();
-
+    document.addEventListener("DOMContentLoaded", montar);
+  else montar();
 })();
