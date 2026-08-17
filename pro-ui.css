@@ -169,6 +169,101 @@ body {
   border-color: var(--pro-accent);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, .14);
 }
+
+/* ---------- Férias: campos com rótulo interno ---------- */
+#ferias .ferias-form-card {
+  padding: 14px 14px 15px;
+}
+#ferias .ferias-form-card .row {
+  --bs-gutter-x: .55rem;
+  --bs-gutter-y: .55rem;
+}
+.ferias-field {
+  min-height: 43px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.ferias-field:focus-within {
+  border-color: #93c5fd;
+  background: #fbfdff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, .11);
+}
+.ferias-field-label {
+  display: block;
+  padding: 5px 9px 0;
+  color: #64748b;
+  font-size: .51rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ferias-field .form-control,
+.ferias-field .form-select {
+  width: 100%;
+  min-height: 25px;
+  height: 25px;
+  padding: 1px 9px 6px;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  box-shadow: none;
+  color: #334155;
+  font-size: .74rem;
+  background: transparent;
+}
+.ferias-field .form-control:focus,
+.ferias-field .form-select:focus {
+  border: 0;
+  box-shadow: none;
+}
+.ferias-field .form-control::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+.ferias-field-observacoes {
+  min-height: 47px;
+}
+.ferias-field-observacoes .form-control {
+  height: 28px;
+}
+#ferias .btn-cancelar {
+  color: #fff;
+  background: #dc2626;
+  border-color: #dc2626;
+}
+#ferias .btn-cancelar:hover {
+  color: #fff;
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+#ferias .btn-warning {
+  color: #fff;
+  background: #f59e0b;
+  border-color: #f59e0b;
+}
+#ferias .btn-warning:hover {
+  color: #fff;
+  background: #d97706;
+  border-color: #d97706;
+}
+@media (max-width: 760px) {
+  #ferias .ferias-form-card {
+    padding: 12px;
+  }
+  .ferias-field {
+    min-height: 45px;
+  }
+}
 label, .form-label {
   font-size: .72rem;
   font-weight: 700;

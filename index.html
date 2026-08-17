@@ -1805,7 +1805,7 @@ flatpickr("#motFim", {
     </div>
 
 <div id="ferias" class="hidden">
-    <h3>🏖 Controle de Férias</h3>
+    <h3>Controle de Férias</h3>
 
     <!-- 🔥 BOTÃO RELATÓRIO -->
     <div class="text-end mb-3">
@@ -1814,43 +1814,92 @@ flatpickr("#motFim", {
         </button>
     </div>
 
-    <div class="glass-container">
+    <div class="glass-container ferias-form-card">
         <input type="hidden" id="fe_idx">
 
-        <div class="row g-3">
+        <div class="row g-2">
 
             <div class="col-md-3">
-                <select id="femotorista" class="form-select"></select>
+                <div class="ferias-field">
+                    <span class="ferias-field-label">Motorista</span>
+                    <select id="femotorista" class="form-select" aria-label="Motorista">
+                        <option value="">Motorista...</option>
+                    </select>
+                </div>
             </div>
 
             <div class="col-md-3">
-                <input type="date" id="feinicio" class="form-control">
+                <div class="ferias-field">
+                    <span class="ferias-field-label">Data de início</span>
+                    <input type="date" id="feinicio" class="form-control" placeholder="dd/mm/aaaa"
+                        aria-label="Data de início das férias"
+                        oninput="sincronizarFerias('inicio')">
+                </div>
             </div>
 
             <div class="col-md-3">
-                <input type="date" id="fefim" class="form-control">
+                <div class="ferias-field">
+                    <span class="ferias-field-label">Dias de férias</span>
+                    <input id="fediastotal" type="number" min="1" max="365" step="1" class="form-control"
+                        placeholder="Quantidade de dias" aria-label="Quantidade de dias de férias"
+                        oninput="sincronizarFerias('dias')">
+                </div>
             </div>
 
             <div class="col-md-3">
-                <select id="festatus" class="form-select">
-                    <option value="Agendada">Agendada</option>
-                    <option value="Em andamento">Em andamento</option>
-                    <option value="Concluída">Concluída</option>
-                </select>
+                <div class="ferias-field">
+                    <span class="ferias-field-label">Data final</span>
+                    <input type="date" id="fefim" class="form-control" placeholder="dd/mm/aaaa"
+                        aria-label="Data final das férias"
+                        oninput="sincronizarFerias('fim')">
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="ferias-field">
+                    <span class="ferias-field-label">Data de retorno</span>
+                    <input type="date" id="feretorno" class="form-control" placeholder="dd/mm/aaaa"
+                        aria-label="Data de retorno ao trabalho"
+                        oninput="sincronizarFerias('retorno')">
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="ferias-field">
+                    <span class="ferias-field-label">Tolerância de sobreposição (dias)</span>
+                    <input id="feriasToleranciaDias" type="number" min="0" max="365" step="1"
+                        class="form-control" value="0" placeholder="0"
+                        aria-label="Tolerância de sobreposição em dias"
+                        onchange="salvarConfiguracaoFerias(this.value)">
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="ferias-field">
+                    <span class="ferias-field-label">Status</span>
+                    <select id="festatus" class="form-select" aria-label="Status das férias">
+                        <option value="Agendada">Agendada</option>
+                        <option value="Em andamento">Em andamento</option>
+                        <option value="Concluída">Concluída</option>
+                    </select>
+                </div>
             </div>
 
             <div class="col-md-12">
-                <input id="feobs" class="form-control" placeholder="Observações">
+                <div class="ferias-field ferias-field-observacoes">
+                    <span class="ferias-field-label">Observações</span>
+                    <input id="feobs" class="form-control" placeholder="Observações" aria-label="Observações">
+                </div>
             </div>
 
             <div class="col-md-12 text-end">
                 <button id="btn_cancel_ferias" class="btn btn-outline-secondary btn-cancelar"
-                    onclick="limparForm('ferias',['femotorista','feinicio','fefim','festatus','feobs'],'fe_idx')">
+                    onclick="limparForm('ferias',['femotorista','feinicio','fediastotal','fefim','feretorno','festatus','feobs'],'fe_idx')">
                     Cancelar
                 </button>
 
                 <button class="btn btn-warning"
-                    onclick="salvar('ferias',['femotorista','feinicio','fefim','festatus','feobs'],'fe_idx')">
+                    onclick="salvarFerias()">
                     Salvar
                 </button>
             </div>
@@ -1865,7 +1914,9 @@ flatpickr("#motFim", {
                 <tr>
                     <th>Motorista</th>
                     <th>Início</th>
+                    <th>Dias</th>
                     <th>Fim</th>
+                    <th>Retorno</th>
                     <th>Status</th>
                     <th>Obs</th>
                     <th>Ações</th>
@@ -3297,6 +3348,9 @@ const MODULOS = Object.keys(MAP);
 let db={}
 let chart
 let usuarioLogado = null;
+let feriasConfig = {
+    toleranciaSobreposicaoDias: Number(localStorage.getItem('frota_ferias_tolerancia')) || 0
+};
 
 Object.keys(MAP).forEach(k=>{
     db[k] = []
@@ -3411,11 +3465,19 @@ function salvarNuvem(){
 
     Object.keys(db).forEach(mod => {
 
+        const payload = {
+            dados: db[mod]
+        };
+
+        if(mod === 'ferias'){
+            payload.configuracoes = {
+                toleranciaSobreposicaoDias: obterToleranciaFerias()
+            };
+        }
+
         dbCloud.collection("frota")
         .doc(mod)
-        .set({
-            dados: db[mod]
-        }, { merge: true });
+        .set(payload, { merge: true });
 
     });
 
@@ -3644,6 +3706,164 @@ if(mod==="saidaVeiculos"){
     }
 }
 
+function feriasParaUtc(data){
+    if(!data) return null;
+    const partes = String(data).split('-').map(Number);
+    if(partes.length !== 3 || partes.some(Number.isNaN)) return null;
+    return Date.UTC(partes[0], partes[1] - 1, partes[2]);
+}
+
+function utcParaFeriasData(valor){
+    if(!Number.isFinite(valor)) return '';
+    const data = new Date(valor);
+    const ano = data.getUTCFullYear();
+    const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
+    const dia = String(data.getUTCDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+}
+
+function adicionarDiasFerias(data, dias){
+    const base = feriasParaUtc(data);
+    if(base === null || !Number.isFinite(Number(dias))) return '';
+    return utcParaFeriasData(base + Number(dias) * 86400000);
+}
+
+function diasFeriasInclusive(inicio, fim){
+    const inicioUtc = feriasParaUtc(inicio);
+    const fimUtc = feriasParaUtc(fim);
+    if(inicioUtc === null || fimUtc === null || fimUtc < inicioUtc) return 0;
+    return Math.floor((fimUtc - inicioUtc) / 86400000) + 1;
+}
+
+function obterToleranciaFerias(){
+    const campo = document.getElementById('feriasToleranciaDias');
+    const valor = campo ? Number(campo.value) : Number(feriasConfig.toleranciaSobreposicaoDias);
+    return Math.max(0, Math.min(365, Number.isFinite(valor) ? Math.floor(valor) : 0));
+}
+
+function atualizarResumoRegraFerias(){
+    const resumo = document.getElementById('feriasRegraResumo');
+    if(!resumo) return;
+    const tolerancia = obterToleranciaFerias();
+    resumo.textContent = tolerancia === 0
+        ? 'Nenhum motorista pode ter férias no mesmo período.'
+        : `Até ${tolerancia} dia(s) de sobreposição será(ão) permitido(s) entre motoristas.`;
+}
+
+function salvarConfiguracaoFerias(valor){
+    const tolerancia = Math.max(0, Math.min(365, Number.isFinite(Number(valor)) ? Math.floor(Number(valor)) : 0));
+    feriasConfig.toleranciaSobreposicaoDias = tolerancia;
+    localStorage.setItem('frota_ferias_tolerancia', String(tolerancia));
+    const campo = document.getElementById('feriasToleranciaDias');
+    if(campo) campo.value = tolerancia;
+    atualizarResumoRegraFerias();
+    if(typeof salvarNuvem === 'function' && typeof dbCloud !== 'undefined') salvarNuvem();
+}
+
+function sincronizarFerias(origem){
+    const inicio = document.getElementById('feinicio')?.value || '';
+    const diasEl = document.getElementById('fediastotal');
+    const fimEl = document.getElementById('fefim');
+    const retornoEl = document.getElementById('feretorno');
+    if(!diasEl || !fimEl || !retornoEl) return;
+
+    let fim = fimEl.value;
+    let retorno = retornoEl.value;
+    let dias = Number(diasEl.value);
+
+    if((origem === 'inicio' || origem === 'dias') && inicio && Number.isInteger(dias) && dias > 0){
+        fim = adicionarDiasFerias(inicio, dias - 1);
+        retorno = adicionarDiasFerias(fim, 1);
+    }else if((origem === 'inicio' || origem === 'dias') && inicio){
+        fim = '';
+        retorno = '';
+        dias = '';
+    }else if(origem === 'fim' && inicio && fim){
+        dias = diasFeriasInclusive(inicio, fim);
+        if(dias > 0) retorno = adicionarDiasFerias(fim, 1);
+        else retorno = '';
+    }else if(origem === 'fim' && !fim){
+        dias = '';
+        retorno = '';
+    }else if(origem === 'retorno' && inicio && retorno){
+        const retornoUtc = feriasParaUtc(retorno);
+        if(retornoUtc !== null){
+            fim = adicionarDiasFerias(retorno, -1);
+            dias = diasFeriasInclusive(inicio, fim);
+            if(dias <= 0) {
+                fim = '';
+                dias = '';
+            }
+        }
+    }else if(origem === 'retorno' && !retorno){
+        fim = '';
+        dias = '';
+    }
+
+    if(origem === 'inicio' && !inicio){
+        diasEl.value = '';
+        fimEl.value = '';
+        retornoEl.value = '';
+        return;
+    }
+
+    if(fim && inicio && feriasParaUtc(fim) < feriasParaUtc(inicio)){
+        fim = '';
+        retorno = '';
+        dias = '';
+    }
+
+    if(dias !== '' && Number.isFinite(Number(dias)) && Number(dias) > 0) diasEl.value = dias;
+    else if(!Number.isFinite(Number(dias)) || Number(dias) <= 0) diasEl.value = '';
+    fimEl.value = fim || '';
+    retornoEl.value = retorno || '';
+}
+
+function intervaloFeriasConflita(inicioA, fimA, inicioB, fimB){
+    const inicio = Math.max(feriasParaUtc(inicioA), feriasParaUtc(inicioB));
+    const fim = Math.min(feriasParaUtc(fimA), feriasParaUtc(fimB));
+    if(!Number.isFinite(inicio) || !Number.isFinite(fim) || fim < inicio) return 0;
+    return Math.floor((fim - inicio) / 86400000) + 1;
+}
+
+function salvarFerias(){
+    const idx = document.getElementById('fe_idx').value;
+    const motorista = document.getElementById('femotorista').value;
+    const inicio = document.getElementById('feinicio').value;
+    const fim = document.getElementById('fefim').value;
+    const retorno = document.getElementById('feretorno').value;
+    const dias = Number(document.getElementById('fediastotal').value);
+    const tolerancia = obterToleranciaFerias();
+
+    if(!motorista || !inicio || !fim || !retorno || !Number.isInteger(dias) || dias < 1 || dias > 365){
+        alert('Informe o motorista, a data de início e a quantidade de dias de férias.');
+        return;
+    }
+
+    if(diasFeriasInclusive(inicio, fim) !== dias || adicionarDiasFerias(fim, 1) !== retorno){
+        alert('As datas de início, fim, quantidade de dias e retorno precisam estar sincronizadas.');
+        return;
+    }
+
+    const conflito = (db.ferias || []).find((item, indice) => {
+        if(idx !== '' && indice === Number(idx)) return false;
+        if(!item.feinicio || !item.fefim) return false;
+        const sobreposicao = intervaloFeriasConflita(inicio, fim, item.feinicio, item.fefim);
+        return sobreposicao > tolerancia;
+    });
+
+    if(conflito){
+        const sobreposicao = intervaloFeriasConflita(inicio, fim, conflito.feinicio, conflito.fefim);
+        alert(`Férias não podem ser agendadas para ${motorista} neste período. Já existe um período de férias para ${conflito.femotorista || 'outro motorista'} entre ${formatarDataBR(conflito.feinicio)} e ${formatarDataBR(conflito.fefim)}, com ${sobreposicao} dia(s) de sobreposição. Tolerância configurada: ${tolerancia} dia(s).`);
+        return;
+    }
+
+    salvar('ferias',
+        ['femotorista','feinicio','fediastotal','fefim','feretorno','festatus','feobs'],
+        'fe_idx'
+    );
+}
+
 function limparForm(mod, campos, idCampo) {
     campos.forEach(c=>{
         const el = document.getElementById(c);
@@ -3666,6 +3886,15 @@ function editar(mod,i){
     let item=db[mod][i]
     Object.keys(item).forEach(k=>{let el=document.getElementById(k); if(el) el.value=item[k]})
     document.getElementById(ID_MAP_INDEX[mod]).value=i;
+    if(mod === 'ferias'){
+        if(!item.fediastotal && item.feinicio && item.fefim){
+            document.getElementById('fediastotal').value = diasFeriasInclusive(item.feinicio, item.fefim);
+        }
+        if(!item.feretorno && item.fefim){
+            document.getElementById('feretorno').value = adicionarDiasFerias(item.fefim, 1);
+        }
+        sincronizarFerias('fim');
+    }
     const btnCancel = document.getElementById('btn_cancel_' + mod);
     if(btnCancel) btnCancel.style.display = 'inline-block';
     if(mod === 'estoque' && typeof atualizarCampoPlacaEstoque === 'function') atualizarCampoPlacaEstoque();
@@ -4091,7 +4320,15 @@ function escutarDados(modulo){
     .onSnapshot(doc => {
 
         if(doc.exists){
-            db[modulo] = doc.data().dados || [];
+            const payload = doc.data() || {};
+            db[modulo] = payload.dados || [];
+            if(modulo === 'ferias' && payload.configuracoes){
+                const valor = Number(payload.configuracoes.toleranciaSobreposicaoDias);
+                if(Number.isFinite(valor)){
+                    feriasConfig.toleranciaSobreposicaoDias = Math.max(0, Math.min(365, Math.floor(valor)));
+                    localStorage.setItem('frota_ferias_tolerancia', String(feriasConfig.toleranciaSobreposicaoDias));
+                }
+            }
             if(typeof marcarRegistrosCarregados === "function") marcarRegistrosCarregados(db[modulo]);
             renderModulo(modulo);
             renderTudo();
@@ -4210,6 +4447,11 @@ ${btnSet('motoristas',i)}
 
 // ===== FÉRIAS =====
 
+if(document.getElementById('feriasToleranciaDias')){
+    document.getElementById('feriasToleranciaDias').value = obterToleranciaFerias();
+    atualizarResumoRegraFerias();
+}
+
 // SELECT MOTORISTA
 if(document.getElementById('femotorista')){
     document.getElementById('femotorista').innerHTML =
@@ -4235,7 +4477,11 @@ document.getElementById('listaFerias').innerHTML =
 
 <td>${formatarDataBR(f.feinicio)}</td>
 
+<td>${f.fediastotal || diasFeriasInclusive(f.feinicio, f.fefim) || '--'}</td>
+
 <td>${formatarDataBR(f.fefim)}</td>
+
+<td>${formatarDataBR(f.feretorno || adicionarDiasFerias(f.fefim, 1))}</td>
 
 <td>
     <span class="badge ${
@@ -5910,7 +6156,9 @@ function gerarRelatorioFerias(){
             <tr>
                 <th>Motorista</th>
                 <th>Início</th>
+                <th>Dias</th>
                 <th>Fim</th>
+                <th>Retorno</th>
                 <th>Status</th>
                 <th>Observações</th>
             </tr>
@@ -5924,7 +6172,9 @@ function gerarRelatorioFerias(){
         <tr>
             <td>${f.femotorista}</td>
             <td>${formatarDataBR(f.feinicio)}</td>
+            <td>${f.fediastotal || diasFeriasInclusive(f.feinicio, f.fefim) || '--'}</td>
             <td>${formatarDataBR(f.fefim)}</td>
+            <td>${formatarDataBR(f.feretorno || adicionarDiasFerias(f.fefim, 1))}</td>
             <td class="status">${f.festatus}</td>
             <td>${f.feobs || '--'}</td>
         </tr>
