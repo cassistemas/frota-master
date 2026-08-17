@@ -166,31 +166,162 @@
     ["dtObs", "Observações", "text"],
   ];
 
-  /* ---------------- base de dados ---------------- */
-  function base() {
-    if (typeof db === "undefined") window.db = {};
-    if (!db.detran) {
-      var s = null;
+  /* ---------------- base de dados + SINCRONIZACAO FIREBASE ---------------- */
+  var CACHE2 = "FM_CACHE_detran";   // chave usada por salvarNuvem() do index.html
+  var syncOn = false;               // listener da nuvem ja ativo?
+  var gravando = false;             // evita eco do snapshot durante gravacao
+
+  function raiz() {
+    if (typeof db === "undefined" || !db) window.db = {};
+    return typeof db !== "undefined" ? db : window.db;
+  }
+
+  function lerLocal() {
+    var out = [];
+    [STORAGE, CACHE2].forEach(function (k) {
       try {
-        s = JSON.parse(localStorage.getItem(STORAGE) || "[]");
-      } catch (e) {
-        s = [];
+        var a = JSON.parse(localStorage.getItem(k) || "[]");
+        if (Array.isArray(a)) out = mesclar(out, a);
+      } catch (e) {}
+    });
+    return out;
+  }
+
+  function chaveReg(r) {
+    var p = norm(r && r.dtPlaca);
+    var v = norm(r && r.dtRenavam);
+    return p || (v ? "R" + v : "");
+  }
+
+  // mescla duas listas por placa/renavam mantendo o registro mais recente
+  function mesclar(a, b) {
+    var mapa = [];
+    var idx = {};
+    function put(r) {
+      if (!r || typeof r !== "object") return;
+      var k = chaveReg(r);
+      if (!k) {
+        mapa.push(r);
+        return;
       }
-      db.detran = Array.isArray(s) ? s : [];
+      if (idx[k] === undefined) {
+        idx[k] = mapa.length;
+        mapa.push(r);
+        return;
+      }
+      var atual = mapa[idx[k]];
+      var dA = String(atual.dtAtualizado || "");
+      var dB = String(r.dtAtualizado || "");
+      if (dB >= dA) mapa[idx[k]] = r;
     }
-    return db.detran;
+    (a || []).forEach(put);
+    (b || []).forEach(put);
+    return mapa;
+  }
+
+  function base() {
+    var raizDb = raiz();
+    if (!Array.isArray(raizDb.detran)) raizDb.detran = lerLocal();
+    return raizDb.detran;
+  }
+
+  function salvarLocal() {
+    var txt = JSON.stringify(base());
+    try {
+      localStorage.setItem(STORAGE, txt);
+    } catch (e) {}
+    try {
+      localStorage.setItem(CACHE2, txt);
+    } catch (e) {}
+  }
+
+  function nuvem() {
+    if (typeof dbCloud !== "undefined" && dbCloud) return dbCloud;
+    if (typeof firebase !== "undefined" && firebase.apps && firebase.apps.length)
+      return firebase.firestore();
+    return null;
+  }
+
+  function logado() {
+    try {
+      return !!(typeof firebase !== "undefined" && firebase.auth().currentUser);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // grava SOMENTE o documento frota/detran (nao sobrescreve os demais modulos)
+  function gravarNuvem() {
+    var fs = nuvem();
+    if (!fs || !logado()) return;
+    gravando = true;
+    fs.collection("frota")
+      .doc("detran")
+      .set({ dados: base(), atualizadoEm: new Date().toISOString() }, { merge: true })
+      .catch(function (e) {
+        console.warn("DETRAN: sem conexao, salvo apenas no dispositivo.", e);
+      })
+      .then(function () {
+        setTimeout(function () {
+          gravando = false;
+        }, 300);
+      });
   }
 
   function persistir() {
-    try {
-      localStorage.setItem(STORAGE, JSON.stringify(base()));
-    } catch (e) {}
-    if (typeof salvarNuvem === "function") {
-      try {
-        salvarNuvem();
-      } catch (e) {}
-    }
+    salvarLocal();
+    gravarNuvem();
   }
+
+  // ouve o documento frota/detran e mescla com o que ja existe no dispositivo
+  function escutarNuvem() {
+    if (syncOn) return;
+    var fs = nuvem();
+    if (!fs || !logado()) return;
+    syncOn = true;
+    fs.collection("frota")
+      .doc("detran")
+      .onSnapshot(
+        function (doc) {
+          if (gravando) return;
+          var remoto = doc.exists && Array.isArray(doc.data().dados) ? doc.data().dados : [];
+          var local = base();
+          var final = mesclar(remoto, local);
+          raiz().detran = final;
+          salvarLocal();
+          renderDetran();
+          // o dispositivo tinha registros que ainda nao estavam na nuvem
+          if (final.length > remoto.length) gravarNuvem();
+        },
+        function (e) {
+          syncOn = false;
+          console.warn("DETRAN offline:", e);
+        }
+      );
+  }
+
+  // aguarda o firebase/login para ligar a sincronizacao
+  function iniciarSync() {
+    try {
+      if (typeof firebase !== "undefined" && firebase.apps && firebase.apps.length) {
+        firebase.auth().onAuthStateChanged(function (u) {
+          if (u) escutarNuvem();
+        });
+      }
+    } catch (e) {}
+    var tentativas = 0;
+    var t = setInterval(function () {
+      tentativas++;
+      if (syncOn || tentativas > 120) {
+        clearInterval(t);
+        return;
+      }
+      escutarNuvem();
+    }, 1000);
+  }
+
+  window.dtSincronizar = escutarNuvem;
+
 
   function norm(v) {
     return String(v || "")
@@ -1122,7 +1253,12 @@
   }
 
   /* ---------------- boot ---------------- */
+  function iniciar() {
+    montar();
+    iniciarSync();
+  }
   if (document.readyState === "loading")
-    document.addEventListener("DOMContentLoaded", montar);
-  else montar();
+    document.addEventListener("DOMContentLoaded", iniciar);
+  else iniciar();
+
 })();
