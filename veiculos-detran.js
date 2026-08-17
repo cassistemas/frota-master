@@ -167,25 +167,118 @@
   ];
 
   /* ---------------- base de dados ---------------- */
+  function local() {
+    var s = null;
+    try {
+      s = JSON.parse(localStorage.getItem(STORAGE) || "[]");
+    } catch (e) {
+      s = null;
+    }
+    return Array.isArray(s) ? s : [];
+  }
+
   function base() {
     if (typeof db === "undefined") window.db = {};
-    if (!db.detran) {
-      var s = null;
-      try {
-        s = JSON.parse(localStorage.getItem(STORAGE) || "[]");
-      } catch (e) {
-        s = [];
-      }
-      db.detran = Array.isArray(s) ? s : [];
+    if (!Array.isArray(db.detran) || db.detran.length === 0) {
+      var salvos = local();
+      if (!Array.isArray(db.detran)) db.detran = [];
+      if (db.detran.length === 0 && salvos.length) db.detran = salvos;
     }
     return db.detran;
   }
 
-  function persistir() {
+  /* ---------------- nuvem (Firestore: frota/detran) ---------------- */
+  function nuvem() {
     try {
-      localStorage.setItem(STORAGE, JSON.stringify(base()));
+      return typeof dbCloud !== "undefined" && dbCloud ? dbCloud : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function chave(r) {
+    return norm(r && r.dtPlaca) || "R" + norm(r && r.dtRenavam) || "";
+  }
+
+  function maisNovo(a, b) {
+    var da = String((a && a.dtAtualizado) || "");
+    var dbb = String((b && b.dtAtualizado) || "");
+    return dbb > da ? b : a;
+  }
+
+  // Une registros locais e da nuvem sem perder nada (dedup por placa/renavam).
+  function mesclar(a, b) {
+    var mapa = {};
+    var ordem = [];
+    [a || [], b || []].forEach(function (lista) {
+      lista.forEach(function (r) {
+        if (!r) return;
+        var k = chave(r);
+        if (!k) {
+          ordem.push(r);
+          return;
+        }
+        if (mapa[k]) mapa[k] = maisNovo(mapa[k], r);
+        else {
+          mapa[k] = r;
+          ordem.push(k);
+        }
+      });
+    });
+    return ordem.map(function (k) {
+      return typeof k === "string" ? mapa[k] : k;
+    });
+  }
+
+  function gravarLocal(lista) {
+    try {
+      localStorage.setItem(STORAGE, JSON.stringify(lista));
     } catch (e) {}
-    if (typeof salvarNuvem === "function") {
+  }
+
+  var escutando = false;
+
+  function escutarNuvem() {
+    var cloud = nuvem();
+    if (!cloud || escutando) return;
+    escutando = true;
+    try {
+      cloud
+        .collection("frota")
+        .doc("detran")
+        .onSnapshot(
+          function (doc) {
+            var remoto = [];
+            if (doc && doc.exists) {
+              var payload = doc.data() || {};
+              remoto = Array.isArray(payload.dados) ? payload.dados : [];
+            }
+            if (typeof db === "undefined") window.db = {};
+            db.detran = mesclar(remoto, base());
+            gravarLocal(db.detran);
+            renderDetran();
+          },
+          function () {
+            escutando = false;
+          }
+        );
+    } catch (e) {
+      escutando = false;
+    }
+  }
+
+  function persistir() {
+    var lista = base();
+    gravarLocal(lista);
+    var cloud = nuvem();
+    if (cloud) {
+      try {
+        cloud
+          .collection("frota")
+          .doc("detran")
+          .set({ dados: lista }, { merge: true });
+      } catch (e) {}
+    } else if (typeof salvarNuvem === "function") {
       try {
         salvarNuvem();
       } catch (e) {}
@@ -1120,7 +1213,19 @@
   }
 
   /* ---------------- boot ---------------- */
+  function iniciar() {
+    montar();
+    escutarNuvem();
+    try {
+      if (typeof firebase !== "undefined" && firebase.auth) {
+        firebase.auth().onAuthStateChanged(function (u) {
+          if (u) escutarNuvem();
+        });
+      }
+    } catch (e) {}
+  }
+
   if (document.readyState === "loading")
-    document.addEventListener("DOMContentLoaded", montar);
-  else montar();
+    document.addEventListener("DOMContentLoaded", iniciar);
+  else iniciar();
 })();
