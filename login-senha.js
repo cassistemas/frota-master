@@ -93,57 +93,109 @@
     });
   }
 
-  /* ---------- solicitação do usuário ---------- */
+  /* ---------- recuperação de senha (auto-atendimento por email) ---------- */
   function abrirSolicitacao() {
     var email = (document.getElementById("loginUser") || {}).value || "";
     overlay(
       "fmSolicitaSenha",
-      '<h5>Solicitar nova senha</h5>' +
-        '<div class="fmMsg">Sua solicitação será enviada ao administrador em tempo real.</div>' +
-        '<input id="fmSolEmail" class="form-control mb-2" maxlength="120" placeholder="Seu email" value="' + esc(email) + '">' +
-        '<input id="fmSolNome" class="form-control mb-2" maxlength="80" placeholder="Seu nome (opcional)">' +
-        '<textarea id="fmSolObs" class="form-control" rows="2" maxlength="300" placeholder="Observação (opcional)"></textarea>' +
-        '<div id="fmSolFeedback" style="font-size:13px;margin-top:10px;"></div>' +
-        '<div class="fmAcoes"><button class="btn btn-primary" id="fmSolEnviar">Enviar solicitação</button>' +
+      '<h5>Recuperar senha</h5>' +
+        '<div class="fmMsg">Informe o email cadastrado no sistema. Se houver cadastro, enviaremos um link seguro para criar uma nova senha. Caso nao tenha cadastro, solicite ao administrador.</div>' +
+        '<input id="fmSolEmail" class="form-control mb-2" type="email" maxlength="120" placeholder="Seu email cadastrado" value="' + esc(email) + '">' +
+        '<div id="fmSolFeedback" style="font-size:13px;margin-top:6px;"></div>' +
+        '<div class="fmAcoes"><button class="btn btn-primary" id="fmSolEnviar">Enviar link de redefinição</button>' +
         '<button class="btn btn-secondary" id="fmSolCancelar">Cancelar</button></div>'
     );
     document.getElementById("fmSolCancelar").onclick = function () { fechar("fmSolicitaSenha"); };
     document.getElementById("fmSolEnviar").onclick = enviarSolicitacao;
+    var inp = document.getElementById("fmSolEmail");
+    inp.focus();
+    inp.onkeydown = function (ev) { if (ev.key === "Enter") enviarSolicitacao(); };
+  }
+
+  function registrarSolicitacao(email) {
+    // Log opcional para o administrador. Se as regras do Firestore não
+    // permitirem escrita anônima, o erro é ignorado silenciosamente.
+    try {
+      if (typeof dbCloud === "undefined") return;
+      dbCloud.collection(COL).add({
+        email: email,
+        origem: "auto-atendimento",
+        status: "pendente",
+        criadoEm: new Date().toISOString()
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  function msgNaoCadastrado(fb, email) {
+    fb.style.color = "#dc3545";
+    fb.innerHTML = "O email <b>" + esc(email) + "</b> nao esta cadastrado no sistema.<br>" +
+      "Confira se digitou corretamente ou solicite ao administrador a alteracao da senha.";
+  }
+
+  // Confirma se o email existe no Firebase Auth antes de enviar qualquer link.
+  function emailCadastrado(email) {
+    if (typeof auth === "undefined" || !auth.fetchSignInMethodsForEmail) {
+      return Promise.resolve(null); // indeterminado
+    }
+    return auth.fetchSignInMethodsForEmail(email)
+      .then(function (m) { return !!(m && m.length); })
+      .catch(function () { return null; });
   }
 
   function enviarSolicitacao() {
     var fb = document.getElementById("fmSolFeedback");
+    var btn = document.getElementById("fmSolEnviar");
     var email = (document.getElementById("fmSolEmail").value || "").trim().toLowerCase().slice(0, 120);
-    var nome = (document.getElementById("fmSolNome").value || "").trim().slice(0, 80);
-    var obs = (document.getElementById("fmSolObs").value || "").trim().slice(0, 300);
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       fb.style.color = "#dc3545";
-      fb.innerText = "Informe um email válido.";
+      fb.innerText = "Informe um email valido.";
       return;
     }
-    if (typeof dbCloud === "undefined") {
+    if (typeof auth === "undefined" || !auth.sendPasswordResetEmail) {
       fb.style.color = "#dc3545";
-      fb.innerText = "Sem conexão com o servidor. Tente novamente.";
+      fb.innerText = "Sem conexao com o servidor. Tente novamente.";
       return;
     }
 
+    btn.disabled = true;
     fb.style.color = "#555";
-    fb.innerText = "Enviando...";
+    fb.innerText = "Verificando cadastro...";
 
-    dbCloud.collection(COL).add({
-      email: email,
-      nome: nome,
-      observacao: obs,
-      status: "pendente",
-      criadoEm: new Date().toISOString()
-    }).then(function () {
-      fb.style.color = "#198754";
-      fb.innerText = "Solicitação enviada! Aguarde o contato do administrador.";
-      setTimeout(function () { fechar("fmSolicitaSenha"); }, 2200);
-    }).catch(function (e) {
-      fb.style.color = "#dc3545";
-      fb.innerText = "Não foi possível enviar: " + (e.message || e);
+    emailCadastrado(email).then(function (existe) {
+      if (existe === false) {
+        btn.disabled = false;
+        msgNaoCadastrado(fb, email);
+        return;
+      }
+      fb.innerText = "Enviando...";
+      // Sem actionCodeSettings: evita auth/invalid-continue-uri em file:// ou
+      // dominios nao autorizados. O Firebase usa a pagina padrao de reset.
+      return auth.sendPasswordResetEmail(email)
+        .then(function () {
+          registrarSolicitacao(email);
+          fb.style.color = "#198754";
+          fb.innerHTML = "Link enviado para <b>" + esc(email) +
+            "</b>.<br>Abra seu email e clique no link para criar uma nova senha. Verifique tambem a caixa de spam.";
+          btn.remove();
+          setTimeout(function () { fechar("fmSolicitaSenha"); }, 7000);
+        })
+        .catch(function (e) {
+          btn.disabled = false;
+          var c = (e && e.code) || "";
+          if (c === "auth/user-not-found") {
+            msgNaoCadastrado(fb, email);
+          } else if (c === "auth/invalid-email") {
+            fb.style.color = "#dc3545";
+            fb.innerText = "Email invalido.";
+          } else if (c === "auth/too-many-requests") {
+            fb.style.color = "#dc3545";
+            fb.innerText = "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+          } else {
+            fb.style.color = "#dc3545";
+            fb.innerText = "Nao foi possivel enviar: " + ((e && e.message) || e);
+          }
+        });
     });
   }
 
