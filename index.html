@@ -303,6 +303,27 @@
 .table-responsive{
     border-radius:6px;
 }
+/* ===== TACÓGRAFO - DADOS CENTRALIZADOS ===== */
+.tacografo-table thead th,
+.tacografo-table tbody td {
+    text-align: center !important;
+    vertical-align: middle;
+}
+.tacografo-table tbody td .status-ok,
+.tacografo-table tbody td .status-atencao,
+.tacografo-table tbody td .status-vencido,
+.tacografo-table tbody td .text-muted {
+    display: inline-block;
+}
+#tacografo .tg-label{
+    display:block;
+    margin-bottom:6px;
+    font-size:12px;
+    font-weight:800;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:#64748b;
+}
 
     </style>
 </head>
@@ -2315,12 +2336,21 @@ Limpar
         <div class="glass-container">
             <input type="hidden" id="t_idx">
             <div class="row g-3">
-                <div class="col-md-4"><select id="tveiculo" class="form-select"></select></div>
-                <div class="col-md-4"><input type="date" id="tvencimento" class="form-control"></div>
-                <div class="col-md-4"><input id="tvalor" class="form-control" placeholder="Valor R$" oninput="mascaraMoeda(this)"></div>
+                <div class="col-md-4"><label class="tg-label">Veículo</label><select id="tveiculo" class="form-select"></select></div>
+                <div class="col-md-4"><label class="tg-label">Data de Aferição</label><input type="date" id="tdataafericao" class="form-control" onchange="calcularValidadeTacografo()"></div>
+                <div class="col-md-2"><label class="tg-label">Período de Validade</label><input type="number" id="tperiodo" class="form-control" min="1" placeholder="Ex: 24" onchange="calcularValidadeTacografo()" oninput="calcularValidadeTacografo()"></div>
+                <div class="col-md-2"><label class="tg-label">Unidade</label>
+                    <select id="tperiodounidade" class="form-select" onchange="calcularValidadeTacografo()">
+                        <option value="dias">Dia(s)</option>
+                        <option value="meses">Mês(es)</option>
+                        <option value="anos" selected>Ano(s)</option>
+                    </select>
+                </div>
+                <div class="col-md-4"><label class="tg-label">Data de Validade (automática)</label><input type="date" id="tvencimento" class="form-control" readonly></div>
+                <div class="col-md-4"><label class="tg-label">Valor</label><input id="tvalor" class="form-control" placeholder="Valor R$" oninput="mascaraMoeda(this)"></div>
                 <div class="col-md-12 text-end">
-                    <button id="btn_cancel_tacografo" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('tacografo',['tveiculo','tvencimento','tvalor'],'t_idx')">Cancelar</button>
-                    <button class="btn btn-primary" onclick="salvar('tacografo',['tveiculo','tvencimento','tvalor'],'t_idx')">Salvar</button>
+                    <button id="btn_cancel_tacografo" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('tacografo',['tveiculo','tdataafericao','tperiodo','tperiodounidade','tvencimento','tvalor'],'t_idx')">Cancelar</button>
+                    <button class="btn btn-primary" onclick="salvarTacografo()">Salvar</button>
                 </div>
             </div>
         </div>
@@ -2328,7 +2358,7 @@ Limpar
             <div class="d-flex justify-content-end mb-3">
                 <button class="btn-excel" onclick="exportarExcel('tacografo')">📥 Exportar Excel</button>
             </div>
-            <table class="table"><thead><tr><th>Veículo</th><th>Vencimento</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="listaTacografo"></tbody></table>
+            <table class="table tacografo-table"><thead><tr><th>Veículo</th><th>Data de Aferição</th><th>Período de Validade</th><th>Data de Validade</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="listaTacografo"></tbody></table>
         </div>
     </div>
 
@@ -4091,6 +4121,65 @@ function filtrarTabela(idTabela, termo) {
 
 }
 
+function calcularValidadeTacografo() {
+    const dataAfericao = document.getElementById('tdataafericao').value;
+    const periodo = parseInt(document.getElementById('tperiodo').value, 10);
+    const unidade = document.getElementById('tperiodounidade').value;
+    const vencimentoInput = document.getElementById('tvencimento');
+
+    if (!dataAfericao || !periodo || isNaN(periodo) || periodo <= 0) {
+        vencimentoInput.value = '';
+        return;
+    }
+
+    const data = new Date(dataAfericao + 'T00:00:00');
+    if (isNaN(data.getTime())) {
+        vencimentoInput.value = '';
+        return;
+    }
+
+    if (unidade === 'dias') {
+        data.setDate(data.getDate() + periodo);
+    } else if (unidade === 'meses') {
+        data.setMonth(data.getMonth() + periodo);
+    } else if (unidade === 'anos') {
+        data.setFullYear(data.getFullYear() + periodo);
+    }
+
+    const yyyy = data.getFullYear();
+    const mm = String(data.getMonth() + 1).padStart(2, '0');
+    const dd = String(data.getDate()).padStart(2, '0');
+    vencimentoInput.value = `${yyyy}-${mm}-${dd}`;
+}
+
+function salvarTacografo() {
+    const campos = ['tveiculo', 'tdataafericao', 'tperiodo', 'tperiodounidade', 'tvencimento', 'tvalor'];
+    const idCampo = 't_idx';
+    let obj = {};
+    let idx = document.getElementById(idCampo).value;
+    campos.forEach(c => obj[c] = document.getElementById(c).value);
+
+    if (!obj.tveiculo) { alert('Selecione o veículo.'); return; }
+    if (!obj.tdataafericao) { alert('Informe a Data de Aferição.'); return; }
+    if (!obj.tperiodo || isNaN(parseInt(obj.tperiodo, 10)) || parseInt(obj.tperiodo, 10) <= 0) { alert('Informe um período de validade válido.'); return; }
+    if (!obj.tvencimento) { alert('A Data de Validade não pôde ser calculada.'); return; }
+
+    if (idx === "") {
+        db.tacografo.push(obj);
+    } else {
+        db.tacografo[idx] = obj;
+    }
+
+    salvarNuvem();
+    if (typeof sincronizarRevisoes === "function") sincronizarRevisoes();
+    if (typeof PAGINACAO !== "undefined") {
+        if (PAGINACAO.paginas.tacografo === undefined) PAGINACAO.paginas.tacografo = 1;
+        localStorage.setItem("pagina_tacografo", PAGINACAO.paginas.tacografo);
+    }
+    renderModulo('tacografo');
+    limparForm('tacografo', campos, idCampo);
+}
+
 function formatarVencimento(dataStr){
 
     if(!dataStr) return '<span class="text-muted">---</span>';
@@ -4508,7 +4597,17 @@ document.getElementById('listaFerias').innerHTML =
    
     document.getElementById('listaSeguros').innerHTML = db.seguros.map((s,i)=>`<tr><td>${s.sveiculo}</td><td>${s.sseguradora}</td><td>${formatarVencimento(s.svencimento)}</td>${btnSet('seguros',i)}</tr>`).join('');
     document.getElementById('listaLicenciamento').innerHTML = db.licenciamento.map((l,i)=>`<tr><td>${l.lveiculo}</td><td>${formatarVencimento(l.lvencimento)}</td><td><b>${l.lvalor}</b></td>${btnSet('licenciamento',i)}</tr>`).join('');
-    document.getElementById('listaTacografo').innerHTML = db.tacografo.map((t,i)=>`<tr><td>${t.tveiculo}</td><td>${formatarVencimento(t.tvencimento)}</td><td><b>${t.tvalor}</b></td>${btnSet('tacografo',i)}</tr>`).join('');
+    document.getElementById('listaTacografo').innerHTML = db.tacografo.map((t,i)=>{
+        const periodoTexto = t.tperiodo && t.tperiodounidade ? `${t.tperiodo} ${t.tperiodounidade}` : '<span class="text-muted">---</span>';
+        return `<tr>
+            <td>${t.tveiculo || '--'}</td>
+            <td>${formatarDataBR(t.tdataafericao)}</td>
+            <td>${periodoTexto}</td>
+            <td>${formatarVencimento(t.tvencimento)}</td>
+            <td><b>${t.tvalor || '--'}</b></td>
+            ${btnSet('tacografo',i)}
+        </tr>`;
+    }).join('');
     document.getElementById('listaLicencas').innerHTML =
 db.licencas.map((le,i)=>`
 <tr>
