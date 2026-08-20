@@ -3354,6 +3354,11 @@ firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
 const auth = firebase.auth();
 const dbCloud = firebase.firestore();
+// Cache offline oficial do Firestore: le e grava mesmo sem internet e envia
+// automaticamente para o banco assim que a conexao voltar.
+try {
+  dbCloud.enablePersistence({ synchronizeTabs: true }).catch(function(){});
+} catch(e) {}
 const MAP={
     veiculos:'FM_V',
     motoristas:'FM_M',
@@ -3489,15 +3494,45 @@ function floatParaMoeda(v) {
     return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-function salvarNuvem(){
+/* =====================================================
+   GRAVACAO NO BANCO (Firestore) — com confirmacao visual
+   O sistema NAO depende do cache do navegador: todo salvamento
+   e enviado para o banco. Se estiver offline, o proprio Firestore
+   mantem a gravacao na fila e envia quando a conexao voltar.
+   ===================================================== */
+function statusNuvem(texto, cor){
+    var el = document.getElementById("fmStatusNuvem");
+    if(!el){
+        el = document.createElement("div");
+        el.id = "fmStatusNuvem";
+        el.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:99999;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.25);transition:opacity .3s;";
+        document.body.appendChild(el);
+    }
+    el.style.background = cor;
+    el.innerText = texto;
+    el.style.opacity = "1";
+    clearTimeout(el._t);
+    el._t = setTimeout(function(){ el.style.opacity = "0"; }, 4000);
+}
+
+var _fmModulosAlterados = null;
+
+function salvarNuvem(modulos){
 
     if(typeof carimbarRegistros === "function") carimbarRegistros();
 
-    Object.keys(db).forEach(mod => {
+    if(!auth.currentUser){
+        statusNuvem("Sem login: dados NAO gravados no banco", "#dc3545");
+        return Promise.resolve(false);
+    }
 
-        const payload = {
-            dados: db[mod]
-        };
+    var alvos = Array.isArray(modulos) && modulos.length ? modulos : Object.keys(db);
+    var envios = [];
+
+    alvos.forEach(function(mod){
+        if(!Array.isArray(db[mod])) return;
+
+        var payload = { dados: db[mod], atualizadoEm: new Date().toISOString() };
 
         if(mod === 'ferias'){
             payload.configuracoes = {
@@ -3505,10 +3540,32 @@ function salvarNuvem(){
             };
         }
 
-        dbCloud.collection("frota")
-        .doc(mod)
-        .set(payload, { merge: true });
+        envios.push(
+            dbCloud.collection("frota").doc(mod).set(payload, { merge: true })
+            .then(function(){ return null; })
+            .catch(function(err){ return { mod: mod, err: err }; })
+        );
+    });
 
+    statusNuvem("Salvando no banco...", "#0d6efd");
+
+    // O Firestore so resolve a promise quando o servidor confirma. Offline,
+    // a gravacao fica na fila local e e enviada depois — por isso o aviso.
+    var timeout = new Promise(function(res){ setTimeout(function(){ res("pendente"); }, 6000); });
+
+    return Promise.race([Promise.all(envios), timeout]).then(function(r){
+        if(r === "pendente"){
+            statusNuvem("Sem conexao: gravacao na fila, sera enviada ao banco", "#fd7e14");
+            return false;
+        }
+        var falhas = r.filter(Boolean);
+        if(falhas.length){
+            console.error("Falha ao gravar no banco:", falhas);
+            statusNuvem("ERRO ao gravar: " + (falhas[0].err && falhas[0].err.code || "desconhecido"), "#dc3545");
+            return false;
+        }
+        statusNuvem("Salvo no banco de dados", "#198754");
+        return true;
     });
 
 }
@@ -4661,6 +4718,8 @@ function salvarCombustivel(){
         cmedia: media,
         cposto: posto
     });
+
+    salvarNuvem(['combustivel']);
 
     irParaUltimaPagina('combustivel');
     renderModulo('combustivel');
@@ -6136,6 +6195,8 @@ function logout(){
         // 🔥 limpa dados locais
         db = {};
         Object.keys(MAP).forEach(k => db[k] = []);
+        db.detran = [];
+        try { localStorage.removeItem("FM_DETRAN"); } catch(e) {}
 
         // 🔥 esconde sistema
         document.getElementById("sistema").style.display = "none";

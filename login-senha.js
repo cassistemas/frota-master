@@ -132,15 +132,11 @@
       "Confira se digitou corretamente ou solicite ao administrador a alteracao da senha.";
   }
 
-  // Confirma se o email existe no Firebase Auth antes de enviar qualquer link.
-  function emailCadastrado(email) {
-    if (typeof auth === "undefined" || !auth.fetchSignInMethodsForEmail) {
-      return Promise.resolve(null); // indeterminado
-    }
-    return auth.fetchSignInMethodsForEmail(email)
-      .then(function (m) { return !!(m && m.length); })
-      .catch(function () { return null; });
-  }
+  /* IMPORTANTE: fetchSignInMethodsForEmail NAO pode mais ser usado para
+     checar se o email existe. Desde a "Protecao contra enumeracao de emails"
+     (ativada por padrao no Firebase), ela sempre devolve lista vazia — era
+     por isso que o sistema respondia "email nao cadastrado" e nunca enviava
+     o link. Agora enviamos direto pelo sendPasswordResetEmail. */
 
   function enviarSolicitacao() {
     var fb = document.getElementById("fmSolFeedback");
@@ -152,51 +148,43 @@
       fb.innerText = "Informe um email valido.";
       return;
     }
-    if (typeof auth === "undefined" || !auth.sendPasswordResetEmail) {
+    if (typeof auth === "undefined" || !auth || !auth.sendPasswordResetEmail) {
       fb.style.color = "#dc3545";
-      fb.innerText = "Sem conexao com o servidor. Tente novamente.";
+      fb.innerText = "Sem conexao com o servidor. Recarregue a pagina e tente novamente.";
       return;
     }
 
     btn.disabled = true;
     fb.style.color = "#555";
-    fb.innerText = "Verificando cadastro...";
+    fb.innerText = "Enviando link...";
 
-    emailCadastrado(email).then(function (existe) {
-      if (existe === false) {
+    auth.sendPasswordResetEmail(email)
+      .then(function () {
+        registrarSolicitacao(email);
+        fb.style.color = "#198754";
+        fb.innerHTML = "Se <b>" + esc(email) + "</b> estiver cadastrado, o link de redefinicao foi enviado.<br>" +
+          "Abra seu email e clique no link para criar uma nova senha. Verifique tambem a caixa de spam.";
+        if (btn && btn.remove) btn.remove();
+        setTimeout(function () { fechar("fmSolicitaSenha"); }, 8000);
+      })
+      .catch(function (e) {
         btn.disabled = false;
-        msgNaoCadastrado(fb, email);
-        return;
-      }
-      fb.innerText = "Enviando...";
-      // Sem actionCodeSettings: evita auth/invalid-continue-uri em file:// ou
-      // dominios nao autorizados. O Firebase usa a pagina padrao de reset.
-      return auth.sendPasswordResetEmail(email)
-        .then(function () {
-          registrarSolicitacao(email);
-          fb.style.color = "#198754";
-          fb.innerHTML = "Link enviado para <b>" + esc(email) +
-            "</b>.<br>Abra seu email e clique no link para criar uma nova senha. Verifique tambem a caixa de spam.";
-          btn.remove();
-          setTimeout(function () { fechar("fmSolicitaSenha"); }, 7000);
-        })
-        .catch(function (e) {
-          btn.disabled = false;
-          var c = (e && e.code) || "";
-          if (c === "auth/user-not-found") {
-            msgNaoCadastrado(fb, email);
-          } else if (c === "auth/invalid-email") {
-            fb.style.color = "#dc3545";
-            fb.innerText = "Email invalido.";
-          } else if (c === "auth/too-many-requests") {
-            fb.style.color = "#dc3545";
-            fb.innerText = "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
-          } else {
-            fb.style.color = "#dc3545";
-            fb.innerText = "Nao foi possivel enviar: " + ((e && e.message) || e);
-          }
-        });
-    });
+        var c = (e && e.code) || "";
+        fb.style.color = "#dc3545";
+        if (c === "auth/user-not-found") {
+          msgNaoCadastrado(fb, email);
+        } else if (c === "auth/invalid-email") {
+          fb.innerText = "Email invalido.";
+        } else if (c === "auth/too-many-requests") {
+          fb.innerText = "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+        } else if (c === "auth/network-request-failed") {
+          fb.innerText = "Sem conexao com a internet. Conecte-se e tente novamente.";
+        } else if (c === "auth/unauthorized-continue-uri" || c === "auth/invalid-continue-uri") {
+          fb.innerText = "Dominio nao autorizado no Firebase. Peca ao administrador para incluir este site em Authentication > Settings > Authorized domains.";
+        } else {
+          fb.innerText = "Nao foi possivel enviar (" + (c || "erro") + "): " + ((e && e.message) || e);
+        }
+      });
   }
 
   /* ---------- alerta em tempo real (Admin) ---------- */

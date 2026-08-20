@@ -276,7 +276,15 @@
         cloud
           .collection("frota")
           .doc("detran")
-          .set({ dados: lista }, { merge: true });
+          .set({ dados: lista, atualizadoEm: new Date().toISOString() }, { merge: true })
+          .then(function () {
+            if (typeof statusNuvem === "function") statusNuvem("Salvo no banco de dados", "#198754");
+          })
+          .catch(function (err) {
+            console.error("Erro ao gravar DETRAN no banco:", err);
+            if (typeof statusNuvem === "function")
+              statusNuvem("ERRO ao gravar DETRAN: " + ((err && err.code) || ""), "#dc3545");
+          });
       } catch (e) {}
     } else if (typeof salvarNuvem === "function") {
       try {
