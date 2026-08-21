@@ -1162,6 +1162,10 @@ if(modulo === 'terceiros'){
 
 <td>${t.tertelefone || '--'}</td>
 
+<td>${t.terestado || '--'}</td>
+
+<td>${t.tercidade || '--'}</td>
+
 <td>${t.terfrete || 'R$ 0,00'}</td>
 
 <td>
@@ -1641,6 +1645,12 @@ function getTerceirosFiltrados(){
     const status =
     document.getElementById('filtroTerStatus')?.value || '';
 
+    const estado =
+    document.getElementById('filtroTerEstado')?.value || '';
+
+    const cidade =
+    document.getElementById('filtroTerCidade')?.value || '';
+
     const dataInicial =
     document.getElementById('filtroTerDataInicial')?.value || '';
 
@@ -1677,6 +1687,16 @@ function getTerceirosFiltrados(){
 
             &&
 
+            (!estado ||
+            (t.terestado || '') === estado)
+
+            &&
+
+            (!cidade ||
+            (t.tercidade || '') === cidade)
+
+            &&
+
             (!dataInicial ||
             (t.terdata && t.terdata >= dataInicial))
 
@@ -1706,6 +1726,8 @@ function limparFiltroTerceiros(){
         'filtroTerEmpresa',
         'filtroTerPlaca',
         'filtroTerStatus',
+        'filtroTerEstado',
+        'filtroTerCidade',
         'filtroTerDataInicial',
         'filtroTerDataFinal'
     ].forEach(id => {
