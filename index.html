@@ -3257,6 +3257,11 @@ oninput="calcularKMPneu()">
                     💾 Exportar Backup (.json)
                 </button>
 
+                <button class="btn btn-dark w-100 mb-2" onclick="baixarTudoNuvem()">
+                    ☁️⬇ Baixar TUDO da nuvem (.json)
+                </button>
+
+
                 <button class="btn btn-outline-primary w-100"
                     onclick="document.getElementById('fileIn').click()">
                     📥 Importar Backup
@@ -3305,8 +3310,44 @@ oninput="calcularKMPneu()">
 </div>
 <script>
 
+// HISTORICO DE BACKUPS: agora fica salvo NA NUVEM (Firestore: frota/backups).
+// O localStorage e usado apenas como copia offline de emergencia.
 let historicoBackups =
 JSON.parse(localStorage.getItem("historicoBackups")) || [];
+
+let _backupsNuvemEscutando = false;
+
+function escutarBackupsNuvem(){
+    if(_backupsNuvemEscutando) return;
+    if(typeof dbCloud === "undefined" || !dbCloud) return;
+    _backupsNuvemEscutando = true;
+    try{
+        dbCloud.collection("frota").doc("backups").onSnapshot(function(doc){
+            if(!doc || !doc.exists) return;
+            var payload = doc.data() || {};
+            if(Array.isArray(payload.dados)){
+                historicoBackups = payload.dados;
+                try{ localStorage.setItem("historicoBackups", JSON.stringify(historicoBackups)); }catch(e){}
+                if(typeof renderHistoricoBackup === "function") renderHistoricoBackup();
+            }
+        }, function(){ _backupsNuvemEscutando = false; });
+    }catch(e){ _backupsNuvemEscutando = false; }
+}
+
+function gravarBackupsNuvem(){
+    if(typeof dbCloud === "undefined" || !dbCloud) return;
+    try{
+        if(typeof auth !== "undefined" && auth && !auth.currentUser) return;
+        // Firestore aceita ate 1 MB por documento: reduz a lista se passar disso.
+        var lista = historicoBackups.slice(0);
+        while(lista.length > 1 && JSON.stringify(lista).length > 800000){
+            lista.pop();
+        }
+        dbCloud.collection("frota").doc("backups")
+            .set({ dados: lista, atualizadoEm: new Date().toISOString() }, { merge: true })
+            .catch(function(err){ console.error("Erro ao gravar backups na nuvem:", err); });
+    }catch(e){ console.error(e); }
+}
 
 function atualizarHistoricoBackup(){
 
@@ -3320,6 +3361,15 @@ function atualizarHistoricoBackup(){
         "historicoBackups",
         JSON.stringify(historicoBackups)
     );
+
+    gravarBackupsNuvem();
+    escutarBackupsNuvem();
+
+    renderHistoricoBackup();
+}
+
+function renderHistoricoBackup(){
+
 
     let html="";
 
@@ -3360,9 +3410,48 @@ function atualizarHistoricoBackup(){
 
     });
 
-    document.getElementById("listaBackups").innerHTML = html;
+    var _elBk = document.getElementById("listaBackups");
+    if(_elBk) _elBk.innerHTML = html;
+
 
 }
+
+// Baixa TUDO o que esta gravado na nuvem (todos os modulos + usuarios),
+// direto do banco, em um unico arquivo .json.
+function baixarTudoNuvem(){
+    if(typeof dbCloud === "undefined" || !dbCloud){
+        alert("Banco de dados na nuvem indisponivel.");
+        return;
+    }
+    if(typeof auth !== "undefined" && auth && !auth.currentUser){
+        alert("Faca login para baixar os dados da nuvem.");
+        return;
+    }
+    if(typeof statusNuvem === "function") statusNuvem("Baixando dados da nuvem...", "#0d6efd");
+
+    Promise.all([
+        dbCloud.collection("frota").get(),
+        dbCloud.collection("usuarios").get().catch(function(){ return null; })
+    ]).then(function(res){
+        var pacote = { geradoEm: new Date().toISOString(), frota: {}, usuarios: {} };
+        res[0].forEach(function(doc){ pacote.frota[doc.id] = doc.data(); });
+        if(res[1]) res[1].forEach(function(doc){ pacote.usuarios[doc.id] = doc.data(); });
+
+        var blob = new Blob([JSON.stringify(pacote, null, 2)], { type: "application/json" });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "FrotaMaster_NUVEM_COMPLETO_" +
+            new Date().toISOString().slice(0,10) + ".json";
+        a.click();
+        URL.revokeObjectURL(a.href);
+        if(typeof statusNuvem === "function") statusNuvem("Download concluido", "#198754");
+    }).catch(function(err){
+        console.error("Erro ao baixar dados da nuvem:", err);
+        alert("Erro ao baixar da nuvem: " + (err && err.message ? err.message : err));
+    });
+}
+
+
 
 function formatarDataBR(data){
     if(!data) return '--';
@@ -4492,9 +4581,11 @@ function iniciarSistema(){
    aplicarPermissoes();
    carregarPermissoesAdmin();
 }
-    if(typeof atualizarHistoricoBackup === "function"){
-        atualizarHistoricoBackup();
-    }
+    // Na inicializacao apenas ESCUTA a nuvem (nao regrava, para nao apagar o
+    // historico que ja esta salvo no banco).
+    if(typeof escutarBackupsNuvem === "function") escutarBackupsNuvem();
+    if(typeof renderHistoricoBackup === "function") renderHistoricoBackup();
+
 
 function escutarDados(modulo){
 
