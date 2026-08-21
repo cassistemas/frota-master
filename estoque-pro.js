@@ -195,26 +195,59 @@
   }
   window.sincronizarManutencoesEstoque = sincronizarManutencoesEstoque;
 
+  function logado() {
+    try { return !!(window.auth && auth.currentUser); } catch (e) { return false; }
+  }
+
+  var salvamentoPendente = false;
+
+  function gravarNuvem() {
+    if (typeof dbCloud === "undefined" || !dbCloud || !dbCloud.collection) {
+      if (typeof salvarNuvem === "function") salvarNuvem();
+      return;
+    }
+    if (!logado()) { salvamentoPendente = true; return; }
+    salvamentoPendente = false;
+    var p = dbCloud.collection("frota").doc("estoque").set({ dados: lista() }, { merge: true });
+    if (p && p.catch) p.catch(function (err) {
+      console.error("Erro ao salvar estoque na nuvem:", err);
+      var msg = (err && err.message ? err.message : String(err));
+      if (/permission|insufficient|unauthenticated/i.test(msg)) {
+        // sessão ainda não autenticada: tenta novamente após o login
+        salvamentoPendente = true;
+        return;
+      }
+      alert("Não foi possível salvar o estoque na nuvem: " + msg +
+        "\nOs dados ficaram salvos neste navegador.");
+    });
+  }
+
+  // Quando o usuário faz login, envia o que ficou pendente.
+  function observarLogin() {
+    try {
+      if (window.auth && typeof auth.onAuthStateChanged === "function") {
+        auth.onAuthStateChanged(function (u) {
+          if (u && salvamentoPendente) gravarNuvem();
+        });
+        return;
+      }
+    } catch (e) {}
+    setTimeout(observarLogin, 1000);
+  }
+  observarLogin();
+
   function persistir(semSincronizar) {
     if (!semSincronizar) sincronizarManutencoesEstoque();
     try { localStorage.setItem(LS_KEY, JSON.stringify(lista())); } catch (e) {}
     try {
       if (typeof carimbarRegistros === "function") carimbarRegistros();
-      if (typeof dbCloud !== "undefined" && dbCloud && dbCloud.collection) {
-        var p = dbCloud.collection("frota").doc("estoque").set({ dados: lista() }, { merge: true });
-        if (p && p.catch) p.catch(function (err) {
-          console.error("Erro ao salvar estoque na nuvem:", err);
-          alert("Não foi possível salvar o estoque na nuvem: " + (err && err.message ? err.message : err) +
-            "\nOs dados ficaram salvos neste navegador.");
-        });
-      } else if (typeof salvarNuvem === "function") {
-        salvarNuvem();
-      }
+      gravarNuvem();
     } catch (err) {
       console.error(err);
     }
   }
   window.persistirEstoque = persistir;
+
 
 
   /* Compatibilidade com versões anteriores. Algumas versões gravavam pelos
@@ -224,7 +257,13 @@
   var compatibilidadeExecutada = false;
   function carregarCompatibilidade() {
     if (compatibilidadeExecutada) return;
+    // sem usuário autenticado o Firestore recusa a leitura/escrita
+    if (typeof dbCloud !== "undefined" && dbCloud && dbCloud.collection && !logado()) {
+      setTimeout(carregarCompatibilidade, 1500);
+      return;
+    }
     compatibilidadeExecutada = true;
+
     var base = raiz();
     var estoqueLocal = lerLocal(["FM_EST", "frota_estoque", "estoque", LS_KEY], ["dados", "estoque", "produtos", "movimentacoes"]);
     var veiculosLocal = lerLocal(["FM_V", "frota_veiculos", "veiculos"], ["dados", "veiculos"]);
