@@ -103,7 +103,100 @@
   }
   window.listaEstoque = lista;
 
-  function persistir() {
+  /* =====================================================
+     INTEGRAÇÃO SAÍDA DE ESTOQUE -> MANUTENÇÕES
+     Toda saída lançada em um veículo gera (e mantém atualizado) um registro
+     no módulo Manutenções, somando automaticamente nos totais do módulo e
+     do dashboard. O vínculo é feito pelo campo "eid" da movimentação.
+     ===================================================== */
+  function novoId() {
+    return "est_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+  window.estoqueNovoId = novoId;
+
+  function listaManutencoes() {
+    var base = raiz();
+    if (!Array.isArray(base.manutencoes)) base.manutencoes = [];
+    return base.manutencoes;
+  }
+
+  function kmVeiculo(placa) {
+    var base = raiz();
+    var vs = Array.isArray(base.veiculos) ? base.veiculos : [];
+    for (var i = 0; i < vs.length; i++) {
+      var p = vs[i].vplaca || vs[i].placa;
+      if (String(p || "").trim().toUpperCase() === String(placa || "").trim().toUpperCase()) {
+        return vs[i].vkm || vs[i].km || "";
+      }
+    }
+    return "";
+  }
+
+  function sincronizarManutencoesEstoque() {
+    var movs = lista();
+    var mans = listaManutencoes();
+    var idsAtivos = {};
+    var alterouEstoque = false;
+
+    var saidas = movs.filter(function (m) {
+      return m.etipo === "Saída" && String(m.eplaca || "").trim() !== "";
+    });
+
+    saidas.forEach(function (s) {
+      if (!s.eid) { s.eid = novoId(); alterouEstoque = true; }
+      idsAtivos[s.eid] = true;
+    });
+
+    // remove lançamentos automáticos cuja saída não existe mais
+    for (var i = mans.length - 1; i >= 0; i--) {
+      if (mans[i] && mans[i].morigem === "estoque" && !idsAtivos[mans[i].mestoqueid]) {
+        mans.splice(i, 1);
+      }
+    }
+
+    saidas.forEach(function (s) {
+      var total = (parseFloat(s.equantidade) || 0) * num(s.evalorunitario);
+      if (s.etotal != null) total = num(s.etotal) || total;
+      var existente = null;
+      for (var j = 0; j < mans.length; j++) {
+        if (mans[j] && mans[j].morigem === "estoque" && mans[j].mestoqueid === s.eid) { existente = mans[j]; break; }
+      }
+      var dados = {
+        mveiculo: s.eplaca,
+        mdata: s.edata || new Date().toISOString().slice(0, 10),
+        mkm: (existente && existente.mkm) || kmVeiculo(s.eplaca) || "",
+        mvalor: moeda(total),
+        mnf: s.elote || "",
+        mfornecedor: (existente && existente.mfornecedor) || "Estoque interno",
+        mservico: "Estoque: " + (s.eitem || "item") + " — " + nBR(parseFloat(s.equantidade) || 0) +
+          " un x " + moeda(num(s.evalorunitario)) +
+          (s.eresponsavel ? " (resp.: " + s.eresponsavel + ")" : ""),
+        morigem: "estoque",
+        mestoqueid: s.eid
+      };
+      if (existente) {
+        for (var k in dados) { if (Object.prototype.hasOwnProperty.call(dados, k)) existente[k] = dados[k]; }
+      } else {
+        mans.push(dados);
+      }
+    });
+
+    try {
+      if (typeof salvarNuvem === "function") salvarNuvem(["manutencoes"]);
+    } catch (e) { console.error(e); }
+
+    try {
+      if (typeof renderModulo === "function") renderModulo("manutencoes");
+      if (typeof atualizarDashboardManutencoes === "function") atualizarDashboardManutencoes();
+      if (typeof renderDashboard === "function") renderDashboard();
+    } catch (e) {}
+
+    return alterouEstoque;
+  }
+  window.sincronizarManutencoesEstoque = sincronizarManutencoesEstoque;
+
+  function persistir(semSincronizar) {
+    if (!semSincronizar) sincronizarManutencoesEstoque();
     try { localStorage.setItem(LS_KEY, JSON.stringify(lista())); } catch (e) {}
     try {
       if (typeof carimbarRegistros === "function") carimbarRegistros();
@@ -122,6 +215,7 @@
     }
   }
   window.persistirEstoque = persistir;
+
 
   /* Compatibilidade com versões anteriores. Algumas versões gravavam pelos
      códigos FM_EST/FM_V (localmente e também como documentos na nuvem), enquanto
@@ -395,10 +489,12 @@
       eresponsavel: document.getElementById("sresponsavel").value.trim(),
       eobservacoes: document.getElementById("sobservacoes").value.trim(),
       eplaca: document.getElementById("splaca").value || "",
-      etotal: quantidade * pos.custoMedio
+      etotal: quantidade * pos.custoMedio,
+      eid: (idx !== "" && lista()[Number(idx)] && lista()[Number(idx)].eid) || novoId()
     };
     if (idx !== "") lista()[Number(idx)] = obj;
     else lista().push(obj);
+
 
     persistir();
     limparFormEstoqueSaida();
@@ -621,6 +717,29 @@
     return true;
   }
 
+  /* Saídas antigas (ou lançadas antes desta atualização) também passam a
+     aparecer nas manutenções: verificamos pendências e sincronizamos. */
+  function pendenciasManutencao() {
+    try {
+      var mans = listaManutencoes();
+      return lista().some(function (m) {
+        if (m.etipo !== "Saída" || !String(m.eplaca || "").trim()) return false;
+        if (!m.eid) return true;
+        return !mans.some(function (x) {
+          return x && x.morigem === "estoque" && x.mestoqueid === m.eid;
+        });
+      });
+    } catch (e) { return false; }
+  }
+
+  function conciliar() {
+    if (!pendenciasManutencao()) return;
+    try {
+      sincronizarManutencoesEstoque();
+      persistir(true);
+    } catch (e) { console.error(e); }
+  }
+
   function iniciar() {
     instalar();
     try { renderEstoquePro(); } catch (e) { /* db pode não estar pronto */ }
@@ -630,7 +749,11 @@
   else document.addEventListener("DOMContentLoaded", iniciar);
   window.addEventListener("load", function () {
     [300, 1500, 3000, 5000].forEach(function (t) {
-      setTimeout(function () { try { renderEstoquePro(); } catch (e) {} }, t);
+      setTimeout(function () {
+        try { renderEstoquePro(); } catch (e) {}
+        conciliar();
+      }, t);
     });
   });
+
 })();
