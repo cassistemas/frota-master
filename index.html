@@ -326,6 +326,51 @@
 }
 
     </style>
+<style>
+/* ===== Tabela de Terceiros - layout legível ===== */
+.tabela-terceiros{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.tabela-terceiros table{
+    width:max-content;
+    min-width:100%;
+    font-size:.85rem;
+    table-layout:auto;
+}
+.tabela-terceiros th,
+.tabela-terceiros td{
+    padding:.5rem .6rem;
+    vertical-align:middle;
+    white-space:nowrap;
+    overflow:visible;
+    text-overflow:clip;
+    max-width:none;
+}
+.tabela-terceiros thead th{
+    font-size:.72rem;
+    letter-spacing:.03em;
+    text-transform:uppercase;
+    font-weight:800;
+    color:#475569;
+    background:#f1f5f9;
+    position:sticky;
+    top:0;
+    z-index:2;
+}
+.tabela-terceiros td.num{text-align:center;}
+.tabela-terceiros td.money{text-align:right;font-variant-numeric:tabular-nums;}
+.tabela-terceiros .col-acoes{white-space:nowrap;text-align:center;}
+.tabela-terceiros .btn{padding:.2rem .45rem;font-size:.78rem;line-height:1.1;}
+.tabela-terceiros tbody tr:hover{background:#f8fafc;}
+.ter-badge{
+    display:inline-block;padding:.15rem .5rem;border-radius:999px;
+    font-size:.7rem;font-weight:700;
+}
+.ter-badge.ativo{background:#dcfce7;color:#166534;}
+.ter-badge.bloq{background:#fee2e2;color:#991b1b;}
+@media (max-width:768px){
+    .tabela-terceiros table{font-size:.78rem;}
+    .tabela-terceiros th,.tabela-terceiros td{padding:.35rem .45rem;}
+}
+</style>
 </head>
 <body>
 <!-- TELA DE LOGIN -->
@@ -633,10 +678,10 @@ Criar Conta
         class="form-control">
 </div>
 
-<div class="col-md-4">
+<div class="col-md-3">
     <input id="ternome"
            class="form-control"
-           placeholder="Nome Motorista">
+           placeholder="Nome do Motorista">
 </div>
 
 <div class="col-md-3">
@@ -646,7 +691,7 @@ Criar Conta
            oninput="mascaraTelefone(this)">
 </div>
 
-<div class="col-md-4">
+<div class="col-md-3">
     <input id="terempresa"
            class="form-control"
            placeholder="Empresa">
@@ -678,11 +723,11 @@ Criar Conta
            placeholder="Placa Veículo">
 </div>
 
-<div class="col-md-1">
+<div class="col-md-2">
     <input id="terano"
            type="number"
            class="form-control"
-           placeholder="Ano">
+           placeholder="Ano Veículo">
 </div>
 
 <div class="col-md-2">
@@ -691,11 +736,17 @@ Criar Conta
            placeholder="Placa Carreta">
 </div>
 
-<div class="col-md-1">
+<div class="col-md-2">
     <input id="teranocarreta"
            type="number"
            class="form-control"
-           placeholder="Ano">
+           placeholder="Ano Carreta">
+</div>
+
+<div class="col-md-3">
+    <input id="terproprietario"
+           class="form-control"
+           placeholder="Nome do Proprietário">
 </div>
 
 <div class="col-md-2">
@@ -766,6 +817,7 @@ placeholder="Observações">
 'terano',
 'tercarreta',
 'teranocarreta',
+'terproprietario',
 'tertelefone',
 'terestado',
 'tercidade',
@@ -917,29 +969,32 @@ Limpar
 
 </div>
 
-<table class="table">
+<div class="table-responsive tabela-terceiros">
+
+<table class="table table-sm align-middle">
 
 <thead>
 
 <tr>
 
-<th>Data</th>
-<th>Nome</th>
-<th>Tel. Motorista</th>
-<th>CNPJ</th>
-<th>Empresa</th>
-<th>ANTT</th>
-<th>Tipo Veículo</th>
-<th>Placa</th>
-<th>Ano</th>
-<th>Carreta</th>
-<th>Ano Carreta</th>
-<th>Tel. Proprietário</th>
-<th>Estado</th>
-<th>Cidade</th>
-<th>Valor Frete</th>
-<th>Status</th>
-<th>Ações</th>
+<th title="Data">Data</th>
+<th title="Nome do Motorista">Motorista</th>
+<th title="Telefone do Motorista">Tel. Mot.</th>
+<th title="CNPJ">CNPJ</th>
+<th title="Empresa">Empresa</th>
+<th title="Registro ANTT">ANTT</th>
+<th title="Tipo de Veículo">Tipo Veíc.</th>
+<th title="Placa do Veículo">Placa</th>
+<th title="Ano do Veículo">Ano</th>
+<th title="Placa da Carreta">Carreta</th>
+<th title="Ano da Carreta">Ano Carr.</th>
+<th title="Nome do Proprietário">Proprietário</th>
+<th title="Telefone do Proprietário">Tel. Prop.</th>
+<th title="Estado">UF</th>
+<th title="Cidade">Cidade</th>
+<th title="Valor do Frete">Frete</th>
+<th title="Status">Status</th>
+<th title="Ações">Ações</th>
 
 </tr>
 
@@ -948,6 +1003,8 @@ Limpar
 <tbody id="listaTerceiros"></tbody>
 
 </table>
+
+</div>
 
 <div id="paginacaoTerceiros"></div>
 
@@ -2429,9 +2486,10 @@ Limpar
                 <div class="col-md-12"><select id="leveiculo" class="form-select"></select></div>
                 <div class="col-md-6"><h6>CIV</h6><input type="date" id="venciv" class="form-control mb-2"><input id="numciv" class="form-control" placeholder="Nº CIV"></div>
                 <div class="col-md-6"><h6>CIPP</h6><input type="date" id="vencipp" class="form-control mb-2"><input id="numcipp" class="form-control" placeholder="Nº CIPP"></div>
+                <div class="col-md-4"><h6>Valor</h6><input id="levalor" class="form-control" placeholder="Valor R$" oninput="mascaraMoeda(this)"></div>
                 <div class="col-md-12 text-end mt-2">
-                    <button id="btn_cancel_licencas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('licencas',['leveiculo','venciv','numciv','vencipp','numcipp'],'le_idx')">Cancelar</button>
-                    <button class="btn btn-primary" onclick="salvar('licencas',['leveiculo','venciv','numciv','vencipp','numcipp'],'le_idx')">Salvar</button>
+                    <button id="btn_cancel_licencas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('licencas',['leveiculo','venciv','numciv','vencipp','numcipp','levalor'],'le_idx')">Cancelar</button>
+                    <button class="btn btn-primary" onclick="salvar('licencas',['leveiculo','venciv','numciv','vencipp','numcipp','levalor'],'le_idx')">Salvar</button>
                 </div>
             </div>
         </div>
@@ -2447,6 +2505,7 @@ Limpar
     <th>Venc. CIV</th>
     <th>Nº CIPP</th>
     <th>Venc. CIPP</th>
+    <th>Valor</th>
     <th>Ações</th>
 </tr>
 </thead>
@@ -4804,6 +4863,8 @@ db.licencas.map((le,i)=>`
     <td>${le.numcipp || '--'}</td>
     <td>${formatarVencimento(le.vencipp)}</td>
 
+    <td><b>${le.levalor || 'R$ 0,00'}</b></td>
+
     ${btnSet('licencas',i)}
 </tr>
 `).join('');
@@ -5166,6 +5227,7 @@ function renderDashboard(){
     .reduce((a,b)=>a + moedaParaFloat(b.muvalor),0);
     totalGasto += db.licenciamento.reduce((a,b)=>a + moedaParaFloat(b.lvalor),0);
     totalGasto += db.tacografo.reduce((a,b)=>a + moedaParaFloat(b.tvalor),0);
+    totalGasto += (db.licencas || []).reduce((a,b)=>a + moedaParaFloat(b.levalor),0);
     totalGasto += db.combustivel.reduce((a,b) => {
         const litros = parseFloat(String(b.clitros || '').replace(',', '.')) || 0;
         const valor = parseFloat(String(b.cvalorlitro || '').replace(',', '.')) || 0;
@@ -5630,6 +5692,7 @@ function salvarTerceirosCustom(){
     terano: document.getElementById('terano').value,
     tercarreta: document.getElementById('tercarreta').value,
     teranocarreta: document.getElementById('teranocarreta').value,
+    terproprietario: document.getElementById('terproprietario').value,
     tertelefone: document.getElementById('tertelefone').value,
     terestado: document.getElementById('terestado').value,
     tercidade: document.getElementById('tercidade').value,
@@ -5665,6 +5728,7 @@ function salvarTerceirosCustom(){
 'terano',
 'tercarreta',
 'teranocarreta',
+'terproprietario',
 'tertelefone',
 'terestado',
 'tercidade',
@@ -6815,30 +6879,36 @@ function navegarTerceiros() {
 
     db.terceiros.forEach((t, i) => {
 
+        const st = (t.terstatus || '').toString();
+        const stCls = st.toLowerCase().startsWith('bloq') ? 'bloq' : (st ? 'ativo' : '');
+        const stHtml = st ? `<span class="ter-badge ${stCls}">${st}</span>` : '';
+
         html += `
         <tr>
-            <td>${t.ternome || ''}</td>
+            <td class="num">${t.terdata ? new Date(t.terdata + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</td>
+            <td class="col-nome" title="${t.ternome || ''}">${t.ternome || ''}</td>
             <td>${t.tertelmotorista || ''}</td>
             <td>${t.tercnpj || ''}</td>
-            <td>${t.terempresa || ''}</td>
+            <td class="col-empresa" title="${t.terempresa || ''}">${t.terempresa || ''}</td>
             <td>${t.terantt || ''}</td>
-            <td>${t.tertipoveiculo || ''}</td>
-            <td>${t.terplaca || ''}</td>
-            <td>${t.terano || ''}</td>
-            <td>${t.tercarreta || ''}</td>
-            <td>${t.teranocarreta || ''}</td>
+            <td class="col-tipo" title="${t.tertipoveiculo || ''}">${t.tertipoveiculo || ''}</td>
+            <td class="num">${t.terplaca || ''}</td>
+            <td class="num">${t.terano || ''}</td>
+            <td class="num">${t.tercarreta || ''}</td>
+            <td class="num">${t.teranocarreta || ''}</td>
+            <td class="col-nome" title="${t.terproprietario || ''}">${t.terproprietario || ''}</td>
             <td>${t.tertelefone || ''}</td>
-            <td>${t.terestado || ''}</td>
-            <td>${t.tercidade || ''}</td>
-            <td>${t.terfrete || ''}</td>
-            <td>${t.terstatus || ''}</td>
-            <td>
-                <button class="btn btn-sm btn-warning"
+            <td class="num">${t.terestado || ''}</td>
+            <td class="col-cidade" title="${t.tercidade || ''}">${t.tercidade || ''}</td>
+            <td class="money">${t.terfrete || ''}</td>
+            <td class="num">${stHtml}</td>
+            <td class="col-acoes">
+                <button class="btn btn-sm btn-warning" title="Editar"
                     onclick="editarTerceiro(${i})">
                     ✏️
                 </button>
 
-                <button class="btn btn-sm btn-danger"
+                <button class="btn btn-sm btn-danger" title="Excluir"
                     onclick="excluir('terceiros',${i})">
                     🗑️
                 </button>

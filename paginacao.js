@@ -1134,58 +1134,60 @@ if(modulo === 'terceiros'){
         return `
 <tr>
 
-<td>${
+<td class="num">${
     t.terdata
         ? new Date(t.terdata + 'T00:00:00').toLocaleDateString('pt-BR')
         : '--'
 }</td>
 
-<td>${t.ternome || '--'}</td>
+<td class="col-nome" title="${t.ternome || ''}">${t.ternome || '--'}</td>
 
 <td>${t.tertelmotorista || '--'}</td>
 
 <td>${t.tercnpj || '--'}</td>
 
-<td>${t.terempresa || '--'}</td>
+<td class="col-empresa" title="${t.terempresa || ''}">${t.terempresa || '--'}</td>
 
 <td>${t.terantt || '--'}</td>
 
-<td>${t.tertipoveiculo || '--'}</td>
+<td class="col-tipo" title="${t.tertipoveiculo || ''}">${t.tertipoveiculo || '--'}</td>
 
-<td>${t.terplaca || '--'}</td>
+<td class="num">${t.terplaca || '--'}</td>
 
-<td>${t.terano || '--'}</td>
+<td class="num">${t.terano || '--'}</td>
 
-<td>${t.tercarreta || '--'}</td>
+<td class="num">${t.tercarreta || '--'}</td>
 
-<td>${t.teranocarreta || '--'}</td>
+<td class="num">${t.teranocarreta || '--'}</td>
+
+<td class="col-nome" title="${t.terproprietario || ''}">${t.terproprietario || '--'}</td>
 
 <td>${t.tertelefone || '--'}</td>
 
-<td>${t.terestado || '--'}</td>
+<td class="num">${t.terestado || '--'}</td>
 
-<td>${t.tercidade || '--'}</td>
+<td class="col-cidade" title="${t.tercidade || ''}">${t.tercidade || '--'}</td>
 
-<td>${t.terfrete || 'R$ 0,00'}</td>
+<td class="money">${t.terfrete || 'R$ 0,00'}</td>
 
-<td>
-<span class="badge ${
+<td class="num">
+<span class="ter-badge ${
     t.terstatus === 'Ativo'
-        ? 'bg-success'
-        : 'bg-danger'
+        ? 'ativo'
+        : 'bloq'
 }">
 ${t.terstatus || '--'}
 </span>
 </td>
 
-<td>
+<td class="col-acoes">
 
-<button class="btn-edit"
+<button class="btn-edit" title="Editar"
 onclick="editar('terceiros',${idx})">
 ✎
 </button>
 
-<button class="btn-del"
+<button class="btn-del" title="Excluir"
 onclick="deletar('terceiros',${idx})">
 ✕
 </button>
@@ -1662,7 +1664,7 @@ function getTerceirosFiltrados(){
         return (
 
             (!motorista ||
-            (t.ternome || '')
+            ((t.ternome || '') + ' ' + (t.terproprietario || ''))
             .toLowerCase()
             .includes(motorista))
 
