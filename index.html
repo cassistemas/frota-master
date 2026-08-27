@@ -3371,6 +3371,21 @@ oninput="calcularKMPneu()">
 
 // HISTORICO DE BACKUPS: agora fica salvo NA NUVEM (Firestore: frota/backups).
 // O localStorage e usado apenas como copia offline de emergencia.
+// Normaliza a data de um backup (string ISO, numero, Date ou Timestamp do Firestore)
+function _dataBackup(valor){
+    try{
+        if(!valor) return null;
+        if(valor instanceof Date) return isNaN(valor.getTime()) ? null : valor;
+        if(typeof valor === "object"){
+            if(typeof valor.toDate === "function"){ var d0 = valor.toDate(); return isNaN(d0.getTime()) ? null : d0; }
+            if(typeof valor.seconds === "number") return new Date(valor.seconds*1000);
+            if(typeof valor._seconds === "number") return new Date(valor._seconds*1000);
+        }
+        var d = new Date(valor);
+        return isNaN(d.getTime()) ? null : d;
+    }catch(e){ return null; }
+}
+
 let historicoBackups =
 JSON.parse(localStorage.getItem("historicoBackups")) || [];
 
@@ -3385,7 +3400,13 @@ function escutarBackupsNuvem(){
             if(!doc || !doc.exists) return;
             var payload = doc.data() || {};
             if(Array.isArray(payload.dados)){
-                historicoBackups = payload.dados;
+                historicoBackups = payload.dados
+                    .map(function(b){
+                        var d = _dataBackup(b && b.data);
+                        return Object.assign({}, b, { data: d ? d.toISOString() : null });
+                    })
+                    .sort(function(a,b){ return (_dataBackup(b.data)||0) - (_dataBackup(a.data)||0); })
+                    .slice(0,10);
                 try{ localStorage.setItem("historicoBackups", JSON.stringify(historicoBackups)); }catch(e){}
                 if(typeof renderHistoricoBackup === "function") renderHistoricoBackup();
             }
@@ -3410,8 +3431,13 @@ function gravarBackupsNuvem(){
 
 function atualizarHistoricoBackup(){
 
+    historicoBackups = historicoBackups.map(function(b){
+        var d = _dataBackup(b && b.data);
+        return Object.assign({}, b, { data: d ? d.toISOString() : new Date().toISOString() });
+    });
+
     historicoBackups.sort(
-        (a,b)=>new Date(b.data)-new Date(a.data)
+        (a,b)=>(_dataBackup(b.data)||0)-(_dataBackup(a.data)||0)
     );
 
     historicoBackups = historicoBackups.slice(0,10);
@@ -3439,7 +3465,7 @@ function renderHistoricoBackup(){
 
             <td>${i+1}</td>
 
-            <td>${new Date(b.data).toLocaleString()}</td>
+            <td>${(_dataBackup(b.data) ? _dataBackup(b.data).toLocaleString("pt-BR") : "-")}</td>
 
             <td>${b.nome}</td>
 
@@ -3471,6 +3497,9 @@ function renderHistoricoBackup(){
 
     var _elBk = document.getElementById("listaBackups");
     if(_elBk) _elBk.innerHTML = html;
+
+    var _elTot = document.getElementById("totalBackups");
+    if(_elTot) _elTot.innerText = historicoBackups.length + (historicoBackups.length === 1 ? " Backup" : " Backups");
 
 
 }
@@ -4616,7 +4645,7 @@ function iniciarSistema(){
     if(usuarioLogado.tipo !== "admin"){
         if(menu) menu.style.display = "none";
     } else {
-        if(menu) menu.style.display = "block";
+        if(menu) menu.style.display = "flex";
     }
 
     document.getElementById("loginTela").style.display="none";
@@ -5517,7 +5546,7 @@ function exportarBackup(){
 
         nome: nomeArquivo,
 
-        data: new Date(),
+        data: new Date().toISOString(),
 
         tamanho: (blob.size/1024).toFixed(2) + " KB",
 
