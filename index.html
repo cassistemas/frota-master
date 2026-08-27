@@ -3400,10 +3400,21 @@ function escutarBackupsNuvem(){
             if(!doc || !doc.exists) return;
             var payload = doc.data() || {};
             if(Array.isArray(payload.dados)){
+                // conteudo dos backups fica no navegador (nuvem guarda so os metadados)
+                var locais = {};
+                try{
+                    (JSON.parse(localStorage.getItem("historicoBackups")) || [])
+                        .forEach(function(b){ if(b && b.nome && b.conteudo) locais[b.nome] = b.conteudo; });
+                }catch(e){}
+                (historicoBackups || []).forEach(function(b){
+                    if(b && b.nome && b.conteudo) locais[b.nome] = b.conteudo;
+                });
                 historicoBackups = payload.dados
                     .map(function(b){
                         var d = _dataBackup(b && b.data);
-                        return Object.assign({}, b, { data: d ? d.toISOString() : null });
+                        var item = Object.assign({}, b, { data: d ? d.toISOString() : null });
+                        if(!item.conteudo && locais[item.nome]) item.conteudo = locais[item.nome];
+                        return item;
                     })
                     .sort(function(a,b){ return (_dataBackup(b.data)||0) - (_dataBackup(a.data)||0); })
                     .slice(0,10);
@@ -3418,16 +3429,17 @@ function gravarBackupsNuvem(){
     if(typeof dbCloud === "undefined" || !dbCloud) return;
     try{
         if(typeof auth !== "undefined" && auth && !auth.currentUser) return;
-        // Firestore aceita ate 1 MB por documento: reduz a lista se passar disso.
-        var lista = historicoBackups.slice(0);
-        while(lista.length > 1 && JSON.stringify(lista).length > 800000){
-            lista.pop();
-        }
+        // Nuvem guarda apenas os metadados dos 10 ultimos backups (documento tem
+        // limite de 1 MB; o conteudo completo permanece no navegador).
+        var lista = historicoBackups.slice(0,10).map(function(b){
+            return { nome: b.nome, data: b.data, tamanho: b.tamanho };
+        });
         dbCloud.collection("frota").doc("backups")
             .set({ dados: lista, atualizadoEm: new Date().toISOString() }, { merge: true })
             .catch(function(err){ console.error("Erro ao gravar backups na nuvem:", err); });
     }catch(e){ console.error(e); }
 }
+
 
 function atualizarHistoricoBackup(){
 
@@ -3442,10 +3454,21 @@ function atualizarHistoricoBackup(){
 
     historicoBackups = historicoBackups.slice(0,10);
 
-    localStorage.setItem(
-        "historicoBackups",
-        JSON.stringify(historicoBackups)
-    );
+    try{
+        localStorage.setItem(
+            "historicoBackups",
+            JSON.stringify(historicoBackups)
+        );
+    }catch(e){
+        // se estourar a cota, descarta o conteudo dos backups mais antigos
+        try{
+            var reduzido = historicoBackups.map(function(b,i){
+                return i < 3 ? b : { nome: b.nome, data: b.data, tamanho: b.tamanho };
+            });
+            localStorage.setItem("historicoBackups", JSON.stringify(reduzido));
+        }catch(e2){}
+    }
+
 
     gravarBackupsNuvem();
     escutarBackupsNuvem();
@@ -5562,6 +5585,12 @@ function baixarBackup(i){
 
     const b = historicoBackups[i];
 
+    if(!b || !b.conteudo){
+        alert("Este backup foi feito em outro dispositivo; o arquivo nao esta disponivel aqui.");
+        return;
+    }
+
+
     const blob = new Blob(
         [JSON.stringify(b.conteudo,null,2)],
         {type:"application/json"}
@@ -5581,10 +5610,16 @@ function baixarBackup(i){
 
 function restaurarBackup(i){
 
+    if(!historicoBackups[i] || !historicoBackups[i].conteudo){
+        alert("Este backup foi feito em outro dispositivo; nao ha conteudo para restaurar aqui.");
+        return;
+    }
+
     if(!confirm("Deseja restaurar este backup?\n\nOs dados atuais serão substituídos."))
         return;
 
     db = JSON.parse(JSON.stringify(historicoBackups[i].conteudo));
+
 
     salvarNuvem();
 
