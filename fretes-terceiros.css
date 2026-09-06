@@ -1,0 +1,15 @@
+/* Sub-abas do modulo Terceiros + modais do card de frete */
+.fm-subabas{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1rem;}
+.fm-subabas .fm-subaba{border:1px solid #d7dce6;background:#fff;color:#334155;padding:.5rem 1rem;border-radius:999px;font-weight:600;font-size:.9rem;cursor:pointer;transition:.15s;}
+.fm-subabas .fm-subaba:hover{background:#f1f5f9;}
+.fm-subabas .fm-subaba.active{background:#0d6efd;border-color:#0d6efd;color:#fff;box-shadow:0 4px 12px rgba(13,110,253,.25);}
+.form-label-mini{display:block;font-size:.75rem;font-weight:600;color:#64748b;margin-bottom:.15rem;}
+.fm-modal{position:fixed;inset:0;background:rgba(6,12,24,.72);display:none;align-items:flex-start;justify-content:center;padding:1.2rem;overflow:auto;z-index:20000;}
+.fm-modal.aberto{display:flex;}
+.fm-modal-box{background:#fff;border-radius:16px;width:100%;max-width:760px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;}
+.fm-modal-head,.fm-modal-foot{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.8rem 1rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;}
+.fm-modal-foot{border-bottom:0;border-top:1px solid #e2e8f0;justify-content:flex-end;}
+.fm-modal-head{justify-content:space-between;}
+.fm-modal-body{padding:1rem;}
+.fm-card-canvas{width:100%;max-width:520px;height:auto;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);}
+@media(max-width:576px){.fm-modal{padding:.5rem;}.fm-modal-foot .btn{flex:1 1 100%;}}

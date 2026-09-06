@@ -62,6 +62,8 @@
     };
     wrap.appendChild(btn);
 
+    montarLembrar(wrap);
+
     var erro = document.getElementById("loginErro");
     if (erro && !document.getElementById("linkEsqueciSenha")) {
       var link = document.createElement("span");
@@ -71,6 +73,83 @@
       erro.parentNode.insertBefore(link, erro);
     }
   }
+
+  /* ---------- salvar senha (preenche, mas NAO entra sozinho) ---------- */
+  var CHAVE_SALVA = "frotaLoginSalvo";
+
+  function lerSalvo() {
+    try {
+      var t = localStorage.getItem(CHAVE_SALVA);
+      if (!t) return null;
+      return JSON.parse(decodeURIComponent(escape(atob(t))));
+    } catch (e) { return null; }
+  }
+
+  function gravarSalvo(user, pass) {
+    try {
+      localStorage.setItem(CHAVE_SALVA, btoa(unescape(encodeURIComponent(JSON.stringify({ u: user, p: pass })))));
+    } catch (e) {}
+  }
+
+  function apagarSalvo() {
+    try { localStorage.removeItem(CHAVE_SALVA); } catch (e) {}
+  }
+
+  function montarLembrar(wrap) {
+    if (document.getElementById("chkSalvarSenha")) return;
+    var box = document.createElement("label");
+    box.style.cssText = "display:flex;align-items:center;gap:8px;font-size:13px;color:#444;margin:10px 0 12px;cursor:pointer;text-align:left;";
+    box.innerHTML = '<input type="checkbox" id="chkSalvarSenha" style="width:16px;height:16px;margin:0;"><span>Salvar senha neste dispositivo</span>';
+    wrap.parentNode.insertBefore(box, wrap.nextSibling);
+
+    var chk = document.getElementById("chkSalvarSenha");
+    var user = document.getElementById("loginUser");
+    var pass = document.getElementById("loginPass");
+    var salvo = lerSalvo();
+    if (salvo) {
+      chk.checked = true;
+      if (user && !user.value) user.value = salvo.u || "";
+      if (pass && !pass.value) pass.value = salvo.p || "";
+      // preenchido, mas o login so acontece quando o usuario clicar em Entrar
+    }
+    chk.onchange = function () { if (!chk.checked) apagarSalvo(); };
+
+    hookLogin(chk, user, pass);
+
+    var tela = document.getElementById("loginTela");
+    if (tela && typeof MutationObserver !== "undefined") {
+      new MutationObserver(function () {
+        if (tela.style.display !== "none") restaurarCampos(chk, user, pass);
+      }).observe(tela, { attributes: true, attributeFilter: ["style", "class"] });
+    }
+  }
+
+  function restaurarCampos(chk, user, pass) {
+    var salvo = lerSalvo();
+    if (!salvo) return;
+    chk.checked = true;
+    if (user) user.value = salvo.u || "";
+    if (pass) pass.value = salvo.p || "";
+  }
+
+  function hookLogin(chk, user, pass) {
+    function guardar() {
+      if (chk.checked && user && pass && user.value && pass.value) gravarSalvo(user.value, pass.value);
+      else apagarSalvo();
+    }
+    if (typeof window.fazerLogin === "function" && !window.fazerLogin.__fmSalvar) {
+      var orig = window.fazerLogin;
+      window.fazerLogin = function () { guardar(); return orig.apply(this, arguments); };
+      window.fazerLogin.__fmSalvar = true;
+    } else if (typeof window.fazerLogin !== "function") {
+      setTimeout(function () { hookLogin(chk, user, pass); }, 800);
+    }
+    if (pass && !pass.__fmEnter) {
+      pass.__fmEnter = true;
+      pass.addEventListener("keydown", function (e) { if (e.key === "Enter") guardar(); });
+    }
+  }
+
 
   function fechar(id) {
     var el = document.getElementById(id);
