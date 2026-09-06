@@ -15,7 +15,69 @@
     catch (e) { fretes = []; }
     if (!Array.isArray(fretes)) fretes = [];
   }
-  function persistir() { localStorage.setItem(LS_KEY, JSON.stringify(fretes)); }
+  function logado() {
+    try { return !!(window.auth && auth.currentUser); } catch (e) { return false; }
+  }
+  function nuvem() {
+    try { if (typeof dbCloud !== 'undefined' && dbCloud && dbCloud.collection) return dbCloud; } catch (e) {}
+    return null;
+  }
+
+  var envioPendente = false;
+
+  function gravarNuvem() {
+    var cloud = nuvem();
+    if (!cloud) { envioPendente = true; return; }
+    if (!logado()) { envioPendente = true; return; }
+    envioPendente = false;
+    try { if (typeof carimbarRegistros === 'function') carimbarRegistros(); } catch (e) {}
+    var p = cloud.collection('frota').doc('fretes')
+      .set({ dados: fretes, atualizadoEm: new Date().toISOString() }, { merge: true });
+    if (p && p.catch) p.catch(function (err) {
+      console.error('Erro ao salvar fretes no banco:', err);
+      envioPendente = true;
+      try {
+        if (typeof statusNuvem === 'function')
+          statusNuvem('ERRO ao gravar fretes: ' + (err && err.code || 'desconhecido'), '#dc3545');
+      } catch (e) {}
+    });
+  }
+
+  var escutando = false;
+  function escutarNuvem() {
+    var cloud = nuvem();
+    if (!cloud || escutando || !logado()) return;
+    escutando = true;
+    cloud.collection('frota').doc('fretes').onSnapshot(function (doc) {
+      if (!doc.exists) { if (fretes.length) gravarNuvem(); return; }
+      var dados = (doc.data() || {}).dados;
+      if (!Array.isArray(dados)) return;
+      fretes = dados;
+      try { localStorage.setItem(LS_KEY, JSON.stringify(fretes)); } catch (e) {}
+      try { if (typeof marcarRegistrosCarregados === 'function') marcarRegistrosCarregados(fretes); } catch (e) {}
+      if (typeof window.renderFretes === 'function') window.renderFretes();
+    }, function (err) { console.error('Erro ao ler fretes do banco:', err); });
+  }
+
+  function observarLogin() {
+    try {
+      if (window.auth && typeof auth.onAuthStateChanged === 'function') {
+        auth.onAuthStateChanged(function (u) {
+          if (!u) return;
+          escutarNuvem();
+          if (envioPendente) gravarNuvem();
+        });
+        return;
+      }
+    } catch (e) {}
+    setTimeout(observarLogin, 1000);
+  }
+  observarLogin();
+
+  function persistir() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(fretes)); } catch (e) {}
+    gravarNuvem();
+  }
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -813,7 +875,7 @@
       carregarImg('./card-base.jpg'),
       f.freorigem ? geocodificar(f.freorigem) : null,
       f.fredestino ? geocodificar(f.fredestino) : null,
-      carregarImg('./card-logo.png')
+      carregarImg('./card-logo-dark.png')
     ]).then(function (res) {
       var base = res[0], geoO = res[1], geoD = res[2], logo = res[3];
       ctx.clearRect(0, 0, W, H);
@@ -915,15 +977,12 @@
       textoAjustado(ctx, l1, 108 + raio + 26, yRod - 4, 440, 21, '600', CINZA);
       if (l2) textoAjustado(ctx, l2, 108 + raio + 26, yRod + 24, 440, 21, 'bold', GRAFITE);
 
-      // ---- rodape profissional: faixa escura com telefone e logo ----
+      // ---- rodape profissional: fundo branco com marca d'agua ----
       var tel = f.frecontato || '';
       var by = 944, bh = H - 944, cy = by + bh / 2;
 
-      // limpa area do rodape e desenha faixa escura
-      var fg = ctx.createLinearGradient(0, by, W, H);
-      fg.addColorStop(0, '#15181e');
-      fg.addColorStop(1, '#05070a');
-      ctx.fillStyle = fg;
+      // fundo branco limpo
+      ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, by, W, bh);
 
       // filete vermelho superior
@@ -932,6 +991,16 @@
       rgd.addColorStop(1, VERM_ESC);
       ctx.fillStyle = rgd;
       ctx.fillRect(0, by, W, 7);
+
+      // marca d'agua da logo ocupando o rodape
+      if (logo) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, by + 7, W, bh - 7); ctx.clip();
+        ctx.globalAlpha = 0.07;
+        var wh = (bh - 7) * 0.82, ww = logo.width * (wh / logo.height);
+        ctx.drawImage(logo, (W - ww) / 2 + 80, cy + 4 - wh / 2, ww, wh);
+        ctx.restore();
+      }
 
       // icone telefone
       ctx.save();
@@ -950,17 +1019,18 @@
 
       // telefone
       ctx.textAlign = 'left';
-      textoAjustado(ctx, 'CONTATO / WHATSAPP', 152, cy - 12, 320, 20, '600', 'rgba(255,255,255,0.62)');
-      textoAjustado(ctx, tel || 'WHATSAPP', 152, cy + 30, 380, 42, 'bold', '#ffffff');
+      textoAjustado(ctx, 'CONTATO / WHATSAPP', 152, cy - 12, 320, 20, '600', CINZA);
+      textoAjustado(ctx, tel || 'WHATSAPP', 152, cy + 30, 380, 42, 'bold', GRAFITE);
 
-      // logo cargo center a direita
+      // logo cargo center nitida a direita
       if (logo) {
-        var lh = 76, lw = logo.width * (lh / logo.height);
+        var lh = 70, lw = logo.width * (lh / logo.height);
         var lx = W - 56 - lw, ly = cy - lh / 2;
         ctx.drawImage(logo, lx, ly, lw, lh);
-        ctx.fillStyle = 'rgba(255,255,255,0.18)';
-        ctx.fillRect(lx - 40, cy - 44, 2, 88);
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        ctx.fillRect(lx - 40, cy - 40, 2, 80);
       }
+
 
       ctx.textAlign = 'left';
       cardPronto = true;
