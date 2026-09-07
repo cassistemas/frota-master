@@ -3902,7 +3902,16 @@ function salvarNuvem(modulos){
 }
 
 
+// A tela do modulo esta aberta? Serve para desenhar so o que aparece.
+window.fmRenderPendente = window.fmRenderPendente || {};
+window.fmModuloVisivel = function(id){
+    var el = document.getElementById(id);
+    if(!el) return false;
+    return !el.classList.contains("hidden");
+};
+
 function navegar(id, el) {
+
     // 🔐 bloqueio por permissão (usuário comum só acessa módulos liberados)
     if (!usuarioLogado || usuarioLogado.tipo !== "admin") {
         let p = (usuarioLogado && usuarioLogado.permissoes) || {};
@@ -3921,10 +3930,17 @@ function navegar(id, el) {
     // Esconde todos e mostra o selecionado
     document.querySelectorAll('.main>div').forEach(d => d.classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
-    
+
+    // Desenha a tela agora, se ela recebeu dados novos enquanto estava fechada.
+    if(window.fmRenderPendente && window.fmRenderPendente[id]){
+        delete window.fmRenderPendente[id];
+        try{ renderModulo(id); }catch(e){}
+    }
+
     // Gerencia o menu ativo
     document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
     el.classList.add('active');
+
 
     // Carregamento específico por módulo
     if (id === 'combustivel') {
@@ -4783,9 +4799,25 @@ function iniciarSistema(){
         document.getElementById("userTipo").innerText = (usuarioLogado.tipo === "admin" ? "Administrador" : "Usuário");
     })();
 
-    Object.keys(MAP).forEach(mod=>{
-        escutarDados(mod);
-    });
+    // Carrega primeiro o essencial da tela inicial e depois os demais modulos
+    // em pequenos blocos, para o navegador nao travar ao entrar.
+    (function(){
+        const prioritarios = ["veiculos","fretes","manutencoes","motoristas"];
+        const todos = Object.keys(MAP);
+        const restantes = todos.filter(m => prioritarios.indexOf(m) === -1);
+
+        prioritarios.forEach(m => { if(todos.indexOf(m) !== -1) escutarDados(m); });
+
+        let pos = 0;
+        (function proximoBloco(){
+            const bloco = restantes.slice(pos, pos + 3);
+            if(!bloco.length) return;
+            pos += 3;
+            bloco.forEach(escutarDados);
+            setTimeout(proximoBloco, 250);
+        })();
+    })();
+
 
     if(typeof escutarBackupsNuvem === "function") escutarBackupsNuvem();
 
@@ -4842,11 +4874,18 @@ function escutarDados(modulo){
                 }
             }
             if(typeof marcarRegistrosCarregados === "function") marcarRegistrosCarregados(db[modulo]);
-            renderModulo(modulo);
-            // A entrada inicial chega uma vez para cada modulo. Agrupar a
-            // renderizacao evita redesenhar a tela inteira dezenas de vezes.
-            clearTimeout(window.fmRenderTudoTimer);
-            window.fmRenderTudoTimer = setTimeout(function(){ renderTudo(); }, 120);
+
+            // Desenha somente a tela que o usuario esta vendo. As demais ficam
+            // marcadas e sao desenhadas quando ele abrir o modulo.
+            if(!window.fmRenderPendente) window.fmRenderPendente = {};
+            if(window.fmModuloVisivel(modulo)){
+                renderModulo(modulo);
+                clearTimeout(window.fmRenderTudoTimer);
+                window.fmRenderTudoTimer = setTimeout(function(){ renderTudo(); }, 300);
+            } else {
+                window.fmRenderPendente[modulo] = true;
+            }
+
         }
 
     }, function(err){
@@ -6690,14 +6729,23 @@ function excluirUsuario(uid){
     dbCloud.collection("usuarios").doc(uid).delete();
 }
 
+// Contas donas do sistema: sempre entram como administrador.
+window.FM_ADMINS = ["carlos.salvallaggio@gmail.com"];
+
+function fmEhAdminEmail(email){
+    return window.FM_ADMINS.indexOf(String(email || "").trim().toLowerCase()) >= 0;
+}
+
 auth.onAuthStateChanged(user => {
 
     if(user){
 
+        var ehDono = fmEhAdminEmail(user.email);
+
         var perfilPadrao = {
             email: user.email || "",
             nome: user.email || "Usuário",
-            tipo: "user",
+            tipo: ehDono ? "admin" : "user",
             permissoes: {}
         };
         var limitePerfil = new Promise(function(_, rejeitar){
@@ -6726,8 +6774,18 @@ if(!usuarioLogado.nome){
                 });
             }
 
-            // Perfil sem tipo recebe acesso comum; administrador nunca e
-            // concedido automaticamente no navegador.
+            if(!usuarioLogado.email) usuarioLogado.email = user.email || "";
+
+            // Conta dona sempre administrador, mesmo se o perfil salvo estiver
+            // desatualizado no banco.
+            if(ehDono && usuarioLogado.tipo !== "admin"){
+                usuarioLogado.tipo = "admin";
+                dbCloud.collection("usuarios")
+                .doc(user.uid)
+                .set({ tipo: "admin" }, { merge: true })
+                .catch(function(){});
+            }
+
             if(!usuarioLogado.tipo){
                 usuarioLogado.tipo = "user";
             }
@@ -6742,7 +6800,7 @@ if(!usuarioLogado.nome){
 
         }).catch(function(err){
             // A autenticacao ja foi confirmada. Se a leitura do perfil for
-            // recusada ou demorar, abre o sistema com o perfil mais restrito
+            // recusada ou demorar, abre o sistema com o perfil disponivel
             // e com os dados preservados no aparelho, em vez de travar no login.
             usuarioLogado = perfilPadrao;
             iniciarSistema();
@@ -6750,6 +6808,7 @@ if(!usuarioLogado.nome){
             if(loginErro) loginErro.innerText = "";
             if(typeof window.fmBancoLeituraRecusada === "function") window.fmBancoLeituraRecusada(err);
         });
+
 
     } else {
         window.fmSistemaIniciado = false;
@@ -7821,6 +7880,23 @@ style="width:100%; height:400px; border:none;">
     try{ return JSON.parse(localStorage.getItem(PREFIXO_DIA + data) || "null"); }catch(e){ return null; }
   }
 
+  // Conta quantos registros da copia ainda nao existem nos dados atuais
+  function novidades(dados){
+    var novos = 0, detalhe = [];
+    try{
+      Object.keys(dados || {}).forEach(function(mod){
+        if(!Array.isArray(dados[mod])) return;
+        var atuais = {};
+        var lista = (typeof db !== "undefined" && Array.isArray(db[mod])) ? db[mod] : [];
+        lista.forEach(function(it){ atuais[JSON.stringify(it)] = 1; });
+        var n = 0;
+        dados[mod].forEach(function(it){ if(!atuais[JSON.stringify(it)]) n++; });
+        if(n){ novos += n; detalhe.push(mod + ": " + n); }
+      });
+    }catch(e){}
+    return { novos: novos, detalhe: detalhe };
+  }
+
   window.fmAbrirBackupCache = function(){
     var dias = listarDias();
     if(!dias.length){ alert("Ainda nao existe copia por data neste aparelho."); return; }
@@ -7831,9 +7907,15 @@ style="width:100%; height:400px; border:none;">
       return '<option value="' + d.data + '">' + p[2] + "/" + p[1] + "/" + p[0] + " — " + d.total + " registro(s)</option>";
     }).join("");
     o.innerHTML =
-      '<div style="background:#fff;border-radius:14px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:left">' +
+      '<div style="background:#fff;border-radius:14px;padding:22px;max-width:460px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:left">' +
       '<h5 style="font-weight:800;margin-bottom:6px">🗓️ Backup do cache por data</h5>' +
-      '<div style="font-size:13px;color:#555;margin-bottom:12px">Escolha o dia e restaure apenas a copia daquela data.</div>' +
+      '<div style="font-size:13px;color:#555;margin-bottom:12px">Digite a data (ou escolha na lista) e clique em <b>Verificar</b> para ver se ha dados para atualizar.</div>' +
+      '<label style="font-size:12px;font-weight:700">Data</label>' +
+      '<div style="display:flex;gap:8px;margin-bottom:8px">' +
+      '<input type="date" id="fmCacheData" class="form-control" style="flex:1" max="' + dias[0].data + '">' +
+      '<button class="btn btn-outline-primary" id="fmCacheVerificar">🔎 Verificar</button>' +
+      '</div>' +
+      '<label style="font-size:12px;font-weight:700">Dias guardados neste aparelho</label>' +
       '<select id="fmCacheDia" class="form-control mb-2">' + opts + '</select>' +
       '<select id="fmCacheModo" class="form-control mb-2">' +
       '<option value="juntar">Juntar com os dados atuais (nao apaga nada)</option>' +
@@ -7845,12 +7927,46 @@ style="width:100%; height:400px; border:none;">
       '<button class="btn btn-secondary" id="fmCacheCancel">Cancelar</button>' +
       '</div></div>';
     document.body.appendChild(o);
+
+    var elData = document.getElementById("fmCacheData");
+    var elDia  = document.getElementById("fmCacheDia");
+    var elMsg  = document.getElementById("fmCacheMsg");
+    elData.value = elDia.value;
+    elDia.onchange = function(){ elData.value = elDia.value; elMsg.innerHTML = ""; };
+    elData.onchange = function(){
+      var achou = false;
+      for(var i = 0; i < elDia.options.length; i++){
+        if(elDia.options[i].value === elData.value){ elDia.selectedIndex = i; achou = true; }
+      }
+      elMsg.innerHTML = achou ? "" : '<span style="color:#b26a00">Nao ha copia guardada nessa data.</span>';
+    };
+
+    function dataEscolhida(){ return elData.value || elDia.value; }
+
+    document.getElementById("fmCacheVerificar").onclick = function(){
+      var data = dataEscolhida();
+      if(!data){ elMsg.innerHTML = '<span style="color:#dc3545">Informe uma data.</span>'; return; }
+      var c = lerDia(data);
+      if(!c || !c.dados){
+        elMsg.innerHTML = '<span style="color:#dc3545">Nao existe copia guardada em ' + data + '.</span>';
+        return;
+      }
+      var r = novidades(c.dados);
+      if(!r.novos){
+        elMsg.innerHTML = '<span style="color:#198754">A copia de ' + data + ' tem ' + (c.total || 0) +
+          ' registro(s) e nenhum deles falta no sistema. Nada para atualizar.</span>';
+      } else {
+        elMsg.innerHTML = '<span style="color:#0d6efd"><b>' + r.novos + ' registro(s)</b> dessa data ainda nao estao no sistema.<br>' +
+          r.detalhe.join(" · ") + '</span>';
+      }
+    };
+
     document.getElementById("fmCacheCancel").onclick = function(){ o.remove(); };
     document.getElementById("fmCacheOk").onclick = function(){
-      var data = document.getElementById("fmCacheDia").value;
+      var data = dataEscolhida();
       var modo = document.getElementById("fmCacheModo").value;
       var c = lerDia(data);
-      if(!c || !c.dados){ document.getElementById("fmCacheMsg").innerHTML = '<span style="color:#dc3545">Copia desse dia nao encontrada.</span>'; return; }
+      if(!c || !c.dados){ elMsg.innerHTML = '<span style="color:#dc3545">Copia desse dia nao encontrada.</span>'; return; }
       if(!confirm((modo === "substituir" ? "Substituir os dados atuais pela copia de " : "Juntar ao sistema a copia de ") + data + " (" + (c.total || 0) + " registro(s))?")) return;
       var qtd = 0;
       if(modo === "substituir" && typeof fmSubstituirBackup === "function") qtd = fmSubstituirBackup(c.dados);
