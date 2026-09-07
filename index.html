@@ -1377,7 +1377,13 @@ onclick="exportarExcel('saidaVeiculos')">
                 <h2 class="fw-bold">Painel de Controle</h2>
                 <p>Acompanhe a frota, os custos e os principais alertas em um só lugar.</p>
             </div>
-            <div class="dashboard-date">Atualização automática</div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <div class="dashboard-date">Atualização automática</div>
+                <div id="fmBancoStatus" class="fm-banco-status verificando" title="Situação do banco de dados">
+                    <span class="fm-banco-dot"></span><span id="fmBancoStatusTxt">Verificando banco...</span>
+                </div>
+            </div>
+
         </div>
         <div class="row g-3 mb-4">
             <div class="col-md-3"><div class="dashboard-stat"><h6>Veículos cadastrados</h6><h3 id="d_vei">0</h3></div></div>
@@ -3786,6 +3792,7 @@ function salvarNuvem(modulos){
     });
 
     statusNuvem("Salvando no banco...", "#0d6efd");
+    if(typeof window.fmMarcarPendencias === "function") window.fmMarcarPendencias(envios.length);
 
     // O Firestore so resolve a promise quando o servidor confirma. Offline,
     // a gravacao fica na fila local e e enviada depois — por isso o aviso.
@@ -3794,8 +3801,13 @@ function salvarNuvem(modulos){
     return Promise.race([Promise.all(envios), timeout]).then(function(r){
         if(r === "pendente"){
             statusNuvem("Sem conexao: gravacao na fila, sera enviada ao banco", "#fd7e14");
+            Promise.all(envios).then(function(){
+                if(typeof window.fmMarcarPendencias === "function") window.fmMarcarPendencias(0);
+                statusNuvem("Dados pendentes enviados ao banco", "#198754");
+            });
             return false;
         }
+        if(typeof window.fmMarcarPendencias === "function") window.fmMarcarPendencias(0);
         var falhas = r.filter(Boolean);
         if(falhas.length){
             console.error("Falha ao gravar no banco:", falhas);
@@ -3805,6 +3817,7 @@ function salvarNuvem(modulos){
         statusNuvem("Salvo no banco de dados", "#198754");
         return true;
     });
+
 
 }
 
@@ -7047,7 +7060,60 @@ style="width:100%; height:400px; border:none;">
 </div>
 </div>
 </div>
+<style>
+.fm-banco-status{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:700;letter-spacing:.2px;border:1px solid rgba(0,0,0,.08);}
+.fm-banco-status .fm-banco-dot{width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 0 0 currentColor;animation:fmPulse 1.8s infinite;}
+.fm-banco-status.online{background:#e7f7ed;color:#158a44;}
+.fm-banco-status.offline{background:#fdeaea;color:#c62828;}
+.fm-banco-status.pendente{background:#fff4e5;color:#b45309;}
+.fm-banco-status.verificando{background:#eef2f7;color:#4b5563;}
+@keyframes fmPulse{0%{box-shadow:0 0 0 0 rgba(0,0,0,.18);}70%{box-shadow:0 0 0 7px rgba(0,0,0,0);}100%{box-shadow:0 0 0 0 rgba(0,0,0,0);}}
+</style>
+<script>
+/* Indicador de conexão com o banco de dados (ao lado de "Atualização automática") */
+(function(){
+  var estado = { online: navigator.onLine, pendentes: 0 };
+
+  function pintar(){
+    var box = document.getElementById("fmBancoStatus");
+    var txt = document.getElementById("fmBancoStatusTxt");
+    if(!box || !txt) return;
+    box.classList.remove("online","offline","pendente","verificando");
+    if(!estado.online){
+      box.classList.add("offline");
+      txt.innerText = "Banco desconectado — salvando no aparelho";
+    } else if(estado.pendentes > 0){
+      box.classList.add("pendente");
+      txt.innerText = "Enviando " + estado.pendentes + " dado(s) para o banco...";
+    } else {
+      box.classList.add("online");
+      txt.innerText = "Banco de dados conectado";
+    }
+  }
+
+  window.fmMarcarPendencias = function(qtd){ estado.pendentes = qtd || 0; pintar(); };
+
+  function testar(){
+    if(typeof dbCloud === "undefined" || !navigator.onLine){
+      estado.online = navigator.onLine && estado.online;
+      if(!navigator.onLine) estado.online = false;
+      pintar();
+      return;
+    }
+    dbCloud.collection("frota").doc("__ping").get({ source: "server" })
+      .then(function(){ estado.online = true; pintar(); })
+      .catch(function(){ estado.online = false; pintar(); });
+  }
+
+  window.addEventListener("online", function(){ estado.online = true; pintar(); testar(); });
+  window.addEventListener("offline", function(){ estado.online = false; pintar(); });
+
+  document.addEventListener("DOMContentLoaded", function(){ pintar(); testar(); });
+  setInterval(testar, 20000);
+})();
+</script>
 </body>
+
 <script src="./veiculos-detran.js"></script>
 <script src="./revisoes.js"></script>
 <script src="./motoristas.js"></script>
@@ -7373,6 +7439,4 @@ style="width:100%; height:400px; border:none;">
 <script src="./card-base-data.js?v=20260907-2"></script>
 <script src="./fretes-terceiros.js?v=20260907-3"></script>
 <script src="./enter-universal.js?v=1"></script>
-<script src="./banco-status.js?v=1"></script>
-
 </html>
