@@ -6061,8 +6061,12 @@ function fmZerarBanco(){
         if(!window.fmModulosCarregados) window.fmModulosCarregados = {};
         Object.keys(db).forEach(function(m){ window.fmModulosCarregados[m] = true; });
         // NAO apaga as copias de seguranca do navegador (FM_COPIA_SEGURANCA / FM_COPIA_DIA_*)
-        ["FM_FRETES","FM_FRETES_PENDENTE","FM_FRETES_EXCLUIDOS","FM_FILA_MODULOS","FM_ULTIMO_SNAPSHOT"]
+        // Apaga tambem as areas de trabalho locais dos modulos que se recarregam sozinhos
+        // (estoque -> gera manutencoes automaticas; detran -> veiculos)
+        ["FM_FRETES","FM_FRETES_PENDENTE","FM_FRETES_EXCLUIDOS","FM_FILA_MODULOS","FM_ULTIMO_SNAPSHOT",
+         "frota_estoque_backup","frota_estoque","estoque","FM_EST","FM_MAN","FM_DETRAN","FM_V"]
             .forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
+        try{ if(window.FM_ESTOQUE_PRO && Array.isArray(window.FM_ESTOQUE_PRO.estoque)) window.FM_ESTOQUE_PRO.estoque.length = 0; }catch(e){}
         return erros;
     }).catch(function(e){
         erros.push((e && (e.code || e.message)) || "erro");
