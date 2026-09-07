@@ -3334,9 +3334,23 @@ oninput="calcularKMPneu()">
                     📥 Importar Backup
                 </button>
 
+                <button class="btn btn-outline-dark w-100 mt-2" onclick="fmAbrirBackupCache()">
+                    🗓️ Buscar backup do cache por data
+                </button>
+
                 <button class="btn btn-danger w-100 mt-2" onclick="fmRecuperacaoProfunda()">
                     🛟 Recuperar dados perdidos (memória do aparelho)
                 </button>
+
+                <hr class="my-3">
+
+                <button class="btn btn-outline-danger w-100" onclick="fmAbrirZerarBanco()">
+                    🧨 Apagar banco de dados (zerar tudo)
+                </button>
+                <div class="text-muted mt-1" style="font-size:12px">
+                    Apaga TODOS os registros do banco. Não apaga as cópias de segurança guardadas no navegador. Exige seu usuário e senha de acesso ao sistema.
+                </div>
+
 
                 <input type="file"
                        id="fileIn"
@@ -3406,6 +3420,7 @@ let _backupsNuvemEscutando = false;
 function escutarBackupsNuvem(){
     if(_backupsNuvemEscutando) return;
     if(typeof dbCloud === "undefined" || !dbCloud) return;
+    if(typeof auth === "undefined" || !auth.currentUser) return;
     _backupsNuvemEscutando = true;
     try{
         dbCloud.collection("frota").doc("backups").onSnapshot(function(doc){
@@ -3433,7 +3448,12 @@ function escutarBackupsNuvem(){
                 try{ localStorage.setItem("historicoBackups", JSON.stringify(historicoBackups)); }catch(e){}
                 if(typeof renderHistoricoBackup === "function") renderHistoricoBackup();
             }
-        }, function(){ _backupsNuvemEscutando = false; });
+        }, function(err){
+            // Uma escuta recusada deve permanecer encerrada. Reabri-la em
+            // sequencia cria uma avalanche de requisicoes e trava a pagina.
+            _backupsNuvemEscutando = true;
+            if(typeof window.fmBancoLeituraRecusada === "function") window.fmBancoLeituraRecusada(err);
+        });
     }catch(e){ _backupsNuvemEscutando = false; }
 }
 
@@ -4728,6 +4748,11 @@ function mediaPorVeiculo(placa, dadosBase = db.combustivel){
 
 function iniciarSistema(){
 
+    // Evita abrir uma nova leva de listeners caso o estado de login seja
+    // emitido novamente. Listeners duplicados deixavam a tela cada vez mais lenta.
+    if(window.fmSistemaIniciado) return;
+    window.fmSistemaIniciado = true;
+
     // 🔥 garante tipo salvo
     if(!usuarioLogado.tipo){
         usuarioLogado.tipo = "user";
@@ -4762,22 +4787,28 @@ function iniciarSistema(){
         escutarDados(mod);
     });
 
+    if(typeof escutarBackupsNuvem === "function") escutarBackupsNuvem();
+
     // 🔥 IMPORTANTE: carregar lista usuários
     escutarUsuarios();
    aplicarPermissoes();
    carregarPermissoesAdmin();
 }
-    // Na inicializacao apenas ESCUTA a nuvem (nao regrava, para nao apagar o
-    // historico que ja esta salvo no banco).
-    if(typeof escutarBackupsNuvem === "function") escutarBackupsNuvem();
+    // O historico local pode ser exibido antes do login; a escuta da nuvem
+    // somente e iniciada por iniciarSistema depois da autenticacao.
     if(typeof renderHistoricoBackup === "function") renderHistoricoBackup();
 
 
 function escutarDados(modulo){
 
-    dbCloud.collection("frota")
+    if(!window.fmEscutasDados) window.fmEscutasDados = {};
+    if(window.fmEscutasDados[modulo]) return;
+
+    const cancelarEscuta = dbCloud.collection("frota")
     .doc(modulo)
     .onSnapshot(doc => {
+
+        if(typeof window.fmBancoLeituraConfirmada === "function") window.fmBancoLeituraConfirmada();
 
         if(doc.exists){
             const payload = doc.data() || {};
@@ -4812,10 +4843,17 @@ function escutarDados(modulo){
             }
             if(typeof marcarRegistrosCarregados === "function") marcarRegistrosCarregados(db[modulo]);
             renderModulo(modulo);
-            renderTudo();
+            // A entrada inicial chega uma vez para cada modulo. Agrupar a
+            // renderizacao evita redesenhar a tela inteira dezenas de vezes.
+            clearTimeout(window.fmRenderTudoTimer);
+            window.fmRenderTudoTimer = setTimeout(function(){ renderTudo(); }, 120);
         }
 
+    }, function(err){
+        delete window.fmEscutasDados[modulo];
+        if(typeof window.fmBancoLeituraRecusada === "function") window.fmBancoLeituraRecusada(err);
     });
+    window.fmEscutasDados[modulo] = cancelarEscuta;
 
 }
 
@@ -5851,24 +5889,187 @@ function fmSubstituirBackup(conteudo){
 }
 window.fmSubstituirBackup = fmSubstituirBackup;
 
-function fmAplicarBackup(conteudo){
+// Aceita backups em varios formatos: {modulo:[...]}, {db:{...}}, {dados:{...}}
+function fmNormalizarBackup(conteudo){
+    if(!conteudo || typeof conteudo !== "object") return null;
+    if(conteudo.db && typeof conteudo.db === "object") conteudo = conteudo.db;
+    else if(conteudo.dados && typeof conteudo.dados === "object" && !Array.isArray(conteudo.dados)) conteudo = conteudo.dados;
+    var limpo = {};
+    Object.keys(conteudo).forEach(function(mod){
+        if(Array.isArray(conteudo[mod])) limpo[mod] = conteudo[mod];
+    });
+    return Object.keys(limpo).length ? limpo : null;
+}
+window.fmNormalizarBackup = fmNormalizarBackup;
+
+function fmSincronizarFretesLocais(){
+    // O modulo de fretes guarda a propria copia no aparelho.
+    try{
+        if(Array.isArray(db.fretes)){
+            localStorage.setItem("FM_FRETES", JSON.stringify(db.fretes));
+            localStorage.removeItem("FM_FRETES_EXCLUIDOS");
+        }
+    }catch(e){}
+}
+
+function fmAplicarBackup(conteudoBruto){
+    var conteudo = fmNormalizarBackup(conteudoBruto);
+    if(!conteudo){ alert("Este arquivo nao tem dados de backup reconhecidos."); return; }
+
     var substituir = confirm(
         "Como deseja aplicar este backup?\n\n" +
-        "OK = SUBSTITUIR (apaga os dados atuais e deixa só os do backup)\n" +
-        "Cancelar = JUNTAR (mantém os atuais e acrescenta os do backup)"
+        "OK = SUBSTITUIR (apaga os dados atuais e deixa so os do backup)\n" +
+        "Cancelar = JUNTAR (mantem os atuais e acrescenta os do backup)"
     );
-    if(substituir){
-        var qtd = fmSubstituirBackup(conteudo);
-        salvarNuvem();
-        alert("Backup aplicado por substituicao: " + qtd + " registro(s) no sistema.");
-    } else {
-        var novos = fmMesclarBackup(conteudo);
-        salvarNuvem();
-        alert("Backup juntado: " + novos + " registro(s) devolvidos ao sistema.");
+
+    var qtd = substituir ? fmSubstituirBackup(conteudo) : fmMesclarBackup(conteudo);
+    var mods = Object.keys(conteudo);
+    if(!window.fmModulosCarregados) window.fmModulosCarregados = {};
+    mods.forEach(function(m){ window.fmModulosCarregados[m] = true; });
+    fmSincronizarFretesLocais();
+
+    if(!auth.currentUser){
+        alert("Backup carregado no aparelho (" + qtd + " registro(s)), mas voce nao esta logado.\n" +
+              "Entre no sistema para que ele suba ao banco de dados.");
+        setTimeout(function(){ location.reload(); }, 1200);
+        return;
     }
-    setTimeout(function(){ location.reload(); }, 1500);
+
+    statusNuvem("Enviando backup ao banco...", "#0d6efd");
+
+    fmEnviarBackupNuvem(mods).then(function(erros){
+        if(erros.length){
+            alert("Backup aplicado no sistema, mas o banco recusou " + erros.length + " item(ns):\n" +
+                  erros.join("\n") + "\n\nOs dados ficaram na fila e serao reenviados sozinhos.");
+        } else {
+            alert("Backup importado e gravado no banco com sucesso: " + qtd + " registro(s).");
+        }
+        setTimeout(function(){ location.reload(); }, 800);
+    });
 }
 window.fmAplicarBackup = fmAplicarBackup;
+
+// Grava modulo por modulo, com nova tentativa, para o backup subir inteiro.
+function fmEnviarBackupNuvem(mods){
+    var erros = [];
+    function enviar(mod, tentativa){
+        var payload = { dados: db[mod] || [], atualizadoEm: new Date().toISOString() };
+        if(mod === "fretes") payload.excluidos = [];
+        return dbCloud.collection("frota").doc(mod).set(payload, { merge: true })
+            .then(function(){ if(typeof fmFilaRemover === "function") fmFilaRemover([mod]); })
+            .catch(function(err){
+                if(tentativa < 2) return enviar(mod, tentativa + 1);
+                if(typeof fmFilaAdicionar === "function") fmFilaAdicionar([mod]);
+                erros.push(mod + ": " + ((err && (err.code || err.message)) || "erro"));
+            });
+    }
+    var fila = Promise.resolve();
+    mods.forEach(function(mod){ fila = fila.then(function(){ return enviar(mod, 1); }); });
+    return fila.then(function(){
+        if(!erros.length && typeof window.fmMarcarSyncConfirmado === "function") window.fmMarcarSyncConfirmado();
+        statusNuvem(erros.length ? "Backup enviado com falhas" : "Backup gravado no banco de dados",
+                    erros.length ? "#dc3545" : "#198754");
+        return erros;
+    });
+}
+window.fmEnviarBackupNuvem = fmEnviarBackupNuvem;
+
+/* ---------- Apagar (zerar) o banco de dados ---------- */
+function fmAbrirZerarBanco(){
+    var atual = (auth.currentUser && auth.currentUser.email) || "";
+    var o = document.createElement("div");
+    o.id = "fmZerarOverlay";
+    o.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px";
+    o.innerHTML =
+        '<div style="background:#fff;border-radius:14px;padding:22px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:left">' +
+        '<h5 style="font-weight:800;color:#b91c1c;margin-bottom:6px">🧨 Apagar banco de dados</h5>' +
+        '<div style="font-size:13px;color:#555;margin-bottom:14px">Todos os registros do banco serao apagados. Confirme com o seu usuario e senha de acesso ao sistema.</div>' +
+        '<input id="fmZerarUser" class="form-control mb-2" type="email" placeholder="Seu email de acesso" value="' + atual + '">' +
+        '<input id="fmZerarPass" class="form-control mb-2" type="password" placeholder="Sua senha">' +
+        '<div id="fmZerarMsg" style="font-size:13px;min-height:18px"></div>' +
+        '<div style="display:flex;gap:8px;margin-top:12px">' +
+        '<button class="btn btn-danger" id="fmZerarOk">Apagar tudo</button>' +
+        '<button class="btn btn-secondary" id="fmZerarCancel">Cancelar</button>' +
+        '</div></div>';
+    document.body.appendChild(o);
+    document.getElementById("fmZerarCancel").onclick = function(){ o.remove(); };
+    document.getElementById("fmZerarOk").onclick = fmConfirmarZerarBanco;
+    document.getElementById("fmZerarPass").onkeydown = function(e){ if(e.key === "Enter") fmConfirmarZerarBanco(); };
+}
+window.fmAbrirZerarBanco = fmAbrirZerarBanco;
+
+function fmConfirmarZerarBanco(){
+    var msg = document.getElementById("fmZerarMsg");
+    var btn = document.getElementById("fmZerarOk");
+    var email = (document.getElementById("fmZerarUser").value || "").trim();
+    var senha = document.getElementById("fmZerarPass").value || "";
+    if(!email || !senha){
+        msg.style.color = "#dc3545"; msg.innerText = "Informe email e senha."; return;
+    }
+    if(!confirm("Tem certeza? Esta acao apaga TODOS os dados do banco e nao pode ser desfeita.")) return;
+
+    btn.disabled = true;
+    msg.style.color = "#555"; msg.innerText = "Verificando usuario...";
+
+    auth.signInWithEmailAndPassword(email, senha).then(function(){
+        msg.innerText = "Apagando banco de dados...";
+        return fmZerarBanco();
+    }).then(function(erros){
+        if(erros && erros.length){
+            msg.style.color = "#dc3545";
+            msg.innerText = "Nao foi possivel apagar: " + erros.join(", ");
+            btn.disabled = false;
+            return;
+        }
+        msg.style.color = "#198754";
+        msg.innerText = "Banco de dados zerado. Recarregando...";
+        setTimeout(function(){ location.reload(); }, 1200);
+    }).catch(function(err){
+        btn.disabled = false;
+        msg.style.color = "#dc3545";
+        var c = (err && err.code) || "";
+        msg.innerText = (c.indexOf("wrong-password") !== -1 || c.indexOf("invalid-cred") !== -1 || c.indexOf("user-not-found") !== -1)
+            ? "Usuario ou senha invalidos."
+            : "Erro: " + ((err && err.message) || c || "desconhecido");
+    });
+}
+
+function fmZerarBanco(){
+    var erros = [];
+    var protegidos = { "__ping": 1, "backups": 1 };
+    return dbCloud.collection("frota").get().then(function(snap){
+        var docs = [];
+        snap.forEach(function(d){ if(!protegidos[d.id]) docs.push(d.id); });
+        Object.keys(db).forEach(function(m){ if(!protegidos[m] && docs.indexOf(m) === -1) docs.push(m); });
+        if(docs.indexOf("fretes") === -1) docs.push("fretes");
+
+        var fila = Promise.resolve();
+        docs.forEach(function(mod){
+            fila = fila.then(function(){
+                var payload = { dados: [], atualizadoEm: new Date().toISOString() };
+                if(mod === "fretes") payload.excluidos = [];
+                return dbCloud.collection("frota").doc(mod).set(payload, { merge: true })
+                    .catch(function(e){ erros.push(mod + ": " + ((e && (e.code || e.message)) || "erro")); });
+            });
+        });
+        return fila;
+    }).then(function(){
+        if(erros.length) return erros;
+        // guarda uma copia do dia antes de limpar a area de trabalho local
+        try{ if(typeof window.fmGuardarCopiaLocal === "function") window.fmGuardarCopiaLocal(true); }catch(e){}
+        Object.keys(db).forEach(function(m){ if(Array.isArray(db[m])) db[m] = []; });
+        if(!window.fmModulosCarregados) window.fmModulosCarregados = {};
+        Object.keys(db).forEach(function(m){ window.fmModulosCarregados[m] = true; });
+        // NAO apaga as copias de seguranca do navegador (FM_COPIA_SEGURANCA / FM_COPIA_DIA_*)
+        ["FM_FRETES","FM_FRETES_PENDENTE","FM_FRETES_EXCLUIDOS","FM_FILA_MODULOS","FM_ULTIMO_SNAPSHOT"]
+            .forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
+        return erros;
+    }).catch(function(e){
+        erros.push((e && (e.code || e.message)) || "erro");
+        return erros;
+    });
+}
+window.fmZerarBanco = fmZerarBanco;
 
 function importarBackup(event){
     const file = event.target.files[0];
@@ -5880,8 +6081,11 @@ function importarBackup(event){
         catch(e){ alert("Arquivo de backup invalido."); return; }
         fmAplicarBackup(conteudo);
     };
+    reader.onerror = function(){ alert("Nao foi possivel ler o arquivo de backup."); };
     reader.readAsText(file);
+    event.target.value = "";
 }
+
 
 
 function salvarRegistroMulta(obj,idx){
@@ -6234,6 +6438,7 @@ function fazerLogin(){
 
     let email = document.getElementById("loginUser").value;
     let senha = document.getElementById("loginPass").value;
+    let botao = document.querySelector('#loginTela button[onclick="fazerLogin()"]');
 
     if(!email || !senha){
         document.getElementById("loginErro").innerText = "Preencha email e senha";
@@ -6241,16 +6446,30 @@ function fazerLogin(){
     }
 
     document.getElementById("loginErro").innerText = "Entrando...";
+    if(botao) botao.disabled = true;
 
-    auth.signInWithEmailAndPassword(email, senha)
+    var limiteLogin = new Promise(function(_, rejeitar){
+        setTimeout(function(){ rejeitar({ code: "auth/timeout" }); }, 15000);
+    });
+
+    Promise.race([auth.signInWithEmailAndPassword(email, senha), limiteLogin])
+    .then(function(){
+        document.getElementById("loginErro").innerText = "Acesso confirmado. Carregando...";
+    })
     .catch((erro) => {
-        document.getElementById("loginErro").innerText = erro.message;
+        var mensagem = erro && erro.code === "auth/timeout"
+            ? "A conexão demorou demais. Verifique a internet e tente novamente."
+            : ((erro && erro.message) || "Não foi possível entrar. Tente novamente.");
+        document.getElementById("loginErro").innerText = mensagem;
+        if(botao) botao.disabled = false;
     });
 }
 
 function escutarUsuarios(){
 
-    dbCloud.collection("usuarios")
+    if(window.fmEscutaUsuarios || !usuarioLogado || usuarioLogado.tipo !== "admin") return;
+
+    window.fmEscutaUsuarios = dbCloud.collection("usuarios")
     .onSnapshot(snapshot => {
 
         let html = "";
@@ -6293,6 +6512,9 @@ Excluir
 
         document.getElementById("listaUsuarios").innerHTML = html;
 
+    }, function(err){
+        window.fmEscutaUsuarios = null;
+        if(typeof window.fmBancoLeituraRecusada === "function") window.fmBancoLeituraRecusada(err);
     });
 
 }
@@ -6468,9 +6690,19 @@ auth.onAuthStateChanged(user => {
 
     if(user){
 
-        dbCloud.collection("usuarios")
+        var perfilPadrao = {
+            email: user.email || "",
+            nome: user.email || "Usuário",
+            tipo: "user",
+            permissoes: {}
+        };
+        var limitePerfil = new Promise(function(_, rejeitar){
+            setTimeout(function(){ rejeitar({ code: "firestore/timeout" }); }, 8000);
+        });
+
+        Promise.race([dbCloud.collection("usuarios")
         .doc(user.uid)
-        .get()
+        .get(), limitePerfil])
         .then(doc => {
 
             if(doc.exists){
@@ -6481,19 +6713,19 @@ if(!usuarioLogado.nome){
     usuarioLogado.nome = usuarioLogado.email;
 }
             } else {
-                usuarioLogado = {
-                    email: user.email,
-                    tipo: "admin"
-                };
-
+                usuarioLogado = perfilPadrao;
                 dbCloud.collection("usuarios")
                 .doc(user.uid)
-                .set(usuarioLogado);
+                .set(usuarioLogado)
+                .catch(function(err){
+                    if(typeof window.fmBancoLeituraRecusada === "function") window.fmBancoLeituraRecusada(err);
+                });
             }
 
-            // 🔥 GARANTE ADMIN
+            // Perfil sem tipo recebe acesso comum; administrador nunca e
+            // concedido automaticamente no navegador.
             if(!usuarioLogado.tipo){
-                usuarioLogado.tipo = "admin";
+                usuarioLogado.tipo = "user";
             }
 
             iniciarSistema();
@@ -6504,8 +6736,21 @@ if(!usuarioLogado.nome){
             }, 2500);
 
 
+        }).catch(function(err){
+            // A autenticacao ja foi confirmada. Se a leitura do perfil for
+            // recusada ou demorar, abre o sistema com o perfil mais restrito
+            // e com os dados preservados no aparelho, em vez de travar no login.
+            usuarioLogado = perfilPadrao;
+            iniciarSistema();
+            var loginErro = document.getElementById("loginErro");
+            if(loginErro) loginErro.innerText = "";
+            if(typeof window.fmBancoLeituraRecusada === "function") window.fmBancoLeituraRecusada(err);
         });
 
+    } else {
+        window.fmSistemaIniciado = false;
+        var botao = document.querySelector('#loginTela button[onclick="fazerLogin()"]');
+        if(botao) botao.disabled = false;
     }
 
 });
@@ -7266,8 +7511,11 @@ style="width:100%; height:400px; border:none;">
     var el = document.getElementById("fmUltimaSync");
     if(el) el.classList.add("sincronizando");
     function fim(){ if(el) el.classList.remove("sincronizando"); }
-    if(typeof dbCloud !== "undefined" && dbCloud && navigator.onLine){
-      dbCloud.collection("frota").doc("__ping").get({ source: "server" })
+    if(typeof dbCloud !== "undefined" && dbCloud && navigator.onLine && typeof auth !== "undefined" && auth.currentUser){
+      // Testa um documento real que o usuario autenticado ja pode consultar.
+      // O antigo __ping nao faz parte das permissoes do banco e causava um
+      // falso aviso de desconexao mesmo com internet e sessao validas.
+      dbCloud.collection("frota").doc("veiculos").get({ source: "server" })
         .then(function(){
           estado.online = true;
           estado.bloqueado = false;
@@ -7291,7 +7539,8 @@ style="width:100%; height:400px; border:none;">
         })
         .then(fim, fim);
     } else {
-      estado.online = navigator.onLine;
+      estado.online = false;
+      estado.bloqueado = navigator.onLine && typeof auth !== "undefined" && !auth.currentUser;
       pintar();
       fim();
     }
@@ -7326,13 +7575,17 @@ style="width:100%; height:400px; border:none;">
     pintar();
   };
 
+  var testeEmAndamento = false;
   function testar(){
-    if(typeof dbCloud === "undefined" || !navigator.onLine){
+    if(typeof dbCloud === "undefined" || !navigator.onLine || typeof auth === "undefined" || !auth.currentUser){
       if(!navigator.onLine) estado.online = false;
+      if(navigator.onLine && typeof auth !== "undefined" && !auth.currentUser) estado.bloqueado = true;
       pintar();
       return;
     }
-    dbCloud.collection("frota").doc("__ping").get({ source: "server" })
+    if(testeEmAndamento || document.hidden) return;
+    testeEmAndamento = true;
+    dbCloud.collection("frota").doc("veiculos").get({ source: "server" })
       .then(function(){
         estado.online = true; estado.bloqueado = false; marcarSync(); pintar();
         if(lerFila().length && typeof fmReenviarPendentes === "function") fmReenviarPendentes();
@@ -7342,11 +7595,32 @@ style="width:100%; height:400px; border:none;">
         estado.bloqueado = code.indexOf("permission") !== -1 || code.indexOf("unauthenticated") !== -1;
         estado.online = estado.bloqueado;
         pintar();
-      });
+      })
+      .then(function(){ testeEmAndamento = false; }, function(){ testeEmAndamento = false; });
   }
+
+  window.fmBancoLeituraConfirmada = function(){
+    estado.online = true;
+    estado.bloqueado = false;
+    marcarSync();
+    pintar();
+  };
+  window.fmBancoLeituraRecusada = function(err){
+    var code = String((err && err.code) || "");
+    estado.bloqueado = code.indexOf("permission") !== -1 || code.indexOf("unauthenticated") !== -1;
+    estado.online = Boolean(estado.bloqueado);
+    pintar();
+  };
 
   window.addEventListener("online", function(){ estado.online = true; pintar(); testar(); });
   window.addEventListener("offline", function(){ estado.online = false; pintar(); });
+  if(typeof auth !== "undefined" && auth && typeof auth.onAuthStateChanged === "function"){
+    auth.onAuthStateChanged(function(user){
+      if(!user){ estado.online = false; estado.bloqueado = true; pintar(); return; }
+      estado.bloqueado = false;
+      setTimeout(function(){ sincronizarAgora(true); }, 300);
+    });
+  }
   try{
     var salvo = localStorage.getItem("FM_ULTIMA_SYNC");
     if(salvo) estado.ultimaSync = new Date(salvo);
@@ -7367,7 +7641,9 @@ style="width:100%; height:400px; border:none;">
   else iniciar();
   setTimeout(iniciar, 1500);
 
-  setInterval(testar, 20000);
+  // Uma verificacao por minuto e suficiente; listeners em tempo real ja
+  // confirmam a conexao imediatamente quando uma leitura e aceita.
+  setInterval(testar, 60000);
 
   // Sincronizacao automatica completa (mesma acao do clique) a cada 60s
   setInterval(function(){
@@ -7487,15 +7763,101 @@ style="width:100%; height:400px; border:none;">
     return t;
   }
 
+  var PREFIXO_DIA = "FM_COPIA_DIA_";
+  var MAX_DIAS = 60;
+
+  function chaveDia(d){
+    d = d || new Date();
+    var mm = ("0" + (d.getMonth()+1)).slice(-2), dd = ("0" + d.getDate()).slice(-2);
+    return PREFIXO_DIA + d.getFullYear() + "-" + mm + "-" + dd;
+  }
+
+  function limparAntigos(){
+    try{
+      var dias = [];
+      for(var i = 0; i < localStorage.length; i++){
+        var k = localStorage.key(i);
+        if(k && k.indexOf(PREFIXO_DIA) === 0) dias.push(k);
+      }
+      dias.sort();
+      while(dias.length > MAX_DIAS){ localStorage.removeItem(dias.shift()); }
+    }catch(e){}
+  }
+
   function guardar(){
     try{
       if(typeof db === "undefined" || !db) return;
       var total = totalRegistros(db);
       if(!total) return;
-      localStorage.setItem(CHAVE, JSON.stringify({ em: new Date().toISOString(), total: total, dados: db }));
+      var pacote = JSON.stringify({ em: new Date().toISOString(), total: total, dados: db });
+      localStorage.setItem(CHAVE, pacote);
+      try{ localStorage.setItem(chaveDia(), pacote); limparAntigos(); }
+      catch(e){ limparAntigos(); try{ localStorage.setItem(chaveDia(), pacote); }catch(e2){} }
     }catch(e){}
   }
   window.fmGuardarCopiaLocal = guardar;
+
+  function listarDias(){
+    var out = [];
+    try{
+      for(var i = 0; i < localStorage.length; i++){
+        var k = localStorage.key(i);
+        if(!k || k.indexOf(PREFIXO_DIA) !== 0) continue;
+        var c = null;
+        try{ c = JSON.parse(localStorage.getItem(k) || "null"); }catch(e){}
+        if(c && c.dados) out.push({ data: k.replace(PREFIXO_DIA, ""), total: c.total || totalRegistros(c.dados), em: c.em });
+      }
+    }catch(e){}
+    out.sort(function(a,b){ return a.data < b.data ? 1 : -1; });
+    return out;
+  }
+  window.fmListarCopiasDia = listarDias;
+
+  function lerDia(data){
+    try{ return JSON.parse(localStorage.getItem(PREFIXO_DIA + data) || "null"); }catch(e){ return null; }
+  }
+
+  window.fmAbrirBackupCache = function(){
+    var dias = listarDias();
+    if(!dias.length){ alert("Ainda nao existe copia por data neste aparelho."); return; }
+    var o = document.createElement("div");
+    o.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px";
+    var opts = dias.map(function(d){
+      var p = d.data.split("-");
+      return '<option value="' + d.data + '">' + p[2] + "/" + p[1] + "/" + p[0] + " — " + d.total + " registro(s)</option>";
+    }).join("");
+    o.innerHTML =
+      '<div style="background:#fff;border-radius:14px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:left">' +
+      '<h5 style="font-weight:800;margin-bottom:6px">🗓️ Backup do cache por data</h5>' +
+      '<div style="font-size:13px;color:#555;margin-bottom:12px">Escolha o dia e restaure apenas a copia daquela data.</div>' +
+      '<select id="fmCacheDia" class="form-control mb-2">' + opts + '</select>' +
+      '<select id="fmCacheModo" class="form-control mb-2">' +
+      '<option value="juntar">Juntar com os dados atuais (nao apaga nada)</option>' +
+      '<option value="substituir">Substituir os dados atuais pelo dia escolhido</option>' +
+      '</select>' +
+      '<div id="fmCacheMsg" style="font-size:13px;min-height:18px"></div>' +
+      '<div style="display:flex;gap:8px;margin-top:10px">' +
+      '<button class="btn btn-primary" id="fmCacheOk">Restaurar este dia</button>' +
+      '<button class="btn btn-secondary" id="fmCacheCancel">Cancelar</button>' +
+      '</div></div>';
+    document.body.appendChild(o);
+    document.getElementById("fmCacheCancel").onclick = function(){ o.remove(); };
+    document.getElementById("fmCacheOk").onclick = function(){
+      var data = document.getElementById("fmCacheDia").value;
+      var modo = document.getElementById("fmCacheModo").value;
+      var c = lerDia(data);
+      if(!c || !c.dados){ document.getElementById("fmCacheMsg").innerHTML = '<span style="color:#dc3545">Copia desse dia nao encontrada.</span>'; return; }
+      if(!confirm((modo === "substituir" ? "Substituir os dados atuais pela copia de " : "Juntar ao sistema a copia de ") + data + " (" + (c.total || 0) + " registro(s))?")) return;
+      var qtd = 0;
+      if(modo === "substituir" && typeof fmSubstituirBackup === "function") qtd = fmSubstituirBackup(c.dados);
+      else if(typeof fmMesclarBackup === "function") qtd = fmMesclarBackup(c.dados);
+      if(typeof salvarNuvem === "function") salvarNuvem();
+      o.remove();
+      alert("Restaurados " + qtd + " registro(s) da copia de " + data + ".");
+      setTimeout(function(){ location.reload(); }, 1500);
+    };
+  };
+
 
   function ler(){
     try{ return JSON.parse(localStorage.getItem(CHAVE) || "null"); }catch(e){ return null; }
@@ -7698,7 +8060,8 @@ style="width:100%; height:400px; border:none;">
   };
 
   document.addEventListener('DOMContentLoaded', () => setTimeout(window.atualizarSelectsFiltros, 1500));
-  setInterval(window.atualizarSelectsFiltros, 5000);
+  // Os selects mudam quando os dados sao renderizados; nao precisam ser
+  // reconstruidos continuamente enquanto o usuario trabalha.
 
   // Enter aplica o filtro
   document.addEventListener('keyup', e => {
