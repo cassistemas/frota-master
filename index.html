@@ -3762,21 +3762,53 @@ function statusNuvem(texto, cor){
 
 var _fmModulosAlterados = null;
 
+/* ===== Fila de gravacao: modulos que ainda NAO foram confirmados pelo banco ===== */
+var FM_FILA_KEY = "FM_FILA_MODULOS";
+
+function fmFilaLer(){
+    try{ return JSON.parse(localStorage.getItem(FM_FILA_KEY)) || []; }catch(e){ return []; }
+}
+function fmFilaGravar(lista){
+    try{ localStorage.setItem(FM_FILA_KEY, JSON.stringify(lista.filter(Boolean))); }catch(e){}
+    if(typeof window.fmMarcarPendencias === "function") window.fmMarcarPendencias(lista.length);
+}
+function fmFilaAdicionar(mods){
+    var atual = fmFilaLer();
+    (mods || []).forEach(function(m){ if(atual.indexOf(m) === -1) atual.push(m); });
+    fmFilaGravar(atual);
+}
+function fmFilaRemover(mods){
+    var atual = fmFilaLer().filter(function(m){ return (mods || []).indexOf(m) === -1; });
+    fmFilaGravar(atual);
+}
+
+// Reenvia tudo que ficou pendente (chamado ao logar e quando a internet volta).
+function fmReenviarPendentes(){
+    var pend = fmFilaLer();
+    if(!pend.length) return Promise.resolve(true);
+    if(typeof auth === "undefined" || !auth.currentUser) return Promise.resolve(false);
+    return salvarNuvem(pend);
+}
+window.fmReenviarPendentes = fmReenviarPendentes;
+
 function salvarNuvem(modulos){
 
     if(typeof carimbarRegistros === "function") carimbarRegistros();
 
+    var alvos = Array.isArray(modulos) && modulos.length ? modulos : Object.keys(db);
+    alvos = alvos.filter(function(mod){ return Array.isArray(db[mod]); });
+
+    // Mesmo sem login/conexao o que foi alterado fica marcado para subir depois.
+    fmFilaAdicionar(alvos);
+
     if(!auth.currentUser){
-        statusNuvem("Sem login: dados NAO gravados no banco", "#dc3545");
+        statusNuvem("Sem login: dados guardados no aparelho, entre no sistema para enviar", "#dc3545");
         return Promise.resolve(false);
     }
 
-    var alvos = Array.isArray(modulos) && modulos.length ? modulos : Object.keys(db);
     var envios = [];
 
     alvos.forEach(function(mod){
-        if(!Array.isArray(db[mod])) return;
-
         var payload = { dados: db[mod], atualizadoEm: new Date().toISOString() };
 
         if(mod === 'ferias'){
@@ -3787,40 +3819,48 @@ function salvarNuvem(modulos){
 
         envios.push(
             dbCloud.collection("frota").doc(mod).set(payload, { merge: true })
-            .then(function(){ return null; })
-            .catch(function(err){ return { mod: mod, err: err }; })
+            .then(function(){ return { mod: mod, ok: true }; })
+            .catch(function(err){ return { mod: mod, ok: false, err: err }; })
         );
     });
 
     statusNuvem("Salvando no banco...", "#0d6efd");
-    if(typeof window.fmMarcarPendencias === "function") window.fmMarcarPendencias(envios.length);
 
-    // O Firestore so resolve a promise quando o servidor confirma. Offline,
-    // a gravacao fica na fila local e e enviada depois — por isso o aviso.
+    function concluir(resultados){
+        var ok = resultados.filter(function(r){ return r.ok; }).map(function(r){ return r.mod; });
+        var falhas = resultados.filter(function(r){ return !r.ok; });
+        fmFilaRemover(ok);
+        if(falhas.length){
+            console.error("Falha ao gravar no banco:", falhas);
+            var code = (falhas[0].err && falhas[0].err.code) || "desconhecido";
+            if(String(code).indexOf("permission") !== -1){
+                statusNuvem("Banco recusou a gravacao (sem permissao/login). Dados guardados no aparelho.", "#dc3545");
+            } else {
+                statusNuvem("ERRO ao gravar no banco: " + code, "#dc3545");
+            }
+            return false;
+        }
+        statusNuvem("Salvo e confirmado no banco de dados", "#198754");
+        if(typeof window.fmMarcarSyncConfirmado === "function") window.fmMarcarSyncConfirmado();
+        return true;
+    }
+
+    // O Firestore so resolve a promise quando o SERVIDOR confirma. Enquanto
+    // isso, o registro continua na fila local.
     var timeout = new Promise(function(res){ setTimeout(function(){ res("pendente"); }, 6000); });
 
     return Promise.race([Promise.all(envios), timeout]).then(function(r){
         if(r === "pendente"){
-            statusNuvem("Sem conexao: gravacao na fila, sera enviada ao banco", "#fd7e14");
-            Promise.all(envios).then(function(){
-                if(typeof window.fmMarcarPendencias === "function") window.fmMarcarPendencias(0);
-                statusNuvem("Dados pendentes enviados ao banco", "#198754");
-            });
+            statusNuvem("Sem confirmacao do banco: dados na fila, serao enviados sozinhos", "#fd7e14");
+            Promise.all(envios).then(concluir);
             return false;
         }
-        if(typeof window.fmMarcarPendencias === "function") window.fmMarcarPendencias(0);
-        var falhas = r.filter(Boolean);
-        if(falhas.length){
-            console.error("Falha ao gravar no banco:", falhas);
-            statusNuvem("ERRO ao gravar: " + (falhas[0].err && falhas[0].err.code || "desconhecido"), "#dc3545");
-            return false;
-        }
-        statusNuvem("Salvo no banco de dados", "#198754");
-        return true;
+        return concluir(r);
     });
 
 
 }
+
 
 function navegar(id, el) {
     // 🔐 bloqueio por permissão (usuário comum só acessa módulos liberados)
@@ -6350,6 +6390,12 @@ if(!usuarioLogado.nome){
 
             iniciarSistema();
 
+            // Sobe tudo que ficou salvo no aparelho antes de logar/sem internet.
+            setTimeout(function(){
+                if(typeof fmReenviarPendentes === "function") fmReenviarPendentes();
+            }, 2500);
+
+
         });
 
     }
@@ -7080,7 +7126,11 @@ style="width:100%; height:400px; border:none;">
 <script>
 /* Indicador de conexão com o banco de dados (ao lado de "Atualização automática") */
 (function(){
-  var estado = { online: navigator.onLine, pendentes: 0, ultimaSync: null };
+  var estado = { online: navigator.onLine, pendentes: 0, ultimaSync: null, bloqueado: false };
+
+  function lerFila(){
+    try{ return JSON.parse(localStorage.getItem("FM_FILA_MODULOS")) || []; }catch(e){ return []; }
+  }
 
   function formatarDataHora(dt){
     if(!dt) return "--";
@@ -7097,8 +7147,12 @@ style="width:100%; height:400px; border:none;">
 
   function marcarSync(){
     estado.ultimaSync = new Date();
+    try{ localStorage.setItem("FM_ULTIMA_SYNC", estado.ultimaSync.toISOString()); }catch(e){}
     atualizarUltimaSync();
   }
+
+  // Só é chamada quando o BANCO confirmou a gravação.
+  window.fmMarcarSyncConfirmado = function(){ estado.bloqueado = false; marcarSync(); pintar(); };
 
   function sincronizarAgora(forcar){
     var el = document.getElementById("fmUltimaSync");
@@ -7107,12 +7161,15 @@ style="width:100%; height:400px; border:none;">
       dbCloud.collection("frota").doc("__ping").get({ source: "server" })
         .then(function(){
           estado.online = true;
-          marcarSync();
+          estado.bloqueado = false;
           pintar();
-          if(forcar && typeof salvarNuvem === "function") salvarNuvem();
+          if(forcar && typeof fmReenviarPendentes === "function") fmReenviarPendentes();
         })
-        .catch(function(){
-          estado.online = false;
+        .catch(function(err){
+          var code = String((err && err.code) || "");
+          // Servidor respondeu, mas recusou: há conexão, falta login/permissão.
+          estado.bloqueado = code.indexOf("permission") !== -1 || code.indexOf("unauthenticated") !== -1;
+          estado.online = estado.bloqueado;
           pintar();
         })
         .finally(function(){
@@ -7129,8 +7186,12 @@ style="width:100%; height:400px; border:none;">
     var box = document.getElementById("fmBancoStatus");
     var txt = document.getElementById("fmBancoStatusTxt");
     if(!box || !txt) return;
+    estado.pendentes = lerFila().length;
     box.classList.remove("online","offline","pendente","verificando");
-    if(!estado.online){
+    if(estado.bloqueado){
+      box.classList.add("offline");
+      txt.innerText = "Banco recusou o acesso — faça login novamente";
+    } else if(!estado.online){
       box.classList.add("offline");
       txt.innerText = "Banco desconectado — salvando no aparelho";
     } else if(estado.pendentes > 0){
@@ -7144,26 +7205,36 @@ style="width:100%; height:400px; border:none;">
   }
 
   window.fmMarcarPendencias = function(qtd){
-    var tinhaPendentes = estado.pendentes > 0;
     estado.pendentes = qtd || 0;
-    if(tinhaPendentes && estado.pendentes === 0 && estado.online) marcarSync();
     pintar();
   };
 
   function testar(){
     if(typeof dbCloud === "undefined" || !navigator.onLine){
-      estado.online = navigator.onLine && estado.online;
       if(!navigator.onLine) estado.online = false;
       pintar();
       return;
     }
     dbCloud.collection("frota").doc("__ping").get({ source: "server" })
-      .then(function(){ estado.online = true; marcarSync(); pintar(); })
-      .catch(function(){ estado.online = false; pintar(); });
+      .then(function(){
+        estado.online = true; estado.bloqueado = false; pintar();
+        if(lerFila().length && typeof fmReenviarPendentes === "function") fmReenviarPendentes();
+      })
+      .catch(function(err){
+        var code = String((err && err.code) || "");
+        estado.bloqueado = code.indexOf("permission") !== -1 || code.indexOf("unauthenticated") !== -1;
+        estado.online = estado.bloqueado;
+        pintar();
+      });
   }
 
   window.addEventListener("online", function(){ estado.online = true; pintar(); testar(); });
   window.addEventListener("offline", function(){ estado.online = false; pintar(); });
+  try{
+    var salvo = localStorage.getItem("FM_ULTIMA_SYNC");
+    if(salvo) estado.ultimaSync = new Date(salvo);
+  }catch(e){}
+
 
   document.addEventListener("DOMContentLoaded", function(){
     pintar();
