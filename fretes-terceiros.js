@@ -562,12 +562,18 @@
   function carregarImg(src) {
     return new Promise(function (res) {
       if (imgs[src]) return res(imgs[src]);
+      var real = src;
+      // Usa a arte embutida (data URI) para o canvas nunca ficar "sujo"
+      // e permitir baixar/compartilhar mesmo abrindo o arquivo local.
+      if (/card-base\.jpg$/.test(src) && window.FM_CARD_BASE) real = window.FM_CARD_BASE;
       var im = new Image();
+      try { im.crossOrigin = 'anonymous'; } catch (e) { /* ignora */ }
       im.onload = function () { imgs[src] = im; res(im); };
       im.onerror = function () { res(null); };
-      im.src = src;
+      im.src = real;
     });
   }
+
 
   function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
@@ -735,6 +741,13 @@
       ctx.textAlign = 'center';
       ctx.fillText('$', 0, 12);
       ctx.textAlign = 'left';
+    } else if (tipo === 'rota') {
+      ctx.beginPath(); ctx.arc(-12, 8, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(12, -8, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(-9, 4); ctx.quadraticCurveTo(0, -4, 9, -6); ctx.stroke();
+      ctx.setLineDash([]);
+
     } else if (tipo === 'escudo') {
       ctx.beginPath();
       ctx.moveTo(0, -17); ctx.lineTo(15, -10); ctx.lineTo(15, 3);
@@ -769,23 +782,27 @@
       }
       return;
     }
+    var pequeno = r < 30;
+    var sRot = pequeno ? 19 : 25;
+    var sVal = pequeno ? 27 : 32;
     if (titulo) {
-      ctx.font = 'bold 25px ' + FAM;
+      ctx.font = 'bold ' + sRot + 'px ' + FAM;
       ctx.fillStyle = CINZA;
-      ctx.fillText(String(titulo).toUpperCase(), x0, y - 10);
-      textoAjustado(ctx, String(valor || '').toUpperCase(), x0, y + 26, 470, 32, 'bold', VERM);
-      if (valor2) textoAjustado(ctx, String(valor2).toUpperCase(), x0, y + 62, 430, 32, 'bold', VERM);
+      ctx.fillText(String(titulo).toUpperCase(), x0, y - (pequeno ? 8 : 10));
+      textoAjustado(ctx, String(valor || '').toUpperCase(), x0, y + (pequeno ? 20 : 26), 470, sVal, 'bold', VERM);
+      if (valor2) textoAjustado(ctx, String(valor2).toUpperCase(), x0, y + 62, 430, sVal, 'bold', VERM);
     } else {
-      textoAjustado(ctx, String(valor || '').toUpperCase(), x0, y + 12, 430, 32, 'bold', GRAFITE);
+      textoAjustado(ctx, String(valor || '').toUpperCase(), x0, y + (pequeno ? 10 : 12), 430, sVal, 'bold', GRAFITE);
     }
+
   }
 
 
   /* rotulo de cidade sobre o mapa do fundo (cobre o texto original da arte) */
   function rotuloMapa(ctx, x, y, texto, ancora) {
     var txt = String(texto || '').toUpperCase();
-    var maxW = 158;
-    var s = 19;
+    var maxW = 190;
+    var s = 18;
     ctx.save();
     while (s > 10) {
       ctx.font = 'bold ' + s + 'px ' + FAM;
@@ -793,30 +810,15 @@
       s -= 1;
     }
     var w = Math.min(maxW, ctx.measureText(txt).width);
-    var largura = Math.max(w + 22, 172);
-    var altura = 38;
-    var bx = (ancora === 'esq') ? (x - largura + 6) : (x - 6);
-    var by2 = y - altura / 2;
-    if (bx + largura > 1074) bx = 1074 - largura;
-    if (bx < 560) bx = 560;
-    ctx.shadowColor = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 2;
-    ctx.fillStyle = 'rgba(255,255,255,0.96)';
-    roundRect(ctx, bx, by2, largura, altura, 19);
-    ctx.fill();
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetY = 0;
-    ctx.strokeStyle = 'rgba(200,16,46,0.85)';
-    ctx.lineWidth = 2;
-    roundRect(ctx, bx, by2, largura, altura, 19);
-    ctx.stroke();
-    ctx.textAlign = 'center';
+    var tx = ancora === 'esq' ? x - w - 14 : x + 14;
+    tx = Math.max(570, Math.min(1068 - w, tx));
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+    ctx.textAlign = 'left';
+    ctx.strokeText(txt, tx, y + s / 3);
     ctx.fillStyle = GRAFITE;
     ctx.font = 'bold ' + s + 'px ' + FAM;
-    ctx.fillText(txt, bx + largura / 2, y + s / 3);
-    ctx.textAlign = 'left';
+    ctx.fillText(txt, tx, y + s / 3);
     ctx.restore();
   }
 
@@ -900,9 +902,9 @@
       var dest = String(f.fredestino || '').toUpperCase();
       pinVerm(ctx, 76, 478, 1);
       var maxRota = 560 - 100;
-      var s1 = 30;
+      var s1 = 40;
       ctx.font = 'bold ' + s1 + 'px ' + FAM;
-      while (s1 > 15 && ctx.measureText(rota).width + ctx.measureText(dest).width + 158 > maxRota) {
+      while (s1 > 20 && ctx.measureText(rota).width + ctx.measureText(dest).width + 158 > maxRota) {
         s1 -= 1;
         ctx.font = 'bold ' + s1 + 'px ' + FAM;
       }
@@ -920,117 +922,73 @@
       ctx.fillStyle = rg;
       ctx.fillRect(60, 520, 540, 5);
 
-      // nomes das cidades sobre o mapa (destino em cima, origem embaixo)
+      // rota e nomes das cidades sobre o mapa
       desenharMapa(ctx, geoO, geoD, rota, dest);
 
-
-
-      var linhas = [];
-      if (f.fredistancia) linhas.push(['pin', 'Distância', f.fredistancia, '']);
-      if (f.frepeso) linhas.push(['peso', 'Peso', f.frepeso, '']);
-      if (f.fretipocarga) linhas.push(['caixa', 'Tipo de carga', f.fretipocarga, '']);
-      if (f.frecarregamento) linhas.push(['data', 'Carregamento', dataHoraBR(f.frecarregamento), '']);
-      if (f.freentrega) {
-        var e = String(dataHoraBR(f.freentrega)).toUpperCase(), e1 = e, e2 = '';
-        if (e.length > 26) {
-          var corte = e.lastIndexOf(' ', 26);
-          if (corte > 10) { e1 = e.slice(0, corte); e2 = e.slice(corte + 1); }
-        }
-        linhas.push(['caminhao', 'Entrega', e1, e2]);
+      // linhas de informacao (inclui valor do frete e distancia)
+      function divisor(y) {
+        var dg = ctx.createLinearGradient(164, 0, 540, 0);
+        dg.addColorStop(0, 'rgba(200,16,46,0.55)');
+        dg.addColorStop(1, 'rgba(200,16,46,0)');
+        ctx.fillStyle = dg;
+        ctx.fillRect(164, y, 376, 2);
       }
-      if (f.fretipoveiculo) linhas.push(['caminhao', 'Veículo', f.fretipoveiculo, '']);
-      if (f.frevalor) linhas.push(['valor', 'Valor do frete', f.frevalor, '']);
-      if (f.frerastreada === 'Sim') linhas.push(['pin', '', 'CARGA RASTREADA', '']);
-
-      var rod = f.frerodape || 'SEGURANÇA, AGILIDADE E COMPROMISSO DO CARREGAMENTO À ENTREGA.';
-      var topo = 548, base2 = 916, alturaRod = 72;
-      var disp = base2 - topo - alturaRod;
-      var compacto = linhas.length > 4;
-      var raioBase = compacto ? 26 : 34;
-      var raio = raioBase;
-      if (compacto) {
-        linhas.forEach(function (l) { if (l[3]) { l[2] = l[2] + ' ' + l[3]; l[3] = ''; } });
-      }
-      var pesos = linhas.map(function (l) { return l[3] ? 1.5 : 1; });
-      var totalPeso = pesos.reduce(function (x, y2) { return x + y2; }, 0) || 1;
-      var unidade = Math.min(compacto ? 60 : 96, disp / totalPeso);
-      var y = topo + unidade * 0.5;
-      linhas.forEach(function (l, i2) {
-        if (i2 > 0) {
-          ctx.fillStyle = 'rgba(28,28,32,0.10)';
-          ctx.fillRect(108 + raio + 26, y - unidade * 0.5, 420, 2);
-        }
-        linhaInfo(ctx, y, l[0], l[1], l[2], l[3], compacto, raio);
-        y += unidade * pesos[i2];
+      var linhas = [
+        ['peso', 'Peso', f.frepeso || 'A COMBINAR'],
+        ['valor', 'Valor do frete', f.frevalor || 'A COMBINAR'],
+        ['rota', 'Distância', f.fredistancia || 'A CONSULTAR'],
+        ['data', 'Carregamento', f.frecarregamento ? dataHoraBR(f.frecarregamento) : 'IMEDIATO'],
+        ['caminhao', 'Entrega', f.freentrega ? dataHoraBR(f.freentrega) : 'A COMBINAR'],
+        ['pin', '', f.frerastreada === 'Não' ? 'CARGA NÃO RASTREADA' : 'CARGA RASTREADA']
+      ];
+      var y0 = 566, passo = 57;
+      linhas.forEach(function (l, i) {
+        var y = y0 + i * passo;
+        linhaInfo(ctx, y, l[0], l[1], l[2], '', false, 26);
+        divisor(y + Math.round(passo / 2));
       });
 
-      var yRod = Math.min(base2 - 20, y + 14);
-      var partes = String(rod).toUpperCase().split(/\s+/);
-      var l1 = '', l2 = '';
-      ctx.font = '600 21px ' + FAM;
-      partes.forEach(function (pz) {
-        if (!l2 && ctx.measureText(l1 + ' ' + pz).width < 430) l1 = (l1 ? l1 + ' ' : '') + pz;
-        else l2 = (l2 ? l2 + ' ' : '') + pz;
-      });
-      iconeCard(ctx, 108, yRod, 'escudo', raio);
-      ctx.textAlign = 'left';
-      textoAjustado(ctx, l1, 108 + raio + 26, yRod - 4, 440, 21, '600', CINZA);
-      if (l2) textoAjustado(ctx, l2, 108 + raio + 26, yRod + 24, 440, 21, 'bold', GRAFITE);
 
-      // ---- rodape profissional: fundo branco com marca d'agua ----
+      var rod = String(f.frerodape || 'SEGURANÇA, AGILIDADE E COMPROMISSO DO CARREGAMENTO À ENTREGA.').toUpperCase();
+      var quebra = rod.indexOf(' DO CARREGAMENTO');
+      var rod1 = quebra > 0 ? rod.slice(0, quebra) : rod;
+      var rod2 = quebra > 0 ? rod.slice(quebra + 1) : '';
+      iconeCard(ctx, 108, 938, 'escudo', 40);
+      textoAjustado(ctx, rod1, 164, 929, 420, 20, '600', CINZA);
+      if (rod2) textoAjustado(ctx, rod2, 164, 956, 420, 20, 'bold', VERM);
+
+      // rodape vermelho inclinado, igual ao modelo original
       var tel = f.frecontato || '';
-      var by = 944, bh = H - 944, cy = by + bh / 2;
-
-      // fundo branco limpo
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, by, W, bh);
-
-      // filete vermelho superior
+      var by = 970, bh = H - by, cy = by + bh / 2;
+      ctx.fillStyle = '#d9dde2';
+      ctx.beginPath();
+      ctx.moveTo(600, by); ctx.lineTo(665, by); ctx.lineTo(780, H); ctx.lineTo(715, H); ctx.closePath();
+      ctx.fill();
       var rgd = ctx.createLinearGradient(0, 0, W, 0);
-      rgd.addColorStop(0, VERM);
-      rgd.addColorStop(1, VERM_ESC);
+      rgd.addColorStop(0, '#b00016');
+      rgd.addColorStop(0.55, VERM);
+      rgd.addColorStop(1, '#7b000d');
       ctx.fillStyle = rgd;
-      ctx.fillRect(0, by, W, 7);
-
-      // marca d'agua da logo ocupando o rodape
-      if (logo) {
-        ctx.save();
-        ctx.beginPath(); ctx.rect(0, by + 7, W, bh - 7); ctx.clip();
-        ctx.globalAlpha = 0.07;
-        var wh = (bh - 7) * 0.82, ww = logo.width * (wh / logo.height);
-        ctx.drawImage(logo, (W - ww) / 2 + 80, cy + 4 - wh / 2, ww, wh);
-        ctx.restore();
-      }
-
-      // icone telefone
+      ctx.beginPath();
+      ctx.moveTo(0, by); ctx.lineTo(632, by); ctx.lineTo(750, H); ctx.lineTo(0, H); ctx.closePath();
+      ctx.fill();
       ctx.save();
-      ctx.fillStyle = VERM;
-      ctx.beginPath(); ctx.arc(96, cy + 3, 40, 0, Math.PI * 2); ctx.fill();
-      ctx.save();
-      ctx.translate(96, cy + 3);
-      ctx.scale(1.05, 1.05);
-      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(112, cy + 3, 31, 0, Math.PI * 2); ctx.stroke();
+      ctx.translate(112, cy + 3);
+      ctx.scale(0.82, 0.82);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 5;
       ctx.beginPath();
       ctx.moveTo(-13, -14); ctx.lineTo(-4, -14); ctx.lineTo(0, -5); ctx.lineTo(-5, 0);
       ctx.quadraticCurveTo(1, 9, 9, 14); ctx.lineTo(14, 9); ctx.lineTo(22, 14); ctx.lineTo(22, 21);
-      ctx.quadraticCurveTo(2, 21, -13, -2); ctx.closePath(); ctx.fill();
+      ctx.quadraticCurveTo(2, 21, -13, -2); ctx.closePath(); ctx.stroke();
       ctx.restore();
-      ctx.restore();
-
-      // telefone
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(170, cy - 39, 3, 78);
       ctx.textAlign = 'left';
-      textoAjustado(ctx, 'CONTATO / WHATSAPP', 152, cy - 12, 320, 20, '600', CINZA);
-      textoAjustado(ctx, tel || 'WHATSAPP', 152, cy + 30, 380, 42, 'bold', GRAFITE);
-
-      // logo cargo center nitida a direita
-      if (logo) {
-        var lh = 70, lw = logo.width * (lh / logo.height);
-        var lx = W - 56 - lw, ly = cy - lh / 2;
-        ctx.drawImage(logo, lx, ly, lw, lh);
-        ctx.fillStyle = 'rgba(0,0,0,0.12)';
-        ctx.fillRect(lx - 40, cy - 40, 2, 80);
-      }
-
+      textoAjustado(ctx, tel || 'WHATSAPP', 195, cy + 20, 455, 46, 'bold', '#ffffff');
 
       ctx.textAlign = 'left';
       cardPronto = true;
@@ -1093,7 +1051,9 @@
   window.baixarCardFrete = function () {
     garantirCard().then(function (ok) {
       var url = ok ? cardDataURL() : null;
-      if (!url) { alert('Preencha origem e destino do frete para gerar o card.'); return; }
+      if (!ok) { alert('Preencha origem e destino do frete para gerar o card.'); return; }
+      if (!url) { alert('Não foi possível gerar a imagem do card. Recarregue a página e tente novamente.'); return; }
+
       var a = document.createElement('a');
       a.href = url;
       a.download = nomeArquivo();
@@ -1117,6 +1077,8 @@
   }
 
   function enviarCard(tel) {
+    // com telefone escolhido na lista, abre direto a conversa daquele contato
+    if (tel) { compartilharFallback(tel); return; }
     var file = cardArquivo();
     var dados = file ? { files: [file], text: mensagemFrete(freteAtual), title: 'Frete' } : null;
     if (dados && navigator.share && (!navigator.canShare || navigator.canShare(dados))) {
@@ -1150,9 +1112,10 @@
 
   function linkWhats(tel) {
     var msg = encodeURIComponent(mensagemFrete(freteAtual));
-    return tel
-      ? 'https://wa.me/' + tel + '?text=' + msg
-      : 'https://wa.me/?text=' + msg;
+    var telefone = String(tel || '').replace(/\D/g, '');
+    return 'https://api.whatsapp.com/send?'
+      + (telefone ? 'phone=' + telefone + '&' : '')
+      + 'text=' + msg;
   }
 
   function abrirWhatsApp(tel) {
@@ -1190,18 +1153,18 @@
   function mensagemFrete(f) {
     f = f || {};
     var L = [];
-    L.push('*FRETE DISPONÍVEL*');
-    L.push('📍 ' + (f.freorigem || '') + ' ➜ ' + (f.fredestino || ''));
-    if (f.fredistancia) L.push('🛣 Distância: ' + f.fredistancia);
-    if (f.frepeso) L.push('⚖ Peso: ' + f.frepeso);
-    if (f.fretipocarga) L.push('📦 Carga: ' + f.fretipocarga);
-    if (f.frecarregamento) L.push('📅 Carregamento: ' + dataHoraBR(f.frecarregamento));
-    if (f.freentrega) L.push('🚚 Entrega: ' + dataHoraBR(f.freentrega));
-    if (f.fretipoveiculo) L.push('🚛 Veículo: ' + f.fretipoveiculo);
-    if (f.frevalor) L.push('💰 Valor do frete: ' + f.frevalor);
-    if (f.frerastreada === 'Sim') L.push('📍 Carga rastreada');
-    if (f.freobs) L.push('📝 ' + f.freobs);
-    if (f.frecontato) L.push('📞 Contato: ' + f.frecontato);
+    L.push('\uD83D\uDE9B *FRETE DISPON\u00CDVEL*');
+    L.push('\uD83D\uDDFA\uFE0F Rota: ' + (f.freorigem || '') + ' \u27A1 ' + (f.fredestino || ''));
+    if (f.fredistancia) L.push('\uD83D\uDCCF Dist\u00E2ncia: ' + f.fredistancia);
+    if (f.frepeso) L.push('\u2696\uFE0F Peso: ' + f.frepeso);
+    if (f.fretipocarga) L.push('\uD83D\uDCE6 Carga: ' + f.fretipocarga);
+    if (f.frecarregamento) L.push('\uD83D\uDCC5 Carregamento: ' + dataHoraBR(f.frecarregamento));
+    if (f.freentrega) L.push('\uD83D\uDE9A Entrega: ' + dataHoraBR(f.freentrega));
+    if (f.fretipoveiculo) L.push('\uD83D\uDEFB Ve\u00EDculo: ' + f.fretipoveiculo);
+    if (f.frevalor) L.push('\uD83D\uDCB0 Valor do frete: ' + f.frevalor);
+    if (f.frerastreada === 'Sim') L.push('\uD83D\uDCE1 Carga rastreada');
+    if (f.freobs) L.push('\uD83D\uDCDD Observa\u00E7\u00F5es: ' + f.freobs);
+    if (f.frecontato) L.push('\uD83D\uDCDE Contato: ' + f.frecontato);
     return L.join('\n');
   }
 
