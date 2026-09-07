@@ -4761,7 +4761,24 @@ function escutarDados(modulo){
 
         if(doc.exists){
             const payload = doc.data() || {};
-            db[modulo] = payload.dados || [];
+            const remotos = Array.isArray(payload.dados) ? payload.dados : [];
+            const locais = Array.isArray(db[modulo]) ? db[modulo] : [];
+            // Se ainda ha cadastros feitos no aparelho que nao subiram,
+            // eles NAO podem ser apagados pelo que vem do banco.
+            let pendente = false;
+            try{
+                const fila = JSON.parse(localStorage.getItem("FM_FILA_MODULOS") || "[]");
+                pendente = Array.isArray(fila) && fila.indexOf(modulo) !== -1;
+            }catch(e){}
+            if(pendente && locais.length){
+                const chaves = new Set(remotos.map(r => JSON.stringify(r)));
+                const extras = locais.filter(l => !chaves.has(JSON.stringify(l)));
+                db[modulo] = remotos.concat(extras);
+                if(extras.length && typeof salvarNuvem === "function") salvarNuvem([modulo]);
+            } else {
+                db[modulo] = remotos;
+            }
+
             if(modulo === 'ferias' && payload.configuracoes){
                 const valor = Number(payload.configuracoes.toleranciaSobreposicaoDias);
                 if(Number.isFinite(valor)){
@@ -7157,13 +7174,22 @@ style="width:100%; height:400px; border:none;">
   function sincronizarAgora(forcar){
     var el = document.getElementById("fmUltimaSync");
     if(el) el.classList.add("sincronizando");
-    if(typeof dbCloud !== "undefined" && navigator.onLine){
+    function fim(){ if(el) el.classList.remove("sincronizando"); }
+    if(typeof dbCloud !== "undefined" && dbCloud && navigator.onLine){
       dbCloud.collection("frota").doc("__ping").get({ source: "server" })
         .then(function(){
           estado.online = true;
           estado.bloqueado = false;
+          marcarSync();
           pintar();
-          if(forcar && typeof fmReenviarPendentes === "function") fmReenviarPendentes();
+          if(forcar){
+            try{
+              if(typeof fmReenviarPendentes === "function") fmReenviarPendentes();
+              else if(typeof window.fmReenviarPendentes === "function") window.fmReenviarPendentes();
+              if(typeof window.fmEnviarFretesPendentes === "function") window.fmEnviarFretesPendentes();
+              else if(typeof salvarNuvem === "function") salvarNuvem();
+            }catch(e){}
+          }
         })
         .catch(function(err){
           var code = String((err && err.code) || "");
@@ -7172,15 +7198,15 @@ style="width:100%; height:400px; border:none;">
           estado.online = estado.bloqueado;
           pintar();
         })
-        .finally(function(){
-          if(el) el.classList.remove("sincronizando");
-        });
+        .then(fim, fim);
     } else {
       estado.online = navigator.onLine;
       pintar();
-      if(el) el.classList.remove("sincronizando");
+      fim();
     }
   }
+  window.fmSincronizarAgora = sincronizarAgora;
+
 
   function pintar(){
     var box = document.getElementById("fmBancoStatus");
@@ -7217,7 +7243,7 @@ style="width:100%; height:400px; border:none;">
     }
     dbCloud.collection("frota").doc("__ping").get({ source: "server" })
       .then(function(){
-        estado.online = true; estado.bloqueado = false; pintar();
+        estado.online = true; estado.bloqueado = false; marcarSync(); pintar();
         if(lerFila().length && typeof fmReenviarPendentes === "function") fmReenviarPendentes();
       })
       .catch(function(err){
@@ -7236,16 +7262,34 @@ style="width:100%; height:400px; border:none;">
   }catch(e){}
 
 
-  document.addEventListener("DOMContentLoaded", function(){
+  function iniciar(){
     pintar();
     testar();
     var el = document.getElementById("fmUltimaSync");
-    if(el){
+    if(el && !el.dataset.fmBind){
+      el.dataset.fmBind = "1";
       el.title = "Clique para sincronizar agora";
       el.addEventListener("click", function(){ sincronizarAgora(true); });
     }
-  });
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);
+  else iniciar();
+  setTimeout(iniciar, 1500);
+
   setInterval(testar, 20000);
+
+  // Sincronizacao automatica completa (mesma acao do clique) a cada 60s
+  setInterval(function(){
+    if(navigator.onLine) sincronizarAgora(true);
+  }, 60000);
+
+  // Sincroniza ao voltar para a aba/janela
+  document.addEventListener("visibilitychange", function(){
+    if(!document.hidden && navigator.onLine) sincronizarAgora(true);
+  });
+  window.addEventListener("focus", function(){
+    if(navigator.onLine) sincronizarAgora(true);
+  });
 })();
 </script>
 </body>
@@ -7573,6 +7617,6 @@ style="width:100%; height:400px; border:none;">
 <script src="./pneus-sync.js?v=1"></script>
 <script src="./login-senha.js?v=20260906-2"></script>
 <script src="./card-base-data.js?v=20260907-2"></script>
-<script src="./fretes-terceiros.js?v=20260907-3"></script>
+<script src="./fretes-terceiros.js?v=20260907-4"></script>
 <script src="./enter-universal.js?v=1"></script>
 </html>

@@ -8,12 +8,27 @@
   'use strict';
 
   var LS_KEY = 'FM_FRETES';
+  var LS_PEND = 'FM_FRETES_PENDENTE';
+  var LS_DEL = 'FM_FRETES_EXCLUIDOS';
   var fretes = [];
+
+  function novoId() {
+    return 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+  function garantirIds(lista) {
+    (lista || []).forEach(function (f) {
+      if (!f || typeof f !== 'object') return;
+      if (!f._fid) f._fid = novoId();
+      if (!f._ts) f._ts = 0;
+    });
+    return lista || [];
+  }
 
   function carregar() {
     try { fretes = JSON.parse(localStorage.getItem(LS_KEY) || '[]') || []; }
     catch (e) { fretes = []; }
     if (!Array.isArray(fretes)) fretes = [];
+    garantirIds(fretes);
   }
   function logado() {
     try { return !!(window.auth && auth.currentUser); } catch (e) { return false; }
@@ -23,24 +38,67 @@
     return null;
   }
 
+  /* ---- pendencias persistentes (sobrevivem a fechar o navegador) ---- */
+  function pendenteLer() {
+    try { return localStorage.getItem(LS_PEND) === '1'; } catch (e) { return false; }
+  }
+  function pendenteGravar(v) {
+    try { v ? localStorage.setItem(LS_PEND, '1') : localStorage.removeItem(LS_PEND); } catch (e) {}
+    try { if (typeof window.fmMarcarPendencias === 'function') window.fmMarcarPendencias(v ? 1 : 0); } catch (e) {}
+  }
+  function excluidosLer() {
+    try { var a = JSON.parse(localStorage.getItem(LS_DEL) || '[]'); return Array.isArray(a) ? a : []; }
+    catch (e) { return []; }
+  }
+  function excluidosAdicionar(id) {
+    if (!id) return;
+    var a = excluidosLer();
+    if (a.indexOf(id) === -1) a.push(id);
+    try { localStorage.setItem(LS_DEL, JSON.stringify(a.slice(-500))); } catch (e) {}
+  }
+
   var envioPendente = false;
 
   function gravarNuvem() {
     var cloud = nuvem();
-    if (!cloud) { envioPendente = true; return; }
-    if (!logado()) { envioPendente = true; return; }
+    if (!cloud || !logado()) { envioPendente = true; pendenteGravar(true); return; }
     envioPendente = false;
     try { if (typeof carimbarRegistros === 'function') carimbarRegistros(); } catch (e) {}
     var p = cloud.collection('frota').doc('fretes')
-      .set({ dados: fretes, atualizadoEm: new Date().toISOString() }, { merge: true });
+      .set({ dados: fretes, excluidos: excluidosLer(), atualizadoEm: new Date().toISOString() }, { merge: true });
+    if (p && p.then) p.then(function () {
+      envioPendente = false;
+      pendenteGravar(false);
+      try { if (typeof window.fmMarcarSyncConfirmado === 'function') window.fmMarcarSyncConfirmado(); } catch (e) {}
+    });
     if (p && p.catch) p.catch(function (err) {
       console.error('Erro ao salvar fretes no banco:', err);
       envioPendente = true;
+      pendenteGravar(true);
       try {
         if (typeof statusNuvem === 'function')
           statusNuvem('ERRO ao gravar fretes: ' + (err && err.code || 'desconhecido'), '#dc3545');
       } catch (e) {}
     });
+  }
+
+  /* Junta o que veio do banco com o que foi cadastrado no aparelho,
+     sem apagar cadastros locais que ainda nao subiram. */
+  function mesclar(remotos, remotosExcluidos) {
+    var apagados = excluidosLer().concat(Array.isArray(remotosExcluidos) ? remotosExcluidos : []);
+    var mapa = {};
+    var ordem = [];
+    function por(f) {
+      if (!f || typeof f !== 'object') return;
+      if (!f._fid) f._fid = novoId();
+      if (apagados.indexOf(f._fid) !== -1) return;
+      var atual = mapa[f._fid];
+      if (!atual) { mapa[f._fid] = f; ordem.push(f._fid); return; }
+      if ((f._ts || 0) > (atual._ts || 0)) mapa[f._fid] = f;
+    }
+    garantirIds(remotos).forEach(por);
+    garantirIds(fretes).forEach(por);
+    return ordem.map(function (id) { return mapa[id]; });
   }
 
   var escutando = false;
@@ -49,13 +107,15 @@
     if (!cloud || escutando || !logado()) return;
     escutando = true;
     cloud.collection('frota').doc('fretes').onSnapshot(function (doc) {
-      if (!doc.exists) { if (fretes.length) gravarNuvem(); return; }
-      var dados = (doc.data() || {}).dados;
-      if (!Array.isArray(dados)) return;
-      fretes = dados;
+      var d = doc.exists ? (doc.data() || {}) : {};
+      var dados = Array.isArray(d.dados) ? d.dados : [];
+      var antes = JSON.stringify(fretes);
+      fretes = mesclar(dados, d.excluidos);
       try { localStorage.setItem(LS_KEY, JSON.stringify(fretes)); } catch (e) {}
       try { if (typeof marcarRegistrosCarregados === 'function') marcarRegistrosCarregados(fretes); } catch (e) {}
       if (typeof window.renderFretes === 'function') window.renderFretes();
+      // se o aparelho tem algo que o banco ainda nao tem, sobe agora
+      if (JSON.stringify(fretes) !== JSON.stringify(dados) || antes !== JSON.stringify(fretes)) gravarNuvem();
     }, function (err) { console.error('Erro ao ler fretes do banco:', err); });
   }
 
@@ -65,7 +125,7 @@
         auth.onAuthStateChanged(function (u) {
           if (!u) return;
           escutarNuvem();
-          if (envioPendente) gravarNuvem();
+          if (envioPendente || pendenteLer()) setTimeout(gravarNuvem, 1500);
         });
         return;
       }
@@ -74,10 +134,22 @@
   }
   observarLogin();
 
+  // reenvia sozinho quando a internet volta e periodicamente
+  window.addEventListener('online', function () {
+    if (envioPendente || pendenteLer()) gravarNuvem();
+  });
+  setInterval(function () {
+    if ((envioPendente || pendenteLer()) && navigator.onLine && logado()) gravarNuvem();
+  }, 30000);
+  window.fmEnviarFretesPendentes = function () {
+    if (envioPendente || pendenteLer()) gravarNuvem();
+  };
+
   function persistir() {
     try { localStorage.setItem(LS_KEY, JSON.stringify(fretes)); } catch (e) {}
     gravarNuvem();
   }
+
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -478,7 +550,15 @@
       return;
     }
     var idx = val('fre_idx');
-    if (idx === '') fretes.push(obj); else fretes[Number(idx)] = obj;
+    obj._ts = Date.now();
+    if (idx === '') {
+      obj._fid = novoId();
+      fretes.push(obj);
+    } else {
+      var ant = fretes[Number(idx)] || {};
+      obj._fid = ant._fid || novoId();
+      fretes[Number(idx)] = obj;
+    }
     persistir();
     window.limparFormFrete();
     renderFretes();
@@ -512,6 +592,8 @@
 
   window.excluirFrete = function (i) {
     if (!confirm('Excluir este frete?')) return;
+    var rem = fretes[i];
+    if (rem && rem._fid) excluidosAdicionar(rem._fid);
     fretes.splice(i, 1);
     persistir();
     renderFretes();
