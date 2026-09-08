@@ -7231,6 +7231,15 @@ renderModulo = function(modulo){
 
     oldRenderModulo(modulo);
 
+    if(modulo === 'revisoes'){
+        // A tela de Revisões KM é desenhada pelo revisoes.js
+        try{
+            if(typeof carregarVeiculosRevisao === 'function') carregarVeiculosRevisao();
+            if(typeof renderRevisoes === 'function') renderRevisoes();
+        }catch(e){}
+        return;
+    }
+
     if(modulo === 'estoque'){
         const movimentos = obterMovimentosEstoqueFiltrados();
         const filtrando = ['filtroEstoqueItem','filtroEstoqueCategoria','filtroEstoqueTipo','filtroEstoqueIni','filtroEstoqueFim']
