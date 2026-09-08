@@ -613,8 +613,18 @@
     var lista = base();
     var idx = document.getElementById("dt_idx").value;
 
+    function manterFipe(antigo, novo) {
+      if (!antigo) return novo;
+      ["dtFipeCodigo", "dtFipeValor", "dtFipeRef", "dtFipeAtualizado", "dtFipeMarca", "dtFipeModelo"].forEach(
+        function (k) {
+          if (antigo[k] && !novo[k]) novo[k] = antigo[k];
+        }
+      );
+      return novo;
+    }
+
     if (idx !== "" && lista[Number(idx)]) {
-      lista[Number(idx)] = obj;
+      lista[Number(idx)] = manterFipe(lista[Number(idx)], obj);
     } else {
       var dup = lista.findIndex(function (r) {
         return (
@@ -622,7 +632,7 @@
           (obj.dtRenavam && norm(r.dtRenavam) === norm(obj.dtRenavam))
         );
       });
-      if (dup >= 0) lista[dup] = obj;
+      if (dup >= 0) lista[dup] = manterFipe(lista[dup], obj);
       else lista.push(obj);
     }
 
@@ -691,7 +701,7 @@
   }
 
   /* ---------------- detalhes (todos os dados salvos) ---------------- */
-  function detalheHtml(x) {
+  function detalheHtml(x, idx) {
     var itens = CAMPOS.map(function (c) {
       var v = c[2] === "date" ? dataBR(x[c[0]]) : d(x[c[0]]);
       return (
@@ -703,12 +713,29 @@
       );
     }).join("");
     itens +=
+      '<div class="fm-det-item"><span class="fm-det-k">Código FIPE</span>' +
+      '<span class="fm-det-v">' + d(x.dtFipeCodigo) + "</span></div>" +
+      '<div class="fm-det-item"><span class="fm-det-k">Valor FIPE</span>' +
+      '<span class="fm-det-v">' + d(x.dtFipeValor) + "</span></div>" +
+      '<div class="fm-det-item"><span class="fm-det-k">Referência FIPE</span>' +
+      '<span class="fm-det-v">' + d(x.dtFipeRef) + "</span></div>" +
+      '<div class="fm-det-item"><span class="fm-det-k">FIPE atualizada em</span>' +
+      '<span class="fm-det-v">' + dataBR(x.dtFipeAtualizado) + "</span></div>";
+    itens +=
       '<div class="fm-det-item"><span class="fm-det-k">Atualizado em</span>' +
       '<span class="fm-det-v">' +
       dataBR(x.dtAtualizado) +
       "</span></div>";
-    return '<div class="fm-det"><div class="fm-det-tit">📋 Dados completos salvos</div><div class="fm-det-grid">' + itens + "</div></div>";
+    return (
+      '<div class="fm-det"><div class="fm-det-tit">📋 Dados completos salvos</div>' +
+      '<div class="mb-2 d-flex align-items-center gap-2 flex-wrap">' +
+      '<button class="btn btn-sm btn-primary" id="fipeUpBtn' + idx + '" onclick="atualizarFipeDetran(' + idx + ')">🔄 Atualizar FIPE</button>' +
+      '<span id="fipeUpMsg' + idx + '" style="font-size:.8rem;color:#64748b"></span>' +
+      "</div>" +
+      '<div class="fm-det-grid">' + itens + "</div></div>"
+    );
   }
+
 
   window.verDetran = function (i) {
     var tr = document.getElementById("fmDet" + i);
@@ -777,7 +804,7 @@
               ')">🗑️</button>' +
               "</td></tr>" +
               '<tr class="fm-det-row" id="fmDet' + o.i + '" style="display:none" aria-hidden="true">' +
-              '<td colspan="10">' + detalheHtml(x) + "</td></tr>"
+              '<td colspan="10">' + detalheHtml(x, o.i) + "</td></tr>"
             );
           })
           .join("")
@@ -1219,6 +1246,157 @@
 
     statusMsg("fm-ok", "✔ Dados da FIPE aplicados. Confira e clique em Salvar consulta.");
   }
+
+  /* ---------------- atualizacao automatica da FIPE (por registro) ---------------- */
+  function txtNorm(v) {
+    return String(v || "")
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Z0-9 ]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function pontuar(alvo, candidato) {
+    var a = txtNorm(alvo).split(" ").filter(Boolean);
+    var b = txtNorm(candidato);
+    if (!a.length || !b) return 0;
+    var pontos = 0;
+    a.forEach(function (t) {
+      if (b.indexOf(t) >= 0) pontos += t.length;
+    });
+    return pontos;
+  }
+
+  function melhor(lista, campoNome, alvo) {
+    var top = null;
+    var topPontos = 0;
+    (lista || []).forEach(function (item) {
+      var p = pontuar(alvo, item[campoNome]);
+      if (p > topPontos) {
+        topPontos = p;
+        top = item;
+      }
+    });
+    return topPontos > 0 ? top : null;
+  }
+
+  function tipoDoRegistro(x) {
+    var t = txtNorm([x.dtCategoria, x.dtEspecie, x.dtMarca].join(" "));
+    if (/MOTO|CICLOMOTOR|TRICICLO/.test(t)) return "motos";
+    if (/CAMINHAO|CAMINHONETE TRATOR|TRATOR|ONIBUS|MICRO ONIBUS|CARGA|REBOQUE|CAVALO/.test(t))
+      return "caminhoes";
+    return "carros";
+  }
+
+  function partesMarcaModelo(x) {
+    var txt = String(x.dtMarca || "").trim();
+    var sep = txt.indexOf("/") >= 0 ? "/" : " ";
+    var p = txt.split(sep);
+    var marca = (p.shift() || "").trim();
+    var modelo = p.join(sep === "/" ? "/" : " ").trim();
+    return { marca: marca, modelo: modelo || txt };
+  }
+
+  function buscarFipeAuto(x) {
+    var tipos = [tipoDoRegistro(x)];
+    ["carros", "caminhoes", "motos"].forEach(function (t) {
+      if (tipos.indexOf(t) < 0) tipos.push(t);
+    });
+    var mm = partesMarcaModelo(x);
+    if (!mm.marca) return Promise.reject(new Error("Registro sem marca/modelo para consultar."));
+    var ano = soAno(x.dtAnoMod) || soAno(x.dtAnoFab);
+
+    function tentar(i) {
+      if (i >= tipos.length)
+        return Promise.reject(new Error("Não encontrei este veículo na tabela FIPE."));
+      var tipo = tipos[i];
+      return fipeMarcas(tipo)
+        .then(function (marcas) {
+          var m = melhor(marcas, "nome", mm.marca);
+          if (!m) throw new Error("marca");
+          return fipeModelos(tipo, m.codigo).then(function (modelos) {
+            var mo = melhor(modelos, "nome", mm.modelo) || melhor(modelos, "nome", mm.marca);
+            if (!mo) throw new Error("modelo");
+            return fipeAnos(tipo, m.codigo, mo.codigo).then(function (anos) {
+              var lista = anos || [];
+              var escolhido = null;
+              if (ano) {
+                var comb = txtNorm(x.dtCombustivel);
+                var doAno = lista.filter(function (a) {
+                  return soAno(a.nome) === ano;
+                });
+                if (comb)
+                  escolhido = doAno.filter(function (a) {
+                    return txtNorm(a.nome).indexOf(comb.split(" ")[0]) >= 0;
+                  })[0];
+                escolhido = escolhido || doAno[0];
+              }
+              escolhido = escolhido || lista[0];
+              if (!escolhido) throw new Error("ano");
+              return fipeValor(tipo, m.codigo, mo.codigo, escolhido.codigo);
+            });
+          });
+        })
+        .catch(function () {
+          return tentar(i + 1);
+        });
+    }
+    return tentar(0);
+  }
+
+  window.atualizarFipeDetran = function (i) {
+    var lista = base();
+    var x = lista[i];
+    if (!x) return;
+    var btn = document.getElementById("fipeUpBtn" + i);
+    var msg = document.getElementById("fipeUpMsg" + i);
+    function aviso(t, cor) {
+      if (msg) {
+        msg.textContent = t;
+        msg.style.color = cor || "#64748b";
+      }
+    }
+    if (btn) btn.disabled = true;
+    aviso("⏳ Consultando a tabela FIPE...", "#b45309");
+
+    buscarFipeAuto(x)
+      .then(function (p) {
+        if (!p) throw new Error("Sem resultado na FIPE.");
+        // atualiza SOMENTE os campos da FIPE, preservando o cadastro existente
+        x.dtFipeCodigo = normFipe(p.CodigoFipe || "");
+        x.dtFipeValor = p.Valor || "";
+        x.dtFipeRef = p.MesReferencia ? String(p.MesReferencia).trim() : "";
+        x.dtFipeMarca = p.Marca || "";
+        x.dtFipeModelo = p.Modelo || "";
+        x.dtFipeAtualizado = new Date().toISOString().slice(0, 10);
+        if (!x.dtCombustivel && p.Combustivel) x.dtCombustivel = p.Combustivel;
+        persistir();
+        renderDetran();
+        var tr = document.getElementById("fmDet" + i);
+        if (tr) {
+          tr.style.display = "";
+          tr.setAttribute("aria-hidden", "false");
+        }
+        var m2 = document.getElementById("fipeUpMsg" + i);
+        if (m2) {
+          m2.textContent =
+            "✔ FIPE atualizada: " +
+            (x.dtFipeValor || "") +
+            (x.dtFipeRef ? " (ref. " + x.dtFipeRef + ")" : "");
+          m2.style.color = "#198754";
+        }
+      })
+      .catch(function (e) {
+        aviso("✖ " + (e && e.message ? e.message : "Falha ao consultar a FIPE."), "#dc2626");
+      })
+      .then(function () {
+        var b2 = document.getElementById("fipeUpBtn" + i);
+        if (b2) b2.disabled = false;
+      });
+  };
+
 
   /* ---------------- boot ---------------- */
   function iniciar() {
