@@ -5719,11 +5719,30 @@ renderPaginacaoAlertas(alertas.length);
 
 function gerarRelatorioPDF() { window.print(); }
 
-function exportarBackup(){
+async function exportarBackup(){
 
-    const pacote = (typeof fmSnapshotCompleto === "function")
-        ? fmSnapshotCompleto()
-        : db;
+    var pacote;
+    try{
+        pacote = (typeof fmSnapshotCompletoBanco === "function")
+            ? await fmSnapshotCompletoBanco()
+            : ((typeof fmSnapshotCompleto === "function") ? fmSnapshotCompleto() : db);
+    }catch(e){
+        alert("Nao foi possivel conferir todos os dados no banco. O backup nao foi gerado para evitar uma copia incompleta.\n\n" + ((e && e.message) || e));
+        return;
+    }
+
+    var resumo = { total:0, modulos:{} };
+    Object.keys(pacote).forEach(function(mod){
+        if(!Array.isArray(pacote[mod])) return;
+        resumo.modulos[mod] = pacote[mod].length;
+        resumo.total += pacote[mod].length;
+    });
+    pacote._backupInfo = {
+        geradoEm: new Date().toISOString(),
+        total: resumo.total,
+        modulos: resumo.modulos,
+        conferidoComBanco: true
+    };
 
     const blob = new Blob(
         [JSON.stringify(pacote)],
@@ -6003,6 +6022,7 @@ function fmChaveRegistro(mod, r){
 
     var ignorar = {
         _ts:1, _fid:1, atualizadoEm:1, criadoEm:1, editadoEm:1, sincronizadoEm:1,
+        _alteradoEm:1, _alteradoPor:1, _registradoEm:1, _registradoPor:1,
         whatsappAlertaStatus:1, whatsappAlertaEnviadoEm:1
     };
 
@@ -6107,67 +6127,140 @@ function fmSnapshotCompleto(){
         }catch(e){ return null; }
     }
 
-    var fretesLocais = local("FM_FRETES");
-    if((!Array.isArray(snap.fretes) || !snap.fretes.length) && fretesLocais)
-        snap.fretes = fretesLocais;
+    function unir(mod, lista){
+        if(!Array.isArray(snap[mod])) snap[mod] = [];
+        if(!Array.isArray(lista)) return;
+        var vistos = {};
+        snap[mod].forEach(function(r){ vistos[fmChaveRegistro(mod, r)] = true; });
+        lista.forEach(function(r){
+            var k = fmChaveRegistro(mod, r);
+            if(!vistos[k]){ vistos[k] = true; snap[mod].push(r); }
+        });
+    }
 
-    var estoqueLocal = local("frota_estoque_backup");
-    if((!Array.isArray(snap.estoque) || !snap.estoque.length) && estoqueLocal)
-        snap.estoque = estoqueLocal;
+    unir("fretes", local("FM_FRETES"));
+    unir("estoque", local("frota_estoque_backup"));
+    unir("estoque", local("frota_estoque"));
+    unir("estoque", local("FM_EST"));
+    unir("manutencoes", local("FM_MAN"));
+    unir("detran", local("FM_DETRAN"));
+    unir("veiculos", local("FM_V"));
 
     return snap;
 }
 window.fmSnapshotCompleto = fmSnapshotCompleto;
+
+function fmModulosBackup(){
+    var lista = Object.keys(typeof db !== "undefined" && db ? db : {});
+    ["fretes","detran"].forEach(function(m){ if(lista.indexOf(m) === -1) lista.push(m); });
+    return lista;
+}
+
+// O arquivo so e criado depois de ler o banco. Assim uma tela que ainda nao
+// terminou de carregar nao gera uma copia parcial silenciosamente.
+function fmSnapshotCompletoBanco(){
+    var snap = fmSnapshotCompleto();
+    if(typeof dbCloud === "undefined" || !dbCloud || typeof auth === "undefined" || !auth.currentUser)
+        return Promise.reject(new Error("Entre no sistema e confirme a conexao com o banco."));
+    var falhas = [];
+    return Promise.all(fmModulosBackup().map(function(mod){
+        return dbCloud.collection("frota").doc(mod).get({ source:"server" }).then(function(doc){
+            var remoto = doc.exists ? (doc.data() || {}) : {};
+            var lista = Array.isArray(remoto.dados) ? remoto.dados : [];
+            if(!Array.isArray(snap[mod])) snap[mod] = [];
+            var vistos = {};
+            snap[mod].forEach(function(r){ vistos[fmChaveRegistro(mod, r)] = true; });
+            lista.forEach(function(r){
+                var k = fmChaveRegistro(mod, r);
+                if(!vistos[k]){ vistos[k] = true; snap[mod].push(r); }
+            });
+        }).catch(function(e){ falhas.push(mod + ": " + ((e && (e.code || e.message)) || "erro")); });
+    })).then(function(){
+        if(falhas.length) throw new Error("Nao foi possivel conferir: " + falhas.join(", "));
+        return snap;
+    });
+}
+window.fmSnapshotCompletoBanco = fmSnapshotCompletoBanco;
 
 
 function fmAplicarBackup(conteudoBruto){
     var conteudo = fmNormalizarBackup(conteudoBruto);
     if(!conteudo){ alert("Este arquivo nao tem dados de backup reconhecidos."); return; }
 
+    var ausentesArquivo = fmModulosBackup().filter(function(m){ return !Array.isArray(conteudo[m]); });
+    if(ausentesArquivo.length){
+        alert("ATENCAO: este arquivo nao contem estes modulos:\n" + ausentesArquivo.join(", ") +
+              "\n\nOs dados atuais desses modulos serao preservados. O sistema nao considerara este arquivo uma copia completa.");
+    }
+
     var substituir = confirm(
         "Como deseja aplicar este backup?\n\n" +
         "OK = SUBSTITUIR (apaga os dados atuais e deixa so os do backup)\n" +
         "Cancelar = JUNTAR (mantem os atuais e acrescenta os do backup)"
     );
-
-    // PROTECAO: enquanto o backup sobe, o que chega do banco NAO pode
-    // apagar os registros recem-importados (as escutas continuam ativas).
-    window.fmImportandoBackup = true;
-
-    var qtd = substituir ? fmSubstituirBackup(conteudo) : fmMesclarBackup(conteudo);
-    var mods = Object.keys(conteudo);
-    if(!window.fmModulosCarregados) window.fmModulosCarregados = {};
-    mods.forEach(function(m){ window.fmModulosCarregados[m] = true; });
-    try{ if(typeof fmFilaAdicionar === "function") fmFilaAdicionar(mods); }catch(e){}
-    fmSincronizarFretesLocais();
+    if(substituir && !confirm("CONFIRMACAO DE SEGURANCA\n\nSubstituir pode remover registros mais novos dos modulos presentes no arquivo.\n\nDeseja realmente continuar?"))
+        substituir = false;
 
     if(!auth.currentUser){
-        window.fmImportandoBackup = false;
-        alert("Backup carregado no aparelho (" + qtd + " registro(s)), mas voce nao esta logado.\n" +
-              "Entre no sistema para que ele suba ao banco de dados.");
-        setTimeout(function(){ location.reload(); }, 1200);
+        alert("Entre no sistema antes de importar. O arquivo nao foi aplicado para evitar uma restauracao incompleta.");
         return;
     }
 
-    statusNuvem("Enviando backup ao banco...", "#0d6efd");
-
-    fmEnviarBackupNuvem(mods).then(function(erros){
+    var mods = Object.keys(conteudo);
+    statusNuvem(substituir ? "Preparando restauracao..." : "Conferindo banco antes de juntar...", "#0d6efd");
+    var preparar = substituir ? Promise.resolve([]) : fmCarregarBancoParaImportacao(mods);
+    preparar.then(function(falhasLeitura){
+        if(falhasLeitura.length){
+            alert("A importacao nao foi iniciada porque nao foi possivel ler estes modulos do banco:\n" + falhasLeitura.join("\n") +
+                  "\n\nTente novamente quando o indicador mostrar banco conectado.");
+            return null;
+        }
+        window.fmImportandoBackup = true;
+        var qtd = substituir ? fmSubstituirBackup(conteudo) : fmMesclarBackup(conteudo);
+        if(!window.fmModulosCarregados) window.fmModulosCarregados = {};
+        mods.forEach(function(m){ window.fmModulosCarregados[m] = true; });
+        try{ if(typeof fmFilaAdicionar === "function") fmFilaAdicionar(mods); }catch(e){}
+        fmSincronizarFretesLocais();
+        statusNuvem("Enviando backup ao banco...", "#0d6efd");
+        return fmEnviarBackupNuvem(mods).then(function(erros){ return { erros:erros, qtd:qtd }; });
+    }).then(function(resultado){
+        if(!resultado) return null;
         // Confere modulo por modulo se o banco realmente ficou com a quantidade certa
         return fmConferirBackupNuvem(conteudo).then(function(faltando){
             window.fmImportandoBackup = false;
-            if(erros.length || faltando.length){
+            if(resultado.erros.length || faltando.length){
                 alert("Backup aplicado, mas estes itens nao ficaram completos no banco:\n" +
-                      erros.concat(faltando).join("\n") +
+                      resultado.erros.concat(faltando).join("\n") +
                       "\n\nEles ficaram na fila e serao reenviados sozinhos.");
             } else {
-                alert("Backup importado e gravado no banco com sucesso: " + qtd + " registro(s).");
+                alert("Backup importado e conferido registro por registro: " + resultado.qtd + " registro(s) acrescentado(s).");
             }
             setTimeout(function(){ location.reload(); }, 800);
         });
+    }).catch(function(e){
+        window.fmImportandoBackup = false;
+        alert("A importacao nao foi concluida: " + ((e && e.message) || e));
     });
 }
 
-// Le de volta cada modulo no banco e reenvia o que ficou com menos registros.
+function fmCarregarBancoParaImportacao(mods){
+    var falhas = [];
+    return Promise.all(mods.map(function(mod){
+        return dbCloud.collection("frota").doc(mod).get({ source:"server" }).then(function(doc){
+            var d = doc.exists ? (doc.data() || {}) : {};
+            var remotos = Array.isArray(d.dados) ? d.dados : [];
+            if(!Array.isArray(db[mod])) db[mod] = [];
+            var vistos = {};
+            db[mod].forEach(function(r){ vistos[fmChaveRegistro(mod, r)] = true; });
+            remotos.forEach(function(r){
+                var k = fmChaveRegistro(mod, r);
+                if(!vistos[k]){ vistos[k] = true; db[mod].push(r); }
+            });
+        }).catch(function(e){ falhas.push(mod + ": " + ((e && (e.code || e.message)) || "erro")); });
+    })).then(function(){ return falhas; });
+}
+
+// Le de volta cada modulo e confere a identidade de cada registro importado.
 function fmConferirBackupNuvem(conteudo){
     var faltando = [];
     var mods = Object.keys(conteudo).filter(function(m){ return Array.isArray(conteudo[m]); });
@@ -6177,17 +6270,23 @@ function fmConferirBackupNuvem(conteudo){
             return dbCloud.collection("frota").doc(mod).get({ source: "server" })
                 .then(function(doc){
                     var d = (doc.exists && doc.data()) || {};
-                    var qtdNuvem = Array.isArray(d.dados) ? d.dados.length : 0;
-                    if(qtdNuvem >= conteudo[mod].length) return;
+                    var listaNuvem = Array.isArray(d.dados) ? d.dados : [];
+                    var presentes = {};
+                    listaNuvem.forEach(function(r){ presentes[fmChaveRegistro(mod, r)] = true; });
+                    var ausentes = conteudo[mod].filter(function(r){ return !presentes[fmChaveRegistro(mod, r)]; });
+                    if(!ausentes.length) return;
                     // reenvia uma vez
                     return dbCloud.collection("frota").doc(mod)
                         .set({ dados: db[mod] || conteudo[mod], atualizadoEm: new Date().toISOString() }, { merge: true })
                         .then(function(){ return dbCloud.collection("frota").doc(mod).get({ source: "server" }); })
                         .then(function(doc2){
                             var d2 = (doc2.exists && doc2.data()) || {};
-                            var n2 = Array.isArray(d2.dados) ? d2.dados.length : 0;
-                            if(n2 < conteudo[mod].length){
-                                faltando.push(mod + ": " + n2 + " de " + conteudo[mod].length);
+                            var lista2 = Array.isArray(d2.dados) ? d2.dados : [];
+                            var chaves2 = {};
+                            lista2.forEach(function(r){ chaves2[fmChaveRegistro(mod, r)] = true; });
+                            var n2 = conteudo[mod].filter(function(r){ return !chaves2[fmChaveRegistro(mod, r)]; }).length;
+                            if(n2){
+                                faltando.push(mod + ": " + n2 + " registro(s) ausente(s)");
                                 if(typeof fmFilaAdicionar === "function") fmFilaAdicionar([mod]);
                             }
                         })
@@ -6196,7 +6295,10 @@ function fmConferirBackupNuvem(conteudo){
                             if(typeof fmFilaAdicionar === "function") fmFilaAdicionar([mod]);
                         });
                 })
-                .catch(function(){ /* sem leitura: deixa na fila */ });
+                .catch(function(e){
+                    faltando.push(mod + ": nao foi possivel conferir (" + ((e && (e.code || e.message)) || "erro") + ")");
+                    if(typeof fmFilaAdicionar === "function") fmFilaAdicionar([mod]);
+                });
         });
     });
     return fila.then(function(){ return faltando; });
@@ -8285,9 +8387,17 @@ style="width:100%; height:400px; border:none;">
         if(!Array.isArray(dados[mod])) return;
         var atuais = {};
         var lista = (typeof db !== "undefined" && Array.isArray(db[mod])) ? db[mod] : [];
-        lista.forEach(function(it){ atuais[JSON.stringify(it)] = 1; });
+            var chave = (typeof window.fmChaveRegistro === "function")
+              ? window.fmChaveRegistro
+              : function(m, it){ return m + "|" + JSON.stringify(it); };
+            lista.forEach(function(it){ atuais[chave(mod, it)] = 1; });
         var n = 0;
-        dados[mod].forEach(function(it){ if(!atuais[JSON.stringify(it)]) n++; });
+            var vistosCopia = {};
+            dados[mod].forEach(function(it){
+              var k = chave(mod, it);
+              if(!atuais[k] && !vistosCopia[k]) n++;
+              vistosCopia[k] = 1;
+            });
         if(n){ novos += n; detalhe.push(mod + ": " + n); }
       });
     }catch(e){}
@@ -8365,14 +8475,37 @@ style="width:100%; height:400px; border:none;">
       var c = lerDia(data);
       if(!c || !c.dados){ elMsg.innerHTML = '<span style="color:#dc3545">Copia desse dia nao encontrada.</span>'; return; }
       if(!confirm((modo === "substituir" ? "Substituir os dados atuais pela copia de " : "Juntar ao sistema a copia de ") + data + " (" + (c.total || 0) + " registro(s))?")) return;
-      var qtd = 0;
-      window.fmImportandoBackup = true;
-      if(modo === "substituir" && typeof fmSubstituirBackup === "function") qtd = fmSubstituirBackup(c.dados);
-      else if(typeof fmMesclarBackup === "function") qtd = fmMesclarBackup(c.dados);
-      if(typeof salvarNuvem === "function") salvarNuvem();
-      o.remove();
-      alert("Restaurados " + qtd + " registro(s) da copia de " + data + ".");
-      setTimeout(function(){ location.reload(); }, 1500);
+      if(typeof auth === "undefined" || !auth.currentUser){
+        elMsg.innerHTML = '<span style="color:#dc3545">Entre no sistema antes de restaurar.</span>';
+        return;
+      }
+      var modsDia = Object.keys(c.dados).filter(function(m){ return Array.isArray(c.dados[m]); });
+      elMsg.innerHTML = '<span style="color:#0d6efd">Conferindo o banco antes de restaurar...</span>';
+      var preparar = modo === "substituir" ? Promise.resolve([]) : fmCarregarBancoParaImportacao(modsDia);
+      preparar.then(function(falhas){
+        if(falhas.length) throw new Error("Nao foi possivel ler: " + falhas.join(", "));
+        window.fmImportandoBackup = true;
+        var qtd = modo === "substituir" ? fmSubstituirBackup(c.dados) : fmMesclarBackup(c.dados);
+        fmSincronizarFretesLocais();
+        if(typeof fmFilaAdicionar === "function") fmFilaAdicionar(modsDia);
+        return fmEnviarBackupNuvem(modsDia).then(function(erros){
+          return fmConferirBackupNuvem(c.dados).then(function(faltando){
+            return { qtd:qtd, problemas:erros.concat(faltando) };
+          });
+        });
+      }).then(function(resultado){
+        window.fmImportandoBackup = false;
+        if(resultado.problemas.length){
+          elMsg.innerHTML = '<span style="color:#dc3545">A restauracao ficou pendente:<br>' + resultado.problemas.join("<br>") + '</span>';
+          return;
+        }
+        o.remove();
+        alert("Restaurados e conferidos " + resultado.qtd + " registro(s) da copia de " + data + ".");
+        setTimeout(function(){ location.reload(); }, 800);
+      }).catch(function(e){
+        window.fmImportandoBackup = false;
+        elMsg.innerHTML = '<span style="color:#dc3545">Restauracao nao concluida: ' + ((e && e.message) || e) + '</span>';
+      });
     };
   };
 
