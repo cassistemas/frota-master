@@ -237,6 +237,7 @@
   }
 
   var escutando = false;
+  var detalhesAbertos = {};
 
   function escutarNuvem() {
     var cloud = nuvem();
@@ -729,7 +730,7 @@
     return (
       '<div class="fm-det"><div class="fm-det-tit">📋 Dados completos salvos</div>' +
       '<div class="mb-2 d-flex align-items-center gap-2 flex-wrap">' +
-      '<button class="btn btn-sm btn-primary" id="fipeUpBtn' + idx + '" onclick="atualizarFipeDetran(' + idx + ')">🔄 Atualizar FIPE</button>' +
+      '<button type="button" class="btn btn-sm btn-primary" id="fipeUpBtn' + idx + '" onclick="atualizarFipeDetran(' + idx + ')">🔄 Atualizar FIPE</button>' +
       '<span id="fipeUpMsg' + idx + '" style="font-size:.8rem;color:#64748b"></span>' +
       "</div>" +
       '<div class="fm-det-grid">' + itens + "</div></div>"
@@ -741,6 +742,7 @@
     var tr = document.getElementById("fmDet" + i);
     if (!tr) return;
     var visivel = tr.style.display !== "none";
+    detalhesAbertos[i] = !visivel;
     tr.style.display = visivel ? "none" : "";
     tr.setAttribute("aria-hidden", visivel ? "true" : "false");
     var btn = document.querySelector('[data-ver-detran="' + i + '"]');
@@ -793,9 +795,9 @@
               "</td><td>" +
               d(x.dtSituacao) +
               '</td><td class="text-nowrap">' +
-               '<button class="btn btn-sm btn-outline-secondary me-1" data-ver-detran="' + o.i + '" aria-expanded="false" onclick="verDetran(' +
+               '<button type="button" class="btn btn-sm btn-outline-secondary me-1" data-ver-detran="' + o.i + '" aria-expanded="' + (detalhesAbertos[o.i] ? "true" : "false") + '" onclick="verDetran(' +
               o.i +
-              ')" title="Ver todos os dados salvos">👁️</button>' +
+               ')" title="' + (detalhesAbertos[o.i] ? "Ocultar dados salvos" : "Ver todos os dados salvos") + '">' + (detalhesAbertos[o.i] ? "🙈" : "👁️") + '</button>' +
               '<button class="btn btn-sm btn-outline-primary me-1" onclick="editarDetran(' +
               o.i +
               ')">✏️</button>' +
@@ -803,7 +805,7 @@
               o.i +
               ')">🗑️</button>' +
               "</td></tr>" +
-              '<tr class="fm-det-row" id="fmDet' + o.i + '" style="display:none" aria-hidden="true">' +
+               '<tr class="fm-det-row" id="fmDet' + o.i + '" style="display:' + (detalhesAbertos[o.i] ? "" : "none") + '" aria-hidden="' + (detalhesAbertos[o.i] ? "false" : "true") + '">' +
               '<td colspan="10">' + detalheHtml(x, o.i) + "</td></tr>"
             );
           })
@@ -1350,6 +1352,7 @@
     var lista = base();
     var x = lista[i];
     if (!x) return;
+    detalhesAbertos[i] = true;
     var btn = document.getElementById("fipeUpBtn" + i);
     var msg = document.getElementById("fipeUpMsg" + i);
     function aviso(t, cor) {
@@ -1387,7 +1390,6 @@
 
         // atualiza apenas o detalhe ja aberto, sem recarregar a tabela inteira
         var tr = document.getElementById("fmDet" + i);
-        var jaAberto = tr && tr.style.display !== "none";
         if (tr) {
           tr.querySelector("td").innerHTML = detalheHtml(x, i);
           tr.style.display = "";
@@ -1409,19 +1411,6 @@
           m2.style.color = "#198754";
         }
 
-        // se o detalhe nao estava aberto, mantem a tabela como esta
-        if (!jaAberto) {
-          var tr2 = document.getElementById("fmDet" + i);
-          if (tr2) {
-            tr2.style.display = "none";
-            tr2.setAttribute("aria-hidden", "true");
-          }
-          if (btn) {
-            btn.textContent = "👁️";
-            btn.title = "Ver todos os dados salvos";
-            btn.setAttribute("aria-expanded", "false");
-          }
-        }
       })
       .catch(function (e) {
         aviso("✖ " + (e && e.message ? e.message : "Falha ao consultar a FIPE."), "#dc2626");
