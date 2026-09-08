@@ -3458,19 +3458,21 @@ function escutarBackupsNuvem(){
 }
 
 function gravarBackupsNuvem(){
-    if(typeof dbCloud === "undefined" || !dbCloud) return;
+    if(typeof dbCloud === "undefined" || !dbCloud) return Promise.resolve(false);
     try{
-        if(typeof auth !== "undefined" && auth && !auth.currentUser) return;
+        if(typeof auth !== "undefined" && auth && !auth.currentUser) return Promise.resolve(false);
         // Nuvem guarda apenas os metadados dos 10 ultimos backups (documento tem
         // limite de 1 MB; o conteudo completo permanece no navegador).
         var lista = historicoBackups.slice(0,10).map(function(b){
             return { nome: b.nome, data: b.data, tamanho: b.tamanho };
         });
-        dbCloud.collection("frota").doc("backups")
+        return dbCloud.collection("frota").doc("backups")
             .set({ dados: lista, atualizadoEm: new Date().toISOString() }, { merge: true })
-            .catch(function(err){ console.error("Erro ao gravar backups na nuvem:", err); });
-    }catch(e){ console.error(e); }
+            .then(function(){ return true; })
+            .catch(function(err){ console.error("Erro ao gravar backups na nuvem:", err); return false; });
+    }catch(e){ console.error(e); return Promise.resolve(false); }
 }
+
 
 
 function atualizarHistoricoBackup(){
@@ -5719,10 +5721,15 @@ function gerarRelatorioPDF() { window.print(); }
 
 function exportarBackup(){
 
+    const pacote = (typeof fmSnapshotCompleto === "function")
+        ? fmSnapshotCompleto()
+        : db;
+
     const blob = new Blob(
-        [JSON.stringify(db)],
+        [JSON.stringify(pacote)],
         {type:'application/json'}
     );
+
 
     const a = document.createElement('a');
 
@@ -5755,7 +5762,7 @@ function exportarBackup(){
 
         tamanho: (blob.size/1024).toFixed(2) + " KB",
 
-        conteudo: JSON.parse(JSON.stringify(db))
+        conteudo: JSON.parse(JSON.stringify(pacote))
 
     });
 
@@ -5765,26 +5772,28 @@ function exportarBackup(){
 
 /* ===== BACKUP AUTOMATICO AO SAIR / FECHAR O NAVEGADOR ===== */
 window._fmUltimoBackupAuto = 0;
-function fmBackupAutomatico(motivo){
+// Retorna uma Promise com { ok, mensagem } para quem precisa esperar (ex.: sair do sistema).
+function fmBackupAutomatico(motivo, forcar){
     try{
-        if(typeof db === "undefined" || !db) return;
-        var total = 0;
-        Object.keys(db).forEach(function(k){ if(Array.isArray(db[k])) total += db[k].length; });
-        if(!total) return;
+        if(typeof db === "undefined" || !db)
+            return Promise.resolve({ ok:false, mensagem:"Sistema sem dados carregados." });
 
-        // evita repetir varias vezes seguidas (minimo 60s entre backups automaticos)
+        var fonte = (typeof fmSnapshotCompleto === "function") ? fmSnapshotCompleto() : db;
+        var total = 0;
+        Object.keys(fonte).forEach(function(k){ if(Array.isArray(fonte[k])) total += fonte[k].length; });
+        if(!total)
+            return Promise.resolve({ ok:false, mensagem:"Nao havia dados para copiar." });
+
+        // evita repetir varias vezes seguidas (minimo 60s), exceto quando forcado
         var agora = Date.now();
-        if(agora - (window._fmUltimoBackupAuto || 0) < 60000) return;
+        if(!forcar && agora - (window._fmUltimoBackupAuto || 0) < 60000)
+            return Promise.resolve({ ok:true, mensagem:"Backup recente ja concluido." });
         window._fmUltimoBackupAuto = agora;
 
         // 1) copia no proprio aparelho (geral + do dia)
         if(typeof window.fmGuardarCopiaLocal === "function") window.fmGuardarCopiaLocal();
 
-        // 2) garante que tudo pendente suba para o banco
-        try{ if(typeof salvarNuvem === "function") salvarNuvem(); }catch(e){}
-        try{ if(typeof fmReenviarPendentes === "function") fmReenviarPendentes(); }catch(e){}
-
-        // 3) registra no historico de backups
+        // 2) registra no historico de backups
         var d = new Date();
         var nome = "auto_" + d.getFullYear() + "-" +
             String(d.getMonth()+1).padStart(2,'0') + "-" +
@@ -5792,7 +5801,7 @@ function fmBackupAutomatico(motivo){
             String(d.getHours()).padStart(2,'0') + "-" +
             String(d.getMinutes()).padStart(2,'0') + "-" +
             String(d.getSeconds()).padStart(2,'0') + ".json";
-        var texto = JSON.stringify(db);
+        var texto = JSON.stringify(fonte);
         historicoBackups.unshift({
             nome: nome,
             data: d.toISOString(),
@@ -5802,10 +5811,45 @@ function fmBackupAutomatico(motivo){
             conteudo: JSON.parse(texto)
         });
         atualizarHistoricoBackup();
-        try{ if(typeof gravarBackupsNuvem === "function") gravarBackupsNuvem(); }catch(e){}
-    }catch(e){ console.error("Backup automatico:", e); }
+
+        // 3) garante que tudo pendente suba para o banco
+        var tarefas = [];
+        try{ if(typeof salvarNuvem === "function") tarefas.push(Promise.resolve(salvarNuvem())); }catch(e){}
+        try{ if(typeof fmReenviarPendentes === "function") tarefas.push(Promise.resolve(fmReenviarPendentes())); }catch(e){}
+        try{ if(typeof gravarBackupsNuvem === "function") tarefas.push(Promise.resolve(gravarBackupsNuvem())); }catch(e){}
+
+        var comTempo = Promise.all(tarefas.map(function(p){
+            return Promise.resolve(p).catch(function(){ return null; });
+        }));
+
+        var limite = new Promise(function(res){ setTimeout(function(){ res("tempo"); }, 12000); });
+
+        return Promise.race([comTempo, limite]).then(function(r){
+            if(r === "tempo"){
+                return {
+                    ok:false,
+                    mensagem:"Copia guardada neste aparelho (" + total + " registro(s)), mas o envio ao banco " +
+                             "nao confirmou a tempo. Os dados ficaram na fila e sobem no proximo acesso."
+                };
+            }
+            return {
+                ok:true,
+                mensagem:"Backup automatico concluido: " + total + " registro(s) copiados e enviados ao banco."
+            };
+        }).catch(function(){
+            return {
+                ok:false,
+                mensagem:"Copia guardada neste aparelho, mas houve falha ao enviar ao banco. " +
+                         "Os dados ficaram na fila para o proximo acesso."
+            };
+        });
+    }catch(e){
+        console.error("Backup automatico:", e);
+        return Promise.resolve({ ok:false, mensagem:"Nao foi possivel concluir o backup automatico." });
+    }
 }
 window.fmBackupAutomatico = fmBackupAutomatico;
+
 
 window.addEventListener("pagehide", function(){ fmBackupAutomatico("fechou o navegador"); });
 window.addEventListener("beforeunload", function(){ fmBackupAutomatico("fechou o navegador"); });
@@ -5949,8 +5993,38 @@ reader.readAsDataURL(file)
 }
 
 }
+// Chave de identidade de um registro: evita duplicar o mesmo item quando ele
+// volta do cache do navegador com pequenas diferencas (carimbos, campos extras).
+function fmChaveRegistro(mod, r){
+    if(!r || typeof r !== "object") return String(mod) + "|" + JSON.stringify(r);
+
+    var id = r._fid || r.id || r.uid || r.codigo;
+    if(id) return String(mod) + "|id:" + String(id);
+
+    var ignorar = {
+        _ts:1, _fid:1, atualizadoEm:1, criadoEm:1, editadoEm:1, sincronizadoEm:1,
+        whatsappAlertaStatus:1, whatsappAlertaEnviadoEm:1
+    };
+
+    var chaves = Object.keys(r).filter(function(k){
+        if(ignorar[k]) return false;
+        var v = r[k];
+        return !(v === "" || v === null || v === undefined);
+    }).sort();
+
+    var partes = chaves.map(function(k){
+        var v = r[k];
+        if(v && typeof v === "object") v = JSON.stringify(v);
+        return k + "=" + String(v).trim().toLowerCase();
+    });
+
+    return String(mod) + "|" + partes.join("~");
+}
+window.fmChaveRegistro = fmChaveRegistro;
+
 function fmMesclarBackup(conteudo){
-    // Junta os dados do backup com o que existe hoje, SEM apagar nada.
+    // Junta os dados do backup com o que existe hoje, SEM apagar nada
+    // e SEM duplicar: so entra o que ainda nao existe no sistema.
     if(!conteudo || typeof conteudo !== "object") return 0;
     var novos = 0;
     if(!window.fmModulosCarregados) window.fmModulosCarregados = {};
@@ -5959,9 +6033,10 @@ function fmMesclarBackup(conteudo){
         if(!Array.isArray(antigos)) return;
         if(!Array.isArray(db[mod])) db[mod] = [];
         var vistos = {};
-        db[mod].forEach(function(r){ vistos[JSON.stringify(r)] = true; });
+        db[mod].forEach(function(r){ vistos[fmChaveRegistro(mod, r)] = true; });
         antigos.forEach(function(r){
-            var k = JSON.stringify(r);
+            if(!r || typeof r !== "object") return;
+            var k = fmChaveRegistro(mod, r);
             if(vistos[k]) return;
             vistos[k] = true;
             db[mod].push(r);
@@ -5972,6 +6047,7 @@ function fmMesclarBackup(conteudo){
     return novos;
 }
 window.fmMesclarBackup = fmMesclarBackup;
+
 
 function fmSubstituirBackup(conteudo){
     // Substitui os modulos presentes no backup, apagando o que existe hoje neles.
@@ -6010,7 +6086,39 @@ function fmSincronizarFretesLocais(){
             localStorage.removeItem("FM_FRETES_EXCLUIDOS");
         }
     }catch(e){}
+    try{
+        if(Array.isArray(db.estoque) && db.estoque.length){
+            localStorage.setItem("frota_estoque_backup", JSON.stringify(db.estoque));
+        }
+    }catch(e){}
 }
+
+// Snapshot completo: junta o que esta na memoria do sistema (db) com o que
+// alguns modulos guardam apenas no navegador (fretes e estoque).
+function fmSnapshotCompleto(){
+    var snap = {};
+    try{ snap = JSON.parse(JSON.stringify(typeof db !== "undefined" && db ? db : {})); }
+    catch(e){ snap = {}; }
+
+    function local(chave){
+        try{
+            var v = JSON.parse(localStorage.getItem(chave) || "null");
+            return Array.isArray(v) ? v : null;
+        }catch(e){ return null; }
+    }
+
+    var fretesLocais = local("FM_FRETES");
+    if((!Array.isArray(snap.fretes) || !snap.fretes.length) && fretesLocais)
+        snap.fretes = fretesLocais;
+
+    var estoqueLocal = local("frota_estoque_backup");
+    if((!Array.isArray(snap.estoque) || !snap.estoque.length) && estoqueLocal)
+        snap.estoque = estoqueLocal;
+
+    return snap;
+}
+window.fmSnapshotCompleto = fmSnapshotCompleto;
+
 
 function fmAplicarBackup(conteudoBruto){
     var conteudo = fmNormalizarBackup(conteudoBruto);
@@ -7040,10 +7148,25 @@ function limparFiltroDashboard(){
 
 function logout(){
 
-    try{ fmBackupAutomatico("saiu do sistema"); }catch(e){}
+    // Sai somente depois que o backup automatico terminar.
+    if(typeof statusNuvem === "function")
+        statusNuvem("Fazendo backup antes de sair...", "#0d6efd");
 
-    auth.signOut()
+    var passo = Promise.resolve({ ok:false, mensagem:"Backup nao executado." });
+    try{ passo = fmBackupAutomatico("saiu do sistema", true); }catch(e){}
+
+    return Promise.resolve(passo).then(function(r){
+        r = r || { ok:false, mensagem:"Backup nao confirmado." };
+        alert((r.ok ? "✅ " : "⚠️ ") + r.mensagem);
+        return fmFinalizarLogout();
+    });
+}
+
+function fmFinalizarLogout(){
+
+    return auth.signOut()
     .then(() => {
+
 
         // 🔥 limpa variável
         usuarioLogado = null;
@@ -7999,8 +8122,19 @@ style="width:100%; height:400px; border:none;">
   function juntar(alvo, mod, lista){
     if(!Array.isArray(lista) || !lista.length) return;
     if(!Array.isArray(alvo[mod])) alvo[mod] = [];
-    lista.forEach(function(r){ if(r && typeof r === "object") alvo[mod].push(r); });
+    if(!alvo.__vistos) { try{ Object.defineProperty(alvo, "__vistos", { value:{}, enumerable:false }); }catch(e){ alvo.__vistos = {}; } }
+    var chave = (typeof window.fmChaveRegistro === "function")
+      ? window.fmChaveRegistro
+      : function(m, r){ return m + "|" + JSON.stringify(r); };
+    lista.forEach(function(r){
+      if(!r || typeof r !== "object") return;
+      var k = chave(mod, r);
+      if(alvo.__vistos[k]) return;
+      alvo.__vistos[k] = true;
+      alvo[mod].push(r);
+    });
   }
+
 
   function varrerLocalStorage(alvo){
     var lista = mods();
@@ -8111,9 +8245,11 @@ style="width:100%; height:400px; border:none;">
   function guardar(){
     try{
       if(typeof db === "undefined" || !db) return;
-      var total = totalRegistros(db);
+      var fonte = (typeof fmSnapshotCompleto === "function") ? fmSnapshotCompleto() : db;
+      var total = totalRegistros(fonte);
       if(!total) return;
-      var pacote = JSON.stringify({ em: new Date().toISOString(), total: total, dados: db });
+      var pacote = JSON.stringify({ em: new Date().toISOString(), total: total, dados: fonte });
+
       localStorage.setItem(CHAVE, pacote);
       try{ localStorage.setItem(chaveDia(), pacote); limparAntigos(); }
       catch(e){ limparAntigos(); try{ localStorage.setItem(chaveDia(), pacote); }catch(e2){} }
