@@ -1372,6 +1372,17 @@
         x.dtFipeModelo = p.Modelo || "";
         x.dtFipeAtualizado = new Date().toISOString().slice(0, 10);
         if (!x.dtCombustivel && p.Combustivel) x.dtCombustivel = p.Combustivel;
+
+        // atualiza tambem o campo Observacoes com os dados da FIPE
+        var linhaFipe = "FIPE " + (x.dtFipeCodigo || "") + ": " + (x.dtFipeValor || "") +
+          (x.dtFipeRef ? " — ref. " + x.dtFipeRef : "");
+        var obsAtual = String(x.dtObs || "").trim();
+        if (obsAtual.toUpperCase().indexOf("FIPE ") < 0) {
+          x.dtObs = obsAtual ? obsAtual + " | " + linhaFipe : linhaFipe;
+        } else {
+          x.dtObs = obsAtual.replace(/FIPE [^|]+/i, linhaFipe);
+        }
+
         persistir();
         renderDetran();
         var tr = document.getElementById("fmDet" + i);
