@@ -1263,25 +1263,42 @@
   function pontuar(alvo, candidato) {
     var a = txtNorm(alvo).split(" ").filter(Boolean);
     var b = txtNorm(candidato);
-    if (!a.length || !b) return 0;
-    var pontos = 0;
+    var bt = b.split(" ").filter(Boolean);
+    if (!a.length || !bt.length) return 0;
+    var acertos = 0;
+    var totalAlvo = 0;
     a.forEach(function (t) {
-      if (b.indexOf(t) >= 0) pontos += t.length;
+      totalAlvo += t.length;
+      var achou = bt.some(function (o) {
+        return o === t || (t.length >= 4 && o.indexOf(t) === 0) || (o.length >= 4 && t.indexOf(o) === 0);
+      });
+      if (achou) acertos += t.length;
     });
-    return pontos;
+    if (!acertos) return 0;
+    // proporcao do alvo encontrada, com leve penalidade para candidatos muito maiores
+    var cobertura = acertos / totalAlvo;
+    var excesso = Math.max(0, bt.length - a.length) * 0.05;
+    return Math.max(0, cobertura - excesso);
   }
 
-  function melhor(lista, campoNome, alvo) {
+  function melhor(lista, campoNome, alvo, minimo) {
     var top = null;
     var topPontos = 0;
+    var empate = false;
     (lista || []).forEach(function (item) {
       var p = pontuar(alvo, item[campoNome]);
       if (p > topPontos) {
         topPontos = p;
         top = item;
+        empate = false;
+      } else if (p > 0 && p === topPontos) {
+        empate = true;
       }
     });
-    return topPontos > 0 ? top : null;
+    if (topPontos < (minimo || 0.6)) return null;
+    // se houver empate exato entre candidatos diferentes, nao adivinha
+    if (empate && topPontos < 1) return null;
+    return top;
   }
 
   function tipoDoRegistro(x) {
@@ -1308,36 +1325,52 @@
     });
     var mm = partesMarcaModelo(x);
     if (!mm.marca) return Promise.reject(new Error("Registro sem marca/modelo para consultar."));
+    if (!mm.modelo || txtNorm(mm.modelo) === txtNorm(mm.marca))
+      return Promise.reject(
+        new Error("Modelo do veículo não informado — cadastre marca e modelo antes de atualizar a FIPE.")
+      );
     var ano = soAno(x.dtAnoMod) || soAno(x.dtAnoFab);
+    if (!ano)
+      return Promise.reject(
+        new Error("Ano do veículo não informado — sem o ano a FIPE traria valor de outro ano.")
+      );
 
     function tentar(i) {
       if (i >= tipos.length)
-        return Promise.reject(new Error("Não encontrei este veículo na tabela FIPE."));
+        return Promise.reject(
+          new Error("Não encontrei este veículo exato na tabela FIPE. Use a Consulta FIPE manual.")
+        );
       var tipo = tipos[i];
       return fipeMarcas(tipo)
         .then(function (marcas) {
-          var m = melhor(marcas, "nome", mm.marca);
+          var m = melhor(marcas, "nome", mm.marca, 0.8);
           if (!m) throw new Error("marca");
           return fipeModelos(tipo, m.codigo).then(function (modelos) {
-            var mo = melhor(modelos, "nome", mm.modelo) || melhor(modelos, "nome", mm.marca);
+            var mo = melhor(modelos, "nome", mm.modelo, 0.7);
             if (!mo) throw new Error("modelo");
             return fipeAnos(tipo, m.codigo, mo.codigo).then(function (anos) {
               var lista = anos || [];
+              var comb = txtNorm(x.dtCombustivel);
+              var doAno = lista.filter(function (a) {
+                return soAno(a.nome) === ano;
+              });
+              if (!doAno.length) throw new Error("ano");
               var escolhido = null;
-              if (ano) {
-                var comb = txtNorm(x.dtCombustivel);
-                var doAno = lista.filter(function (a) {
-                  return soAno(a.nome) === ano;
-                });
-                if (comb)
-                  escolhido = doAno.filter(function (a) {
-                    return txtNorm(a.nome).indexOf(comb.split(" ")[0]) >= 0;
-                  })[0];
-                escolhido = escolhido || doAno[0];
+              if (comb)
+                escolhido = doAno.filter(function (a) {
+                  return txtNorm(a.nome).indexOf(comb.split(" ")[0]) >= 0;
+                })[0];
+              // sem combustivel informado e mais de uma opcao: nao adivinha
+              if (!escolhido) {
+                if (doAno.length > 1) throw new Error("combustivel");
+                escolhido = doAno[0];
               }
-              escolhido = escolhido || lista[0];
-              if (!escolhido) throw new Error("ano");
-              return fipeValor(tipo, m.codigo, mo.codigo, escolhido.codigo);
+              return fipeValor(tipo, m.codigo, mo.codigo, escolhido.codigo).then(function (p) {
+                // confere se o retorno bate com o veiculo antes de aceitar
+                if (p && soAno(p.AnoModelo) && soAno(p.AnoModelo) !== ano) throw new Error("ano");
+                if (p && pontuar(mm.marca, p.Marca) < 0.8) throw new Error("marca");
+                return p;
+              });
             });
           });
         })
