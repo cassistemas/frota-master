@@ -7240,6 +7240,13 @@ renderModulo = function(modulo){
         return;
     }
 
+    // Telas sem desenho próprio: usam o desenho geral (renderTudo)
+    if(['motoristas','seguros','licenciamento','tacografo','licencas','agendamentos'].indexOf(modulo) !== -1){
+        try{ if(typeof renderTudo === 'function') renderTudo(); }catch(e){}
+        return;
+    }
+
+
     if(modulo === 'estoque'){
         const movimentos = obterMovimentosEstoqueFiltrados();
         const filtrando = ['filtroEstoqueItem','filtroEstoqueCategoria','filtroEstoqueTipo','filtroEstoqueIni','filtroEstoqueFim']
