@@ -1384,12 +1384,22 @@
         }
 
         persistir();
-        renderDetran();
+
+        // atualiza apenas o detalhe ja aberto, sem recarregar a tabela inteira
         var tr = document.getElementById("fmDet" + i);
+        var jaAberto = tr && tr.style.display !== "none";
         if (tr) {
+          tr.querySelector("td").innerHTML = detalheHtml(x, i);
           tr.style.display = "";
           tr.setAttribute("aria-hidden", "false");
         }
+        var btn = document.querySelector('[data-ver-detran="' + i + '"]');
+        if (btn) {
+          btn.textContent = "🙈";
+          btn.title = "Ocultar dados salvos";
+          btn.setAttribute("aria-expanded", "true");
+        }
+
         var m2 = document.getElementById("fipeUpMsg" + i);
         if (m2) {
           m2.textContent =
@@ -1397,6 +1407,20 @@
             (x.dtFipeValor || "") +
             (x.dtFipeRef ? " (ref. " + x.dtFipeRef + ")" : "");
           m2.style.color = "#198754";
+        }
+
+        // se o detalhe nao estava aberto, mantem a tabela como esta
+        if (!jaAberto) {
+          var tr2 = document.getElementById("fmDet" + i);
+          if (tr2) {
+            tr2.style.display = "none";
+            tr2.setAttribute("aria-hidden", "true");
+          }
+          if (btn) {
+            btn.textContent = "👁️";
+            btn.title = "Ver todos os dados salvos";
+            btn.setAttribute("aria-expanded", "false");
+          }
         }
       })
       .catch(function (e) {
