@@ -3959,10 +3959,11 @@ function navegar(id, el) {
         carregarVeiculosSelect('filtroSVVeiculo');
     }
 
-    // Renderizações globais e cálculos
-    renderTudo();
+    // Desenha apenas a tela aberta (evita travar redesenhando tudo)
+    try{ renderModulo(id); }catch(e){}
 
     if (id === 'dashboard') renderDashboard();
+
 }
 
 function ordenarFornecedores(){
@@ -4810,13 +4811,14 @@ function iniciarSistema(){
 
         let pos = 0;
         (function proximoBloco(){
-            const bloco = restantes.slice(pos, pos + 3);
+            const bloco = restantes.slice(pos, pos + 6);
             if(!bloco.length) return;
-            pos += 3;
+            pos += 6;
             bloco.forEach(escutarDados);
-            setTimeout(proximoBloco, 250);
+            setTimeout(proximoBloco, 120);
         })();
     })();
+
 
 
     if(typeof escutarBackupsNuvem === "function") escutarBackupsNuvem();
@@ -4875,16 +4877,23 @@ function escutarDados(modulo){
             }
             if(typeof marcarRegistrosCarregados === "function") marcarRegistrosCarregados(db[modulo]);
 
-            // Desenha somente a tela que o usuario esta vendo. As demais ficam
-            // marcadas e sao desenhadas quando ele abrir o modulo.
+            // Desenha a tela que o usuario esta vendo (e o painel inicial).
+            // As demais ficam marcadas e sao desenhadas ao abrir o modulo.
             if(!window.fmRenderPendente) window.fmRenderPendente = {};
             if(window.fmModuloVisivel(modulo)){
                 renderModulo(modulo);
-                clearTimeout(window.fmRenderTudoTimer);
-                window.fmRenderTudoTimer = setTimeout(function(){ renderTudo(); }, 300);
             } else {
                 window.fmRenderPendente[modulo] = true;
             }
+            clearTimeout(window.fmRenderTudoTimer);
+            window.fmRenderTudoTimer = setTimeout(function(){
+                try{
+                    if(window.fmModuloVisivel("dashboard") && typeof renderDashboard === "function"){
+                        renderDashboard();
+                    }
+                }catch(e){}
+            }, 250);
+
 
         }
 
