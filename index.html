@@ -7225,7 +7225,140 @@ function carregarPneuSelects(){
 // =========================
 // RENDER
 // =========================
+
+/* Desenha as telas simples (sem paginação própria) sem redesenhar o sistema todo. */
+function fmSelectVeiculos(){
+    return '<option value="">Veículo...</option>' +
+        (db.veiculos || [])
+            .filter(v => (v.vstatus || "").toUpperCase() !== "VENDIDO")
+            .map(v => `<option value="${v.vplaca}">${v.vplaca}</option>`)
+            .join('');
+}
+
+function fmSelectMotoristas(){
+    return '<option value="">Motorista...</option>' +
+        (db.motoristas || []).map(m => `<option value="${m.motNome}">${m.motNome}</option>`).join('');
+}
+
+function fmPreencher(id, html){
+    const el = document.getElementById(id);
+    if(!el) return;
+    const atual = el.value;
+    el.innerHTML = html;
+    el.value = atual;
+}
+
+function fmLista(id, html){
+    const el = document.getElementById(id);
+    if(!el) return false;
+    el.innerHTML = html;
+    return true;
+}
+
+function fmRenderSimples(modulo){
+
+    const btnSet = (m,i) => `<td><button class="btn-edit" onclick="editar('${m}',${i})">✎</button><button class="btn-del" onclick="deletar('${m}',${i})">✕</button></td>`;
+
+    try{
+
+        if(modulo === 'agendamentos'){
+            fmPreencher('agveiculo', fmSelectVeiculos());
+            fmPreencher('agmotorista', fmSelectMotoristas());
+            fmLista('listaAgendamentos', (db.agendamentos || []).map((a,i)=>`
+<tr>
+<td>${a.agveiculo || '--'}</td>
+<td>${a.agmotorista || '--'}</td>
+<td>${formatarDataBR(a.agdata)}</td>
+<td>${a.aghora || '--'}</td>
+<td>${a.agdescricao || '--'}</td>
+<td><span class="badge ${a.agstatus === 'Concluído' ? 'bg-success' : a.agstatus === 'Cancelado' ? 'bg-danger' : 'bg-warning text-dark'}">${a.agstatus || 'Pendente'}</span></td>
+${btnSet('agendamentos', i)}
+</tr>`).join(''));
+            return true;
+        }
+
+        if(modulo === 'seguros'){
+            fmPreencher('sveiculo', fmSelectVeiculos());
+            fmLista('listaSeguros', (db.seguros || []).map((s,i)=>
+                `<tr><td>${s.sveiculo || '--'}</td><td>${s.sseguradora || '--'}</td><td>${formatarVencimento(s.svencimento)}</td>${btnSet('seguros',i)}</tr>`
+            ).join(''));
+            return true;
+        }
+
+        if(modulo === 'licenciamento'){
+            fmPreencher('lveiculo', fmSelectVeiculos());
+            fmLista('listaLicenciamento', (db.licenciamento || []).map((l,i)=>
+                `<tr><td>${l.lveiculo || '--'}</td><td>${formatarVencimento(l.lvencimento)}</td><td><b>${l.lvalor || 'R$ 0,00'}</b></td>${btnSet('licenciamento',i)}</tr>`
+            ).join(''));
+            return true;
+        }
+
+        if(modulo === 'tacografo'){
+            fmPreencher('tveiculo', fmSelectVeiculos());
+            fmLista('listaTacografo', (db.tacografo || []).map((t,i)=>{
+                const periodoTexto = t.tperiodo && t.tperiodounidade
+                    ? `${t.tperiodo} ${t.tperiodounidade}`
+                    : '<span class="text-muted">---</span>';
+                return `<tr>
+                    <td>${t.tveiculo || '--'}</td>
+                    <td>${formatarDataBR(t.tdataafericao)}</td>
+                    <td>${periodoTexto}</td>
+                    <td>${formatarVencimento(t.tvencimento)}</td>
+                    <td><b>${t.tvalor || '--'}</b></td>
+                    ${btnSet('tacografo',i)}
+                </tr>`;
+            }).join(''));
+            return true;
+        }
+
+        if(modulo === 'licencas'){
+            fmPreencher('leveiculo', fmSelectVeiculos());
+            fmLista('listaLicencas', (db.licencas || []).map((le,i)=>`
+<tr>
+    <td>${le.leveiculo || '--'}</td>
+    <td>${le.numciv || '--'}</td>
+    <td>${formatarVencimento(le.venciv)}</td>
+    <td>${le.numcipp || '--'}</td>
+    <td>${formatarVencimento(le.vencipp)}</td>
+    <td><b>${le.levalor || 'R$ 0,00'}</b></td>
+    ${btnSet('licencas',i)}
+</tr>`).join(''));
+            return true;
+        }
+
+        if(modulo === 'ferias'){
+            if(document.getElementById('feriasToleranciaDias')){
+                document.getElementById('feriasToleranciaDias').value = obterToleranciaFerias();
+                if(typeof atualizarResumoRegraFerias === 'function') atualizarResumoRegraFerias();
+            }
+            fmPreencher('femotorista', fmSelectMotoristas());
+            fmLista('listaFerias', (db.ferias || [])
+                .map((f,i)=>({ ...f, originalIndex:i }))
+                .sort((a,b)=> new Date(a.feinicio) - new Date(b.feinicio))
+                .map(f=>`
+<tr>
+<td>${f.femotorista || '--'}</td>
+<td>${formatarDataBR(f.feinicio)}</td>
+<td>${f.fediastotal || diasFeriasInclusive(f.feinicio, f.fefim) || '--'}</td>
+<td>${formatarDataBR(f.fefim)}</td>
+<td>${formatarDataBR(f.feretorno || adicionarDiasFerias(f.fefim, 1))}</td>
+<td><span class="badge ${f.festatus === 'Concluída' ? 'bg-success' : f.festatus === 'Em andamento' ? 'bg-warning text-dark' : 'bg-danger'}">${f.festatus || '--'}</span></td>
+<td>${f.feobs || '--'}</td>
+<td>
+<button class="btn-edit" onclick="editar('ferias',${f.originalIndex})">✎</button>
+<button class="btn-del" onclick="deletar('ferias',${f.originalIndex})">✕</button>
+</td>
+</tr>`).join(''));
+            return true;
+        }
+
+    }catch(e){ console.warn('Falha ao desenhar', modulo, e); }
+
+    return false;
+}
+
 const oldRenderModulo = renderModulo;
+
 
 renderModulo = function(modulo){
 
@@ -7240,11 +7373,12 @@ renderModulo = function(modulo){
         return;
     }
 
-    // Telas sem desenho próprio: usam o desenho geral (renderTudo)
-    if(['motoristas','seguros','licenciamento','tacografo','licencas','agendamentos'].indexOf(modulo) !== -1){
-        try{ if(typeof renderTudo === 'function') renderTudo(); }catch(e){}
+    // Telas simples: desenha só a lista da própria tela (nunca renderTudo)
+    if(typeof fmRenderSimples === 'function' && fmRenderSimples(modulo) === true){
         return;
     }
+
+
 
 
     if(modulo === 'estoque'){
