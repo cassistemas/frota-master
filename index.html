@@ -4992,8 +4992,7 @@ if(document.getElementById('agmotorista'))
     const btnSet = (m,i) => `<td><button class="btn-edit" onclick="editar('${m}',${i})">✎</button><button class="btn-del" onclick="deletar('${m}',${i})">✕</button></td>`;
     
     renderModulo('veiculos');
-    
-('multas');
+    renderModulo('multas');
     renderModulo('fornecedores');
     renderModulo('manutencoes');
     renderModulo('diarias');
@@ -7683,10 +7682,35 @@ ${btnSet('agendamentos', i)}
     return false;
 }
 
+/* Mantém veículos, motoristas e fornecedores atualizados em todas as telas. */
+function fmAtualizarSelectsGerais(){
+    try{
+        const vOpt = fmSelectVeiculos();
+        const mOpt = fmSelectMotoristas();
+
+        if(typeof ordenarFornecedores === 'function') ordenarFornecedores();
+        const fOpt = '<option value="">Fornecedor...</option>' +
+            (db.fornecedores || []).map(f => `<option value="${f.fnome}">${f.fnome}</option>`).join('');
+
+        ['sveiculo','mveiculo','lveiculo','tveiculo','leveiculo','muveiculo','agveiculo','eplaca']
+            .forEach(id => fmPreencher(id, vOpt));
+
+        ['mumotorista','agmotorista','vmotorista','femotorista']
+            .forEach(id => fmPreencher(id, mOpt));
+
+        ['mfornecedor','efornecedor']
+            .forEach(id => fmPreencher(id, fOpt));
+
+        if(typeof atualizarCampoPlacaEstoque === 'function') atualizarCampoPlacaEstoque();
+    }catch(e){ console.warn('Falha ao atualizar listas', e); }
+}
+
 const oldRenderModulo = renderModulo;
 
 
 renderModulo = function(modulo){
+
+    fmAtualizarSelectsGerais();
 
     oldRenderModulo(modulo);
 
