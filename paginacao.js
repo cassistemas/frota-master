@@ -271,67 +271,62 @@ function getManutencoesFiltradas(){
     const servico =
     document.getElementById('filtroManServico')?.value?.toLowerCase() || '';
 
+    const txt = x => String(x == null ? '' : x).trim().toLowerCase();
+
+    const numKm = x => {
+        const t = String(x == null ? '' : x).trim();
+        if(!t) return 0;
+        const n = t.indexOf(',') >= 0 ? t.replace(/\./g,'').replace(',','.') : t.replace(/\./g,'');
+        const r = parseFloat(String(n).replace(/[^\d.-]/g,''));
+        return isNaN(r) ? 0 : r;
+    };
+
+    const dataISO = x => {
+        const t = String(x == null ? '' : x).trim();
+        if(!t) return '';
+        if(/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0,10);
+        const m = t.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        return m ? (m[3] + '-' + m[2] + '-' + m[1]) : '';
+    };
+
     return dados.filter(m => {
+
+        const dt = dataISO(m.mdata);
 
         return (
 
-            (!veiculo ||
-                String(m.mveiculo || '')
-                .trim()
-                .toLowerCase() ===
-                String(veiculo || '')
-                .trim()
-                .toLowerCase()
-            )
+            (!veiculo || txt(m.mveiculo) === txt(veiculo))
 
             &&
 
-            (!fornecedor ||
-                String(m.mfornecedor || '')
-                .trim()
-                .toLowerCase() ===
-                String(fornecedor || '')
-                .trim()
-                .toLowerCase()
-            )
+            (!fornecedor || txt(m.mfornecedor) === txt(fornecedor))
 
             &&
 
-            (!dataIni || m.mdata >= dataIni)
+            (!dataIni || (dt && dt >= dataIni))
 
             &&
 
-            (!dataFim || m.mdata <= dataFim)
+            (!dataFim || (dt && dt <= dataFim))
 
             &&
 
-            (!kmMin ||
-                parseFloat(m.mkm || 0) >= parseFloat(kmMin)
-            )
+            (!kmMin || numKm(m.mkm) >= numKm(kmMin))
 
             &&
 
-            (!kmMax ||
-                parseFloat(m.mkm || 0) <= parseFloat(kmMax)
-            )
+            (!kmMax || numKm(m.mkm) <= numKm(kmMax))
 
             &&
 
-            (!nf ||
-                (m.mnf || '')
-                .toLowerCase()
-                .includes(nf)
-            )
+            (!nf || txt(m.mnf).includes(nf))
 
             &&
 
-            (!servico ||
-                (m.mservico || '')
-                .toLowerCase()
-                .includes(servico)
-            )
+            (!servico || txt(m.mservico).includes(servico))
 
         );
+
 
     });
 
@@ -701,6 +696,7 @@ if (!PAGINACAO.paginas[modulo]) {
             <td>${v.vmodelo}</td>
             <td>${v.vkm} KM</td>
             <td>${v.vmotorista}</td>
+            <td>${v.vpbt || '--'} Kg</td>
             <td>${v.vtara || '--'} Kg</td>
             <td>${v.vpliquido || '--'} Kg</td>
             <td>${v.vm3 || '--'} m³</td>

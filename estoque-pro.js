@@ -91,6 +91,36 @@
     });
   }
 
+  /* Identidade de um lançamento: SOMENTE lançamentos absolutamente iguais em
+     todos os campos são considerados repetidos. Nunca apaga produtos diferentes. */
+  function chaveMovimento(m) {
+    m = m || {};
+    var campos = Object.keys(m).filter(function (k) {
+      return k.indexOf("_") !== 0 && k !== "eid";
+    }).sort();
+    var partes = campos.map(function (k) {
+      var v = m[k];
+      if (v === null || v === undefined) v = "";
+      if (typeof v === "object") { try { v = JSON.stringify(v); } catch (e) { v = ""; } }
+      return k + "=" + String(v).trim();
+    });
+    return partes.join("|");
+  }
+  window.chaveMovimentoEstoque = chaveMovimento;
+
+  /* Junta duas listas sem repetir e sem perder nada. */
+  function unirSemDuplicar(base, extras) {
+    var vistos = {};
+    (base || []).forEach(function (m) { vistos[chaveMovimento(m)] = true; });
+    (extras || []).forEach(function (m) {
+      var k = chaveMovimento(m);
+      if (vistos[k]) return;
+      vistos[k] = true;
+      base.push(m);
+    });
+    return base;
+  }
+
   function lista() {
     var raizDb = raiz();
     if (!Array.isArray(raizDb.estoque)) {
@@ -312,21 +342,26 @@
   setTimeout(carregarCompatibilidade, 800);
   setTimeout(carregarCompatibilidade, 2500);
 
-  // Restaura a cópia local caso a nuvem ainda não tenha o documento de estoque.
+  // Recupera da cópia local tudo o que estiver faltando na lista atual.
   function restaurarBackupLocal() {
-    if (lista().length) return;
     try {
       var raw = localStorage.getItem(LS_KEY);
       if (!raw) return;
       var arr = JSON.parse(raw);
-      if (Array.isArray(arr) && arr.length) {
-        var atual = lista();
-        atual.push.apply(atual, arr);
+      if (!Array.isArray(arr) || !arr.length) return;
+      var atual = lista();
+      var antes = atual.length;
+      unirSemDuplicar(atual, arr);
+      if (atual.length > antes) {
+        console.warn("Estoque: " + (atual.length - antes) + " lançamento(s) recuperado(s) da cópia local.");
+        try { if (logado()) persistir(true); } catch (e) {}
         if (typeof renderModulo === "function") renderModulo("estoque");
       }
     } catch (e) {}
   }
+  window.recuperarEstoqueLocal = restaurarBackupLocal;
   setTimeout(restaurarBackupLocal, 2500);
+  setTimeout(restaurarBackupLocal, 6000);
 
   /* ---- posição de estoque por item ---- */
   function posicaoEstoque(ignorarIndice) {
