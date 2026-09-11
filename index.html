@@ -3814,8 +3814,12 @@ function fmFilaLer(){
     try{ return JSON.parse(localStorage.getItem(FM_FILA_KEY)) || []; }catch(e){ return []; }
 }
 function fmFilaGravar(lista){
-    try{ localStorage.setItem(FM_FILA_KEY, JSON.stringify(lista.filter(Boolean))); }catch(e){}
-    if(typeof window.fmMarcarPendencias === "function") window.fmMarcarPendencias(lista.length);
+    var limpa = (lista || []).filter(function(mod, i, todos){
+        if(!mod || todos.indexOf(mod) !== i) return false;
+        return (typeof db !== "undefined" && db && Array.isArray(db[mod]));
+    });
+    try{ localStorage.setItem(FM_FILA_KEY, JSON.stringify(limpa)); }catch(e){}
+    if(typeof window.fmMarcarPendencias === "function") window.fmMarcarPendencias(limpa.length);
 }
 function fmFilaAdicionar(mods){
     var atual = fmFilaLer();
@@ -3843,6 +3847,9 @@ function salvarNuvem(modulos){
     var explicitos = Array.isArray(modulos) && modulos.length;
     var pendentes = fmFilaLer();
     var alvos = explicitos ? modulos.slice() : Object.keys(db).filter(function(mod){
+        // Modulos com sincronizacao propria (como DETRAN e Fretes) nao podem
+        // entrar neste envio geral, pois isso cria duas gravacoes concorrentes.
+        if(!Object.prototype.hasOwnProperty.call(MAP, mod)) return false;
         if(!Array.isArray(db[mod])) return false;
         if(pendentes.indexOf(mod) !== -1) return true;
         if(!window.fmModulosCarregados[mod]) return false;
@@ -4885,7 +4892,10 @@ function escutarDados(modulo){
                 const fila = JSON.parse(localStorage.getItem("FM_FILA_MODULOS") || "[]");
                 pendente = Array.isArray(fila) && fila.indexOf(modulo) !== -1;
             }catch(e){}
-            if((pendente || window.fmImportandoBackup) && locais.length){
+            // Uma resposta do cache pode estar antiga ou conter apenas parte dos
+            // dados. Enquanto o servidor nao confirmar, preserve tudo que ja
+            // existe na memoria e acrescente somente o que apareceu no cache.
+            if((veioDoCache || pendente || window.fmImportandoBackup) && locais.length){
                 const chave = typeof fmChaveRegistro === "function"
                     ? function(r){ return fmChaveRegistro(modulo, r); }
                     : function(r){ return JSON.stringify(r); };
@@ -4905,6 +4915,10 @@ function escutarDados(modulo){
                     salvarNuvem([modulo]);
                 } else if(pendente) {
                     fmFilaRemover([modulo]);
+                }
+                if((modulo === "estoque" || modulo === "manutencoes") &&
+                   typeof window.fmConciliarManutencoesEstoque === "function"){
+                    window.fmConciliarManutencoesEstoque();
                 }
             }
 

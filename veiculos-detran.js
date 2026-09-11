@@ -264,6 +264,11 @@
               window.fmModulosCarregados = window.fmModulosCarregados || {};
               window.fmModulosCarregados.detran = true;
               if (salvamentoPendente) persistir();
+              else {
+                // Limpa uma pendencia antiga que ja corresponde ao conteudo
+                // confirmado pelo banco, evitando o indicador preso em 1.
+                try { if (typeof fmFilaRemover === "function") fmFilaRemover(["detran"]); } catch (e) {}
+              }
             }
           },
           function () {

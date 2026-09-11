@@ -167,6 +167,7 @@
     var mans = listaManutencoes();
     var idsAtivos = {};
     var alterouEstoque = false;
+    var alterouManutencoes = false;
 
     var saidas = movs.filter(function (m) {
       return m.etipo === "Saída" && String(m.eplaca || "").trim() !== "";
@@ -181,6 +182,7 @@
     for (var i = mans.length - 1; i >= 0; i--) {
       if (mans[i] && mans[i].morigem === "estoque" && !idsAtivos[mans[i].mestoqueid]) {
         mans.splice(i, 1);
+        alterouManutencoes = true;
       }
     }
 
@@ -205,15 +207,24 @@
         mestoqueid: s.eid
       };
       if (existente) {
-        for (var k in dados) { if (Object.prototype.hasOwnProperty.call(dados, k)) existente[k] = dados[k]; }
+        for (var k in dados) {
+          if (!Object.prototype.hasOwnProperty.call(dados, k)) continue;
+          if (existente[k] !== dados[k]) {
+            existente[k] = dados[k];
+            alterouManutencoes = true;
+          }
+        }
       } else {
         mans.push(dados);
+        alterouManutencoes = true;
       }
     });
 
-    try {
-      if (typeof salvarNuvem === "function") salvarNuvem(["manutencoes"]);
-    } catch (e) { console.error(e); }
+    if (alterouManutencoes) {
+      try {
+        if (typeof salvarNuvem === "function") salvarNuvem(["manutencoes"]);
+      } catch (e) { console.error(e); }
+    }
 
     try {
       if (typeof renderModulo === "function") renderModulo("manutencoes");
@@ -221,7 +232,7 @@
       if (typeof renderDashboard === "function") renderDashboard();
     } catch (e) {}
 
-    return alterouEstoque;
+    return alterouEstoque || alterouManutencoes;
   }
   window.sincronizarManutencoesEstoque = sincronizarManutencoesEstoque;
 
@@ -815,12 +826,17 @@
   }
 
   function conciliar() {
+    // Nunca crie/remova manutencoes usando listas ainda parciais. Aguarde a
+    // confirmacao do banco para Estoque e Manutencoes nesta sessao.
+    if (typeof window.fmModuloCarregado === "function" &&
+        (!window.fmModuloCarregado("estoque") || !window.fmModuloCarregado("manutencoes"))) return;
     if (!pendenciasManutencao()) return;
     try {
       sincronizarManutencoesEstoque();
       persistir(true);
     } catch (e) { console.error(e); }
   }
+  window.fmConciliarManutencoesEstoque = conciliar;
 
   function iniciar() {
     instalar();
