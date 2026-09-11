@@ -163,6 +163,9 @@
     var idx = document.getElementById("p_idx").value;
     var novo = idx === "";
     var anterior = novo ? null : Object.assign({}, b.pneus[Number(idx)]);
+    if (typeof window.fmPrepararRegistro === "function") {
+      window.fmPrepararRegistro("pneus", obj, anterior);
+    }
 
     if (novo) {
       obj.pdatacadastro = new Date().toISOString();

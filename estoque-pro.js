@@ -95,6 +95,7 @@
      todos os campos são considerados repetidos. Nunca apaga produtos diferentes. */
   function chaveMovimento(m) {
     m = m || {};
+    if (m.eid || m._rid) return "id=" + String(m.eid || m._rid);
     var campos = Object.keys(m).filter(function (k) {
       return k.indexOf("_") !== 0 && k !== "eid";
     }).sort();
@@ -379,8 +380,8 @@
     } catch (e) {}
   }
   window.recuperarEstoqueLocal = restaurarBackupLocal;
-  setTimeout(restaurarBackupLocal, 2500);
-  setTimeout(restaurarBackupLocal, 6000);
+  // A recuperacao local agora e somente manual. Executa-la em toda abertura
+  // fazia lancamentos antigos voltarem depois de ja corrigidos no banco.
 
   /* ---- posição de estoque por item ---- */
   function posicaoEstoque(ignorarIndice) {
@@ -541,6 +542,7 @@
       eplaca: "",
       etotal: quantidade * valorUnitario
     };
+    obj.eid = (idx !== "" && lista()[Number(idx)] && (lista()[Number(idx)].eid || lista()[Number(idx)]._rid)) || novoId();
     if (idx !== "") {
       // editar entrada não pode deixar saldo negativo
       var saldoSem = saldoDoItem(item, idx);
@@ -583,7 +585,7 @@
       eobservacoes: document.getElementById("sobservacoes").value.trim(),
       eplaca: document.getElementById("splaca").value || "",
       etotal: quantidade * pos.custoMedio,
-      eid: (idx !== "" && lista()[Number(idx)] && lista()[Number(idx)].eid) || novoId()
+      eid: (idx !== "" && lista()[Number(idx)] && (lista()[Number(idx)].eid || lista()[Number(idx)]._rid)) || novoId()
     };
     if (idx !== "") lista()[Number(idx)] = obj;
     else lista().push(obj);

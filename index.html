@@ -3351,6 +3351,10 @@ oninput="calcularKMPneu()">
                     🛟 Recuperar dados perdidos (memória do aparelho)
                 </button>
 
+                <button class="btn btn-outline-warning w-100 mt-2" onclick="fmConferirDuplicados()">
+                    🔎 Conferir e corrigir dados duplicados
+                </button>
+
                 <hr class="my-3">
 
                 <button class="btn btn-outline-danger w-100" onclick="fmAbrirZerarBanco()">
@@ -4020,6 +4024,10 @@ function salvar(mod, campos, idCampo){
 
     campos.forEach(c => obj[c] = document.getElementById(c).value);
 
+    // A edicao continua sendo o mesmo cadastro. Sem preservar a identidade,
+    // banco e copia local interpretavam a versao editada como uma nova linha.
+    obj = fmPrepararRegistro(mod, obj, idx === "" ? null : db[mod][Number(idx)]);
+
     /*=====================================================
 ATUALIZA KM DOS VEÍCULOS
 =====================================================*/
@@ -4600,6 +4608,7 @@ function salvarTacografo() {
     let obj = {};
     let idx = document.getElementById(idCampo).value;
     campos.forEach(c => obj[c] = document.getElementById(c).value);
+    obj = fmPrepararRegistro('tacografo', obj, idx === "" ? null : db.tacografo[Number(idx)]);
 
     if (!obj.tveiculo) { alert('Selecione o veículo.'); return; }
     if (!obj.tdataafericao) { alert('Informe a Data de Aferição.'); return; }
@@ -4883,7 +4892,9 @@ function escutarDados(modulo){
 
         {
             const payload = doc.exists ? (doc.data() || {}) : {};
-            const remotos = Array.isArray(payload.dados) ? payload.dados : [];
+            const recebidos = Array.isArray(payload.dados) ? payload.dados : [];
+            const remotos = typeof fmDeduplicarLista === "function"
+                ? fmDeduplicarLista(modulo, recebidos, false).dados : recebidos;
             const locais = Array.isArray(db[modulo]) ? db[modulo] : [];
             // Se ainda ha cadastros feitos no aparelho que nao subiram,
             // eles NAO podem ser apagados pelo que vem do banco.
@@ -4892,18 +4903,24 @@ function escutarDados(modulo){
                 const fila = JSON.parse(localStorage.getItem("FM_FILA_MODULOS") || "[]");
                 pendente = Array.isArray(fila) && fila.indexOf(modulo) !== -1;
             }catch(e){}
-            // Uma resposta do cache pode estar antiga ou conter apenas parte dos
-            // dados. Enquanto o servidor nao confirmar, preserve tudo que ja
-            // existe na memoria e acrescente somente o que apareceu no cache.
-            if((veioDoCache || pendente || window.fmImportandoBackup) && locais.length){
-                const chave = typeof fmChaveRegistro === "function"
-                    ? function(r){ return fmChaveRegistro(modulo, r); }
+            // A copia antiga do aparelho nao deve voltar so porque o primeiro
+            // snapshot veio do cache. Dados locais entram apenas quando existe
+            // uma alteracao realmente pendente ou uma importacao em andamento.
+            if((pendente || window.fmImportandoBackup) && locais.length){
+                const chave = typeof fmChaveNegocio === "function"
+                    ? function(r){ return fmChaveNegocio(modulo, r); }
                     : function(r){ return JSON.stringify(r); };
                 const chaves = new Set(remotos.map(chave));
                 const extras = locais.filter(l => !chaves.has(chave(l)));
-                db[modulo] = remotos.concat(extras);
+                const candidatos = remotos.concat(extras);
+                // Quando a mesma identidade existe dos dois lados, escolhe a
+                // versao mais recente em vez de manter duas copias.
+                db[modulo] = typeof fmDeduplicarLista === "function"
+                    ? fmDeduplicarLista(modulo, remotos.concat(locais), true).dados
+                    : candidatos;
             } else {
-                db[modulo] = remotos;
+                db[modulo] = typeof fmDeduplicarLista === "function"
+                    ? fmDeduplicarLista(modulo, remotos, true).dados : remotos;
             }
 
             // Uma leitura do cache pode estar antiga ou incompleta. Somente a
@@ -5169,7 +5186,7 @@ function salvarCombustivel(){
         media = (veic.vkm / litros).toFixed(2);
     }
 
-    db.combustivel.push({
+    db.combustivel.push(fmPrepararRegistro('combustivel', {
         cveiculo: veiculo,
         cdata: data,
         ctipo: tipo,
@@ -5178,7 +5195,7 @@ function salvarCombustivel(){
         ctotal: total,
         cmedia: media,
         cposto: posto
-    });
+    }));
 
     salvarNuvem(['combustivel']);
 
@@ -5238,6 +5255,7 @@ function salvarEstoque() {
         eplaca: (document.getElementById('etipo').value === 'Saída') ? (document.getElementById('eplaca')?.value || '') : '',
         etotal: quantidade * valorUnitario
     };
+    fmPrepararRegistro('estoque', objeto, idx === '' ? null : db.estoque[Number(idx)]);
 
     const saldoAnterior = calcularResumoEstoque(
         (db.estoque || []).filter((mov, indice) =>
@@ -6053,7 +6071,7 @@ reader.readAsDataURL(file)
 function fmChaveRegistro(mod, r){
     if(!r || typeof r !== "object") return String(mod) + "|" + JSON.stringify(r);
 
-    var id = r._fid || r.id || r.uid || r.codigo;
+    var id = r._rid || r._fid || r.eid || r.pid || r.id || r.uid || r.codigo;
     if(id) return String(mod) + "|id:" + String(id);
 
     var ignorar = {
@@ -6078,6 +6096,108 @@ function fmChaveRegistro(mod, r){
 }
 window.fmChaveRegistro = fmChaveRegistro;
 
+function fmNovoRegistroId(){
+    return "r_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 10);
+}
+
+function fmPrepararRegistro(mod, novo, anterior){
+    novo = novo && typeof novo === "object" ? novo : {};
+    anterior = anterior && typeof anterior === "object" ? anterior : null;
+    novo._rid = (anterior && (anterior._rid || anterior._fid || anterior.id)) || novo._rid || fmNovoRegistroId();
+    if(anterior){
+        ["_registradoPor","_registradoEm"].forEach(function(k){
+            if(anterior[k] != null && novo[k] == null) novo[k] = anterior[k];
+        });
+    }
+    novo._alteradoEm = new Date().toISOString();
+    return novo;
+}
+window.fmPrepararRegistro = fmPrepararRegistro;
+
+function fmTextoChave(v){
+    return String(v == null ? "" : v).trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+}
+
+// Somente campos que identificam inequivocamente um cadastro. Movimentos
+// financeiros/estoque sem ID usam todos os campos, para não unir lançamentos reais.
+function fmChaveNegocio(mod, r){
+    var n = fmTextoChave, dig = function(v){ return String(v || "").replace(/\D/g, ""); };
+    var codigo = function(v){ return n(v).replace(/[^a-z0-9]/g, ""); };
+    if(mod === "veiculos" && (r.vplaca || r.placa)) return mod + "|placa:" + codigo(r.vplaca || r.placa);
+    if(mod === "motoristas"){
+        if(dig(r.mcpf || r.cpf)) return mod + "|cpf:" + dig(r.mcpf || r.cpf);
+        if(n(r.mcnh || r.cnh)) return mod + "|cnh:" + n(r.mcnh || r.cnh);
+    }
+    if(mod === "fornecedores"){
+        if(dig(r.fcnpj || r.cnpj)) return mod + "|cnpj:" + dig(r.fcnpj || r.cnpj);
+        if(n(r.fnome || r.nome)) return mod + "|nome:" + n(r.fnome || r.nome);
+    }
+    if(mod === "terceiros" && (dig(r.tercnpj) || codigo(r.terplaca))){
+        return mod + "|" + (dig(r.tercnpj) ? "cnpj:" + dig(r.tercnpj) : "placa:" + codigo(r.terplaca));
+    }
+    if(mod === "saidaVeiculos" && n(r.svnumeroreserva)) return mod + "|reserva:" + n(r.svnumeroreserva);
+    if(mod === "pneus" && n(r.pnumero)) return mod + "|numero:" + n(r.pnumero);
+    // Uma revisão corresponde a um ciclo único do veículo: serviço, KM da
+    // última execução e intervalo. Campos calculados mudam com o hodômetro e
+    // não podem fazer a mesma revisão parecer um registro novo.
+    if(mod === "revisoes" && codigo(r.rveiculo) && n(r.rtipo) && Number(r.rkm) > 0){
+        return mod + "|" + codigo(r.rveiculo) + "|" + n(r.rtipo) + "|ultima:" + Number(r.rkmultima || 0) + "|intervalo:" + Number(r.rkm || 0);
+    }
+    if(mod === "manutencoes" && r.mestoqueid) return mod + "|estoque:" + n(r.mestoqueid);
+    if(mod === "detran" && (r.dtPlaca || r.dtRenavam)) return mod + "|" + codigo(r.dtPlaca || r.dtRenavam);
+    return fmChaveRegistro(mod, r);
+}
+window.fmChaveNegocio = fmChaveNegocio;
+
+function fmDataRegistro(r){
+    return String((r && (r._alteradoEm || r.atualizadoEm || r.editadoEm || r._registradoEm || r.criadoEm)) || "");
+}
+function fmCompletudeRegistro(r){
+    return Object.keys(r || {}).reduce(function(t,k){
+        return t + (k.charAt(0) !== "_" && r[k] !== "" && r[k] != null ? 1 : 0);
+    }, 0);
+}
+function fmEscolherRegistro(a, b){
+    var da = fmDataRegistro(a), dbb = fmDataRegistro(b);
+    if(da && dbb && da !== dbb) return dbb > da ? b : a;
+    return fmCompletudeRegistro(b) > fmCompletudeRegistro(a) ? b : a;
+}
+
+function fmDeduplicarLista(mod, lista, atribuirIds){
+    var mapa = {}, ordem = [], removidos = 0;
+    (Array.isArray(lista) ? lista : []).forEach(function(r){
+        if(!r || typeof r !== "object") return;
+        var k = fmChaveNegocio(mod, r);
+        if(Object.prototype.hasOwnProperty.call(mapa, k)){
+            mapa[k] = fmEscolherRegistro(mapa[k], r);
+            removidos++;
+        } else { mapa[k] = r; ordem.push(k); }
+    });
+    var dados = ordem.map(function(k){
+        var r = mapa[k];
+        if(atribuirIds && !r._rid && !r._fid && !r.id && !r.uid && !r.codigo) r._rid = fmNovoRegistroId();
+        return r;
+    });
+    return { dados:dados, removidos:removidos };
+}
+window.fmDeduplicarLista = fmDeduplicarLista;
+
+window.fmConferirDuplicados = function(){
+    var resumo = [], total = 0, alterados = [];
+    Object.keys(db || {}).forEach(function(mod){
+        if(!Array.isArray(db[mod])) return;
+        var r = fmDeduplicarLista(mod, db[mod], false);
+        if(r.removidos){ resumo.push(mod + ": " + r.removidos); total += r.removidos; alterados.push(mod); }
+    });
+    if(!total){ alert("Nenhuma duplicata comprovada foi encontrada nos dados carregados."); return; }
+    if(!confirm("Foram encontradas " + total + " duplicata(s) comprovada(s):\n\n" + resumo.join("\n") + "\n\nCorrigir agora?")) return;
+    alterados.forEach(function(mod){ db[mod] = fmDeduplicarLista(mod, db[mod], true).dados; });
+    salvarNuvem(alterados).then(function(ok){
+        alert(ok === false ? "A limpeza ficou pendente e será enviada quando o banco conectar." : "Duplicatas corrigidas e dados conferidos.");
+        if(ok !== false) location.reload();
+    });
+};
+
 function fmMesclarBackup(conteudo){
     // Junta os dados do backup com o que existe hoje, SEM apagar nada
     // e SEM duplicar: so entra o que ainda nao existe no sistema.
@@ -6089,10 +6209,10 @@ function fmMesclarBackup(conteudo){
         if(!Array.isArray(antigos)) return;
         if(!Array.isArray(db[mod])) db[mod] = [];
         var vistos = {};
-        db[mod].forEach(function(r){ vistos[fmChaveRegistro(mod, r)] = true; });
+        db[mod].forEach(function(r){ vistos[fmChaveNegocio(mod, r)] = true; });
         antigos.forEach(function(r){
             if(!r || typeof r !== "object") return;
-            var k = fmChaveRegistro(mod, r);
+            var k = fmChaveNegocio(mod, r);
             if(vistos[k]) return;
             vistos[k] = true;
             db[mod].push(r);
@@ -6167,9 +6287,9 @@ function fmSnapshotCompleto(){
         if(!Array.isArray(snap[mod])) snap[mod] = [];
         if(!Array.isArray(lista)) return;
         var vistos = {};
-        snap[mod].forEach(function(r){ vistos[fmChaveRegistro(mod, r)] = true; });
+        snap[mod].forEach(function(r){ vistos[fmChaveNegocio(mod, r)] = true; });
         lista.forEach(function(r){
-            var k = fmChaveRegistro(mod, r);
+            var k = fmChaveNegocio(mod, r);
             if(!vistos[k]){ vistos[k] = true; snap[mod].push(r); }
         });
     }
@@ -6193,9 +6313,9 @@ function fmMesclarSnapshot(base, extras){
         if(!Array.isArray(extras[mod])) return;
         if(!Array.isArray(saida[mod])) saida[mod] = [];
         var vistos = {};
-        saida[mod].forEach(function(r){ vistos[fmChaveRegistro(mod, r)] = true; });
+        saida[mod].forEach(function(r){ vistos[fmChaveNegocio(mod, r)] = true; });
         extras[mod].forEach(function(r){
-            var k = fmChaveRegistro(mod, r);
+            var k = fmChaveNegocio(mod, r);
             if(!vistos[k]){ vistos[k] = true; saida[mod].push(r); }
         });
     });
@@ -6222,9 +6342,9 @@ function fmSnapshotCompletoBanco(){
             var lista = Array.isArray(remoto.dados) ? remoto.dados : [];
             if(!Array.isArray(snap[mod])) snap[mod] = [];
             var vistos = {};
-            snap[mod].forEach(function(r){ vistos[fmChaveRegistro(mod, r)] = true; });
+            snap[mod].forEach(function(r){ vistos[fmChaveNegocio(mod, r)] = true; });
             lista.forEach(function(r){
-                var k = fmChaveRegistro(mod, r);
+                var k = fmChaveNegocio(mod, r);
                 if(!vistos[k]){ vistos[k] = true; snap[mod].push(r); }
             });
         }).catch(function(e){ falhas.push(mod + ": " + ((e && (e.code || e.message)) || "erro")); });
@@ -6304,9 +6424,9 @@ function fmCarregarBancoParaImportacao(mods){
             var remotos = Array.isArray(d.dados) ? d.dados : [];
             if(!Array.isArray(db[mod])) db[mod] = [];
             var vistos = {};
-            db[mod].forEach(function(r){ vistos[fmChaveRegistro(mod, r)] = true; });
+            db[mod].forEach(function(r){ vistos[fmChaveNegocio(mod, r)] = true; });
             remotos.forEach(function(r){
-                var k = fmChaveRegistro(mod, r);
+                var k = fmChaveNegocio(mod, r);
                 if(!vistos[k]){ vistos[k] = true; db[mod].push(r); }
             });
         }).catch(function(e){ falhas.push(mod + ": " + ((e && (e.code || e.message)) || "erro")); });
@@ -6325,8 +6445,8 @@ function fmConferirBackupNuvem(conteudo){
                     var d = (doc.exists && doc.data()) || {};
                     var listaNuvem = Array.isArray(d.dados) ? d.dados : [];
                     var presentes = {};
-                    listaNuvem.forEach(function(r){ presentes[fmChaveRegistro(mod, r)] = true; });
-                    var ausentes = conteudo[mod].filter(function(r){ return !presentes[fmChaveRegistro(mod, r)]; });
+                    listaNuvem.forEach(function(r){ presentes[fmChaveNegocio(mod, r)] = true; });
+                    var ausentes = conteudo[mod].filter(function(r){ return !presentes[fmChaveNegocio(mod, r)]; });
                     if(!ausentes.length) return;
                     // reenvia uma vez
                     return dbCloud.collection("frota").doc(mod)
@@ -6336,8 +6456,8 @@ function fmConferirBackupNuvem(conteudo){
                             var d2 = (doc2.exists && doc2.data()) || {};
                             var lista2 = Array.isArray(d2.dados) ? d2.dados : [];
                             var chaves2 = {};
-                            lista2.forEach(function(r){ chaves2[fmChaveRegistro(mod, r)] = true; });
-                            var n2 = conteudo[mod].filter(function(r){ return !chaves2[fmChaveRegistro(mod, r)]; }).length;
+                            lista2.forEach(function(r){ chaves2[fmChaveNegocio(mod, r)] = true; });
+                            var n2 = conteudo[mod].filter(function(r){ return !chaves2[fmChaveNegocio(mod, r)]; }).length;
                             if(n2){
                                 faltando.push(mod + ": " + n2 + " registro(s) ausente(s)");
                                 if(typeof fmFilaAdicionar === "function") fmFilaAdicionar([mod]);
@@ -6504,6 +6624,7 @@ function importarBackup(event){
 
 function salvarRegistroMulta(obj,idx){
 
+obj = fmPrepararRegistro('multas', obj, idx === '' ? null : db.multas[Number(idx)])
 if(idx==='') db.multas.push(obj)
 else db.multas[idx]=obj
 
@@ -6544,6 +6665,7 @@ function salvarTerceirosCustom(){
     terstatus: document.getElementById('terstatus').value,
     terobs: document.getElementById('terobs').value
 };
+    fmPrepararRegistro('terceiros', obj, idx === '' ? null : db.terceiros[Number(idx)]);
 
     if(idx === ''){
         db.terceiros.push(obj);
@@ -7533,6 +7655,7 @@ function salvarPneu(){
     };
 
     const idx = document.getElementById('p_idx').value;
+    obj = fmPrepararRegistro('pneus', obj, idx === '' ? null : db.pneus[Number(idx)]);
 
     if(idx === ''){
         db.pneus.push(obj);

@@ -102,7 +102,9 @@
       if ((f._ts || 0) > (atual._ts || 0)) mapa[f._fid] = f;
     }
     garantirIds(remotos).forEach(por);
-    garantirIds(fretes).forEach(por);
+    // A copia deste navegador so participa quando existe envio pendente.
+    // Caso contrario, o banco confirmado e a fonte principal.
+    if (envioPendente || pendenteLer()) garantirIds(fretes).forEach(por);
     return ordem.map(function (id) { return mapa[id]; });
   }
 
@@ -125,7 +127,8 @@
         window.fmModulosCarregados.fretes = true;
       }
       // se o aparelho tem algo que o banco ainda nao tem, sobe agora
-      if (servidorConfirmado && (JSON.stringify(fretes) !== JSON.stringify(dados) || antes !== JSON.stringify(fretes))) gravarNuvem();
+      if (servidorConfirmado && (envioPendente || pendenteLer()) &&
+          (JSON.stringify(fretes) !== JSON.stringify(dados) || antes !== JSON.stringify(fretes))) gravarNuvem();
     }, function (err) { console.error('Erro ao ler fretes do banco:', err); });
   }
 
@@ -567,6 +570,8 @@
     } else {
       var ant = fretes[Number(idx)] || {};
       obj._fid = ant._fid || novoId();
+      obj._registradoPor = ant._registradoPor;
+      obj._registradoEm = ant._registradoEm;
       fretes[Number(idx)] = obj;
     }
     persistir();

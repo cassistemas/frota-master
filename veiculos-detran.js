@@ -632,6 +632,9 @@
 
     var lista = base();
     var idx = document.getElementById("dt_idx").value;
+    if (typeof window.fmPrepararRegistro === "function") {
+      window.fmPrepararRegistro("detran", obj, idx !== "" ? lista[Number(idx)] : null);
+    }
 
     function manterFipe(antigo, novo) {
       if (!antigo) return novo;

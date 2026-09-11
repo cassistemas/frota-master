@@ -175,6 +175,10 @@ function salvarRevisao(){
 
     };
 
+    if (typeof window.fmPrepararRegistro === "function") {
+        window.fmPrepararRegistro("revisoes", obj, idx === "" ? null : db.revisoes[Number(idx)]);
+    }
+
     if(obj.rveiculo==""){
 
         alert("Selecione um veículo.");
@@ -207,6 +211,12 @@ function salvarRevisao(){
 
         db.revisoes[idx]=obj;
 
+    }
+
+    // Remove repetições antigas do mesmo ciclo antes de enviar. Revisões
+    // legítimas permanecem separadas pelo veículo, serviço e quilometragem-base.
+    if (typeof window.fmDeduplicarLista === "function") {
+        db.revisoes = window.fmDeduplicarLista("revisoes", db.revisoes, true).dados;
     }
 
     salvarNuvem();
