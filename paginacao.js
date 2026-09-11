@@ -1242,9 +1242,9 @@ if(modulo==="saidaVeiculos"){
         const status = s.svstatus || "Em Viagem";
 
         return `
-        <tr>
+        <tr class="saida-veiculos-row">
 
-            <td>
+            <td class="saida-veiculos-reserva">
 
                 ${s.svnumeroreserva || "--"}
 
@@ -1262,7 +1262,7 @@ if(modulo==="saidaVeiculos"){
 
             </td>
 
-            <td>
+            <td class="saida-veiculos-veiculo">
 
                 ${s.svveiculo}
 
@@ -1274,13 +1274,13 @@ if(modulo==="saidaVeiculos"){
 
             </td>
 
-            <td>
+            <td class="saida-veiculos-motorista">
 
                 ${s.svmotorista || "--"}
 
             </td>
 
-            <td>
+            <td class="saida-veiculos-data">
 
                 ${formatarDataBR(s.svdataSaida)}
 
@@ -1290,7 +1290,7 @@ if(modulo==="saidaVeiculos"){
 
             </td>
 
-            <td>
+            <td class="saida-veiculos-data">
 
                 ${
                     s.svdataChegada
@@ -1304,7 +1304,7 @@ if(modulo==="saidaVeiculos"){
 
             </td>
 
-            <td>
+            <td class="saida-veiculos-destino">
 
                 ${s.svdestino || "--"}
 
@@ -1316,7 +1316,7 @@ if(modulo==="saidaVeiculos"){
 
             </td>
 
-            <td>
+            <td class="saida-veiculos-status">
 
                 <span class="badge ${
                     status === "Finalizado"
@@ -1332,7 +1332,7 @@ if(modulo==="saidaVeiculos"){
 
             </td>
 
-           <td>
+           <td class="saida-veiculos-acoes">
 
     ${
         usuarioLogado.tipo === "admin" ||
@@ -1340,6 +1340,9 @@ if(modulo==="saidaVeiculos"){
         ?
         `
         <button
+            type="button"
+            title="Editar saída"
+            aria-label="Editar saída"
             class="btn-edit"
             onclick="editar('saidaVeiculos',${real})">
             ✎
@@ -1353,6 +1356,9 @@ if(modulo==="saidaVeiculos"){
         ?
         `
         <button
+            type="button"
+            title="Excluir saída"
+            aria-label="Excluir saída"
             class="btn-del"
             onclick="deletar('saidaVeiculos',${real})">
             ✕

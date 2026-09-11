@@ -11,7 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="./pro-ui.css">
+    <link rel="stylesheet" href="./pro-ui.css?v=20260911-2">
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=1">
@@ -1316,7 +1316,7 @@ Limpar
 </div>
 
 
-<div class="glass-container">
+<div class="glass-container saida-veiculos-listagem">
 
 <div class="d-flex justify-content-end mb-3">
 
@@ -1332,7 +1332,8 @@ onclick="exportarExcel('saidaVeiculos')">
 
 </div>
 
-<table class="table table-striped table-hover">
+<div class="table-responsive saida-veiculos-tablewrap">
+<table class="table table-striped table-hover saida-veiculos-table">
 
 <thead>
 
@@ -1365,6 +1366,7 @@ onclick="exportarExcel('saidaVeiculos')">
 </tbody>
 
 </table>
+</div>
 
 <div id="paginacaoSaidaVeiculos"></div>
 
@@ -3614,7 +3616,7 @@ function formatarDataBR(data){
 
 </script>
 
-<script src="./paginacao.js?v=20260911-2"></script>
+<script src="./paginacao.js?v=20260911-3"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>

@@ -238,11 +238,95 @@ body {
 }
 
 .fm-observacao-saida {
-  min-width: 180px;
-  max-width: 320px;
+  min-width: 220px;
+  max-width: 360px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  line-height: 1.4;
+  line-height: 1.3;
+}
+
+/* ---------- Saída de veículos: grade compacta ---------- */
+#saidaVeiculos .saida-veiculos-listagem {
+  padding: 14px !important;
+}
+#saidaVeiculos .saida-veiculos-listagem > .d-flex {
+  margin-bottom: 10px !important;
+}
+#saidaVeiculos .saida-veiculos-tablewrap {
+  border: 1px solid var(--pro-line);
+  border-radius: 10px;
+  overflow-x: auto;
+  background: var(--pro-surface);
+  box-shadow: none;
+}
+#saidaVeiculos .saida-veiculos-table {
+  width: 100%;
+  min-width: 1040px;
+  table-layout: fixed;
+}
+#saidaVeiculos .saida-veiculos-table > thead > tr > th {
+  padding: 9px 10px;
+  background: var(--pro-ink) !important;
+  color: var(--pro-line);
+  border-color: var(--pro-ink-2) !important;
+  font-size: .63rem;
+  line-height: 1.1;
+  letter-spacing: .07em;
+  vertical-align: middle;
+}
+#saidaVeiculos .saida-veiculos-table > tbody > tr > td {
+  height: auto;
+  padding: 8px 10px;
+  font-size: .76rem;
+  line-height: 1.25;
+  vertical-align: middle;
+}
+#saidaVeiculos .saida-veiculos-table th:nth-child(1) { width: 7%; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(2) { width: 11%; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(3) { width: 15%; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(4),
+#saidaVeiculos .saida-veiculos-table th:nth-child(5) { width: 9%; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(6) { width: 11%; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(7) { width: 23%; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(8) { width: 8%; text-align: center; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(9) { width: 7%; text-align: center; }
+#saidaVeiculos .saida-veiculos-reserva,
+#saidaVeiculos .saida-veiculos-data {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+#saidaVeiculos .saida-veiculos-veiculo,
+#saidaVeiculos .saida-veiculos-motorista,
+#saidaVeiculos .saida-veiculos-destino {
+  overflow-wrap: anywhere;
+}
+#saidaVeiculos .fm-observacao-saida {
+  min-width: 0;
+  max-width: none;
+  font-size: .72rem !important;
+  line-height: 1.25;
+}
+#saidaVeiculos .saida-veiculos-status,
+#saidaVeiculos .saida-veiculos-acoes {
+  text-align: center;
+  white-space: nowrap;
+}
+#saidaVeiculos .saida-veiculos-table .badge {
+  padding: .3em .58em;
+  font-size: .61rem;
+  line-height: 1.1;
+}
+#saidaVeiculos .saida-veiculos-table .btn-edit,
+#saidaVeiculos .saida-veiculos-table .btn-del {
+  width: 27px;
+  height: 27px;
+  margin: 0 2px;
+  border-radius: 6px;
+  font-size: .76rem;
+}
+@media (max-width: 768px) {
+  #saidaVeiculos .saida-veiculos-listagem { padding: 10px !important; }
+  #saidaVeiculos .saida-veiculos-table { min-width: 960px; }
 }
 
 /* ---------- Férias: campos com rótulo interno ---------- */
