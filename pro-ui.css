@@ -237,6 +237,13 @@ body {
   font-size: .78rem;
 }
 
+.fm-observacao-saida {
+  min-width: 180px;
+  max-width: 320px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* ---------- Férias: campos com rótulo interno ---------- */
 #ferias .ferias-form-card {
   padding: 14px 14px 15px;

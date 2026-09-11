@@ -58,17 +58,12 @@
     select.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
-  function filtrarSugestoes(select, input, lista) {
-    var termo = normalizar(input.value);
+  function filtrarSugestoes(select, input, lista, mostrarTodos) {
+    var termo = mostrarTodos ? "" : normalizar(input.value);
     lista.innerHTML = "";
 
-    if (!termo) {
-      fecharSugestoes(lista);
-      return;
-    }
-
     var correspondencias = opcoesValidas(select).filter(function (option) {
-      return normalizar(option.textContent).indexOf(termo) >= 0 ||
+      return !termo || normalizar(option.textContent).indexOf(termo) >= 0 ||
         normalizar(option.value).indexOf(termo) >= 0;
     });
 
@@ -175,7 +170,10 @@
       }
     });
     input.addEventListener("focus", function () {
-      filtrarSugestoes(select, input, lista);
+      filtrarSugestoes(select, input, lista, true);
+    });
+    input.addEventListener("click", function () {
+      filtrarSugestoes(select, input, lista, true);
     });
     input.addEventListener("blur", function () {
       window.setTimeout(function () { fecharSugestoes(lista); }, 120);
