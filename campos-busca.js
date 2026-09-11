@@ -36,19 +36,62 @@
     });
   }
 
-  function atualizarSugestoes(select, input, datalist) {
+  function atualizarSugestoes(select, input, lista) {
     var atual = input.value;
-    datalist.innerHTML = "";
-    opcoesValidas(select).forEach(function (option) {
-      var sugestao = document.createElement("option");
-      sugestao.value = option.textContent.trim();
-      datalist.appendChild(sugestao);
-    });
-
     if (select.value && !atual) {
       var escolhida = select.options[select.selectedIndex];
       input.value = escolhida ? escolhida.textContent.trim() : "";
     }
+    filtrarSugestoes(select, input, lista);
+  }
+
+  function fecharSugestoes(lista) {
+    lista.innerHTML = "";
+    lista.hidden = true;
+  }
+
+  function escolherOpcao(select, input, lista, option) {
+    select.value = option.value;
+    input.value = option.textContent.trim();
+    fecharSugestoes(lista);
+    select.dispatchEvent(new Event("input", { bubbles: true }));
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function filtrarSugestoes(select, input, lista) {
+    var termo = normalizar(input.value);
+    lista.innerHTML = "";
+
+    if (!termo) {
+      fecharSugestoes(lista);
+      return;
+    }
+
+    var correspondencias = opcoesValidas(select).filter(function (option) {
+      return normalizar(option.textContent).indexOf(termo) >= 0 ||
+        normalizar(option.value).indexOf(termo) >= 0;
+    });
+
+    correspondencias.slice(0, 50).forEach(function (option) {
+      var item = document.createElement("button");
+      item.type = "button";
+      item.className = "fm-busca-opcao";
+      item.textContent = option.textContent.trim();
+      item.addEventListener("mousedown", function (event) {
+        event.preventDefault();
+        escolherOpcao(select, input, lista, option);
+      });
+      lista.appendChild(item);
+    });
+
+    if (!correspondencias.length) {
+      var vazio = document.createElement("div");
+      vazio.className = "fm-busca-vazia";
+      vazio.textContent = "Nenhum cadastro encontrado";
+      lista.appendChild(vazio);
+    }
+
+    lista.hidden = false;
   }
 
   function selecionarCorrespondencia(select, input, aceitarParcial) {
@@ -86,21 +129,24 @@
   function prepararCampo(select, tipo) {
     if (!select || select.dataset.fmBuscaCadastro === "1") return;
 
-    var listaId = "fm-lista-" + select.id;
     var input = document.createElement("input");
-    var datalist = document.createElement("datalist");
+    var lista = document.createElement("div");
 
     input.type = "search";
     input.id = select.id + "-busca";
     input.className = "form-control fm-busca-cadastro";
     input.placeholder = "Digite para buscar " + tipo;
     input.setAttribute("aria-label", "Buscar " + tipo + " cadastrado");
-    input.setAttribute("list", listaId);
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-controls", "fm-lista-" + select.id);
     input.autocomplete = "off";
-    datalist.id = listaId;
+    lista.id = "fm-lista-" + select.id;
+    lista.className = "fm-busca-lista";
+    lista.hidden = true;
 
     select.parentNode.insertBefore(input, select);
-    select.parentNode.insertBefore(datalist, select);
+    select.parentNode.insertBefore(lista, select);
+    select.parentNode.classList.add("fm-busca-container");
     select.classList.add("fm-select-cadastro-original");
     select.setAttribute("aria-hidden", "true");
     select.tabIndex = -1;
@@ -111,14 +157,28 @@
 
     input.addEventListener("input", function () {
       selecionarCorrespondencia(select, input, false);
+      filtrarSugestoes(select, input, lista);
     });
     input.addEventListener("change", function () {
-      selecionarCorrespondencia(select, input, true);
+      if (!selecionarCorrespondencia(select, input, false)) {
+        filtrarSugestoes(select, input, lista);
+      }
     });
     input.addEventListener("keydown", function (event) {
-      if (event.key === "Enter" && selecionarCorrespondencia(select, input, true)) {
+      var primeira = lista.querySelector(".fm-busca-opcao");
+      if (event.key === "Enter" && primeira) {
         event.preventDefault();
+        primeira.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
       }
+      if (event.key === "Escape") {
+        fecharSugestoes(lista);
+      }
+    });
+    input.addEventListener("focus", function () {
+      filtrarSugestoes(select, input, lista);
+    });
+    input.addEventListener("blur", function () {
+      window.setTimeout(function () { fecharSugestoes(lista); }, 120);
     });
     select.addEventListener("change", function () {
       var option = select.options[select.selectedIndex];
@@ -126,10 +186,10 @@
     });
 
     new MutationObserver(function () {
-      atualizarSugestoes(select, input, datalist);
+      atualizarSugestoes(select, input, lista);
     }).observe(select, { childList: true, subtree: true });
 
-    atualizarSugestoes(select, input, datalist);
+    atualizarSugestoes(select, input, lista);
   }
 
   function prepararTodos() {

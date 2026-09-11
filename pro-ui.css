@@ -186,6 +186,57 @@ body {
   opacity: .9;
 }
 
+.fm-busca-container {
+  position: relative;
+}
+
+.fm-busca-lista {
+  position: absolute;
+  z-index: 1080;
+  top: calc(100% + 3px);
+  left: calc(var(--bs-gutter-x, 0px) * .5);
+  right: calc(var(--bs-gutter-x, 0px) * .5);
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--pro-line);
+  border-radius: 8px;
+  background: var(--pro-surface);
+  box-shadow: var(--pro-shadow);
+}
+
+.fm-busca-lista[hidden] {
+  display: none;
+}
+
+.fm-busca-opcao {
+  display: block;
+  width: 100%;
+  padding: .62rem .72rem;
+  border: 0;
+  border-bottom: 1px solid var(--pro-line);
+  background: var(--pro-surface);
+  color: var(--pro-ink);
+  font-size: .8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fm-busca-opcao:last-child {
+  border-bottom: 0;
+}
+
+.fm-busca-opcao:hover,
+.fm-busca-opcao:focus {
+  background: var(--pro-bg);
+  outline: 0;
+}
+
+.fm-busca-vazia {
+  padding: .7rem;
+  color: var(--pro-mute);
+  font-size: .78rem;
+}
+
 /* ---------- Férias: campos com rótulo interno ---------- */
 #ferias .ferias-form-card {
   padding: 14px 14px 15px;
