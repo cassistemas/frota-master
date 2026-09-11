@@ -170,6 +170,81 @@ body {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, .14);
 }
 
+/* Campo único pesquisável; o select original permanece apenas para salvar o ID. */
+.fm-busca-cadastro {
+  width: 100%;
+  padding-right: 2rem;
+  background-color: var(--pro-surface);
+}
+
+.fm-select-cadastro-original {
+  display: none !important;
+}
+
+.fm-busca-cadastro::placeholder {
+  color: var(--pro-mute);
+  opacity: .9;
+}
+
+.fm-busca-container {
+  position: relative;
+}
+
+.fm-busca-lista {
+  position: absolute;
+  z-index: 1080;
+  top: calc(100% + 3px);
+  left: calc(var(--bs-gutter-x, 0px) * .5);
+  right: calc(var(--bs-gutter-x, 0px) * .5);
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--pro-line);
+  border-radius: 8px;
+  background: var(--pro-surface);
+  box-shadow: var(--pro-shadow);
+}
+
+.fm-busca-lista[hidden] {
+  display: none;
+}
+
+.fm-busca-opcao {
+  display: block;
+  width: 100%;
+  padding: .62rem .72rem;
+  border: 0;
+  border-bottom: 1px solid var(--pro-line);
+  background: var(--pro-surface);
+  color: var(--pro-ink);
+  font-size: .8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fm-busca-opcao:last-child {
+  border-bottom: 0;
+}
+
+.fm-busca-opcao:hover,
+.fm-busca-opcao:focus {
+  background: var(--pro-bg);
+  outline: 0;
+}
+
+.fm-busca-vazia {
+  padding: .7rem;
+  color: var(--pro-mute);
+  font-size: .78rem;
+}
+
+.fm-observacao-saida {
+  min-width: 180px;
+  max-width: 320px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
 /* ---------- Férias: campos com rótulo interno ---------- */
 #ferias .ferias-form-card {
   padding: 14px 14px 15px;

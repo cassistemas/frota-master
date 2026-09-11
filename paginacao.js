@@ -676,6 +676,24 @@ function totalVeiculosEmViagem(){
 
 }
 
+function textoSeguroSaidaVeiculo(valor){
+    return String(valor == null ? "" : valor)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function observacaoSaidaVeiculo(registro){
+    if(!registro) return "--";
+
+    const observacao = registro.svobs ?? registro.svobservacao ?? registro.observacao ?? registro.obs ?? "";
+    const texto = String(observacao).trim();
+
+    return texto ? textoSeguroSaidaVeiculo(texto) : "--";
+}
+
 function renderModulo(modulo){
 
 if (!PAGINACAO.paginas[modulo]) {
@@ -1289,6 +1307,12 @@ if(modulo==="saidaVeiculos"){
             <td>
 
                 ${s.svdestino || "--"}
+
+            </td>
+
+            <td class="fm-observacao-saida">
+
+                ${observacaoSaidaVeiculo(s)}
 
             </td>
 
