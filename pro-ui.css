@@ -170,6 +170,19 @@ body {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, .14);
 }
 
+/* Busca complementar: a lista original permanece logo abaixo. */
+.fm-busca-cadastro {
+  width: 100%;
+  margin-bottom: 5px;
+  padding-right: 2rem;
+  background-color: var(--pro-surface);
+}
+
+.fm-busca-cadastro::placeholder {
+  color: var(--pro-mute);
+  opacity: .9;
+}
+
 /* ---------- Férias: campos com rótulo interno ---------- */
 #ferias .ferias-form-card {
   padding: 14px 14px 15px;
