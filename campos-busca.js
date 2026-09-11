@@ -42,12 +42,20 @@
       var escolhida = select.options[select.selectedIndex];
       input.value = escolhida ? escolhida.textContent.trim() : "";
     }
-    filtrarSugestoes(select, input, lista);
+    if (document.activeElement === input && !lista.hidden) {
+      filtrarSugestoes(select, input, lista);
+    }
   }
 
   function fecharSugestoes(lista) {
     lista.innerHTML = "";
     lista.hidden = true;
+  }
+
+  function fecharOutrasSugestoes(listaAtual) {
+    document.querySelectorAll(".fm-busca-lista").forEach(function (lista) {
+      if (lista !== listaAtual) fecharSugestoes(lista);
+    });
   }
 
   function escolherOpcao(select, input, lista, option) {
@@ -59,6 +67,7 @@
   }
 
   function filtrarSugestoes(select, input, lista, mostrarTodos) {
+    fecharOutrasSugestoes(lista);
     var termo = mostrarTodos ? "" : normalizar(input.value);
     lista.innerHTML = "";
 
@@ -197,6 +206,12 @@
   }
 
   window.fmAtualizarBuscasCadastro = prepararTodos;
+
+  document.addEventListener("mousedown", function (event) {
+    if (!event.target.closest(".fm-busca-container")) {
+      fecharOutrasSugestoes(null);
+    }
+  });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", prepararTodos);
