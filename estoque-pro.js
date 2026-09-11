@@ -244,10 +244,6 @@
   var salvamentoPendente = false;
 
   function gravarNuvem() {
-    if (typeof dbCloud === "undefined" || !dbCloud || !dbCloud.collection) {
-      if (typeof salvarNuvem === "function") salvarNuvem();
-      return;
-    }
     if (!logado()) { salvamentoPendente = true; return; }
     if (typeof window.fmModuloCarregado === "function" && !window.fmModuloCarregado("estoque")) {
       salvamentoPendente = true;
@@ -255,9 +251,11 @@
       return;
     }
     salvamentoPendente = false;
-    var p = dbCloud.collection("frota").doc("estoque").set({ dados: lista() }, { merge: true });
-    if (p && p.then) p.then(function () {
-      try { if (typeof fmFilaRemover === "function") fmFilaRemover(["estoque"]); } catch (e) {}
+    // Usa o mesmo gravador dos demais módulos. Havia duas rotinas escrevendo o
+    // array inteiro de Estoque, o que permitia uma resposta antiga vencer.
+    var p = typeof salvarNuvem === "function" ? salvarNuvem(["estoque"]) : Promise.resolve(false);
+    if (p && p.then) p.then(function (ok) {
+      salvamentoPendente = ok === false;
     });
     if (p && p.catch) p.catch(function (err) {
       console.error("Erro ao salvar estoque na nuvem:", err);
@@ -349,8 +347,10 @@
         mudouVeiculos = base.veiculos.length > 0;
       }
 
-      if (mudouEstoque) dbCloud.collection("frota").doc("estoque").set({ dados: base.estoque }, { merge: true });
-      if (mudouVeiculos) dbCloud.collection("frota").doc("veiculos").set({ dados: base.veiculos }, { merge: true });
+      // Dados legados apenas entram na memória. A gravação central aguarda a
+      // leitura confirmada do banco e evita substituir listas atuais/parciais.
+      if (mudouEstoque && typeof salvarNuvem === "function") salvarNuvem(["estoque"]);
+      if (mudouVeiculos && typeof salvarNuvem === "function") salvarNuvem(["veiculos"]);
       preencherSelectVeiculos("splaca");
       renderModulo("estoque");
     }).catch(function (err) {
@@ -359,8 +359,8 @@
     });
   }
   window.carregarDadosAnterioresEstoque = carregarCompatibilidade;
-  setTimeout(carregarCompatibilidade, 800);
-  setTimeout(carregarCompatibilidade, 2500);
+  // A compatibilidade legada permanece disponível apenas por ação manual.
+  // Executá-la durante a abertura podia preencher a memória antes do snapshot.
 
   // Recupera da cópia local tudo o que estiver faltando na lista atual.
   function restaurarBackupLocal() {

@@ -257,7 +257,12 @@
               remoto = Array.isArray(payload.dados) ? payload.dados : [];
             }
             if (typeof db === "undefined") window.db = {};
-            db.detran = mesclar(remoto, base());
+            var locais = base().slice();
+            // O banco confirmado é a fonte principal. A cópia do navegador só
+            // participa quando existe uma alteração realmente não enviada.
+            db.detran = salvamentoPendente
+              ? mesclar(remoto, locais)
+              : mesclar(remoto, []);
             gravarLocal(db.detran);
             renderDetran();
             if (!(doc.metadata && doc.metadata.fromCache)) {

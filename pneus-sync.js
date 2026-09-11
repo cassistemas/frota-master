@@ -96,6 +96,9 @@
   function saida(p, placa, obs) {
     var valor = n(p.pvalor);
     movs().push({
+      eid: typeof window.estoqueNovoId === "function"
+        ? window.estoqueNovoId()
+        : "pneu_saida_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8),
       eitem: nomeItem(p),
       ecategoria: "Pneus",
       etipo: "Saída",
@@ -131,7 +134,15 @@
         registrar(p, "Aviso", "Status 'Em Uso' sem veículo vinculado — nenhuma baixa gerada.");
         return;
       }
-      if (saldo <= 0) entrada(p, "Entrada automática para vínculo com o veículo " + p.pveiculo);
+      var movimentosAtuais = movsPneu(p);
+      // Sem histórico, cria a entrada inicial antes da primeira instalação.
+      // Com histórico e saldo zero, a baixa já foi registrada neste ciclo.
+      if (!movimentosAtuais.length) {
+        entrada(p, "Entrada automática para vínculo com o veículo " + p.pveiculo);
+        saldo = 1;
+      } else if (saldo <= 0) {
+        return;
+      }
       saida(p, p.pveiculo, "Instalado no veículo " + p.pveiculo + " • posição " + (p.pposicao || "--"));
       registrar(p, "Instalação", "Vinculado à placa " + p.pveiculo + " (posição " + (p.pposicao || "--") + ")");
       return;
@@ -195,7 +206,6 @@
       anterior.pveiculo !== obj.pveiculo;
     if (mudouEstado) sincronizar(obj);
 
-    if (typeof salvarNuvem === "function") salvarNuvem();
     gravar();
 
     if (typeof limparForm === "function") limparForm("pneus", campos, "p_idx");
