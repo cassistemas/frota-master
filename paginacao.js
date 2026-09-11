@@ -1292,12 +1292,6 @@ if(modulo==="saidaVeiculos"){
 
             </td>
 
-            <td class="fm-observacao-saida">
-
-                ${s.svobs || "--"}
-
-            </td>
-
             <td>
 
                 <span class="badge ${
