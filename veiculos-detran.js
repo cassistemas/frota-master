@@ -237,6 +237,7 @@
   }
 
   var escutando = false;
+  var salvamentoPendente = false;
   var detalhesAbertos = {};
 
   function escutarNuvem() {
@@ -248,6 +249,7 @@
         .collection("frota")
         .doc("detran")
         .onSnapshot(
+          { includeMetadataChanges: true },
           function (doc) {
             var remoto = [];
             if (doc && doc.exists) {
@@ -258,6 +260,11 @@
             db.detran = mesclar(remoto, base());
             gravarLocal(db.detran);
             renderDetran();
+            if (!(doc.metadata && doc.metadata.fromCache)) {
+              window.fmModulosCarregados = window.fmModulosCarregados || {};
+              window.fmModulosCarregados.detran = true;
+              if (salvamentoPendente) persistir();
+            }
           },
           function () {
             escutando = false;
@@ -273,12 +280,19 @@
     gravarLocal(lista);
     var cloud = nuvem();
     if (cloud) {
+      if (typeof window.fmModuloCarregado === "function" && !window.fmModuloCarregado("detran")) {
+        salvamentoPendente = true;
+        try { if (typeof fmFilaAdicionar === "function") fmFilaAdicionar(["detran"]); } catch (e) {}
+        return;
+      }
+      salvamentoPendente = false;
       try {
         cloud
           .collection("frota")
           .doc("detran")
           .set({ dados: lista, atualizadoEm: new Date().toISOString() }, { merge: true })
           .then(function () {
+            try { if (typeof fmFilaRemover === "function") fmFilaRemover(["detran"]); } catch (e) {}
             if (typeof statusNuvem === "function") statusNuvem("Salvo no banco de dados", "#198754");
           })
           .catch(function (err) {

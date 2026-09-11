@@ -237,8 +237,16 @@
       return;
     }
     if (!logado()) { salvamentoPendente = true; return; }
+    if (typeof window.fmModuloCarregado === "function" && !window.fmModuloCarregado("estoque")) {
+      salvamentoPendente = true;
+      try { if (typeof fmFilaAdicionar === "function") fmFilaAdicionar(["estoque"]); } catch (e) {}
+      return;
+    }
     salvamentoPendente = false;
     var p = dbCloud.collection("frota").doc("estoque").set({ dados: lista() }, { merge: true });
+    if (p && p.then) p.then(function () {
+      try { if (typeof fmFilaRemover === "function") fmFilaRemover(["estoque"]); } catch (e) {}
+    });
     if (p && p.catch) p.catch(function (err) {
       console.error("Erro ao salvar estoque na nuvem:", err);
       var msg = (err && err.message ? err.message : String(err));

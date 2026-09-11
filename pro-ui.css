@@ -305,6 +305,9 @@ body {
   max-width: none;
   font-size: .72rem !important;
   line-height: 1.25;
+  text-align: left;
+  vertical-align: middle;
+  white-space: pre-line;
 }
 #saidaVeiculos .saida-veiculos-status,
 #saidaVeiculos .saida-veiculos-acoes {

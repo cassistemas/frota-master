@@ -11,7 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="./pro-ui.css?v=20260911-2">
+    <link rel="stylesheet" href="./pro-ui.css?v=20260911-6">
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=1">
@@ -3796,6 +3796,16 @@ function statusNuvem(texto, cor){
 }
 
 var _fmModulosAlterados = null;
+window.fmModulosCarregados = window.fmModulosCarregados || {};
+window.fmAssinaturasBanco = window.fmAssinaturasBanco || {};
+
+function fmAssinaturaModulo(lista){
+    try{ return JSON.stringify(Array.isArray(lista) ? lista : []); }
+    catch(e){ return ""; }
+}
+window.fmModuloCarregado = function(mod){
+    return !!(window.fmModulosCarregados && window.fmModulosCarregados[mod]);
+};
 
 /* ===== Fila de gravacao: modulos que ainda NAO foram confirmados pelo banco ===== */
 var FM_FILA_KEY = "FM_FILA_MODULOS";
@@ -3830,14 +3840,25 @@ function salvarNuvem(modulos){
 
     if(typeof carimbarRegistros === "function") carimbarRegistros();
 
-    var alvos = Array.isArray(modulos) && modulos.length ? modulos : Object.keys(db);
-    alvos = alvos.filter(function(mod){ return Array.isArray(db[mod]); });
+    var explicitos = Array.isArray(modulos) && modulos.length;
+    var pendentes = fmFilaLer();
+    var alvos = explicitos ? modulos.slice() : Object.keys(db).filter(function(mod){
+        if(!Array.isArray(db[mod])) return false;
+        if(pendentes.indexOf(mod) !== -1) return true;
+        if(!window.fmModulosCarregados[mod]) return false;
+        return fmAssinaturaModulo(db[mod]) !== window.fmAssinaturasBanco[mod];
+    });
+    alvos = alvos.filter(function(mod, i){ return Array.isArray(db[mod]) && alvos.indexOf(mod) === i; });
 
-    // PROTECAO ANTI-PERDA: nunca gravar lista vazia por cima do banco
-    // enquanto o modulo ainda nao foi lido da nuvem nesta sessao.
+    // Marca a alteracao antes de conferir a leitura. Se o usuario salvar muito
+    // cedo, ela espera a primeira resposta confirmada do servidor e sera unida.
+    fmFilaAdicionar(alvos);
+
+    // PROTECAO ANTI-PERDA: nunca substituir um modulo (vazio OU parcial)
+    // antes de receber a versao confirmada pelo servidor nesta sessao.
     var bloqueados = [];
     alvos = alvos.filter(function(mod){
-        if(db[mod].length === 0 && !(window.fmModulosCarregados && window.fmModulosCarregados[mod])){
+        if(!window.fmModulosCarregados[mod]){
             bloqueados.push(mod);
             return false;
         }
@@ -3847,10 +3868,6 @@ function salvarNuvem(modulos){
         console.warn("Gravacao vazia bloqueada (dados ainda nao carregados):", bloqueados);
     }
     if(!alvos.length) return Promise.resolve(false);
-
-    // Mesmo sem login/conexao o que foi alterado fica marcado para subir depois.
-    fmFilaAdicionar(alvos);
-
 
     if(!auth.currentUser){
         statusNuvem("Sem login: dados guardados no aparelho, entre no sistema para enviar", "#dc3545");
@@ -3881,6 +3898,7 @@ function salvarNuvem(modulos){
         var ok = resultados.filter(function(r){ return r.ok; }).map(function(r){ return r.mod; });
         var falhas = resultados.filter(function(r){ return !r.ok; });
         fmFilaRemover(ok);
+        ok.forEach(function(mod){ window.fmAssinaturasBanco[mod] = fmAssinaturaModulo(db[mod]); });
         if(falhas.length){
             console.error("Falha ao gravar no banco:", falhas);
             var code = (falhas[0].err && falhas[0].err.code) || "desconhecido";
@@ -4851,12 +4869,13 @@ function escutarDados(modulo){
 
     const cancelarEscuta = dbCloud.collection("frota")
     .doc(modulo)
-    .onSnapshot(doc => {
+    .onSnapshot({ includeMetadataChanges: true }, doc => {
 
-        if(typeof window.fmBancoLeituraConfirmada === "function") window.fmBancoLeituraConfirmada();
+        const veioDoCache = !!(doc.metadata && doc.metadata.fromCache);
+        if(!veioDoCache && typeof window.fmBancoLeituraConfirmada === "function") window.fmBancoLeituraConfirmada();
 
-        if(doc.exists){
-            const payload = doc.data() || {};
+        {
+            const payload = doc.exists ? (doc.data() || {}) : {};
             const remotos = Array.isArray(payload.dados) ? payload.dados : [];
             const locais = Array.isArray(db[modulo]) ? db[modulo] : [];
             // Se ainda ha cadastros feitos no aparelho que nao subiram,
@@ -4867,16 +4886,27 @@ function escutarDados(modulo){
                 pendente = Array.isArray(fila) && fila.indexOf(modulo) !== -1;
             }catch(e){}
             if((pendente || window.fmImportandoBackup) && locais.length){
-                const chaves = new Set(remotos.map(r => JSON.stringify(r)));
-                const extras = locais.filter(l => !chaves.has(JSON.stringify(l)));
+                const chave = typeof fmChaveRegistro === "function"
+                    ? function(r){ return fmChaveRegistro(modulo, r); }
+                    : function(r){ return JSON.stringify(r); };
+                const chaves = new Set(remotos.map(chave));
+                const extras = locais.filter(l => !chaves.has(chave(l)));
                 db[modulo] = remotos.concat(extras);
-                if(extras.length && typeof salvarNuvem === "function") salvarNuvem([modulo]);
             } else {
                 db[modulo] = remotos;
             }
-            // marca que este modulo ja reflete o banco (libera gravacao de lista vazia)
-            if(!window.fmModulosCarregados) window.fmModulosCarregados = {};
-            window.fmModulosCarregados[modulo] = true;
+
+            // Uma leitura do cache pode estar antiga ou incompleta. Somente a
+            // resposta do servidor libera gravacoes que substituem o documento.
+            if(!veioDoCache){
+                window.fmModulosCarregados[modulo] = true;
+                window.fmAssinaturasBanco[modulo] = fmAssinaturaModulo(remotos);
+                if(pendente && fmAssinaturaModulo(db[modulo]) !== fmAssinaturaModulo(remotos)){
+                    salvarNuvem([modulo]);
+                } else if(pendente) {
+                    fmFilaRemover([modulo]);
+                }
+            }
 
 
             if(modulo === 'ferias' && payload.configuracoes){
@@ -4905,9 +4935,7 @@ function escutarDados(modulo){
                 }catch(e){}
             }, 250);
 
-
         }
-
     }, function(err){
         delete window.fmEscutasDados[modulo];
         if(typeof window.fmBancoLeituraRecusada === "function") window.fmBancoLeituraRecusada(err);
@@ -6143,6 +6171,23 @@ function fmSnapshotCompleto(){
     return snap;
 }
 window.fmSnapshotCompleto = fmSnapshotCompleto;
+
+function fmMesclarSnapshot(base, extras){
+    var saida = {};
+    try{ saida = JSON.parse(JSON.stringify(base || {})); }catch(e){ saida = {}; }
+    Object.keys(extras || {}).forEach(function(mod){
+        if(!Array.isArray(extras[mod])) return;
+        if(!Array.isArray(saida[mod])) saida[mod] = [];
+        var vistos = {};
+        saida[mod].forEach(function(r){ vistos[fmChaveRegistro(mod, r)] = true; });
+        extras[mod].forEach(function(r){
+            var k = fmChaveRegistro(mod, r);
+            if(!vistos[k]){ vistos[k] = true; saida[mod].push(r); }
+        });
+    });
+    return saida;
+}
+window.fmMesclarSnapshot = fmMesclarSnapshot;
 
 function fmModulosBackup(){
     var lista = Object.keys(typeof db !== "undefined" && db ? db : {});
@@ -8402,10 +8447,23 @@ style="width:100%; height:400px; border:none;">
     }catch(e){}
   }
 
-  function guardar(){
+  function guardar(fonteInformada){
     try{
       if(typeof db === "undefined" || !db) return;
-      var fonte = (typeof fmSnapshotCompleto === "function") ? fmSnapshotCompleto() : db;
+      var fonte = fonteInformada && typeof fonteInformada === "object"
+        ? fonteInformada
+        : ((typeof fmSnapshotCompleto === "function") ? fmSnapshotCompleto() : db);
+      var anterior = null;
+      try{ anterior = JSON.parse(localStorage.getItem(CHAVE) || "null"); }catch(e){}
+      // Enquanto os modulos principais ainda estao carregando, nunca troca uma
+      // copia maior por uma sessao parcial. Apos a carga completa, exclusoes
+      // legitimas voltam a ser refletidas normalmente na copia.
+      var cargaCompleta = typeof MAP !== "undefined" && Object.keys(MAP).every(function(mod){
+        return !!(window.fmModulosCarregados && window.fmModulosCarregados[mod]);
+      });
+      if(!cargaCompleta && anterior && anterior.dados && typeof fmMesclarSnapshot === "function"){
+        fonte = fmMesclarSnapshot(anterior.dados, fonte);
+      }
       var total = totalRegistros(fonte);
       if(!total) return;
       var pacote = JSON.stringify({ em: new Date().toISOString(), total: total, dados: fonte });

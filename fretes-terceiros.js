@@ -62,6 +62,11 @@
   function gravarNuvem() {
     var cloud = nuvem();
     if (!cloud || !logado()) { envioPendente = true; pendenteGravar(true); return; }
+    if (typeof window.fmModuloCarregado === 'function' && !window.fmModuloCarregado('fretes')) {
+      envioPendente = true;
+      pendenteGravar(true);
+      return;
+    }
     envioPendente = false;
     try { if (typeof carimbarRegistros === 'function') carimbarRegistros(); } catch (e) {}
     var p = cloud.collection('frota').doc('fretes')
@@ -106,7 +111,7 @@
     var cloud = nuvem();
     if (!cloud || escutando || !logado()) return;
     escutando = true;
-    cloud.collection('frota').doc('fretes').onSnapshot(function (doc) {
+    cloud.collection('frota').doc('fretes').onSnapshot({ includeMetadataChanges: true }, function (doc) {
       var d = doc.exists ? (doc.data() || {}) : {};
       var dados = Array.isArray(d.dados) ? d.dados : [];
       var antes = JSON.stringify(fretes);
@@ -114,8 +119,13 @@
       try { localStorage.setItem(LS_KEY, JSON.stringify(fretes)); } catch (e) {}
       try { if (typeof marcarRegistrosCarregados === 'function') marcarRegistrosCarregados(fretes); } catch (e) {}
       if (typeof window.renderFretes === 'function') window.renderFretes();
+      var servidorConfirmado = !(doc.metadata && doc.metadata.fromCache);
+      if (servidorConfirmado) {
+        window.fmModulosCarregados = window.fmModulosCarregados || {};
+        window.fmModulosCarregados.fretes = true;
+      }
       // se o aparelho tem algo que o banco ainda nao tem, sobe agora
-      if (JSON.stringify(fretes) !== JSON.stringify(dados) || antes !== JSON.stringify(fretes)) gravarNuvem();
+      if (servidorConfirmado && (JSON.stringify(fretes) !== JSON.stringify(dados) || antes !== JSON.stringify(fretes))) gravarNuvem();
     }, function (err) { console.error('Erro ao ler fretes do banco:', err); });
   }
 
