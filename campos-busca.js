@@ -1,6 +1,6 @@
 /* ============================================================
-   BUSCA COMPLEMENTAR NOS CAMPOS DE CADASTROS
-   Mantém os selects originais e acrescenta busca por digitação.
+   CAMPO ÚNICO DE BUSCA NOS CADASTROS
+   O select original continua cuidando do valor salvo, mas fica invisível.
    ============================================================ */
 (function () {
   "use strict";
@@ -53,7 +53,12 @@
 
   function selecionarCorrespondencia(select, input, aceitarParcial) {
     var termo = normalizar(input.value);
-    if (!termo) return false;
+    if (!termo) {
+      select.value = "";
+      select.dispatchEvent(new Event("input", { bubbles: true }));
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      return false;
+    }
 
     var opcoes = opcoesValidas(select);
     var encontrada = opcoes.find(function (option) {
@@ -67,7 +72,10 @@
       });
     }
 
-    if (!encontrada) return false;
+    if (!encontrada) {
+      select.value = "";
+      return false;
+    }
     select.value = encontrada.value;
     input.value = encontrada.textContent.trim();
     select.dispatchEvent(new Event("input", { bubbles: true }));
@@ -83,6 +91,7 @@
     var datalist = document.createElement("datalist");
 
     input.type = "search";
+    input.id = select.id + "-busca";
     input.className = "form-control fm-busca-cadastro";
     input.placeholder = "Digite para buscar " + tipo;
     input.setAttribute("aria-label", "Buscar " + tipo + " cadastrado");
@@ -92,7 +101,13 @@
 
     select.parentNode.insertBefore(input, select);
     select.parentNode.insertBefore(datalist, select);
+    select.classList.add("fm-select-cadastro-original");
+    select.setAttribute("aria-hidden", "true");
+    select.tabIndex = -1;
     select.dataset.fmBuscaCadastro = "1";
+
+    var rotulo = document.querySelector('label[for="' + select.id + '"]');
+    if (rotulo) rotulo.setAttribute("for", input.id);
 
     input.addEventListener("input", function () {
       selecionarCorrespondencia(select, input, false);

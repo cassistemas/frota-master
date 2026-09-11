@@ -170,12 +170,15 @@ body {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, .14);
 }
 
-/* Busca complementar: a lista original permanece logo abaixo. */
+/* Campo único pesquisável; o select original permanece apenas para salvar o ID. */
 .fm-busca-cadastro {
   width: 100%;
-  margin-bottom: 5px;
   padding-right: 2rem;
   background-color: var(--pro-surface);
+}
+
+.fm-select-cadastro-original {
+  display: none !important;
 }
 
 .fm-busca-cadastro::placeholder {
