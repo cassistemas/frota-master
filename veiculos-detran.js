@@ -210,6 +210,7 @@
               ? window.fmDeduplicarLista("detran", remoto, true).dados
               : remoto;
             renderDetran();
+            if (typeof window.renderResultadoFrota === "function") window.renderResultadoFrota();
             if (!(doc.metadata && doc.metadata.fromCache)) {
               window.fmModulosCarregados = window.fmModulosCarregados || {};
               window.fmModulosCarregados.detran = true;
@@ -1396,6 +1397,7 @@
         }
 
         persistir();
+        if (typeof window.renderResultadoFrota === "function") window.renderResultadoFrota();
 
         // atualiza apenas o detalhe ja aberto, sem recarregar a tabela inteira
         var tr = document.getElementById("fmDet" + i);

@@ -172,6 +172,7 @@
     tacografo: "Aferições do tacógrafo",
     licencas: "CIV / CIPP",
     manutencoes: "Ordens e custos de manutenção",
+    custos: "Controle operacional e financeiro manual",
     combustivel: "Abastecimentos e consumo",
     revisoes: "Revisões por quilometragem",
     fornecedores: "Oficinas e prestadores",

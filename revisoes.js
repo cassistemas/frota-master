@@ -39,6 +39,7 @@ function carregarVeiculosRevisao(){
     select.innerHTML="<option value=''>Selecione...</option>";
 
     db.veiculos
+    .filter(v => (v.vstatus || "").toUpperCase() !== "VENDIDO")
     .sort((a,b)=>
         a.vplaca.localeCompare(b.vplaca)
     )
@@ -241,7 +242,14 @@ function editarRevisao(i){
 
     document.getElementById("r_idx").value = i;
 
-    document.getElementById("rveiculo").value = r.rveiculo;
+    const campoVeiculo = document.getElementById("rveiculo");
+    if(r.rveiculo && !Array.from(campoVeiculo.options).some(o => o.value === r.rveiculo)){
+        const antiga = document.createElement("option");
+        antiga.value = r.rveiculo;
+        antiga.textContent = r.rveiculo + " (veículo vendido)";
+        campoVeiculo.appendChild(antiga);
+    }
+    campoVeiculo.value = r.rveiculo;
 
     document.getElementById("rtipo").value = r.rtipo;
 
