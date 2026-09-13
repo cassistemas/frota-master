@@ -21,13 +21,11 @@
    - Os demais campos (chassi, RENAVAM, proprietario, restricoes,
      licenciamento) sao de preenchimento MANUAL, pois a FIPE API
      nao expoe a base do DETRAN por placa.
-   - Tudo fica salvo no navegador (localStorage) e e sincronizado
-     com a nuvem se a funcao salvarNuvem() existir.
+   - Tudo fica salvo no banco de dados.
 ============================================================ */
 (function () {
   "use strict";
 
-  var STORAGE = "FM_DETRAN";
   var FIPEAPI = "https://parallelum.com.br/fipe/api/v1";
   var TIMEOUT = 20000;
   var PAG = { pagina: 1, porPagina: 10 };
@@ -167,23 +165,9 @@
   ];
 
   /* ---------------- base de dados ---------------- */
-  function local() {
-    var s = null;
-    try {
-      s = JSON.parse(localStorage.getItem(STORAGE) || "[]");
-    } catch (e) {
-      s = null;
-    }
-    return Array.isArray(s) ? s : [];
-  }
-
   function base() {
     if (typeof db === "undefined") window.db = {};
-    if (!Array.isArray(db.detran) || db.detran.length === 0) {
-      var salvos = local();
-      if (!Array.isArray(db.detran)) db.detran = [];
-      if (db.detran.length === 0 && salvos.length) db.detran = salvos;
-    }
+    if (!Array.isArray(db.detran)) db.detran = [];
     return db.detran;
   }
 
@@ -198,42 +182,6 @@
 
   function chave(r) {
     return norm(r && r.dtPlaca) || "R" + norm(r && r.dtRenavam) || "";
-  }
-
-  function maisNovo(a, b) {
-    var da = String((a && a.dtAtualizado) || "");
-    var dbb = String((b && b.dtAtualizado) || "");
-    return dbb > da ? b : a;
-  }
-
-  // Une registros locais e da nuvem sem perder nada (dedup por placa/renavam).
-  function mesclar(a, b) {
-    var mapa = {};
-    var ordem = [];
-    [a || [], b || []].forEach(function (lista) {
-      lista.forEach(function (r) {
-        if (!r) return;
-        var k = chave(r);
-        if (!k) {
-          ordem.push(r);
-          return;
-        }
-        if (mapa[k]) mapa[k] = maisNovo(mapa[k], r);
-        else {
-          mapa[k] = r;
-          ordem.push(k);
-        }
-      });
-    });
-    return ordem.map(function (k) {
-      return typeof k === "string" ? mapa[k] : k;
-    });
-  }
-
-  function gravarLocal(lista) {
-    try {
-      localStorage.setItem(STORAGE, JSON.stringify(lista));
-    } catch (e) {}
   }
 
   var escutando = false;
@@ -251,19 +199,16 @@
         .onSnapshot(
           { includeMetadataChanges: true },
           function (doc) {
+            if (window.fmImportandoBackup) return;
             var remoto = [];
             if (doc && doc.exists) {
               var payload = doc.data() || {};
               remoto = Array.isArray(payload.dados) ? payload.dados : [];
             }
             if (typeof db === "undefined") window.db = {};
-            var locais = base().slice();
-            // O banco confirmado é a fonte principal. A cópia do navegador só
-            // participa quando existe uma alteração realmente não enviada.
-            db.detran = salvamentoPendente
-              ? mesclar(remoto, locais)
-              : mesclar(remoto, []);
-            gravarLocal(db.detran);
+            db.detran = typeof window.fmDeduplicarLista === "function"
+              ? window.fmDeduplicarLista("detran", remoto, true).dados
+              : remoto;
             renderDetran();
             if (!(doc.metadata && doc.metadata.fromCache)) {
               window.fmModulosCarregados = window.fmModulosCarregados || {};
@@ -287,7 +232,6 @@
 
   function persistir() {
     var lista = base();
-    gravarLocal(lista);
     var cloud = nuvem();
     if (cloud) {
       if (typeof window.fmModuloCarregado === "function" && !window.fmModuloCarregado("detran")) {
@@ -302,19 +246,24 @@
           .doc("detran")
           .set({ dados: lista, atualizadoEm: new Date().toISOString() }, { merge: true })
           .then(function () {
+            salvamentoPendente = false;
             try { if (typeof fmFilaRemover === "function") fmFilaRemover(["detran"]); } catch (e) {}
             if (typeof statusNuvem === "function") statusNuvem("Salvo no banco de dados", "#198754");
           })
           .catch(function (err) {
+            salvamentoPendente = true;
+            try { if (typeof fmFilaAdicionar === "function") fmFilaAdicionar(["detran"]); } catch (e) {}
             console.error("Erro ao gravar DETRAN no banco:", err);
             if (typeof statusNuvem === "function")
               statusNuvem("ERRO ao gravar DETRAN: " + ((err && err.code) || ""), "#dc3545");
+            return false;
           });
       } catch (e) {}
-    } else if (typeof salvarNuvem === "function") {
-      try {
-        salvarNuvem();
-      } catch (e) {}
+    } else {
+      salvamentoPendente = true;
+      try { if (typeof fmFilaAdicionar === "function") fmFilaAdicionar(["detran"]); } catch (e) {}
+      if (typeof statusNuvem === "function") statusNuvem("Sem conexão com o banco. Os dados ainda não foram salvos.", "#dc3545");
+      return Promise.resolve(false);
     }
   }
 

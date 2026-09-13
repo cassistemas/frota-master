@@ -37,29 +37,13 @@
 
   function movimentos() { return lista(); }
 
-  /* ---- persistência segura ----
-     O doc "estoque" pode não existir ainda na nuvem; nesse caso db.estoque fica
-     indefinido e o push quebrava silenciosamente (nada era salvo). Garantimos a
-     lista, gravamos na nuvem com tratamento de erro e mantemos cópia local. */
-  var LS_KEY = "frota_estoque_backup";
+  /* ---- persistência segura no banco de dados ---- */
 
   function extrairArray(valor, nomes) {
     if (Array.isArray(valor)) return valor;
     if (!valor || typeof valor !== "object") return [];
     for (var i = 0; i < nomes.length; i++) {
       if (Array.isArray(valor[nomes[i]])) return valor[nomes[i]];
-    }
-    return [];
-  }
-
-  function lerLocal(chaves, nomes) {
-    for (var i = 0; i < chaves.length; i++) {
-      try {
-        var raw = localStorage.getItem(chaves[i]);
-        if (!raw) continue;
-        var dados = extrairArray(JSON.parse(raw), nomes);
-        if (dados.length) return dados;
-      } catch (e) {}
     }
     return [];
   }
@@ -286,7 +270,6 @@
 
   function persistir(semSincronizar) {
     if (!semSincronizar) sincronizarManutencoesEstoque();
-    try { localStorage.setItem(LS_KEY, JSON.stringify(lista())); } catch (e) {}
     try {
       if (typeof carimbarRegistros === "function") carimbarRegistros();
       gravarNuvem();
@@ -298,86 +281,18 @@
 
 
 
-  /* Compatibilidade com versões anteriores. Algumas versões gravavam pelos
-     códigos FM_EST/FM_V (localmente e também como documentos na nuvem), enquanto
-     a atual escuta estoque/veiculos. Só usamos o legado quando a base atual está
-     vazia, evitando substituir cadastros novos. */
-  var compatibilidadeExecutada = false;
+  /* Compatibilidade antiga desativada: somente a importação explícita pode
+     incorporar dados de versões anteriores. */
   function carregarCompatibilidade() {
-    if (compatibilidadeExecutada) return;
-    // sem usuário autenticado o Firestore recusa a leitura/escrita
-    if (typeof dbCloud !== "undefined" && dbCloud && dbCloud.collection && !logado()) {
-      setTimeout(carregarCompatibilidade, 1500);
-      return;
-    }
-    compatibilidadeExecutada = true;
-
-    var base = raiz();
-    var estoqueLocal = lerLocal(["FM_EST", "frota_estoque", "estoque", LS_KEY], ["dados", "estoque", "produtos", "movimentacoes"]);
-    var veiculosLocal = lerLocal(["FM_V", "frota_veiculos", "veiculos"], ["dados", "veiculos"]);
-
-    if ((!Array.isArray(base.estoque) || !base.estoque.length) && estoqueLocal.length) {
-      base.estoque = estoqueLocal.map(normalizarMovimento).filter(function (m) { return !!m.eitem; });
-    }
-    if ((!Array.isArray(base.veiculos) || !base.veiculos.length) && veiculosLocal.length) {
-      base.veiculos = veiculosLocal.map(normalizarVeiculo).filter(function (v) { return !!v.vplaca; });
-    }
-
-    if (typeof dbCloud === "undefined" || !dbCloud || !dbCloud.collection) {
-      if ((base.estoque || []).length || (base.veiculos || []).length) renderModulo("estoque");
-      return;
-    }
-
-    Promise.all([
-      dbCloud.collection("frota").doc("FM_EST").get().catch(function () { return null; }),
-      dbCloud.collection("frota").doc("FM_V").get().catch(function () { return null; })
-    ]).then(function (docs) {
-      var mudouEstoque = false, mudouVeiculos = false;
-      var legadoEstoque = docs[0] && docs[0].exists
-        ? extrairArray(docs[0].data(), ["dados", "estoque", "produtos", "movimentacoes"]) : [];
-      var legadoVeiculos = docs[1] && docs[1].exists
-        ? extrairArray(docs[1].data(), ["dados", "veiculos"]) : [];
-
-      if ((!Array.isArray(base.estoque) || !base.estoque.length) && legadoEstoque.length) {
-        base.estoque = legadoEstoque.map(normalizarMovimento).filter(function (m) { return !!m.eitem; });
-        mudouEstoque = base.estoque.length > 0;
-      }
-      if ((!Array.isArray(base.veiculos) || !base.veiculos.length) && legadoVeiculos.length) {
-        base.veiculos = legadoVeiculos.map(normalizarVeiculo).filter(function (v) { return !!v.vplaca; });
-        mudouVeiculos = base.veiculos.length > 0;
-      }
-
-      // Dados legados apenas entram na memória. A gravação central aguarda a
-      // leitura confirmada do banco e evita substituir listas atuais/parciais.
-      if (mudouEstoque && typeof salvarNuvem === "function") salvarNuvem(["estoque"]);
-      if (mudouVeiculos && typeof salvarNuvem === "function") salvarNuvem(["veiculos"]);
-      preencherSelectVeiculos("splaca");
-      renderModulo("estoque");
-    }).catch(function (err) {
-      compatibilidadeExecutada = false;
-      console.error("Falha ao carregar cadastros anteriores do estoque:", err);
-    });
+    alert("A leitura de cadastros antigos foi desativada para evitar duplicações. Use Importar Backup.");
   }
   window.carregarDadosAnterioresEstoque = carregarCompatibilidade;
   // A compatibilidade legada permanece disponível apenas por ação manual.
   // Executá-la durante a abertura podia preencher a memória antes do snapshot.
 
-  // Recupera da cópia local tudo o que estiver faltando na lista atual.
+  // Cópias antigas não voltam automaticamente ao banco. Use Importar Backup.
   function restaurarBackupLocal() {
-    try {
-      var raw = localStorage.getItem(LS_KEY);
-      if (!raw) return;
-      var arr = JSON.parse(raw);
-      if (!Array.isArray(arr) || !arr.length) return;
-      var atual = lista();
-      var antes = atual.length;
-      unirSemDuplicar(atual, arr);
-      if (atual.length > antes) {
-        console.warn("Estoque: " + (atual.length - antes) + " lançamento(s) recuperado(s) da cópia local.");
-        try { if (logado()) persistir(true); } catch (e) {}
-        if (typeof renderModulo === "function") renderModulo("estoque");
-      }
-    } catch (e) {}
+    alert("A recuperação pelo cache foi desativada. Importe um arquivo de backup para atualizar o banco com segurança.");
   }
   window.recuperarEstoqueLocal = restaurarBackupLocal;
   // A recuperacao local agora e somente manual. Executa-la em toda abertura
@@ -456,7 +371,6 @@
       raiz().veiculos = veiculos;
     }
     if (!Array.isArray(veiculos) || !veiculos.length) {
-      carregarCompatibilidade();
       return;
     }
     veiculos = veiculos.map(normalizarVeiculo).filter(function (v) { return !!v.vplaca; });
