@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=1">
-    <link rel="stylesheet" href="./custos-frota.css?v=20260914-1">
+    <link rel="stylesheet" href="./custos-frota.css?v=20260914-2">
     <style>
         :root{--sidebar:#0f172a;--accent:#3b82f6;--bg:#f8fafc;--danger:#ef4444;--warning:#f59e0b;--success:#10b981}
         body{background:var(--bg);font-family:Inter,sans-serif;font-size:.85rem}
@@ -4003,6 +4003,50 @@ function salvar(mod, campos, idCampo){
     let idx = document.getElementById(idCampo).value;
 
     campos.forEach(c => obj[c] = document.getElementById(c).value);
+    var modulosVinculadosAlterados = [];
+
+    if(mod === "veiculos"){
+        var anteriorVeiculo = idx === "" ? null : db.veiculos[Number(idx)];
+        var placaNovaNormalizada = fmNormalizarPlacaVinculo(obj.vplaca);
+        if(!placaNovaNormalizada){
+            alert("Informe a placa do veículo.");
+            return;
+        }
+        var placaDuplicada = db.veiculos.some(function(v, i){
+            return (idx === "" || Number(i) !== Number(idx)) &&
+                fmNormalizarPlacaVinculo(v && v.vplaca) === placaNovaNormalizada;
+        });
+        if(placaDuplicada){
+            alert("Já existe outro veículo cadastrado com esta placa.");
+            return;
+        }
+        obj.vplaca = String(obj.vplaca || "").trim().toUpperCase();
+
+        if(anteriorVeiculo && fmNormalizarPlacaVinculo(anteriorVeiculo.vplaca) !== placaNovaNormalizada){
+            var resultadoVinculos = fmAtualizarVinculosVeiculo(anteriorVeiculo, obj);
+            if(!resultadoVinculos.ok) return;
+            modulosVinculadosAlterados = resultadoVinculos.modulos;
+            obj.historicoPlacas = resultadoVinculos.historicoPlacas;
+        }else if(anteriorVeiculo && Array.isArray(anteriorVeiculo.historicoPlacas)){
+            obj.historicoPlacas = anteriorVeiculo.historicoPlacas.slice();
+        }
+        if(anteriorVeiculo && window.fmModuloCarregado("detran")){
+            var agoraCadastro = new Date().toISOString(), mudouDetran = false;
+            (Array.isArray(db.detran) ? db.detran : []).forEach(function(registro){
+                if(!fmMesmoVeiculoVinculado(registro && registro.dtPlaca, obj.vplaca)) return;
+                var registroDetranMudou = false;
+                if(obj.vmodelo && registro.dtMarca !== obj.vmodelo){ registro.dtMarca = obj.vmodelo; registroDetranMudou = true; }
+                if(obj.vstatus && registro.dtSituacao !== obj.vstatus){ registro.dtSituacao = obj.vstatus; registroDetranMudou = true; }
+                if(registroDetranMudou){
+                    registro._alteradoEm = agoraCadastro;
+                    registro.atualizadoEm = agoraCadastro;
+                    mudouDetran = true;
+                }
+            });
+            if(mudouDetran && modulosVinculadosAlterados.indexOf("detran") === -1)
+                modulosVinculadosAlterados.push("detran");
+        }
+    }
 
     // A edicao continua sendo o mesmo cadastro. Sem preservar a identidade,
     // banco e copia local interpretavam a versao editada como uma nova linha.
@@ -4098,7 +4142,9 @@ if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno){
         ordenarFornecedores();
     }
 
-    salvarNuvem();
+    salvarNuvem(mod === "veiculos"
+        ? ["veiculos"].concat(modulosVinculadosAlterados)
+        : undefined);
 
 if(typeof sincronizarRevisoes === "function"){
 
@@ -6058,6 +6104,102 @@ function fmNovoRegistroId(){
     return "r_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 10);
 }
 
+function fmNormalizarPlacaVinculo(valor){
+    return String(valor == null ? "" : valor).trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+window.fmNormalizarPlacaVinculo = fmNormalizarPlacaVinculo;
+
+function fmMesmoVeiculoVinculado(valor, placa){
+    return !!fmNormalizarPlacaVinculo(valor) &&
+        fmNormalizarPlacaVinculo(valor) === fmNormalizarPlacaVinculo(placa);
+}
+
+function fmAtualizarVinculosVeiculo(anterior, novo){
+    var placaAnterior = String(anterior && anterior.vplaca || "").trim().toUpperCase();
+    var placaNova = String(novo && novo.vplaca || "").trim().toUpperCase();
+    var camposPorModulo = {
+        manutencoes:["mveiculo"], revisoes:["rveiculo"], combustivel:["cveiculo"],
+        multas:["muveiculo"], saidaVeiculos:["svveiculo"], seguros:["sveiculo"],
+        licenciamento:["lveiculo"], tacografo:["tveiculo"], licencas:["leveiculo"],
+        agendamentos:["agveiculo"], estoque:["eplaca"], pneus:["pveiculo"],
+        detran:["dtPlaca"], custos:["veiculo"], custosRecorrentes:["veiculo"],
+        quilometragens:["veiculo"], producoes:["veiculo"], metasVeiculos:["veiculo"],
+        gestaoDepreciacoes:["veiculo"], eventosPneus:["veiculo"],
+        importacoesPedagio:["veiculo", "placa"]
+    };
+    var modulos = Object.keys(camposPorModulo);
+    var naoCarregados = modulos.filter(function(mod){
+        return Array.isArray(db[mod]) && !window.fmModuloCarregado(mod);
+    });
+    if(naoCarregados.length){
+        alert("Aguarde o banco terminar de carregar antes de alterar a placa. Ainda carregando: " + naoCarregados.join(", ") + ".");
+        return {ok:false, modulos:[], historicoPlacas:Array.isArray(anterior.historicoPlacas) ? anterior.historicoPlacas.slice() : []};
+    }
+
+    var totais = {}, total = 0;
+    modulos.forEach(function(mod){
+        var lista = Array.isArray(db[mod]) ? db[mod] : [];
+        lista.forEach(function(registro){
+            var corresponde = camposPorModulo[mod].some(function(campo){
+                return fmMesmoVeiculoVinculado(registro && registro[campo], placaAnterior);
+            });
+            if(corresponde){
+                totais[mod] = (totais[mod] || 0) + 1;
+                total++;
+            }
+        });
+    });
+    var resumo = Object.keys(totais).map(function(mod){ return mod + ": " + totais[mod]; }).join("\n");
+    if(!confirm("A placa será alterada de " + placaAnterior + " para " + placaNova +
+        ".\n\n" + total + " registro(s) vinculado(s) também serão atualizados" +
+        (resumo ? ":\n" + resumo : ".") +
+        "\n\nO motorista dos lançamentos antigos será preservado. Deseja continuar?")){
+        return {ok:false, modulos:[], historicoPlacas:Array.isArray(anterior.historicoPlacas) ? anterior.historicoPlacas.slice() : []};
+    }
+
+    var alterados = [], agora = new Date().toISOString();
+    modulos.forEach(function(mod){
+        var mudou = false, lista = Array.isArray(db[mod]) ? db[mod] : [];
+        lista.forEach(function(registro){
+            var registroMudou = false;
+            camposPorModulo[mod].forEach(function(campo){
+                if(fmMesmoVeiculoVinculado(registro && registro[campo], placaAnterior)){
+                    registro[campo] = placaNova;
+                    registroMudou = true;
+                }
+            });
+            if(Array.isArray(registro && registro.detalhesPedagio)){
+                registro.detalhesPedagio.forEach(function(detalhe){
+                    ["veiculo", "placa"].forEach(function(campo){
+                        if(fmMesmoVeiculoVinculado(detalhe && detalhe[campo], placaAnterior)){
+                            detalhe[campo] = placaNova;
+                            registroMudou = true;
+                        }
+                    });
+                });
+            }
+            if(registroMudou){
+                if(mod === "detran"){
+                    if(novo.vmodelo) registro.dtMarca = novo.vmodelo;
+                    if(novo.vstatus) registro.dtSituacao = novo.vstatus;
+                }
+                registro._alteradoEm = agora;
+                registro.atualizadoEm = agora;
+                mudou = true;
+            }
+        });
+        if(mudou){
+            db[mod] = fmDeduplicarLista(mod, lista, true).dados;
+            alterados.push(mod);
+        }
+    });
+
+    var historico = Array.isArray(anterior.historicoPlacas) ? anterior.historicoPlacas.slice() : [];
+    historico.push({placaAnterior:placaAnterior, placaNova:placaNova, alteradoEm:agora});
+    return {ok:true, modulos:alterados, historicoPlacas:historico};
+}
+window.fmAtualizarVinculosVeiculo = fmAtualizarVinculosVeiculo;
+
 function fmPrepararRegistro(mod, novo, anterior){
     novo = novo && typeof novo === "object" ? novo : {};
     anterior = anterior && typeof anterior === "object" ? anterior : null;
@@ -6181,9 +6323,19 @@ function fmConsolidarRegistros(a, b){
 window.fmConsolidarRegistros = fmConsolidarRegistros;
 
 function fmDeduplicarLista(mod, lista, atribuirIds){
-    var mapa = {}, ordem = [], removidos = 0;
+    var porId = {}, semId = [], removidos = 0;
     (Array.isArray(lista) ? lista : []).forEach(function(r){
         if(!r || typeof r !== "object") return;
+        var idEstavel = r._rid || r._fid || r.id || r.uid || r.codigo;
+        if(!idEstavel){ semId.push(r); return; }
+        var chaveId = String(idEstavel);
+        if(Object.prototype.hasOwnProperty.call(porId, chaveId)){
+            porId[chaveId] = fmConsolidarRegistros(porId[chaveId], r);
+            removidos++;
+        }else porId[chaveId] = r;
+    });
+    var mapa = {}, ordem = [];
+    Object.keys(porId).map(function(k){ return porId[k]; }).concat(semId).forEach(function(r){
         var k = fmChaveNegocio(mod, r);
         if(Object.prototype.hasOwnProperty.call(mapa, k)){
             mapa[k] = fmConsolidarRegistros(mapa[k], r);
@@ -8832,6 +8984,6 @@ style="width:100%; height:400px; border:none;">
 <script src="./fretes-terceiros.js?v=20260907-4"></script>
 <script src="./enter-universal.js?v=1"></script>
 <script src="./campos-busca.js?v=20260911-5"></script>
-<script src="./custos-frota.js?v=20260914-3"></script>
-<script src="./resultado-frota.js?v=20260914-2"></script>
+<script src="./custos-frota.js?v=20260914-4"></script>
+<script src="./resultado-frota.js?v=20260914-3"></script>
 </html>
