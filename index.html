@@ -11,11 +11,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="./pro-ui.css?v=20260911-6">
+    <link rel="stylesheet" href="./pro-ui.css?v=20260914-7">
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=1">
-    <link rel="stylesheet" href="./custos-frota.css?v=20260913-9">
+    <link rel="stylesheet" href="./custos-frota.css?v=20260914-1">
     <style>
         :root{--sidebar:#0f172a;--accent:#3b82f6;--bg:#f8fafc;--danger:#ef4444;--warning:#f59e0b;--success:#10b981}
         body{background:var(--bg);font-family:Inter,sans-serif;font-size:.85rem}
@@ -1780,7 +1780,7 @@ onclick="exportarExcel('saidaVeiculos')">
 <th>M³</th>
 <th>Medidas</th>
 <th>Status</th>
-<th>Ações</th>
+<th class="veiculos-acoes-cabecalho">Ações</th>
 </tr></thead><tbody id="listaVeiculos"></tbody></table>
 <div id="paginacaoVeiculos"></div>
         </div>
@@ -1802,15 +1802,15 @@ onclick="exportarExcel('saidaVeiculos')">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
 <div class="col-md-2">
-    <input type="text" id="motVencCnh" class="form-control" placeholder="Vencimento da CNH">
+    <input type="date" id="motVencCnh" class="form-control" aria-label="Vencimento da CNH">
 </div>
 
 <div class="col-md-2">
-    <input type="text" id="motVencTox" class="form-control" placeholder="Vencimento do Toxicológico">
+    <input type="date" id="motVencTox" class="form-control" aria-label="Vencimento do Toxicológico">
 </div>
 
 <div class="col-md-2">
-    <input type="text" id="motInicio" class="form-control" placeholder="Entrada">
+    <input type="time" id="motInicio" class="form-control" aria-label="Horário de entrada">
 </div>
 
 <div class="col-md-2">
@@ -1822,37 +1822,11 @@ onclick="exportarExcel('saidaVeiculos')">
 </div>
 
 <div class="col-md-2">
-    <input type="text" id="motFim" class="form-control" placeholder="Saída">
+    <input type="time" id="motFim" class="form-control" aria-label="Horário de saída">
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
-
-<script>
-flatpickr("#motVencCnh", {
-    locale: "pt",
-    dateFormat: "d/m/Y"
-});
-
-flatpickr("#motVencTox", {
-    locale: "pt",
-    dateFormat: "d/m/Y"
-});
-
-flatpickr("#motInicio", {
-    enableTime: true,
-    noCalendar: true,
-    dateFormat: "H:i",
-    time_24hr: true
-});
-
-flatpickr("#motFim", {
-    enableTime: true,
-    noCalendar: true,
-    dateFormat: "H:i",
-    time_24hr: true
-});
-</script>
 
 <div class="col-md-12 text-end">
 <button id="btn_cancel_motoristas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm(
@@ -3334,19 +3308,19 @@ oninput="calcularKMPneu()">
           <select id="cusFiltroStatus" class="form-select" data-cus-filter><option value="">Todas as situações</option><option>Realizado</option><option>Pago</option><option>Pendente</option><option>Provisionado</option></select>
         </div>
       </div>
-      <div class="cus-kpis" aria-label="Indicadores da Gestão da Frota"><div class="cus-kpi"><span>Custo por km</span><strong id="cusIndicadorCustoKm">--</strong><small id="cusKmAlerta">Quilometragem do período</small></div><div class="cus-kpi"><span>Faturamento médio</span><strong id="cusIndicadorFaturamentoMedio">R$ 0,00</strong><small>Média mensal do período</small></div><div class="cus-kpi"><span>Custo da frota</span><strong id="cusIndicadorCustoFrota">R$ 0,00</strong><small id="cusPeriodoLabel">Competência selecionada</small></div><div class="cus-kpi"><span>Margem</span><strong id="cusIndicadorMargem">0,0%</strong><small>Resultado sobre a receita líquida</small></div></div>
+      <div class="cus-kpis" aria-label="Indicadores da Gestão da Frota"><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Custo por km</span><strong id="cusIndicadorCustoKm">--</strong><small id="cusKmAlerta">Quilometragem do período</small></div><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Faturamento médio</span><strong id="cusIndicadorFaturamentoMedio">R$ 0,00</strong><small>Média mensal do período</small></div><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Custo da frota</span><strong id="cusIndicadorCustoFrota">R$ 0,00</strong><small id="cusPeriodoLabel">Competência selecionada</small></div><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Margem</span><strong id="cusIndicadorMargem">0,0%</strong><small>Resultado sobre a receita líquida</small></div></div>
       <div id="cusPendencias" class="cus-pendencias"></div>
       <div class="cus-tabs"><button class="cus-tab active" data-tab="lancamentos" onclick="trocarAbaCustos('lancamentos')">Lançamentos</button><button class="cus-tab" data-tab="recorrentes" onclick="trocarAbaCustos('recorrentes')">Fixos e pessoal</button><button class="cus-tab" data-tab="quilometragem" onclick="trocarAbaCustos('quilometragem')">Quilometragem</button><button class="cus-tab" data-tab="analise" onclick="trocarAbaCustos('analise')">Análise por veículo</button></div>
       <div id="cusPane-lancamentos" class="cus-pane">
         <div class="cus-panel cus-form-wrap"><h5>Novo lançamento</h5><input id="cusIdx" type="hidden"><div class="cus-form-grid">
           <div><label>Data</label><input id="cusData" type="date" class="form-control"></div><div><label>Competência</label><input id="cusCompetencia" type="month" class="form-control"></div><div><label>Veículo</label><input id="cusVeiculo" list="cusVeiculosLista" class="form-control" placeholder="Selecione ou digite"></div><div><label>Motorista</label><input id="cusMotorista" list="cusMotoristasLista" class="form-control" placeholder="Selecione ou digite"></div>
           <div><label>Categoria</label><select id="cusCategoria" class="form-select" onchange="custoCategoriaChange('cus')"></select></div><div><label>Tipo</label><select id="cusTipo" class="form-select"><option value="fixo">Fixo</option><option value="variavel">Variável</option><option value="indireto">Indireto</option></select></div><div class="span-2"><label>Descrição</label><input id="cusDescricao" class="form-control" placeholder="Ex.: pedágio da viagem 145"></div>
-          <div><label>Valor</label><input id="cusValor" class="form-control" placeholder="R$ 0,00" oninput="mascaraMoeda(this)"></div><div><label>Situação</label><select id="cusStatus" class="form-select"><option>Realizado</option><option>Pago</option><option>Pendente</option><option>Provisionado</option></select></div><div><label>Rateio</label><select id="cusRateio" class="form-select"><option value="nao">Sem rateio</option><option value="igual">Dividir igualmente na frota</option></select></div><div><label>Observação</label><input id="cusObservacao" class="form-control"></div>
+          <div><label>Valor total</label><input id="cusValor" class="form-control" placeholder="R$ 0,00" oninput="mascaraMoeda(this)"></div><div><label>Pagamento</label><select id="cusPagamento" class="form-select" onchange="alternarParcelamentoFrota()"><option value="avista">À vista</option><option value="parcelado">Parcelado</option></select></div><div id="cusParcelasGrupo" class="hidden"><label>Quantidade de parcelas</label><input id="cusParcelas" type="number" min="2" max="120" step="1" value="2" class="form-control"></div><div><label>Situação</label><select id="cusStatus" class="form-select"><option>Realizado</option><option>Pago</option><option>Pendente</option><option>Provisionado</option></select></div><div><label>Rateio</label><select id="cusRateio" class="form-select"><option value="nao">Sem rateio</option><option value="igual">Dividir igualmente na frota</option></select></div><div><label>Observação</label><input id="cusObservacao" class="form-control"></div>
         </div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="limparCustoFrota()">Cancelar</button><button class="btn btn-primary" onclick="salvarCustoFrota()">Salvar lançamento</button></div></div>
-         <div class="cus-panel"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Memória de cálculo</h5><span class="cus-note">Somente informações lançadas nesta tela.</span></div><div class="cus-table-wrap"><table class="table table-hover cus-table"><thead><tr><th>Data</th><th>Competência</th><th>Veículo</th><th>Categoria</th><th>Descrição</th><th>Tipo</th><th>Origem</th><th>Situação</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="cusLista"></tbody></table></div><div id="cusListaPaginacao"></div></div>
+         <div class="cus-panel"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Memória de cálculo</h5><span class="cus-note">Parcelamentos são apropriados mês a mês, sem duplicar o lançamento original.</span></div><div class="cus-table-wrap"><table class="table table-hover cus-table"><thead><tr><th>Data</th><th>Competência</th><th>Veículo</th><th>Categoria</th><th>Descrição</th><th>Parcela</th><th>Tipo</th><th>Origem</th><th>Situação</th><th>Valor mensal</th><th>Ações</th></tr></thead><tbody id="cusLista"></tbody></table></div><div id="cusListaPaginacao"></div></div>
       </div>
       <div id="cusPane-recorrentes" class="cus-pane hidden"><div class="cus-grid"><div class="cus-panel"><h5>Custo mensal ou anual</h5><input id="cusRecIdx" type="hidden"><div class="cus-form-grid"><div><label>Categoria</label><select id="cusRecCategoria" class="form-select" onchange="custoCategoriaChange('cusRec')"></select></div><div><label>Tipo</label><select id="cusRecTipo" class="form-select"><option value="fixo">Fixo</option><option value="variavel">Variável</option><option value="indireto">Indireto</option></select></div><div><label>Periodicidade</label><select id="cusRecPeriodicidade" class="form-select"><option value="mensal">Mensal</option><option value="anual">Anual — dividir por 12</option></select></div><div><label>Valor informado</label><input id="cusRecValor" class="form-control" oninput="mascaraMoeda(this)"></div><div><label>Veículo</label><input id="cusRecVeiculo" list="cusVeiculosLista" class="form-control" placeholder="Selecione ou digite"></div><div><label>Motorista</label><input id="cusRecMotorista" list="cusMotoristasLista" class="form-control" placeholder="Selecione ou digite"></div><div class="span-2"><label>Descrição</label><input id="cusRecDescricao" class="form-control" placeholder="Ex.: seguro anual do veículo"></div><div><label>Início da vigência</label><input id="cusRecInicio" type="date" class="form-control"></div><div><label>Fim (opcional)</label><input id="cusRecFim" type="date" class="form-control"></div><div><label>Rateio de custo geral</label><select id="cusRecRateio" class="form-select"><option value="nao">Não ratear</option><option value="igual">Igual por veículo</option><option value="km">Proporcional aos km</option></select></div></div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="cancelarCustoRecorrente()">Cancelar</button><button class="btn btn-primary" onclick="salvarCustoRecorrente()">Salvar custo</button></div></div><div class="cus-panel cus-payroll"><h5>Folha do motorista</h5><p class="cus-note">As alíquotas devem seguir sua contabilidade e convenção coletiva.</p><div class="cus-form-grid cus-payroll-grid"><div><label>Veículo</label><input id="cusPesVeiculo" list="cusVeiculosLista" class="form-control" placeholder="Selecione ou digite"></div><div><label>Motorista</label><input id="cusPesMotorista" list="cusMotoristasLista" class="form-control" placeholder="Selecione ou digite"></div><div><label>Salário-base mensal</label><input id="cusPesSalario" class="form-control" oninput="mascaraMoeda(this);atualizarTotalFolha()"></div><div><label>Benefícios mensais</label><input id="cusPesBeneficios" class="form-control" oninput="mascaraMoeda(this);atualizarTotalFolha()"></div><div><label>Encargos patronais (%)</label><input id="cusPesEncargos" type="number" min="0" step="0.01" class="form-control"></div><div><label>FGTS (%)</label><input id="cusPesFgts" type="number" min="0" step="0.01" class="form-control"></div><div class="span-2"><label>Início da vigência</label><input id="cusPesInicio" type="date" class="form-control"></div></div><div class="cus-payroll-total"><span>Custo total mensal</span><strong id="cusPesTotal">R$ 0,00</strong></div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="cancelarCustoPessoal()">Cancelar</button><button class="btn btn-primary" onclick="salvarCustoPessoal()">Salvar folha e provisões</button></div></div></div><div class="cus-panel"><h5>Custos fixos, anuais e provisões ativos</h5><div id="cusRecLista"></div><div id="cusRecPaginacao"></div></div></div>
-      <div id="cusPane-quilometragem" class="cus-pane hidden"><div class="cus-panel"><h5>Fechamento manual de quilometragem</h5><p class="cus-note">A quilometragem dos cálculos vem somente dos fechamentos informados aqui.</p><input id="cusKmIdx" type="hidden"><div class="cus-form-grid"><div><label>Veículo</label><input id="cusKmVeiculo" list="cusVeiculosLista" class="form-control" placeholder="Selecione ou digite"></div><div><label>Data</label><input id="cusKmData" type="date" class="form-control"></div><div><label>KM rodado no período</label><input id="cusKmRodado" type="number" class="form-control"></div><div><label>Odômetro inicial</label><input id="cusKmInicial" type="number" class="form-control"></div><div><label>Odômetro final</label><input id="cusKmFinal" type="number" class="form-control"></div><div class="span-2"><label>Observação</label><input id="cusKmObs" class="form-control"></div></div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="cancelarQuilometragem()">Cancelar</button><button class="btn btn-primary" onclick="salvarQuilometragem()">Salvar quilometragem</button></div></div><div class="cus-panel"><div class="cus-table-wrap"><table class="table"><thead><tr><th>Data</th><th>Veículo</th><th>KM rodado</th><th>Odômetro inicial</th><th>Odômetro final</th><th>Observação</th><th>Ações</th></tr></thead><tbody id="cusKmLista"></tbody></table></div><div id="cusKmPaginacao"></div></div></div>
+      <div id="cusPane-quilometragem" class="cus-pane hidden"><div class="cus-panel"><h5>Fechamento manual de quilometragem</h5><p class="cus-note">A quilometragem dos cálculos vem somente dos fechamentos informados aqui.</p><input id="cusKmIdx" type="hidden"><div class="cus-form-grid"><div><label>Veículo</label><input id="cusKmVeiculo" list="cusVeiculosLista" class="form-control" placeholder="Selecione ou digite" onchange="atualizarOdometroInicial()"></div><div><label>Data</label><input id="cusKmData" type="date" class="form-control"></div><div><label>Odômetro inicial</label><input id="cusKmInicial" type="number" min="0" step="1" class="form-control" oninput="calcularQuilometragem('inicial')"></div><div><label>Odômetro final</label><input id="cusKmFinal" type="number" min="0" step="1" class="form-control" oninput="calcularQuilometragem('final')"></div><div><label>KM rodado no período</label><input id="cusKmRodado" type="number" min="0" step="1" class="form-control" oninput="calcularQuilometragem('rodado')"></div><div class="span-2"><label>Observação</label><input id="cusKmObs" class="form-control"></div></div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="cancelarQuilometragem()">Cancelar</button><button class="btn btn-primary" onclick="salvarQuilometragem()">Salvar quilometragem</button></div></div><div class="cus-panel"><div class="cus-table-wrap"><table class="table"><thead><tr><th>Data</th><th>Veículo</th><th>KM rodado</th><th>Odômetro inicial</th><th>Odômetro final</th><th>Observação</th><th>Ações</th></tr></thead><tbody id="cusKmLista"></tbody></table></div><div id="cusKmPaginacao"></div></div></div>
       <div id="cusPane-analise" class="cus-pane hidden"><div class="cus-grid"><div class="cus-panel"><h5>Custos por categoria</h5><div id="cusCategorias"></div></div><div class="cus-panel"><h5>Distribuição dos custos</h5><div class="cus-chart"><canvas id="cusGrafico"></canvas></div></div></div><div class="cus-panel"><h5>Análise por veículo</h5><div class="cus-table-wrap"><table class="table"><thead><tr><th>Veículo</th><th>Faturamento total</th><th>Receita líquida</th><th>Fixos</th><th>Variáveis</th><th>Indiretos</th><th>Custo total</th><th>KM no período</th><th>Custo por km</th></tr></thead><tbody id="cusPorVeiculo"></tbody></table></div><div id="cusVeiculosPaginacao"></div></div></div>
       <datalist id="cusVeiculosLista"></datalist><datalist id="cusMotoristasLista"></datalist><datalist id="cusPneusLista"></datalist>
     </div>
@@ -3606,7 +3580,7 @@ function formatarDataBR(data){
 
 </script>
 
-<script src="./paginacao.js?v=20260911-3"></script>
+<script src="./paginacao.js?v=20260914-4"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -4354,7 +4328,11 @@ function limparForm(mod, campos, idCampo) {
     campos.forEach(c=>{
         const el = document.getElementById(c);
         if(!el) return;
-        el.value = '';
+        if(mod === 'motoristas' && el._flatpickr){
+            el._flatpickr.clear();
+        }else{
+            el.value = '';
+        }
         if(el.tagName === 'SELECT'){
             el.selectedIndex = 0;
         }
@@ -8538,8 +8516,33 @@ style="width:100%; height:400px; border:none;">
     const m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
     return m ? (m[3]+'-'+m[2]+'-'+m[1]) : null;
   };
-  const acoes = (mod,i) => `<td><button class="btn-edit" onclick="editar('${mod}',${i})">✎</button><button class="btn-del" onclick="deletar('${mod}',${i})">✕</button></td>`;
+  const acoes = (mod,i) => `<td${mod === 'veiculos' ? ' class="veiculos-acoes-celula"' : ''}><div${mod === 'veiculos' ? ' class="veiculos-acoes"' : ''}>${mod === 'veiculos' ? `<button class="btn-edit btn-km-veiculo" type="button" title="Atualizar quilometragem" aria-label="Atualizar quilometragem" onclick="atualizarKmVeiculo(${i})">🛣 <span>KM</span></button>` : ''}<button class="btn-edit" type="button" title="Editar${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Editar${mod === 'veiculos' ? ' veículo' : ''}" onclick="editar('${mod}',${i})">✎</button><button class="btn-del" type="button" title="Excluir${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Excluir${mod === 'veiculos' ? ' veículo' : ''}" onclick="deletar('${mod}',${i})">✕</button></div></td>`;
   const d = x => (x===undefined||x===null||x==='') ? '--' : x;
+
+  window.atualizarKmVeiculo = function(i){
+    const lista = Array.isArray(DB().veiculos) ? DB().veiculos : [];
+    const veiculo = lista[i];
+    if(!veiculo) return;
+
+    const atual = num(veiculo.vkm);
+    const informado = prompt(`Informe o novo KM do veículo ${d(veiculo.vplaca)}:`, String(atual));
+    if(informado === null) return;
+
+    const novoKm = num(informado);
+    if(!Number.isFinite(novoKm) || novoKm < 0){
+      alert('Informe uma quilometragem válida.');
+      return;
+    }
+    if(novoKm < atual && !confirm(`O KM informado (${novoKm.toLocaleString('pt-BR')}) é menor que o atual (${atual.toLocaleString('pt-BR')}). Deseja continuar?`)) return;
+
+    veiculo.vkm = novoKm;
+    veiculo.atualizadoEm = new Date().toISOString();
+    if(typeof atualizarRevisoesAutomatico === 'function') atualizarRevisoesAutomatico();
+    else if(typeof salvarNuvem === 'function') salvarNuvem(['veiculos']);
+    if(typeof renderModulo === 'function') renderModulo('veiculos');
+    if(temFiltro('veiculos')) pintar('veiculos', linhas('veiculos'), true);
+    alert(`KM do veículo ${d(veiculo.vplaca)} atualizado para ${novoKm.toLocaleString('pt-BR')} km.`);
+  };
 
   function temFiltro(mod){
     return CAMPOS[mod].some(id => v(id) !== '');
@@ -8829,6 +8832,6 @@ style="width:100%; height:400px; border:none;">
 <script src="./fretes-terceiros.js?v=20260907-4"></script>
 <script src="./enter-universal.js?v=1"></script>
 <script src="./campos-busca.js?v=20260911-5"></script>
-<script src="./custos-frota.js?v=20260913-5"></script>
-<script src="./resultado-frota.js?v=20260913-8"></script>
+<script src="./custos-frota.js?v=20260914-3"></script>
+<script src="./resultado-frota.js?v=20260914-2"></script>
 </html>

@@ -465,6 +465,40 @@ label, .form-label {
 .btn-edit:hover { background: #eff6ff; border-color: #bfdbfe; color: var(--pro-accent); }
 .btn-del:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
 
+/* Veículos: mantém KM, editar e excluir alinhados na mesma linha. */
+.veiculos-acoes-cabecalho,
+.veiculos-acoes-celula {
+  min-width: 142px;
+  width: 142px;
+  text-align: center;
+  white-space: nowrap;
+}
+.veiculos-acoes {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.veiculos-acoes .btn-edit,
+.veiculos-acoes .btn-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 30px;
+  margin: 0;
+  padding: 0;
+}
+.veiculos-acoes .btn-km-veiculo {
+  width: auto;
+  min-width: 58px;
+  flex-basis: auto;
+  gap: 4px;
+  padding: 0 8px;
+  font-size: .72rem;
+  font-weight: 800;
+}
+
 /* ---------- Paginação (global + universal) ---------- */
 .paginacao-global,
 .pro-pager {

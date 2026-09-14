@@ -700,7 +700,7 @@ if (!PAGINACAO.paginas[modulo]) {
     PAGINACAO.paginas[modulo] = 1;
 }
 
-    const btnSet = (m,i) => `<td><button class="btn-edit" onclick="editar('${m}',${i})">✎</button><button class="btn-del" onclick="deletar('${m}',${i})">✕</button></td>`;
+    const btnSet = (m,i) => `<td class="veiculos-acoes-celula"><div class="veiculos-acoes">${m === 'veiculos' ? `<button class="btn-edit btn-km-veiculo" type="button" title="Atualizar quilometragem" aria-label="Atualizar quilometragem" onclick="atualizarKmVeiculo(${i})">🛣 <span>KM</span></button>` : ''}<button class="btn-edit" type="button" title="Editar veículo" aria-label="Editar veículo" onclick="editar('${m}',${i})">✎</button><button class="btn-del" type="button" title="Excluir veículo" aria-label="Excluir veículo" onclick="deletar('${m}',${i})">✕</button></div></td>`;
 
     if(modulo === 'veiculos'){
         const dados = getDadosPaginados('veiculos');
