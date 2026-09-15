@@ -188,6 +188,14 @@
   var salvamentoPendente = false;
   var detalhesAbertos = {};
 
+  function notificarAtualizacaoFipe(placa) {
+    window.dispatchEvent(
+      new CustomEvent("frota:fipe-atualizada", {
+        detail: { placa: normPlaca(placa) },
+      })
+    );
+  }
+
   function escutarNuvem() {
     var cloud = nuvem();
     if (!cloud || escutando) return;
@@ -210,6 +218,7 @@
               ? window.fmDeduplicarLista("detran", remoto, true).dados
               : remoto;
             renderDetran();
+             notificarAtualizacaoFipe("");
             if (typeof window.renderResultadoFrota === "function") window.renderResultadoFrota();
             if (!(doc.metadata && doc.metadata.fromCache)) {
               window.fmModulosCarregados = window.fmModulosCarregados || {};
@@ -1397,6 +1406,7 @@
         }
 
         persistir();
+         notificarAtualizacaoFipe(x.dtPlaca);
         if (typeof window.renderResultadoFrota === "function") window.renderResultadoFrota();
 
         // atualiza apenas o detalhe ja aberto, sem recarregar a tabela inteira
