@@ -148,6 +148,12 @@ function salvarRevisao(){
 
         robs: document.getElementById("robs").value,
 
+        rvalor: document.getElementById("rvalor") ? document.getElementById("rvalor").value : "",
+
+        roficina: document.getElementById("roficina") ? document.getElementById("roficina").value : "",
+
+        rresponsavel: document.getElementById("rresponsavel") ? document.getElementById("rresponsavel").value : "",
+
         rkmatual:Number(
             document.getElementById("rkmatual").value
         )||0,
@@ -169,10 +175,7 @@ function salvarRevisao(){
         )||0,
 
         rstatus:
-        document.getElementById("rstatus").innerText,
-
-        robs:
-        document.getElementById("robs").value
+        document.getElementById("rstatus").innerText
 
     };
 
@@ -337,9 +340,14 @@ function limparFormularioRevisao(){
 
     document.getElementById("rdata").value = "";
 
-    document.getElementById("rstatus").value="";
+    document.getElementById("rstatus").innerHTML="";
 
     document.getElementById("robs").value="";
+
+    ["rvalor", "roficina", "rresponsavel"].forEach(function(id){
+        var campo = document.getElementById(id);
+        if(campo) campo.value = "";
+    });
 
 }
 

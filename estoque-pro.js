@@ -402,6 +402,22 @@
     if (dl) dl.innerHTML = itens.map(function (it) { return '<option value="' + it.item.replace(/"/g, "&quot;") + '">'; }).join("");
   }
 
+  window.atualizarTotalEntradaEstoque = function () {
+    var campo = document.getElementById("etotalcampo");
+    if (!campo) return;
+    var q = parseFloat((document.getElementById("equantidade") || {}).value) || 0;
+    var v = num((document.getElementById("evalorunitario") || {}).value);
+    campo.value = (q > 0 && v > 0) ? moeda(q * v) : "";
+  };
+
+  function atualizarTotalSaidaEstoque(custoUnit) {
+    var campo = document.getElementById("stotalcampo");
+    if (!campo) return;
+    var q = parseFloat((document.getElementById("squantidade") || {}).value) || 0;
+    var c = Number(custoUnit) || 0;
+    campo.value = (q > 0 && c > 0) ? moeda(q * c) : "";
+  }
+
   window.atualizarSaldoItemSaida = function () {
     var sel = document.getElementById("sitem");
     var hint = document.getElementById("saldoItemSaida");
@@ -412,11 +428,13 @@
     if (!nome) {
       hint.className = "est-hint";
       hint.textContent = "Selecione um item para ver o saldo disponível.";
+      atualizarTotalSaidaEstoque(0);
       if (btn) btn.disabled = false;
       return;
     }
     var pos = posicaoEstoque(idx === "" ? null : idx)[chave(nome)] || { saldo: 0, custoMedio: 0 };
     var q = parseFloat((document.getElementById("squantidade") || {}).value) || 0;
+    atualizarTotalSaidaEstoque(pos.custoMedio);
     if (pos.saldo <= 0) {
       hint.className = "est-hint danger";
       hint.textContent = "Sem estoque disponível para este item. Registre uma entrada primeiro.";
@@ -513,11 +531,11 @@
 
   /* ---- limpar formulários ---- */
   window.limparFormEstoqueEntrada = function () {
-    ["eitem", "ecategoria", "equantidade", "evalorunitario", "edata", "efornecedor", "elote", "eestoqueminimo", "eobservacoes", "e_idx"]
+    ["eitem", "ecategoria", "equantidade", "evalorunitario", "etotalcampo", "edata", "efornecedor", "elote", "eestoqueminimo", "eobservacoes", "e_idx"]
       .forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ""; });
   };
   window.limparFormEstoqueSaida = function () {
-    ["sitem", "squantidade", "sdata", "splaca", "sresponsavel", "slote", "sobservacoes", "s_idx"]
+    ["sitem", "squantidade", "stotalcampo", "sdata", "splaca", "sresponsavel", "slote", "sobservacoes", "s_idx"]
       .forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ""; });
     atualizarSaldoItemSaida();
   };
@@ -550,6 +568,7 @@
       document.getElementById("elote").value = m.elote || "";
       document.getElementById("eestoqueminimo").value = m.eestoqueminimo || "";
       document.getElementById("eobservacoes").value = m.eobservacoes || "";
+      atualizarTotalEntradaEstoque();
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };

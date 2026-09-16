@@ -3211,15 +3211,17 @@ oninput="calcularKMPneu()">
                             <option>EPIs</option><option>Limpeza</option><option>Pneus</option><option>Acessórios</option><option>Outros</option>
                         </select>
                     </div>
-                    <div class="col-md-2"><input id="equantidade" type="number" min="0.01" step="0.01" class="form-control" placeholder="Quantidade"></div>
-                    <div class="col-md-2"><input id="evalorunitario" class="form-control" placeholder="Valor unitário" oninput="mascaraMoeda(this)"></div>
-                    <div class="col-md-3"><input id="edata" type="date" class="form-control"></div>
+                    <div class="col-md-2"><input id="equantidade" type="number" min="0.01" step="0.01" class="form-control" placeholder="Quantidade" oninput="atualizarTotalEntradaEstoque()"></div>
+                    <div class="col-md-2"><input id="evalorunitario" class="form-control" placeholder="Valor unitário" oninput="mascaraMoeda(this); atualizarTotalEntradaEstoque()"></div>
+                    <div class="col-md-3"><input id="etotalcampo" class="form-control" placeholder="Valor total" data-nao-limpar-auto readonly tabindex="-1"></div>
+                    <div class="col-md-2"><input id="edata" type="date" class="form-control"></div>
                     <div class="col-md-3"><select id="efornecedor" class="form-select"><option value="">Fornecedor...</option></select></div>
                     <div class="col-md-2"><input id="elote" class="form-control" placeholder="Lote / NF"></div>
                     <div class="col-md-2"><input id="eestoqueminimo" type="number" min="0" step="0.01" class="form-control" placeholder="Estoque mínimo"></div>
-                    <div class="col-md-5"><input id="eobservacoes" class="form-control" placeholder="Observações"></div>
+                    <div class="col-md-3"><input id="eobservacoes" class="form-control" placeholder="Observações"></div>
                     <input type="hidden" id="eplaca">
                     <div class="col-md-12 text-end">
+
                         <button id="btn_cancel_estoque" class="btn btn-outline-secondary btn-cancelar" onclick="limparFormEstoqueEntrada()">Cancelar</button>
                         <button class="btn btn-primary" onclick="salvarEstoque()">Salvar entrada</button>
                     </div>
@@ -3250,13 +3252,15 @@ oninput="calcularKMPneu()">
                         <div id="saldoItemSaida" class="est-hint">Selecione um item para ver o saldo disponível.</div>
                     </div>
                     <div class="col-md-2"><input id="squantidade" type="number" min="0.01" step="0.01" class="form-control" placeholder="Quantidade" oninput="atualizarSaldoItemSaida(true)"></div>
+                    <div class="col-md-2"><input id="stotalcampo" class="form-control" placeholder="Valor total" data-nao-limpar-auto readonly tabindex="-1"></div>
                     <div class="col-md-2"><input id="sdata" type="date" class="form-control"></div>
                     <div class="col-md-2"><select id="splaca" class="form-select"><option value="">Veículo...</option></select></div>
-                    <div class="col-md-2"><input id="sresponsavel" class="form-control" placeholder="Responsável"></div>
-                    <div class="col-md-2"><input id="slote" class="form-control" placeholder="Lote / Requisição"></div>
+                    <div class="col-md-3"><input id="sresponsavel" class="form-control" placeholder="Responsável"></div>
+                    <div class="col-md-3"><input id="slote" class="form-control" placeholder="Lote / Requisição"></div>
                     <div class="col-md-6"><input id="sobservacoes" class="form-control" placeholder="Observações / destino"></div>
-                    <div class="col-md-4 text-end">
-                        <button id="btn_cancel_estoqueSaida" class="btn btn-outline-secondary" onclick="limparFormEstoqueSaida()">Cancelar</button>
+                    <div class="col-md-12 text-end">
+
+                        <button id="btn_cancel_estoqueSaida" class="btn btn-outline-secondary btn-cancelar" onclick="limparFormEstoqueSaida()">Cancelar</button>
                         <button id="btnSalvarSaidaEstoque" class="btn btn-primary" onclick="salvarSaidaEstoque()">Salvar saída</button>
                     </div>
                 </div>
@@ -8980,7 +8984,7 @@ style="width:100%; height:400px; border:none;">
 <script src="./paginacao-universal.js?v=1"></script>
 <script src="./relatorios-universal.js?v=3"></script>
 <script src="./filtros-ui.js?v=3"></script>
-<script src="./estoque-pro.js?v=3"></script>
+<script src="./estoque-pro.js?v=4"></script>
 <script src="./terceiros-local.js?v=1"></script>
 <script src="./pneus-sync.js?v=1"></script>
 <script src="./login-senha.js?v=20260906-2"></script>
@@ -8990,4 +8994,5 @@ style="width:100%; height:400px; border:none;">
 <script src="./campos-busca.js?v=20260911-5"></script>
 <script src="./custos-frota.js?v=20260914-4"></script>
 <script src="./resultado-frota.js?v=20260916-4"></script>
+<script src="./limpeza-pos-salvar.js?v=4"></script>
 </html>
