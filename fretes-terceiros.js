@@ -23,9 +23,15 @@
 
   function carregar() {
     fretes = [];
+    // Mantem a lista do modulo acessivel para a fila tecnica de sincronizacao.
+    // Sem isso, um frete criado antes da primeira resposta do banco nao tinha
+    // seus dados guardados na fila e podia desaparecer ao receber o snapshot.
+    try { if (typeof db !== 'undefined') db.fretes = fretes; } catch (e) {}
   }
   function logado() {
-    try { return !!(window.auth && auth.currentUser); } catch (e) { return false; }
+    // "auth" foi declarado com const no script principal: ele existe no
+    // escopo global lexico, mas nao como window.auth.
+    try { return !!(typeof auth !== 'undefined' && auth && auth.currentUser); } catch (e) { return false; }
   }
   function nuvem() {
     try { if (typeof dbCloud !== 'undefined' && dbCloud && dbCloud.collection) return dbCloud; } catch (e) {}
@@ -97,22 +103,40 @@
       if (window.fmImportandoBackup) return;
       var d = doc.exists ? (doc.data() || {}) : {};
       var dados = Array.isArray(d.dados) ? d.dados : [];
-      fretes = consolidar(dados);
+      var servidorConfirmado = !(doc.metadata && doc.metadata.fromCache);
+      var pendente = envioPendente || pendenteLer();
+      var filaDados = {};
+      try { filaDados = typeof fmFilaDadosLer === 'function' ? fmFilaDadosLer() : {}; } catch (e) {}
+      var guardados = Array.isArray(filaDados.fretes) ? filaDados.fretes : [];
+      var locais = Array.isArray(fretes) ? fretes.concat(guardados) : guardados;
+
+      // O banco continua sendo a fonte principal. Somente registros realmente
+      // pendentes entram na conciliacao, impedindo que a primeira leitura
+      // apague um frete salvo enquanto a tela ainda carregava.
+      fretes = consolidar(pendente && locais.length ? dados.concat(locais) : dados);
       if (typeof db !== 'undefined') db.fretes = fretes;
       try { if (typeof marcarRegistrosCarregados === 'function') marcarRegistrosCarregados(fretes); } catch (e) {}
       if (typeof window.renderFretes === 'function') window.renderFretes();
-      var servidorConfirmado = !(doc.metadata && doc.metadata.fromCache);
       if (servidorConfirmado) {
         window.fmModulosCarregados = window.fmModulosCarregados || {};
         window.fmModulosCarregados.fretes = true;
       }
-      if (servidorConfirmado) pendenteGravar(false);
+      if (servidorConfirmado && pendente) {
+        var assinaturaBanco = '';
+        var assinaturaAtual = '';
+        try {
+          assinaturaBanco = JSON.stringify(consolidar(dados));
+          assinaturaAtual = JSON.stringify(fretes);
+        } catch (e) {}
+        if (assinaturaAtual !== assinaturaBanco) gravarNuvem();
+        else pendenteGravar(false);
+      }
     }, function (err) { console.error('Erro ao ler fretes do banco:', err); });
   }
 
   function observarLogin() {
     try {
-      if (window.auth && typeof auth.onAuthStateChanged === 'function') {
+      if (typeof auth !== 'undefined' && auth && typeof auth.onAuthStateChanged === 'function') {
         auth.onAuthStateChanged(function (u) {
           if (!u) return;
           escutarNuvem();
@@ -551,7 +575,12 @@
       obj._registradoEm = ant._registradoEm;
       fretes[Number(idx)] = obj;
     }
-    persistir();
+    if (typeof db !== 'undefined') db.fretes = fretes;
+    persistir().then(function (ok) {
+      if (ok) {
+        try { if (typeof statusNuvem === 'function') statusNuvem('Frete salvo e confirmado no banco de dados', '#198754'); } catch (e) {}
+      }
+    });
     window.limparFormFrete();
     renderFretes();
     // card gerado automaticamente e ja pronto para compartilhar
@@ -585,6 +614,7 @@
   window.excluirFrete = function (i) {
     if (!confirm('Excluir este frete?')) return;
     fretes.splice(i, 1);
+    if (typeof db !== 'undefined') db.fretes = fretes;
     persistir();
     renderFretes();
   };
@@ -1009,11 +1039,12 @@
         ['peso', 'Peso', f.frepeso || 'A COMBINAR'],
         ['valor', 'Valor do frete', f.frevalor || 'A COMBINAR'],
         ['rota', 'Distância', f.fredistancia || 'A CONSULTAR'],
+        ['caminhao', 'Tipo de veículo', f.fretipoveiculo || 'A COMBINAR'],
         ['data', 'Carregamento', f.frecarregamento ? dataHoraBR(f.frecarregamento) : 'IMEDIATO'],
-        ['caminhao', 'Entrega', f.freentrega ? dataHoraBR(f.freentrega) : 'A COMBINAR'],
+        ['data', 'Entrega', f.freentrega ? dataHoraBR(f.freentrega) : 'A COMBINAR'],
         ['pin', '', f.frerastreada === 'Não' ? 'CARGA NÃO RASTREADA' : 'CARGA RASTREADA']
       ];
-      var y0 = 566, passo = 57;
+      var y0 = 558, passo = 51;
       linhas.forEach(function (l, i) {
         var y = y0 + i * passo;
         linhaInfo(ctx, y, l[0], l[1], l[2], '', false, 26);
