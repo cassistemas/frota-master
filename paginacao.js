@@ -708,12 +708,15 @@ if (!PAGINACAO.paginas[modulo]) {
         document.getElementById('listaVeiculos').innerHTML =
         dados.map((v,i)=>{
             const realIndex = db.veiculos.indexOf(v);
+            const kmTotal = typeof window.fmKmTotalVeiculo === 'function' ? window.fmKmTotalVeiculo(v) : 0;
             return `
             <tr>
             <td><b>${v.vplaca}</b></td>
             <td>${v.vmodelo}</td>
-            <td>${v.vkm} KM</td>
-            <td>${v.vmotorista}</td>
+            <td>${v.vkminicial ? v.vkminicial + ' KM' : '--'}</td>
+            <td>${v.vkm ? v.vkm + ' KM' : '--'}</td>
+            <td>${Number(kmTotal || 0).toLocaleString('pt-BR')} KM</td>
+            <td>${v.vmotorista || '--'}</td>
             <td>${v.vpbt || '--'} Kg</td>
             <td>${v.vtara || '--'} Kg</td>
             <td>${v.vpliquido || '--'} Kg</td>

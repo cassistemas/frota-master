@@ -1696,7 +1696,9 @@ onclick="exportarExcel('saidaVeiculos')">
             <div class="row g-3">
                 <div class="col-md-2"><input id="vplaca" class="form-control" placeholder="Placa"></div>
                 <div class="col-md-3"><input id="vmodelo" class="form-control" placeholder="Modelo"></div>
-                <div class="col-md-2"><input id="vkm" class="form-control" type="number" placeholder="KM Atual"></div>
+                <div class="col-md-2"><input id="vkminicial" class="form-control" type="number" placeholder="KM Inicial" title="KM do veículo ao entrar na frota" oninput="calcularKmTotalVeiculo()"></div>
+                <div class="col-md-2"><input id="vkm" class="form-control" type="number" placeholder="KM Atual" oninput="calcularKmTotalVeiculo()"></div>
+                <div class="col-md-2"><input id="vkmtotal" class="form-control" type="number" placeholder="KM Total" title="Calculado: KM Atual - KM Inicial" readonly></div>
                 <div class="col-md-3"><select id="vmotorista" class="form-select"></select></div>
                 
 <div class="col-md-2">
@@ -1731,12 +1733,12 @@ onclick="exportarExcel('saidaVeiculos')">
 <div class="col-md-12 text-end mt-3">
     <button id="btn_cancel_veiculos"
         class="btn btn-outline-secondary btn-cancelar"
-        onclick="limparForm('veiculos',['vplaca','vmodelo','vkm','vmotorista','vpbt','vtara','vpliquido','vm3','vmedidas','vstatus'],'v_idx')">
+        onclick="limparForm('veiculos',['vplaca','vmodelo','vkminicial','vkm','vkmtotal','vmotorista','vpbt','vtara','vpliquido','vm3','vmedidas','vstatus'],'v_idx')">
         Cancelar
     </button>
 
     <button class="btn btn-primary"
-        onclick="salvar('veiculos',['vplaca','vmodelo','vkm','vmotorista','vpbt','vtara','vpliquido','vm3','vmedidas','vstatus'],'v_idx')">
+        onclick="salvar('veiculos',['vplaca','vmodelo','vkminicial','vkm','vkmtotal','vmotorista','vpbt','vtara','vpliquido','vm3','vmedidas','vstatus'],'v_idx')">
         Salvar
     </button>
 </div>
@@ -1772,7 +1774,9 @@ onclick="exportarExcel('saidaVeiculos')">
             <table class="table align-middle"><thead><tr>
 <th>Placa</th>
 <th>Modelo</th>
+<th>KM Inicial</th>
 <th>KM Atual</th>
+<th>KM Total</th>
 <th>Motorista</th>
 <th>PBT</th>
 <th>Tara</th>
@@ -3671,8 +3675,11 @@ const ID_MAP_INDEX = {
 };
 
 function exportarExcel(modulo) {
-    const dados = db[modulo];
+    let dados = db[modulo];
     if (dados.length === 0) { alert("Não existem dados cadastrados neste módulo!"); return; }
+    if (modulo === 'veiculos') {
+        dados = dados.map(v => Object.assign({}, v, { vkmtotal: fmKmTotalVeiculo(v) }));
+    }
     const worksheet = XLSX.utils.json_to_sheet(dados);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, modulo.toUpperCase());
@@ -4029,6 +4036,7 @@ function salvar(mod, campos, idCampo){
             return;
         }
         obj.vplaca = String(obj.vplaca || "").trim().toUpperCase();
+        obj.vkmtotal = fmKmTotalVeiculo(obj);
 
         if(anteriorVeiculo && fmNormalizarPlacaVinculo(anteriorVeiculo.vplaca) !== placaNovaNormalizada){
             var resultadoVinculos = fmAtualizarVinculosVeiculo(anteriorVeiculo, obj);
@@ -4073,6 +4081,7 @@ if(mod === 'manutencoes' && obj.mveiculo && obj.mkm){
     if(vei){
 
         vei.vkm = Number(obj.mkm);
+        fmAplicarKmTotalVeiculo(vei);
 
     }
 
@@ -4087,6 +4096,7 @@ if(mod === 'combustivel' && obj.cveiculo && obj.ckm){
     if(vei){
 
         vei.vkm = Number(obj.ckm);
+        fmAplicarKmTotalVeiculo(vei);
 
     }
 
@@ -4101,6 +4111,7 @@ if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno){
     if(vei){
 
         vei.vkm = Number(obj.svkmretorno);
+        fmAplicarKmTotalVeiculo(vei);
 
     }
 
@@ -4425,6 +4436,7 @@ function editar(mod,i){
     }
     const btnCancel = document.getElementById('btn_cancel_' + mod);
     if(btnCancel) btnCancel.style.display = 'inline-block';
+    if(mod === 'veiculos' && typeof calcularKmTotalVeiculo === 'function') calcularKmTotalVeiculo();
     if(mod === 'estoque' && typeof atualizarCampoPlacaEstoque === 'function') atualizarCampoPlacaEstoque();
     window.scrollTo({top: 0, behavior: 'smooth'});
 
@@ -7905,6 +7917,33 @@ function fmPesoNumero(valor){
     return isNaN(r) ? 0 : r;
 }
 
+function fmKmNumero(valor){
+    const n = parseFloat(String(valor ?? '').replace(/[^\d.,-]/g,'').replace(/\.(?=\d{3}\b)/g,'').replace(',','.'));
+    return isNaN(n) ? 0 : n;
+}
+function fmKmTotalVeiculo(veiculo){
+    if(!veiculo) return 0;
+    const atual = fmKmNumero(veiculo.vkm);
+    const inicial = fmKmNumero(veiculo.vkminicial);
+    const total = atual - inicial;
+    return total > 0 ? total : 0;
+}
+function fmAplicarKmTotalVeiculo(veiculo){
+    if(!veiculo) return;
+    veiculo.vkmtotal = fmKmTotalVeiculo(veiculo);
+}
+function calcularKmTotalVeiculo(){
+    const iniEl = document.getElementById('vkminicial');
+    const atualEl = document.getElementById('vkm');
+    const totalEl = document.getElementById('vkmtotal');
+    if(!iniEl || !atualEl || !totalEl) return;
+    if(iniEl.value === '' && atualEl.value === ''){ totalEl.value = ''; return; }
+    totalEl.value = String(fmKmTotalVeiculo({ vkm: atualEl.value, vkminicial: iniEl.value }));
+}
+window.fmKmTotalVeiculo = fmKmTotalVeiculo;
+window.fmAplicarKmTotalVeiculo = fmAplicarKmTotalVeiculo;
+window.calcularKmTotalVeiculo = calcularKmTotalVeiculo;
+
 function calcularPesoLiquidoVeiculo(){
     const pbtEl = document.getElementById('vpbt');
     const taraEl = document.getElementById('vtara');
@@ -8696,6 +8735,7 @@ style="width:100%; height:400px; border:none;">
     if(novoKm < atual && !confirm(`O KM informado (${novoKm.toLocaleString('pt-BR')}) é menor que o atual (${atual.toLocaleString('pt-BR')}). Deseja continuar?`)) return;
 
     veiculo.vkm = novoKm;
+    fmAplicarKmTotalVeiculo(veiculo);
     veiculo.atualizadoEm = new Date().toISOString();
     if(typeof atualizarRevisoesAutomatico === 'function') atualizarRevisoesAutomatico();
     else if(typeof salvarNuvem === 'function') salvarNuvem(['veiculos']);
@@ -8766,7 +8806,7 @@ style="width:100%; height:400px; border:none;">
           if(kmax !== '' && num(x.vkm) > num(kmax)) return false;
           return true;
         })
-        .map(({x,i}) => `<tr><td><b>${d(x.vplaca)}</b></td><td>${d(x.vmodelo)}</td><td>${d(x.vkm)}</td><td>${d(x.vmotorista)}</td><td>${d(x.vpbt)}</td><td>${d(x.vtara)}</td><td>${d(x.vpliquido)}</td><td>${d(x.vm3)}</td><td>${d(x.vmedidas)}</td><td>${d(x.vstatus)}</td>${acoes(mod,i)}</tr>`)
+        .map(({x,i}) => `<tr><td><b>${d(x.vplaca)}</b></td><td>${d(x.vmodelo)}</td><td>${d(x.vkminicial)}</td><td>${d(x.vkm)}</td><td>${fmKmTotalVeiculo(x).toLocaleString('pt-BR')}</td><td>${d(x.vmotorista)}</td><td>${d(x.vpbt)}</td><td>${d(x.vtara)}</td><td>${d(x.vpliquido)}</td><td>${d(x.vm3)}</td><td>${d(x.vmedidas)}</td><td>${d(x.vstatus)}</td>${acoes(mod,i)}</tr>`)
         .join('');
     }
 
@@ -8980,7 +9020,7 @@ style="width:100%; height:400px; border:none;">
     }
 })();
 </script>
-<script src="./registro-usuario.js?v=1"></script>
+<script src="./registro-usuario.js?v=3"></script>
 <script src="./paginacao-universal.js?v=1"></script>
 <script src="./relatorios-universal.js?v=3"></script>
 <script src="./filtros-ui.js?v=3"></script>
