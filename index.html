@@ -2069,17 +2069,56 @@ onclick="exportarExcel('saidaVeiculos')">
             <div class="col-md-2">
                 <input id="mvalor"
                        class="form-control"
-                       placeholder="Valor R$"
-                       oninput="mascaraMoeda(this)">
+                       placeholder="Valor NF R$"
+                       oninput="mascaraMoeda(this);calcularTotalManutencao()">
             </div>
 
-            <div class="col-md-1">
+            <div class="col-md-2">
                 <input id="mnf"
                        class="form-control"
                        placeholder="Nº NF">
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <input id="mnfse"
+                       class="form-control"
+                       placeholder="Nº NFSe">
+            </div>
+
+            <div class="col-md-2">
+                <input id="mvalornfse"
+                       class="form-control"
+                       placeholder="Valor NFSe R$"
+                       oninput="mascaraMoeda(this);calcularTotalManutencao()">
+            </div>
+
+            <div class="col-md-2">
+                <input id="mtotal"
+                       class="form-control"
+                       placeholder="Total NF + NFSe"
+                       readonly>
+            </div>
+
+            <div class="col-md-2">
+                <select id="mpagamento"
+                        class="form-select"
+                        onchange="alternarParcelamentoManutencao()">
+                    <option value="avista">À vista</option>
+                    <option value="parcelado">Parcelado</option>
+                </select>
+            </div>
+
+            <div class="col-md-2" id="mparcelasGrupo" style="display:none">
+                <input id="mparcelas"
+                       class="form-control"
+                       type="number"
+                       min="2"
+                       max="120"
+                       value="2"
+                       placeholder="Quantidade de parcelas">
+            </div>
+
+            <div class="col-md-4">
                 <select id="mfornecedor"
                         class="form-select"></select>
             </div>
@@ -2097,7 +2136,7 @@ onclick="exportarExcel('saidaVeiculos')">
                 class="btn btn-outline-secondary btn-cancelar"
                 onclick="limparForm(
                 'manutencoes',
-                ['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico','mnf'],
+                ['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico','mnf','mnfse','mvalornfse','mtotal','mpagamento','mparcelas'],
                 'man_idx'
                 )">
                 Cancelar
@@ -2107,7 +2146,7 @@ onclick="exportarExcel('saidaVeiculos')">
                 class="btn btn-success"
                 onclick="salvar(
                 'manutencoes',
-                ['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico','mnf'],
+                ['mveiculo','mdata','mkm','mvalor','mfornecedor','mservico','mnf','mnfse','mvalornfse','mtotal','mpagamento','mparcelas'],
                 'man_idx'
                 )">
                 Salvar
@@ -2266,8 +2305,12 @@ Limpar
                     <th>Veículo</th>
                     <th>Data</th>
                     <th>KM</th>
-                    <th>Valor</th>
+                    <th>Valor NF</th>
                     <th>NF</th>
+                    <th>NFSe</th>
+                    <th>Valor NFSe</th>
+                    <th>Total</th>
+                    <th>Pagamento</th>
                     <th>Fornecedor</th>
                     <th>Serviço</th>
                     <th>Ações</th>
@@ -3596,7 +3639,7 @@ function formatarDataBR(data){
 
 </script>
 
-<script src="./paginacao.js?v=20260914-4"></script>
+<script src="./paginacao.js?v=20260921-4"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -3684,6 +3727,13 @@ function exportarExcel(modulo) {
     if (dados.length === 0) { alert("Não existem dados cadastrados neste módulo!"); return; }
     if (modulo === 'veiculos') {
         dados = dados.map(v => Object.assign({}, v, { vkmtotal: fmKmTotalVeiculo(v) }));
+    }
+    if (modulo === 'manutencoes') {
+        dados = dados.map(m => Object.assign({}, m, {
+            mnfse: m.mnfse || '',
+            mvalornfse: m.mvalornfse || '',
+            mtotal: m.mtotal || floatParaMoeda(totalManutencaoRegistro(m))
+        }));
     }
     const worksheet = XLSX.utils.json_to_sheet(dados);
     const workbook = XLSX.utils.book_new();
@@ -4030,6 +4080,25 @@ function salvar(mod, campos, idCampo){
 
     campos.forEach(c => obj[c] = document.getElementById(c).value);
     var modulosVinculadosAlterados = [];
+
+    if(mod === 'manutencoes'){
+        const total = typeof totalManutencaoRegistro === 'function'
+            ? totalManutencaoRegistro(obj)
+            : moedaParaFloat(obj.mvalor || '0') + moedaParaFloat(obj.mvalornfse || '0');
+        const parcelado = obj.mpagamento === 'parcelado';
+        const parcelas = parcelado ? Math.floor(Number(obj.mparcelas)) : 1;
+        if(total <= 0){
+            alert('Informe o valor da NF ou da NFSe.');
+            return;
+        }
+        if(parcelado && (!Number.isFinite(parcelas) || parcelas < 2 || parcelas > 120)){
+            alert('Informe entre 2 e 120 parcelas.');
+            return;
+        }
+        obj.mpagamento = parcelado ? 'parcelado' : 'avista';
+        obj.mparcelas = parcelas;
+        obj.mtotal = floatParaMoeda(total);
+    }
 
     if(mod === "veiculos"){
         var anteriorVeiculo = idx === "" ? null : db.veiculos[Number(idx)];
@@ -4420,6 +4489,13 @@ function limparForm(mod, campos, idCampo) {
 
     if(btnCancel)
         btnCancel.style.display = 'inline-block';
+    if(mod === 'manutencoes'){
+        const pagamento = document.getElementById('mpagamento');
+        const parcelas = document.getElementById('mparcelas');
+        if(pagamento) pagamento.value = 'avista';
+        if(parcelas) parcelas.value = '2';
+        alternarParcelamentoManutencao();
+    }
 }
 
 function editar(mod,i){
@@ -4449,6 +4525,10 @@ function editar(mod,i){
     if(btnCancel) btnCancel.style.display = 'inline-block';
     if(mod === 'veiculos' && typeof calcularKmTotalVeiculo === 'function') calcularKmTotalVeiculo();
     if(mod === 'estoque' && typeof atualizarCampoPlacaEstoque === 'function') atualizarCampoPlacaEstoque();
+    if(mod === 'manutencoes'){
+        calcularTotalManutencao();
+        alternarParcelamentoManutencao();
+    }
     window.scrollTo({top: 0, behavior: 'smooth'});
 
 }
@@ -5580,6 +5660,36 @@ function imprimirRelatorioEstoque() {
 }
 
 
+function totalManutencaoRegistro(m){
+    if(!m) return 0;
+    const nf = moedaParaFloat(m.mvalor || '0');
+    const nfse = moedaParaFloat(m.mvalornfse || '0');
+    return nf + nfse;
+}
+window.totalManutencaoRegistro = totalManutencaoRegistro;
+
+function calcularTotalManutencao(){
+    const campo = document.getElementById('mtotal');
+    if(!campo) return;
+    const nf = moedaParaFloat(document.getElementById('mvalor')?.value || '0');
+    const nfse = moedaParaFloat(document.getElementById('mvalornfse')?.value || '0');
+    campo.value = floatParaMoeda(nf + nfse);
+}
+window.calcularTotalManutencao = calcularTotalManutencao;
+
+function alternarParcelamentoManutencao(){
+    const pagamento = document.getElementById('mpagamento');
+    const grupo = document.getElementById('mparcelasGrupo');
+    const parcelas = document.getElementById('mparcelas');
+    const parcelado = pagamento && pagamento.value === 'parcelado';
+    if(grupo) grupo.style.display = parcelado ? '' : 'none';
+    if(parcelas){
+        parcelas.disabled = !parcelado;
+        if(parcelado && Number(parcelas.value) < 2) parcelas.value = '2';
+    }
+}
+window.alternarParcelamentoManutencao = alternarParcelamentoManutencao;
+
 
 function renderDashboard(){
     if(!document.getElementById('d_vei')) return;
@@ -5587,7 +5697,7 @@ function renderDashboard(){
     sincronizarRevisoes();
 }
     document.getElementById('d_vei').innerText = db.veiculos.length;
-    let totalGasto = db.manutencoes.reduce((a,b)=>a + moedaParaFloat(b.mvalor),0);
+    let totalGasto = db.manutencoes.reduce((a,b)=>a + totalManutencaoRegistro(b),0);
     totalGasto += db.multas
     .filter(m => 
         m.mustatus === 'Pago' || 
@@ -5842,7 +5952,7 @@ pagina.length
 
 renderPaginacaoAlertas(alertas.length);
     let mData={};
-    db.manutencoes.forEach(x=>mData[x.mveiculo]=(mData[x.mveiculo]||0)+moedaParaFloat(x.mvalor));
+    db.manutencoes.forEach(x=>mData[x.mveiculo]=(mData[x.mveiculo]||0)+totalManutencaoRegistro(x));
     db.multas.forEach(x=>mData[x.muveiculo]=(mData[x.muveiculo]||0)+moedaParaFloat(x.muvalor));
     if(chart) chart.destroy();
     let ctx=document.getElementById('graficoCustos');
@@ -9043,7 +9153,7 @@ style="width:100%; height:400px; border:none;">
 <script src="./fretes-terceiros.js?v=20260916-2"></script>
 <script src="./enter-universal.js?v=1"></script>
 <script src="./campos-busca.js?v=20260911-5"></script>
-<script src="./custos-frota.js?v=20260921-3"></script>
+<script src="./custos-frota.js?v=20260921-4"></script>
 <script src="./resultado-frota.js?v=20260916-4"></script>
 <script src="./limpeza-pos-salvar.js?v=4"></script>
 </html>

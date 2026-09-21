@@ -888,9 +888,10 @@ filtrados;
     const totalGasto =
     total.reduce((s,m)=>{
 
-        return s +
-        moedaParaFloat(
-        m.mvalor || '0'
+        return s + (
+        typeof totalManutencaoRegistro === 'function'
+        ? totalManutencaoRegistro(m)
+        : moedaParaFloat(m.mvalor || '0')
         );
 
     },0);
@@ -948,8 +949,12 @@ filtrados;
         <td>${m.mveiculo}</td>
         <td>${formatarDataBR(m.mdata)}</td>
         <td>${m.mkm}</td>
-        <td>${m.mvalor}</td>
+        <td>${m.mvalor||''}</td>
         <td>${m.mnf||''}</td>
+        <td>${m.mnfse||''}</td>
+        <td>${m.mvalornfse||''}</td>
+        <td>${m.mtotal|| (typeof floatParaMoeda==='function' && typeof totalManutencaoRegistro==='function' ? floatParaMoeda(totalManutencaoRegistro(m)) : '')}</td>
+        <td>${Number(m.mparcelas) > 1 ? m.mparcelas + 'x' : 'À vista'}</td>
         <td>${m.mfornecedor}</td>
         <td>${m.mservico}</td>
 
