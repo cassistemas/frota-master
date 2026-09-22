@@ -459,6 +459,77 @@ function aplicarFiltroManutencoes(){
     renderModulo('manutencoes');
 }
 
+function fmTextoSimples(v){
+    return String(v == null ? '' : v).trim().toUpperCase();
+}
+
+// Regras do sistema: placa sempre vem do cadastro de veículos (ignora vendidos)
+// e o vínculo motorista <-> veículo é o mesmo usado nos demais módulos.
+function fmVeiculoDoMotorista(nome){
+    if(!nome || !db || !Array.isArray(db.veiculos)) return '';
+    const alvo = fmTextoSimples(nome);
+    const achado = db.veiculos.find(v =>
+        fmTextoSimples(v && v.vmotorista) === alvo &&
+        fmTextoSimples(v && v.vstatus) !== 'VENDIDO'
+    );
+    return achado ? achado.vplaca : '';
+}
+
+function fmMotoristaDoVeiculo(placa){
+    if(!placa || !db || !Array.isArray(db.veiculos)) return '';
+    const alvo = fmTextoSimples(placa);
+    const achado = db.veiculos.find(v => fmTextoSimples(v && v.vplaca) === alvo);
+    return achado ? (achado.vmotorista || '') : '';
+}
+
+function vincularDiariaPorMotorista(){
+    const motorista = document.getElementById('dimotorista');
+    const veiculo = document.getElementById('diveiculo');
+    if(!motorista || !veiculo) return;
+
+    const placa = fmVeiculoDoMotorista(motorista.value);
+    if(!placa) return;
+
+    if(!Array.from(veiculo.options).some(o => o.value === placa)){
+        const extra = document.createElement('option');
+        extra.value = placa;
+        extra.textContent = placa;
+        veiculo.appendChild(extra);
+    }
+    veiculo.value = placa;
+}
+
+function vincularDiariaPorVeiculo(){
+    const motorista = document.getElementById('dimotorista');
+    const veiculo = document.getElementById('diveiculo');
+    if(!motorista || !veiculo) return;
+
+    const nome = fmMotoristaDoVeiculo(veiculo.value);
+    if(!nome) return;
+
+    if(!Array.from(motorista.options).some(o => o.value === nome)){
+        const extra = document.createElement('option');
+        extra.value = nome;
+        extra.textContent = nome;
+        motorista.appendChild(extra);
+    }
+    motorista.value = nome;
+}
+
+function alterarStatusDiaria(indice, status){
+    if(!db || !Array.isArray(db.diarias)) return;
+
+    const registro = db.diarias[Number(indice)];
+    if(!registro) return;
+
+    registro.distatus = status;
+    registro._alteradoEm = new Date().toISOString();
+
+    if(typeof salvarNuvem === 'function') salvarNuvem(['diarias']);
+
+    renderModulo('diarias');
+}
+
 function getDiariasFiltradas(){
 
     if(!db.diarias) return [];
@@ -467,6 +538,10 @@ function getDiariasFiltradas(){
 
     const motorista =
     document.getElementById('filtroDiMotorista')?.value || '';
+
+    const veiculoFiltro =
+    document.getElementById('filtroDiVeiculo')?.value || '';
+
 
     const status =
     document.getElementById('filtroDiStatus')?.value || '';
@@ -502,6 +577,12 @@ return (
 
     (!motorista ||
     nomeDiaria === nomeFiltro)
+
+    &&
+
+    (!veiculoFiltro ||
+    fmTextoSimples(d.diveiculo) === fmTextoSimples(veiculoFiltro))
+
 
     &&
 
@@ -545,6 +626,7 @@ function limparFiltroDiarias(){
 
     [
         'filtroDiMotorista',
+        'filtroDiVeiculo',
          'filtroDiStatus',
         'filtroDiDataIni',
         'filtroDiDataFim',
@@ -759,6 +841,12 @@ ${v.vstatus || "Ativo"}
         carregarMotoristasSelect('filtroDiMotorista');
     }
 
+    if(typeof carregarVeiculosSelect === 'function'){
+        carregarVeiculosSelect('diveiculo');
+        carregarVeiculosSelect('filtroDiVeiculo');
+    }
+
+
 const filtrados = getDiariasFiltradas();
 
 document.getElementById('totalDiariasQtd').innerText =
@@ -790,6 +878,8 @@ const dados = getDadosPaginadosCustom(
 
     <td>${d.dimotorista || '--'}</td>
 
+    <td><b>${d.diveiculo || '--'}</b></td>
+
     <td>${formatarDataBR(d.didata)}</td>
 
     <td>${d.divalor || '--'}</td>
@@ -797,16 +887,20 @@ const dados = getDadosPaginadosCustom(
     <td>${d.dicoleta || '--'}</td>
 
 <td>
-    <span class="badge ${
-        d.distatus === 'Pago'
-            ? 'bg-success'
-            : d.distatus === 'Enviadas RH'
-            ? 'bg-warning text-dark'
-            : 'bg-danger'
-    }">
-        ${d.distatus || 'Pendente'}
-    </span>
+    <select class="form-select form-select-sm ${
+        (d.distatus || 'Pendente') === 'Pago'
+            ? 'bg-success text-white'
+            : (d.distatus || 'Pendente') === 'Enviadas RH'
+            ? 'bg-warning'
+            : 'bg-danger text-white'
+    }" style="min-width:140px"
+    onchange="alterarStatusDiaria(${realIndex}, this.value)">
+        <option value="Pendente" ${(d.distatus || 'Pendente') === 'Pendente' ? 'selected' : ''}>Pendente</option>
+        <option value="Enviadas RH" ${d.distatus === 'Enviadas RH' ? 'selected' : ''}>Enviadas RH</option>
+        <option value="Pago" ${d.distatus === 'Pago' ? 'selected' : ''}>Pago</option>
+    </select>
 </td>
+
 
 <td>${d.diobs || '--'}</td>
 

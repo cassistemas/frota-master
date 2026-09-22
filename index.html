@@ -482,49 +482,64 @@ Criar Conta
         <input type="hidden" id="adm_uid">
         <input type="hidden" id="di_idx">
 
-        <div class="row g-3">
+        <div class="row g-3 align-items-end">
 
-            <div class="col-md-3">
-    <select id="dimotorista" class="form-select"></select>
-</div>
+            <div class="col-12 col-md-6 col-lg-3">
+                <label class="form-label" for="dimotorista">Motorista</label>
+                <select id="dimotorista" class="form-select"
+                onchange="vincularDiariaPorMotorista()"></select>
+            </div>
 
-<div class="col-md-2">
-    <input type="date" id="didata" class="form-control">
-</div>
+            <div class="col-12 col-md-6 col-lg-3">
+                <label class="form-label" for="diveiculo">Veículo / Placa</label>
+                <select id="diveiculo" class="form-select"
+                onchange="vincularDiariaPorVeiculo()"></select>
+            </div>
 
-<div class="col-md-2">
-    <input id="divalor"
-    class="form-control"
-    placeholder="Valor R$"
-    oninput="mascaraMoeda(this)">
-</div>
+            <div class="col-12 col-md-4 col-lg-2">
+                <label class="form-label" for="didata">Data</label>
+                <input type="date" id="didata" class="form-control">
+            </div>
 
-<div class="col-md-2">
-    <input id="dicoleta"
-    class="form-control"
-    placeholder="N° Coleta/Entrega">
-</div>
+            <div class="col-12 col-md-4 col-lg-2">
+                <label class="form-label" for="divalor">Valor (R$)</label>
+                <input id="divalor"
+                class="form-control"
+                placeholder="0,00"
+                oninput="mascaraMoeda(this)">
+            </div>
 
-<div class="col-md-3">
-    <select id="distatus" class="form-select">
-        <option value="Pendente">Pendente</option>
-        <option value="Enviadas RH">Enviadas RH</option>
-        <option value="Pago">Pago</option>
-    </select>
-</div>
+            <div class="col-12 col-md-4 col-lg-2">
+                <label class="form-label" for="dicoleta">N° Coleta/Entrega</label>
+                <input id="dicoleta"
+                class="form-control"
+                placeholder="Ex.: 12345">
+            </div>
 
-<div class="col-md-12">
-    <textarea id="diobs"
-    class="form-control"
-    placeholder="Observações"></textarea>
-</div>
-            <div class="col-md-12 text-end">
+            <div class="col-12 col-md-6 col-lg-3">
+                <label class="form-label" for="distatus">Status</label>
+                <select id="distatus" class="form-select">
+                    <option value="Pendente">Pendente</option>
+                    <option value="Enviadas RH">Enviadas RH</option>
+                    <option value="Pago">Pago</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-6 col-lg-9">
+                <label class="form-label" for="diobs">Observações</label>
+                <textarea id="diobs"
+                class="form-control"
+                rows="2"
+                placeholder="Informações complementares"></textarea>
+            </div>
+
+            <div class="col-12 d-flex justify-content-end gap-2">
 
                 <button id="btn_cancel_diarias"
                 class="btn btn-outline-secondary btn-cancelar"
                onclick="limparForm(
     'diarias',
-    ['didata','divalor','dicoleta','distatus','dimotorista','diobs'],
+    ['didata','divalor','dicoleta','distatus','dimotorista','diveiculo','diobs'],
     'di_idx'
 )">
                     Cancelar
@@ -533,7 +548,7 @@ Criar Conta
                 <button class="btn btn-success"
                 onclick="salvar(
     'diarias',
-    ['didata','divalor','dicoleta','distatus','dimotorista','diobs'],
+    ['didata','divalor','dicoleta','distatus','dimotorista','diveiculo','diobs'],
     'di_idx'
 )">
                     Salvar
@@ -543,65 +558,75 @@ Criar Conta
 
         </div>
 
+
     </div>
 <div class="glass-container">
 
-    <div class="row g-2">
+    <div class="row g-3 align-items-end">
 
-        <div class="col-md-3">
+        <div class="col-12 col-md-6 col-lg-3">
+            <label class="form-label" for="filtroDiMotorista">Motorista</label>
             <select id="filtroDiMotorista" class="form-select"></select>
         </div>
 
-        <div class="col-md-2">
+        <div class="col-12 col-md-6 col-lg-3">
+            <label class="form-label" for="filtroDiVeiculo">Veículo / Placa</label>
+            <select id="filtroDiVeiculo" class="form-select"></select>
+        </div>
+
+        <div class="col-12 col-md-4 col-lg-3">
+            <label class="form-label" for="filtroDiDataIni">Data inicial</label>
             <input type="date"
             id="filtroDiDataIni"
             class="form-control">
         </div>
 
-        <div class="col-md-2">
+        <div class="col-12 col-md-4 col-lg-3">
+            <label class="form-label" for="filtroDiDataFim">Data final</label>
             <input type="date"
             id="filtroDiDataFim"
             class="form-control">
         </div>
 
-        <div class="col-md-2">
+        <div class="col-12 col-md-4 col-lg-2">
+            <label class="form-label" for="filtroDiValorMin">Valor mínimo</label>
             <input type="number"
             id="filtroDiValorMin"
             class="form-control"
-            placeholder="Valor Min">
+            placeholder="0,00">
         </div>
 
-        <div class="col-md-2">
+        <div class="col-12 col-md-4 col-lg-2">
+            <label class="form-label" for="filtroDiValorMax">Valor máximo</label>
             <input type="number"
             id="filtroDiValorMax"
             class="form-control"
-            placeholder="Valor Max">
+            placeholder="0,00">
         </div>
 
-      <div class="col-md-2">
-    <select id="filtroDiStatus" class="form-select">
-        <option value="">Status</option>
-        <option value="Pendente">Pendente</option>
-        <option value="Enviadas RH">Enviadas RH</option>
-        <option value="Pago">Pago</option>
-    </select>
-</div>
+        <div class="col-12 col-md-4 col-lg-3">
+            <label class="form-label" for="filtroDiStatus">Status</label>
+            <select id="filtroDiStatus" class="form-select">
+                <option value="">Todos</option>
+                <option value="Pendente">Pendente</option>
+                <option value="Enviadas RH">Enviadas RH</option>
+                <option value="Pago">Pago</option>
+            </select>
+        </div>
 
-        <div class="col-md-1">
-            <button class="btn btn-primary w-100"
+        <div class="col-12 col-lg-5 d-flex justify-content-lg-end gap-2">
+            <button class="btn btn-primary"
             onclick="aplicarFiltroDiarias()">
             Filtrar
             </button>
-        </div>
-
-        <div class="col-md-1">
-            <button class="btn btn-secondary w-100"
+            <button class="btn btn-secondary"
             onclick="limparFiltroDiarias()">
             Limpar
             </button>
         </div>
 
     </div>
+
 
 </div>
 
@@ -645,6 +670,7 @@ Criar Conta
             <thead>
                 <tr>
                     <th>Motorista</th>
+                    <th>Placa</th>
                     <th>Data</th>
                     <th>Valor</th>
                     <th>N° Coleta/Entrega</th>
@@ -3371,7 +3397,7 @@ oninput="calcularKMPneu()">
           <div class="cus-pre-head"><div><span class="pneu-kicker">Aguardando conferência</span><h5>Pré-lançamentos dos outros módulos <span id="cusPreContador" class="cus-pre-count">0</span></h5><p>Revise e ajuste os dados. Eles só entram nos cálculos depois da confirmação.</p></div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="selecionarPreLancamentos(true)">Selecionar todos</button><button class="btn btn-primary" onclick="confirmarPreLancamentosSelecionados()">Confirmar selecionados</button></div></div>
           <div class="cus-table-wrap"><table class="table table-hover cus-table cus-pre-table"><thead><tr><th><input id="cusPreTodos" type="checkbox" class="cus-check" onchange="selecionarPreLancamentos(this.checked)" aria-label="Selecionar todos"></th><th>Data</th><th>Veículo</th><th>Categoria</th><th>Descrição</th><th>Tipo</th><th>Origem</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="cusPreLista"></tbody></table></div><div id="cusPrePaginacao"></div>
         </div>
-        <div class="cus-panel cus-form-wrap"><h5>Novo lançamento</h5><input id="cusIdx" type="hidden"><div class="cus-form-grid">
+        <div class="cus-panel cus-form-wrap"><h5 id="cusFormTitulo">Novo lançamento</h5><div id="cusFormAviso" class="cus-note hidden" style="margin-bottom:10px;color:#b45309"></div><input id="cusIdx" type="hidden"><div class="cus-form-grid">
           <div><label>Data</label><input id="cusData" type="date" class="form-control"></div><div><label>Competência</label><input id="cusCompetencia" type="month" class="form-control"></div><div><label>Veículo</label><input id="cusVeiculo" list="cusVeiculosLista" class="form-control" placeholder="Selecione ou digite"></div><div><label>Motorista</label><input id="cusMotorista" list="cusMotoristasLista" class="form-control" placeholder="Selecione ou digite"></div>
           <div><label>Categoria</label><select id="cusCategoria" class="form-select" onchange="custoCategoriaChange('cus')"></select></div><div><label>Tipo</label><select id="cusTipo" class="form-select"><option value="fixo">Fixo</option><option value="variavel">Variável</option><option value="indireto">Indireto</option></select></div><div class="span-2"><label>Descrição</label><input id="cusDescricao" class="form-control" placeholder="Ex.: pedágio da viagem 145"></div>
           <div><label>Valor total</label><input id="cusValor" class="form-control" placeholder="R$ 0,00" oninput="mascaraMoeda(this)"></div><div><label>Pagamento</label><select id="cusPagamento" class="form-select" onchange="alternarParcelamentoFrota()"><option value="avista">À vista</option><option value="parcelado">Parcelado</option></select></div><div id="cusParcelasGrupo" class="hidden"><label>Quantidade de parcelas</label><input id="cusParcelas" type="number" min="2" max="120" step="1" value="2" class="form-control"></div><div><label>Situação</label><select id="cusStatus" class="form-select"><option>Realizado</option><option>Pago</option><option>Pendente</option><option>Provisionado</option></select></div><div><label>Rateio</label><select id="cusRateio" class="form-select"><option value="nao">Sem rateio</option><option value="igual">Dividir igualmente na frota</option></select></div><div><label>Observação</label><input id="cusObservacao" class="form-control"></div>
@@ -4054,6 +4080,7 @@ window.fmSalvarCorrecaoCusto = function(registro){
 
     return Promise.race([gravacao, timeout]).then(function(resultado){
         if(resultado.tipo === "ok"){
+            window.fmAssinaturasBanco.custos = fmAssinaturaModulo(db.custos);
             statusNuvem("Salvo e confirmado no banco de dados", "#198754");
             if(typeof window.fmMarcarSyncConfirmado === "function") window.fmMarcarSyncConfirmado();
             return true;

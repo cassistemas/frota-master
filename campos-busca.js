@@ -7,6 +7,7 @@
 
   var CAMPOS = {
     dimotorista: "motorista", filtroDiMotorista: "motorista",
+    diveiculo: "veículo", filtroDiVeiculo: "veículo",
     agveiculo: "veículo", agmotorista: "motorista",
     muveiculo: "veículo", mumotorista: "motorista",
     filtroMuVeiculo: "veículo", filtroMuMotorista: "motorista",
