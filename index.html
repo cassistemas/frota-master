@@ -6536,6 +6536,8 @@ function fmTextoChave(v){
 // financeiros/estoque sem ID usam todos os campos, para não unir lançamentos reais.
 function fmChaveNegocio(mod, r){
     var n = fmTextoChave, dig = function(v){ return String(v || "").replace(/\D/g, ""); };
+    if(mod === "preLancamentos" && (r.origemChave || r.id))
+        return mod + "|origem:" + String(r.origemChave || r.id);
     var codigo = function(v){ return n(v).replace(/[^a-z0-9]/g, ""); };
     if(mod === "eventosPneus" && (r.id || r._rid || r._fid))
         return mod + "|id:" + n(r.id || r._rid || r._fid);
