@@ -4078,6 +4078,47 @@ window.fmSalvarCorrecaoCusto = function(registro){
     });
 };
 
+// Confirmacao individual ou em lote. Grava somente os dois documentos
+// envolvidos, sem fila local, conciliacao ou redesenho geral da tela.
+window.fmSalvarConfirmacoesPre = function(){
+    if(typeof db === "undefined" || !Array.isArray(db.custos) || !Array.isArray(db.preLancamentos)){
+        return Promise.resolve(false);
+    }
+    if(typeof auth === "undefined" || !auth.currentUser || typeof dbCloud === "undefined"){
+        statusNuvem("Sem login: as confirmações ainda não foram salvas", "#dc3545");
+        return Promise.resolve(false);
+    }
+    window.fmConfirmacaoPreEmAndamento = true;
+    window.fmIgnorarSnapshotConfirmacaoAte = Date.now() + 15000;
+    var agora = new Date().toISOString();
+    statusNuvem("Salvando no banco...", "#0d6efd");
+    var envios;
+    try{
+        envios = Promise.all([
+            dbCloud.collection("frota").doc("custos").set({dados:db.custos,atualizadoEm:agora},{merge:true}),
+            dbCloud.collection("frota").doc("preLancamentos").set({dados:db.preLancamentos,atualizadoEm:agora},{merge:true})
+        ]).then(function(){ return {tipo:"ok"}; }).catch(function(erro){ return {tipo:"erro",erro:erro}; });
+    }catch(erro){
+        window.fmIgnorarSnapshotConfirmacaoAte = 0;
+        statusNuvem("ERRO ao gravar as confirmações", "#dc3545");
+        return Promise.resolve(false);
+    }
+    var timeout = new Promise(function(resolve){setTimeout(function(){resolve({tipo:"timeout"})},6000)});
+    return Promise.race([envios,timeout]).then(function(resultado){
+        if(resultado.tipo === "ok"){
+            window.fmAssinaturasBanco.custos = fmAssinaturaModulo(db.custos);
+            window.fmAssinaturasBanco.preLancamentos = fmAssinaturaModulo(db.preLancamentos);
+            statusNuvem("Salvo e confirmado no banco de dados", "#198754");
+            if(typeof window.fmMarcarSyncConfirmado === "function") window.fmMarcarSyncConfirmado();
+            return true;
+        }
+        window.fmIgnorarSnapshotConfirmacaoAte = 0;
+        if(resultado.tipo === "erro") console.error("Falha ao gravar confirmações:", resultado.erro);
+        statusNuvem(resultado.tipo === "timeout" ? "Sem confirmação do banco: tente salvar novamente" : "ERRO ao gravar as confirmações", resultado.tipo === "timeout" ? "#fd7e14" : "#dc3545");
+        return false;
+    });
+};
+
 
 // A tela do modulo esta aberta? Serve para desenhar so o que aparece.
 window.fmRenderPendente = window.fmRenderPendente || {};
@@ -5134,7 +5175,7 @@ function escutarDados(modulo){
         // Durante a confirmação, a cópia local já contém o estado correto.
         // Ignora os ecos intermediários do banco para não duplicar, deduplicar
         // e redesenhar listas grandes enquanto a gravação ainda está em curso.
-        if(window.fmConfirmacaoPreEmAndamento &&
+        if((window.fmConfirmacaoPreEmAndamento || Date.now() < (window.fmIgnorarSnapshotConfirmacaoAte || 0)) &&
            (modulo === "custos" || modulo === "preLancamentos")){
             if(!veioDoCache){
                 window.fmModulosCarregados[modulo] = true;
@@ -9258,7 +9299,7 @@ style="width:100%; height:400px; border:none;">
 <script src="./fretes-terceiros.js?v=20260916-2"></script>
 <script src="./enter-universal.js?v=1"></script>
 <script src="./campos-busca.js?v=20260911-5"></script>
-<script src="./custos-frota.js?v=20260922-9"></script>
+<script src="./custos-frota.js?v=20260922-10"></script>
 <script src="./resultado-frota.js?v=20260922-2"></script>
 <script src="./limpeza-pos-salvar.js?v=4"></script>
 </html>

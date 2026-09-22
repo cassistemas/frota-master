@@ -19,3 +19,5 @@
 - [x] Evitar copiar listas completas para o navegador durante a confirmação.
 - [x] Salvar a correção de um custo por um caminho isolado, sem fila geral nem recálculo completo.
 - [x] Ignorar ecos intermediários da gravação e liberar novas tentativas em qualquer resultado.
+- [x] Processar a confirmação de todos em blocos sem bloquear a tela.
+- [x] Salvar custos e pendências do lote diretamente, sem fila geral nem recálculos intermediários.
