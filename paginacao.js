@@ -1043,8 +1043,8 @@ filtrados;
         <td>${m.mveiculo}</td>
         <td>${formatarDataBR(m.mdata)}</td>
         <td>${m.mkm}</td>
-        <td>${m.mvalor||''}</td>
         <td>${m.mnf||''}</td>
+        <td>${m.mvalor||''}</td>
         <td>${m.mnfse||''}</td>
         <td>${m.mvalornfse||''}</td>
         <td>${m.mtotal|| (typeof floatParaMoeda==='function' && typeof totalManutencaoRegistro==='function' ? floatParaMoeda(totalManutencaoRegistro(m)) : '')}</td>

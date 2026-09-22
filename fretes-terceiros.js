@@ -570,6 +570,7 @@
       fretes.push(obj);
     } else {
       var ant = fretes[Number(idx)] || {};
+      obj = Object.assign({}, ant, obj);
       obj._fid = ant._fid || novoId();
       obj._registradoPor = ant._registradoPor;
       obj._registradoEm = ant._registradoEm;
@@ -599,15 +600,22 @@
     setVal('freorigemuf', ''); setVal('fredestinouf', '');
     carregarCidades('freorigemuf', 'freorigemcid', '');
     carregarCidades('fredestinouf', 'fredestinocid', '');
-    setVal('frerastreada', 'Sim');
-    setVal('frestatus', 'Disponível');
+    setVal('frerastreada', '');
+    setVal('frestatus', '');
+    if (typeof window.fmSincronizarValoresBuscasCadastro === 'function') window.fmSincronizarValoresBuscasCadastro();
   };
 
   window.editarFrete = function (i) {
     var f = fretes[i]; if (!f) return;
-    Object.keys(f).forEach(function (k) { setVal(k, f[k]); });
+    Object.keys(f).forEach(function (k) {
+      var valor = f[k];
+      if (k === 'frevalor') valor = moedaBR(valor);
+      if (k === 'frecontato') valor = telefoneBR(valor);
+      setVal(k, valor);
+    });
     aplicarRotaNosSelects(f);
     setVal('fre_idx', i);
+    if (typeof window.fmSincronizarValoresBuscasCadastro === 'function') window.fmSincronizarValoresBuscasCadastro();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

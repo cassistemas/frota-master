@@ -138,7 +138,8 @@ function salvarRevisao(){
 
     const idx=document.getElementById("r_idx").value;
 
-    const obj={
+    const anterior = idx === "" ? null : db.revisoes[Number(idx)];
+    const obj=Object.assign({}, anterior || {}, {
 
         rveiculo:document.getElementById("rveiculo").value,
 
@@ -148,11 +149,11 @@ function salvarRevisao(){
 
         robs: document.getElementById("robs").value,
 
-        rvalor: document.getElementById("rvalor") ? document.getElementById("rvalor").value : "",
+        rvalor: document.getElementById("rvalor") ? document.getElementById("rvalor").value : (anterior && anterior.rvalor) || "",
 
-        roficina: document.getElementById("roficina") ? document.getElementById("roficina").value : "",
+        roficina: document.getElementById("roficina") ? document.getElementById("roficina").value : (anterior && anterior.roficina) || "",
 
-        rresponsavel: document.getElementById("rresponsavel") ? document.getElementById("rresponsavel").value : "",
+        rresponsavel: document.getElementById("rresponsavel") ? document.getElementById("rresponsavel").value : (anterior && anterior.rresponsavel) || "",
 
         rkmatual:Number(
             document.getElementById("rkmatual").value
@@ -175,9 +176,11 @@ function salvarRevisao(){
         )||0,
 
         rstatus:
-        document.getElementById("rstatus").innerText
+        document.getElementById("rstatus").innerText,
 
-    };
+        robs: document.getElementById("robs").value
+
+    });
 
     if (typeof window.fmPrepararRegistro === "function") {
         window.fmPrepararRegistro("revisoes", obj, idx === "" ? null : db.revisoes[Number(idx)]);
@@ -254,19 +257,19 @@ function editarRevisao(i){
     }
     campoVeiculo.value = r.rveiculo;
 
-    document.getElementById("rtipo").value = r.rtipo;
+    document.getElementById("rtipo").value = r.rtipo == null ? "" : r.rtipo;
 
     document.getElementById("rdata").value = r.rdata || "";
 
-    document.getElementById("rkmatual").value = r.rkmatual;
+    document.getElementById("rkmatual").value = r.rkmatual == null ? "" : r.rkmatual;
 
-    document.getElementById("rkmultima").value = r.rkmultima;
+    document.getElementById("rkmultima").value = r.rkmultima == null ? "" : r.rkmultima;
 
-    document.getElementById("rkm").value = r.rkm;
+    document.getElementById("rkm").value = r.rkm == null ? "" : r.rkm;
 
-    document.getElementById("rkmproxima").value = r.rkmproxima;
+    document.getElementById("rkmproxima").value = r.rkmproxima == null ? "" : r.rkmproxima;
 
-    document.getElementById("rkmfaltante").value = r.rkmfaltante;
+    document.getElementById("rkmfaltante").value = r.rkmfaltante == null ? "" : r.rkmfaltante;
 
     const status = r.rstatus || "Em Dia";
 
@@ -280,13 +283,16 @@ function editarRevisao(i){
     document.getElementById("robs").value = r.robs || "";
 
     if(document.getElementById("rvalor"))
-        document.getElementById("rvalor").value = r.rvalor || "";
+        document.getElementById("rvalor").value = r.rvalor == null ? "" : r.rvalor;
 
     if(document.getElementById("roficina"))
         document.getElementById("roficina").value = r.roficina || "";
 
     if(document.getElementById("rresponsavel"))
         document.getElementById("rresponsavel").value = r.rresponsavel || "";
+
+    if(typeof window.fmSincronizarValoresBuscasCadastro === "function")
+        window.fmSincronizarValoresBuscasCadastro();
 
     document.getElementById("btn_cancel_revisoes").style.display = "inline-block";
 
@@ -344,10 +350,10 @@ function limparFormularioRevisao(){
 
     document.getElementById("robs").value="";
 
-    ["rvalor", "roficina", "rresponsavel"].forEach(function(id){
-        var campo = document.getElementById(id);
-        if(campo) campo.value = "";
-    });
+    const botaoCancelar = document.getElementById("btn_cancel_revisoes");
+    if(botaoCancelar) botaoCancelar.style.display = "none";
+    if(typeof window.fmSincronizarValoresBuscasCadastro === "function")
+        window.fmSincronizarValoresBuscasCadastro();
 
 }
 

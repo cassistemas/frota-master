@@ -7,7 +7,6 @@
 
   var CAMPOS = {
     dimotorista: "motorista", filtroDiMotorista: "motorista",
-    diveiculo: "veículo", filtroDiVeiculo: "veículo",
     agveiculo: "veículo", agmotorista: "motorista",
     muveiculo: "veículo", mumotorista: "motorista",
     filtroMuVeiculo: "veículo", filtroMuMotorista: "motorista",
@@ -206,7 +205,20 @@
     });
   }
 
+  function sincronizarValores() {
+    Object.keys(CAMPOS).forEach(function (id) {
+      var select = document.getElementById(id);
+      if (!select || select.dataset.fmBuscaCadastro !== "1") return;
+      var input = document.getElementById(id + "-busca");
+      var lista = document.getElementById("fm-lista-" + id);
+      var option = select.selectedIndex >= 0 ? select.options[select.selectedIndex] : null;
+      if (input) input.value = select.value && option ? option.textContent.trim() : "";
+      if (lista) fecharSugestoes(lista);
+    });
+  }
+
   window.fmAtualizarBuscasCadastro = prepararTodos;
+  window.fmSincronizarValoresBuscasCadastro = sincronizarValores;
 
   document.addEventListener("mousedown", function (event) {
     if (!event.target.closest(".fm-busca-container")) {

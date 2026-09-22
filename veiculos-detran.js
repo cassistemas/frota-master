@@ -555,7 +555,7 @@
 
   function preencher(r) {
     CAMPOS.forEach(function (c) {
-      set(c[0], r[c[0]] || "");
+      set(c[0], r[c[0]] == null ? "" : r[c[0]]);
     });
   }
 
@@ -564,6 +564,8 @@
       set(c[0], "");
     });
     set("dt_idx", "");
+    set("dtBuscaPlaca", "");
+    set("dtBuscaRenavam", "");
     editIdx = -1;
   }
 
@@ -579,14 +581,15 @@
       return;
     }
 
-    var obj = { dtAtualizado: new Date().toISOString().slice(0, 10) };
+    var lista = base();
+    var idx = document.getElementById("dt_idx").value;
+    var anterior = idx !== "" ? lista[Number(idx)] : null;
+    var obj = Object.assign({}, anterior || {}, { dtAtualizado: new Date().toISOString().slice(0, 10) });
     CAMPOS.forEach(function (c) {
       obj[c[0]] = val(c[0]);
     });
     obj.dtPlaca = obj.dtPlaca.toUpperCase();
 
-    var lista = base();
-    var idx = document.getElementById("dt_idx").value;
     if (typeof window.fmPrepararRegistro === "function") {
       window.fmPrepararRegistro("detran", obj, idx !== "" ? lista[Number(idx)] : null);
     }
