@@ -41,13 +41,14 @@
   };
 
   // Carimba todo registro novo/alterado antes de subir para a nuvem
-  window.carimbarRegistros = function () {
+  window.carimbarRegistros = function (modulos) {
     var base = getDb();
     if (!base) return;
     var nome = nomeUsuarioAtual();
     var agora = new Date().toISOString();
+    var alvos = Array.isArray(modulos) && modulos.length ? modulos : Object.keys(base);
 
-    Object.keys(base).forEach(function (mod) {
+    alvos.forEach(function (mod) {
       var lista = base[mod];
       if (!Array.isArray(lista)) return;
 

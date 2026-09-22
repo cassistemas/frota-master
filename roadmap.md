@@ -1,0 +1,21 @@
+# Tarefas
+
+- [x] Corrigir confirmação individual de pré-lançamentos.
+- [x] Aplicar veículo, período e filtros financeiros nas abas compatíveis da Gestão da Frota.
+- [x] Filtrar Fixos e pessoal pela vigência e Quilometragem somente por veículo e período.
+- [x] Manter apenas pendências nos Pré-lançamentos e reiniciar paginações ao alterar filtros.
+- [x] Refletir os filtros nos resultados, relatórios mensais e exportações.
+- [x] Corrigir o botão Limpar para apagar inclusive as datas e exibir todo o histórico disponível.
+- [x] Processar todos os válidos no lote e manter somente pendências.
+- [x] Impedir que confirmados reapareçam após sincronização.
+- [x] Evitar travamento ao corrigir e salvar custos sem veículo ou rateio.
+- [x] Evitar gravações concorrentes ao informar a placa e confirmar um pré-lançamento.
+- [x] Consolidar a edição e confirmação em uma gravação e impedir redesenho completo no retorno do banco.
+- [x] Preparar somente os dados alterados, sem percorrer todos os cadastros ao confirmar.
+- [x] Validar os cenários e gerar o ZIP final.
+- [x] Impedir que respostas intermediárias do banco recalcularem as listas durante a confirmação.
+- [x] Liberar a tela antes de iniciar a gravação ao abrir diretamente no navegador.
+- [x] Remover confirmados da fila em vez de manter histórico crescente no documento.
+- [x] Evitar copiar listas completas para o navegador durante a confirmação.
+- [x] Salvar a correção de um custo por um caminho isolado, sem fila geral nem recálculo completo.
+- [x] Ignorar ecos intermediários da gravação e liberar novas tentativas em qualquer resultado.
