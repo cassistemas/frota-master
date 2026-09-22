@@ -23,3 +23,4 @@
 .cus-pend-item strong{margin-left:auto}
 .cus-pend-btn{border:0;background:#1d4ed8;color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer}
 .cus-pend-btn:hover{background:#1e40af}
+.cus-status-select{min-width:128px;height:32px;padding:4px 28px 4px 8px;font-size:.72rem;font-weight:700}.cus-status-select:disabled{cursor:wait;opacity:.65}.cus-status-readonly{display:inline-block;color:#64748b;font-size:.72rem;font-weight:700}
