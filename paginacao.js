@@ -1194,21 +1194,11 @@ if(modulo === 'terceiros'){
 
     const totalTerceiros = dados.length;
 
-    const totalContratacoes = dados.filter(t =>
-        t.terfrete && t.terfrete !== ""
-    ).length;
+    const fretesTer = t => (window.fmFretesDoTerceiro ? window.fmFretesDoTerceiro(t) : { qtd: 0, total: 0 });
 
-    const valorTotalFretes = dados.reduce((total, t) => {
+    const totalContratacoes = dados.reduce((n, t) => n + fretesTer(t).qtd, 0);
 
-        let valor = String(t.terfrete || "0")
-            .replace("R$", "")
-            .replace(/\s/g, "")
-            .replace(/\./g, "")
-            .replace(",", ".");
-
-        return total + (parseFloat(valor) || 0);
-
-    }, 0);
+    const valorTotalFretes = dados.reduce((total, t) => total + fretesTer(t).total, 0);
 
     // Atualiza os cards (caso existam)
 
@@ -1285,7 +1275,9 @@ if(modulo === 'terceiros'){
 
 <td class="col-cidade" title="${t.tercidade || ''}">${t.tercidade || '--'}</td>
 
-<td class="money">${t.terfrete || 'R$ 0,00'}</td>
+<td class="col-obs" style="white-space:normal;min-width:180px">${t.terobs || '--'}</td>
+
+<td class="money" title="${fretesTer(t).qtd} frete(s) no Cadastro de Fretes">${fretesTer(t).qtd ? fretesTer(t).texto : 'R$ 0,00'}</td>
 
 <td class="num">
 <span class="ter-badge ${

@@ -272,15 +272,42 @@
     var valor = txtTag(doc, 'vTPrest') || txtTag(doc, 'vRec') || txtTag(doc, 'vPrest');
     var predominante = txtTag(doc, 'proPred');
     if (predominante) setVal('fretipocarga', predominante);
-    var peso = '', m3 = '';
+    var peso = '', pesoReal = '', m3 = '', volumes = '';
     Array.prototype.forEach.call(doc.getElementsByTagName('infQ'), function (q) {
       var un = String((q.getElementsByTagName('cUnid')[0] || {}).textContent || '').trim();
       var tp = String((q.getElementsByTagName('tpMed')[0] || {}).textContent || '').trim().toUpperCase();
       var qt = Number(String((q.getElementsByTagName('qCarga')[0] || {}).textContent || '0').replace(',', '.')) || 0;
       if (!qt) return;
-      if (un === '00' || tp.indexOf('M3') !== -1 || tp.indexOf('CUB') !== -1) m3 = qt;
-      else if (un === '01' || tp.indexOf('PESO') !== -1) peso = qt;
+      if (un === '00' || tp.indexOf('M3') !== -1) m3 = qt;
+      else if (un === '03' || tp.indexOf('VOLUME') !== -1) volumes = qt;
+      else if (tp.indexOf('CUB') !== -1) { /* peso cubado: ignorado */ }
+      else if (tp.indexOf('REAL') !== -1) pesoReal = qt;
+      else if (un === '01' || un === '02' || tp.indexOf('PESO') !== -1) { if (peso === '') peso = un === '02' ? qt * 1000 : qt; }
     });
+    if (pesoReal !== '') peso = pesoReal;
+    if (dh && dh.length >= 16) setVal('frecarregamento', String(dh).slice(0, 16));
+    var dProg = txtTag(doc, 'dProg') || txtTag(doc, 'dIniPer') || txtTag(doc, 'dFimPer');
+    var hProg = txtTag(doc, 'hProg') || txtTag(doc, 'hIni') || txtTag(doc, 'hFim');
+    if (dProg) setVal('freentrega', dProg + 'T' + (hProg ? hProg.slice(0, 5) : '18:00'));
+    var nome = function (tag) { var el = doc.getElementsByTagName(tag)[0]; return el ? String((el.getElementsByTagName('xNome')[0] || {}).textContent || '').trim() : ''; };
+    var nfs = doc.getElementsByTagName('infNFe').length;
+    var vCarga = Number(txtTag(doc, 'vCarga')) || 0;
+    var obs = [];
+    var nCT = txtTag(doc, 'nCT');
+    if (nCT) obs.push('CTe ' + nCT + (txtTag(doc, 'serie') ? ' série ' + txtTag(doc, 'serie') : ''));
+    if (transportadora) obs.push('Emitente: ' + transportadora);
+    if (nome('rem')) obs.push('Remetente: ' + nome('rem'));
+    if (nome('dest')) obs.push('Destinatário: ' + nome('dest'));
+    if (volumes !== '') obs.push('Volumes: ' + volumes.toLocaleString('pt-BR'));
+    if (nfs) obs.push('NF-e: ' + nfs);
+    if (vCarga) obs.push('Valor da mercadoria: ' + vCarga.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+    var carac = txtTag(doc, 'xCaracAd');
+    if (carac) obs.push(carac);
+    if (obs.length) {
+      var atual = val('freobs');
+      var novo = obs.join(' | ');
+      setVal('freobs', atual && atual.indexOf('CTe ' + nCT) === -1 ? atual + '\n' + novo : (atual && nCT && atual.indexOf('CTe ' + nCT) !== -1 ? atual : novo));
+    }
     if (peso !== '') setVal('frepeso', (peso >= 1000 ? (peso / 1000) : peso).toLocaleString('pt-BR') + ' TONELADAS');
     if (m3 !== '') setVal('frevolume', m3);
     if (valor) {
@@ -350,13 +377,10 @@
       + '    <div class="col-md-3 hidden" id="grpFreTerceiro"><label class="form-label-mini">Terceiro contratado</label><select id="freterceiro" class="form-select"></select></div>'
       + '    <div class="col-md-2 hidden" id="grpFreCustoTerceiro"><label class="form-label-mini">Valor pago ao terceiro</label><input id="frecustoterceiro" class="form-control" inputmode="numeric" placeholder="R$ 0,00"></div>'
       + '    <div class="col-md-4"><label class="form-label-mini">Importar CTe (XML)</label><input type="file" id="freCteArquivo" class="form-control" accept=".xml,text/xml,application/xml" onchange="importarCteFrete(this)"><small class="text-muted">Os dados são lidos do arquivo e o arquivo não fica guardado no sistema.</small></div>'
-      + '    <div class="col-md-3"><label class="form-label-mini">WhatsApp do card</label><input id="frecontato" class="form-control" inputmode="tel" maxlength="15" placeholder="(54) 99950-5407"></div>'
-      + '    <div class="col-md-6"><label class="form-label-mini">Chamada de rodapé do card</label><input id="frerodape" class="form-control" placeholder="SEGURANÇA, AGILIDADE E COMPROMISSO DO CARREGAMENTO À ENTREGA."></div>'
       + '    <div class="col-md-12"><label class="form-label-mini">Observações</label><textarea id="freobs" class="form-control" placeholder="Observações do frete"></textarea></div>'
       + '    <div class="col-md-12 text-end">'
       + '      <button class="btn btn-primary" onclick="salvarFrete()">Salvar</button> '
-      + '      <button class="btn btn-outline-secondary" onclick="limparFormFrete()">Cancelar</button> '
-      + '      <button class="btn btn-success" onclick="preverCardFrete()">🖼️ Gerar Card</button>'
+      + '      <button class="btn btn-outline-secondary" onclick="limparFormFrete()">Cancelar</button>'
       + '    </div>'
       + '  </div>'
       + '</div>'
@@ -377,6 +401,151 @@
       + '    <tbody id="listaFretes"></tbody>'
       + '  </table>'
       + '</div>';
+  }
+
+  function painelCardHTML() {
+    function c(col, rot, campo) { return '    <div class="col-md-' + col + '"><label class="form-label-mini">' + rot + '</label>' + campo + '</div>'; }
+    return ''
+      + '<div class="glass-container">'
+      + '  <h5 class="mb-3">🖼️ Gerar Card do Frete</h5>'
+      + '  <p class="text-muted small">Preencha os dados para gerar o card de divulgação e enviar aos motoristas e proprietários do Cadastro de Terceiros. Nada daqui é salvo no Cadastro de Fretes.</p>'
+      + '  <div class="row g-3">'
+      + c(2, 'UF origem', '<select id="cardorigemuf" class="form-select"></select>')
+      + c(4, 'Cidade origem', '<select id="cardorigemcid" class="form-select"><option value="">Selecione a UF</option></select>')
+      + c(2, 'UF destino', '<select id="carddestinouf" class="form-select"></select>')
+      + c(4, 'Cidade destino', '<select id="carddestinocid" class="form-select"><option value="">Selecione a UF</option></select>')
+      + c(3, 'Distância', '<input id="carddistancia" class="form-control" placeholder="Calculada automaticamente">')
+      + c(3, 'Peso', '<input id="cardpeso" class="form-control" placeholder="Ex.: 12 TONELADAS">')
+      + c(3, 'Tipo de carga', '<input id="cardtipocarga" class="form-control" placeholder="Ex.: Paletizada">')
+      + c(3, 'Tipo de veículo', '<input id="cardtipoveiculo" class="form-control" list="tiposVeiculoLista" placeholder="Ex.: Truck">')
+      + c(3, 'Carregamento', '<input id="cardcarregamento" type="datetime-local" class="form-control">')
+      + c(3, 'Entrega', '<input id="cardentrega" type="datetime-local" class="form-control">')
+      + c(3, 'Valor', '<input id="cardvalor" class="form-control" placeholder="R$ 0,00">')
+      + c(3, 'Carga rastreada', '<select id="cardrastreada" class="form-select"><option>Sim</option><option>Não</option></select>')
+      + c(4, 'WhatsApp do card', '<input id="frecontato" class="form-control" inputmode="tel" maxlength="15" placeholder="(54) 99950-5407">')
+      + c(8, 'Chamada de rodapé do card', '<input id="frerodape" class="form-control" placeholder="SEGURANÇA, AGILIDADE E COMPROMISSO DO CARREGAMENTO À ENTREGA.">')
+      + '    <div class="col-md-12 text-end">'
+      + '      <button class="btn btn-outline-secondary" onclick="limparCardFrete()">Limpar</button> '
+      + '      <button class="btn btn-success" onclick="gerarCardSelecionado()">🖼️ Gerar Card</button> '
+      + '      <button class="btn btn-primary" onclick="enviarCardTerceiros()">💬 Enviar para terceiros</button>'
+      + '    </div>'
+      + '  </div>'
+      + '</div>';
+  }
+
+  function cardRota(ufId, cidId) {
+    var uf = val(ufId), cid = val(cidId);
+    return uf && cid ? cid + '-' + uf : '';
+  }
+  var cardDistToken = 0;
+  function cardDistancia() {
+    var o = cardRota('cardorigemuf', 'cardorigemcid'), d = cardRota('carddestinouf', 'carddestinocid');
+    var campo = document.getElementById('carddistancia');
+    if (!campo || !o || !d) return;
+    if (o === d) { campo.value = '0 km'; return; }
+    var chave = 'FM_DIST_' + o + '|' + d, cc = cacheGet(chave);
+    if (cc && cc.txt) { campo.value = cc.txt; return; }
+    var meu = ++cardDistToken;
+    campo.value = 'Calculando...';
+    Promise.all([geocodificar(o), geocodificar(d)]).then(function (p) {
+      if (meu !== cardDistToken) return;
+      if (!p[0] || !p[1]) { campo.value = ''; return; }
+      return fetch('https://router.project-osrm.org/route/v1/driving/' + p[0].lon + ',' + p[0].lat + ';' + p[1].lon + ',' + p[1].lat + '?overview=false')
+        .then(function (r) { return r.json(); })
+        .then(function (j) { return (j && j.routes && j.routes[0]) ? j.routes[0].distance / 1000 : haversine(p[0], p[1]) * 1.25; })
+        .catch(function () { return haversine(p[0], p[1]) * 1.25; })
+        .then(function (km) { if (meu !== cardDistToken) return; var t = kmTexto(km); cacheSet(chave, { txt: t }); campo.value = t; });
+    });
+  }
+
+  window.renderAbaCard = function () {
+    [['cardorigemuf', 'cardorigemcid'], ['carddestinouf', 'carddestinocid']].forEach(function (par) {
+      var uf = document.getElementById(par[0]), cid = document.getElementById(par[1]);
+      if (!uf || uf.dataset.lig) return;
+      uf.dataset.lig = '1';
+      preencherUFs(uf);
+      uf.addEventListener('change', function () { carregarCidades(par[0], par[1], ''); });
+      cid.addEventListener('change', cardDistancia);
+    });
+    var v = document.getElementById('cardvalor');
+    if (v && !v.dataset.lig) {
+      v.dataset.lig = '1';
+      v.addEventListener('blur', function () { if (v.value) v.value = moedaBR(v.value); });
+    }
+  };
+  window.carregarDadosCard = function () {};
+
+  function coletarCard() {
+    return {
+      freorigem: cardRota('cardorigemuf', 'cardorigemcid'),
+      fredestino: cardRota('carddestinouf', 'carddestinocid'),
+      fredistancia: val('carddistancia'),
+      frepeso: val('cardpeso'),
+      fretipocarga: val('cardtipocarga'),
+      fretipoveiculo: val('cardtipoveiculo'),
+      frecarregamento: val('cardcarregamento'),
+      freentrega: val('cardentrega'),
+      frerastreada: val('cardrastreada') || 'Sim',
+      frevalor: val('cardvalor') ? moedaBR(val('cardvalor')) : '',
+      frestatus: 'Disponível',
+      frecontato: telefoneBR(val('frecontato')),
+      frerodape: val('frerodape')
+    };
+  }
+
+  window.limparCardFrete = function () {
+    ['cardorigemuf', 'carddestinouf', 'carddistancia', 'cardpeso', 'cardtipocarga', 'cardtipoveiculo', 'cardcarregamento', 'cardentrega', 'cardvalor', 'frecontato', 'frerodape'].forEach(function (id) { setVal(id, ''); });
+    ['cardorigemcid', 'carddestinocid'].forEach(function (id) { var s = document.getElementById(id); if (s) s.innerHTML = '<option value="">Selecione a UF</option>'; });
+    setVal('cardrastreada', 'Sim');
+    freteAtual = null; cardPronto = false;
+  };
+
+  window.gerarCardSelecionado = function () {
+    window.preverCardFrete(coletarCard());
+  };
+
+  window.enviarCardTerceiros = function () {
+    var f = coletarCard();
+    if (!f.freorigem || !f.fredestino) { alert('Preencha origem e destino para gerar o card.'); return; }
+    freteAtual = f; cardPronto = false;
+    desenharCard(freteAtual).then(function () {
+      document.getElementById('modalCardFrete').classList.add('aberto');
+      window.abrirEnvioWhats();
+    });
+  };
+
+  // soma automatica dos fretes pagos a cada terceiro (vem do Cadastro de Fretes)
+  function normTxt(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase(); }
+  function rotuloTerceiro(t) {
+    return (t.terempresa || t.ternome || t.terproprietario || 'Terceiro') + (t.terplaca ? ' — ' + t.terplaca : '');
+  }
+  function valorNum(v) {
+    var n = parseFloat(String(v || '0').replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+  }
+  window.fmFretesDoTerceiro = function (t) {
+    var rot = normTxt(rotuloTerceiro(t || {})), placa = normTxt((t || {}).terplaca);
+    var qtd = 0, total = 0;
+    fretes.forEach(function (f) {
+      if (f.freexecucao !== 'terceiro' || String(f.frestatus || '') === 'Cancelado') return;
+      var alvo = normTxt(f.freterceiro);
+      if (!alvo || !(alvo === rot || (placa && alvo.slice(-placa.length) === placa))) return;
+      qtd++; total += valorNum(f.frecustoterceiro || f.frevalor);
+    });
+    return { qtd: qtd, total: total, texto: total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) };
+  };
+
+  // tipo de veiculo preenchido automaticamente pelo veiculo escolhido no frete
+  function preencherTipoPeloVinculo() {
+    var tipo = '';
+    if (val('freexecucao') === 'terceiro') {
+      var t = listaArr('terceiros').filter(function (x) { return rotuloTerceiro(x) === val('freterceiro'); })[0];
+      tipo = t ? (t.tertipoveiculo || '') : '';
+    } else {
+      var v = listaArr('veiculos').filter(function (x) { return x.vplaca === val('freveiculo'); })[0];
+      tipo = v ? (v.vtipo || '') : '';
+    }
+    if (tipo) setVal('fretipoveiculo', tipo);
   }
 
   function modaisHTML() {
@@ -435,7 +604,8 @@
     nav.className = 'fm-subabas';
     nav.innerHTML = ''
       + '<button type="button" class="fm-subaba active" data-alvo="subTerCadastro">👤 Cadastro de Terceiros</button>'
-      + '<button type="button" class="fm-subaba" data-alvo="subTerFretes">🚚 Cadastro de Fretes</button>';
+      + '<button type="button" class="fm-subaba" data-alvo="subTerFretes">🚚 Cadastro de Fretes</button>'
+      + '<button type="button" class="fm-subaba" data-alvo="subTerCard">🖼️ Gerar Card</button>';
 
     var painelFre = document.createElement('div');
     painelFre.id = 'subTerFretes';
@@ -445,6 +615,15 @@
     mod.appendChild(nav);
     mod.appendChild(painelCad);
     mod.appendChild(painelFre);
+    var painelCard = document.createElement('div');
+    painelCard.id = 'subTerCard';
+    painelCard.className = 'hidden';
+    painelCard.innerHTML = painelCardHTML();
+    mod.appendChild(painelCard);
+    ['freveiculo', 'freterceiro'].forEach(function (id) {
+      var e = document.getElementById(id);
+      if (e) e.addEventListener('change', preencherTipoPeloVinculo);
+    });
 
     aplicarMascaras();
     initLocalidades();
@@ -458,11 +637,12 @@
       if (!btn) return;
       nav.querySelectorAll('.fm-subaba').forEach(function (b) { b.classList.remove('active'); });
       btn.classList.add('active');
-      ['subTerCadastro', 'subTerFretes'].forEach(function (id) {
+      ['subTerCadastro', 'subTerFretes', 'subTerCard'].forEach(function (id) {
         var p = document.getElementById(id);
         if (p) p.classList.toggle('hidden', id !== btn.dataset.alvo);
       });
       if (btn.dataset.alvo === 'subTerFretes') renderFretes();
+      if (btn.dataset.alvo === 'subTerCard') window.renderAbaCard();
     });
 
     renderFretes();
@@ -514,7 +694,12 @@
       var h = '<option value="">' + (uf ? 'Selecione a cidade' : 'Selecione a UF') + '</option>';
       nomes.forEach(function (n) { h += '<option value="' + esc(n) + '">' + esc(n) + '</option>'; });
       sel.innerHTML = h;
-      if (selecionar) sel.value = selecionar;
+      if (selecionar) {
+        var norm = function (t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase(); };
+        var alvo = norm(selecionar);
+        var op = Array.prototype.filter.call(sel.options, function (o) { return o.value && norm(o.value) === alvo; })[0];
+        sel.value = op ? op.value : selecionar;
+      }
       sincronizarRota();
     });
   }
@@ -667,8 +852,6 @@
       freveiculo: val('freexecucao') === 'terceiro' ? '' : val('freveiculo'),
       freterceiro: val('freexecucao') === 'terceiro' ? val('freterceiro') : '',
       frecustoterceiro: val('freexecucao') === 'terceiro' ? moedaBR(val('frecustoterceiro')) : '',
-      frecontato: telefoneBR(val('frecontato')),
-      frerodape: val('frerodape'),
       freobs: val('freobs')
     };
   }
@@ -700,13 +883,9 @@
     });
     window.limparFormFrete();
     renderFretes();
-    // card gerado automaticamente e ja pronto para compartilhar
-    freteAtual = obj;
-    cardPronto = false;
-    desenharCard(obj).then(function () {
-      var m = document.getElementById('modalCardFrete');
-      if (m) m.classList.add('aberto');
-    });
+    // o card agora e gerado na aba exclusiva "Gerar Card"
+    if (typeof window.renderAbaCard === 'function') window.renderAbaCard();
+    try { if (typeof renderModulo === 'function') renderModulo('terceiros'); } catch (e) {}
   };
 
   window.limparFormFrete = function () {
@@ -782,8 +961,6 @@
         + '<td>' + esc(f.frestatus) + '</td>'
         + '<td class="col-acoes">'
         + '<button class="btn btn-sm btn-outline-primary" title="Editar" onclick="editarFrete(' + i + ')">✏️</button> '
-        + '<button class="btn btn-sm btn-outline-success" title="Ver card" onclick="preverCardFrete(' + i + ')">🖼️</button> '
-        + '<button class="btn btn-sm btn-success" title="Enviar no WhatsApp" onclick="enviarFreteWhats(' + i + ')">💬</button> '
         + '<button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="excluirFrete(' + i + ')">🗑️</button>'
         + '</td></tr>';
     });
@@ -1236,7 +1413,7 @@
 
   // garante que exista um frete atual e que o card esteja desenhado
   function garantirCard() {
-    if (!freteAtual) freteAtual = coletar();
+    if (!freteAtual) freteAtual = coletarCard();
     if (!freteAtual || (!freteAtual.freorigem && !freteAtual.fredestino)) {
       return Promise.resolve(false);
     }
@@ -1245,7 +1422,7 @@
   }
 
   window.preverCardFrete = function (i) {
-    freteAtual = (typeof i === 'number') ? fretes[i] : coletar();
+    freteAtual = (i && typeof i === 'object') ? i : coletarCard();
     cardPronto = false;
     if (!freteAtual || (!freteAtual.freorigem && !freteAtual.fredestino)) {
       alert('Preencha origem e destino para gerar o card.');
@@ -1473,16 +1650,6 @@
 
   window.fecharEnvioWhats = function () {
     document.getElementById('modalEnvioWhats').classList.remove('aberto');
-  };
-
-  window.enviarFreteWhats = function (i) {
-    freteAtual = fretes[i];
-    if (!freteAtual) return;
-    cardPronto = false;
-    desenharCard(freteAtual).then(function () {
-      document.getElementById('modalCardFrete').classList.add('aberto');
-      window.abrirEnvioWhats();
-    });
   };
 
   function init() {
