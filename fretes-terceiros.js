@@ -920,6 +920,46 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  window.verFrete = function (i) {
+    var f = fretes[i]; if (!f) return;
+    function rotulo(k) {
+      var el = document.getElementById(k), lb = null;
+      if (el) {
+        lb = document.querySelector('label[for="' + k + '"]');
+        if (!lb) { var p = el.parentElement; while (p && !lb && p !== document.body) { lb = p.querySelector('label'); if (lb && lb.contains(el)) break; p = lb ? p : p.parentElement; } }
+        if (!lb && el.placeholder) return el.placeholder;
+      }
+      var t = lb ? lb.textContent.trim() : '';
+      return t || k.replace(/^fre_?/, '').replace(/^\w/, function (c) { return c.toUpperCase(); });
+    }
+    function fmt(k, v) {
+      if (k === 'frevalor' || k === 'frecustoterceiro') return moedaBR(v);
+      if (k === 'frecontato') return telefoneBR(v);
+      if (/^\d{4}-\d{2}-\d{2}T/.test(v)) return dataHoraBR(v);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return dataBR(v);
+      if (k === 'freexecucao') return v === 'terceiro' ? 'Terceiro' : 'Frota própria';
+      return v;
+    }
+    var linhas = '';
+    Object.keys(f).forEach(function (k) {
+      var v = f[k];
+      if (k === 'fre_idx' || k === 'id' || v === null || v === undefined || v === '' || typeof v === 'object') return;
+      linhas += '<tr><th style="width:40%;color:#64748b;font-weight:600">' + esc(rotulo(k)) + '</th><td style="white-space:pre-wrap">' + esc(String(fmt(k, v))) + '</td></tr>';
+    });
+    var m = document.getElementById('fmModalVerFrete');
+    if (!m) {
+      m = document.createElement('div'); m.id = 'fmModalVerFrete'; m.className = 'fm-modal';
+      m.addEventListener('click', function (e) { if (e.target === m) m.classList.remove('aberto'); });
+      document.body.appendChild(m);
+    }
+    m.innerHTML = '<div class="fm-modal-box"><div class="fm-modal-head"><strong>👁️ Detalhes do frete</strong>'
+      + '<button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById(\'fmModalVerFrete\').classList.remove(\'aberto\')">✕</button></div>'
+      + '<div class="fm-modal-body"><table class="table table-sm mb-0"><tbody>' + (linhas || '<tr><td>Sem informações.</td></tr>') + '</tbody></table></div>'
+      + '<div class="fm-modal-foot"><button class="btn btn-primary" onclick="document.getElementById(\'fmModalVerFrete\').classList.remove(\'aberto\');editarFrete(' + i + ')">✏️ Editar</button>'
+      + '<button class="btn btn-secondary" onclick="document.getElementById(\'fmModalVerFrete\').classList.remove(\'aberto\')">Fechar</button></div></div>';
+    m.classList.add('aberto');
+  };
+
   window.excluirFrete = function (i) {
     if (!confirm('Excluir este frete?')) return;
     fretes.splice(i, 1);
@@ -960,6 +1000,7 @@
         + '<td class="money">' + esc(f.frevalor) + '</td>'
         + '<td>' + esc(f.frestatus) + '</td>'
         + '<td class="col-acoes">'
+        + '<button class="btn btn-sm btn-outline-secondary" title="Visualizar" onclick="verFrete(' + i + ')">👁️</button> '
         + '<button class="btn btn-sm btn-outline-primary" title="Editar" onclick="editarFrete(' + i + ')">✏️</button> '
         + '<button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="excluirFrete(' + i + ')">🗑️</button>'
         + '</td></tr>';
