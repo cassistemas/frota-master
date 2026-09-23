@@ -199,17 +199,122 @@
     return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
   }
   function aplicarMascaras() {
-    var v = document.getElementById('frevalor');
-    if (v && !v.dataset.mask) {
-      v.dataset.mask = '1';
-      v.addEventListener('input', function () { v.value = moedaBR(v.value); });
-    }
+    ['frevalor', 'frecustoterceiro'].forEach(function (id) {
+      var v = document.getElementById(id);
+      if (v && !v.dataset.mask) {
+        v.dataset.mask = '1';
+        v.addEventListener('input', function () { v.value = moedaBR(v.value); });
+      }
+    });
     var t = document.getElementById('frecontato');
     if (t && !t.dataset.mask) {
       t.dataset.mask = '1';
       t.addEventListener('input', function () { t.value = telefoneBR(t.value); });
     }
   }
+
+  /* ------- vinculo do frete: veiculo proprio ou terceiro contratado ------- */
+  function listaArr(k) {
+    try { return (typeof db !== 'undefined' && Array.isArray(db[k])) ? db[k] : []; } catch (e) { return []; }
+  }
+  function preencherSelectsFrete() {
+    var sv = document.getElementById('freveiculo');
+    if (sv) {
+      var atual = sv.value;
+      var opc = listaArr('veiculos')
+        .filter(function (v) { return v && v.vplaca && String(v.vstatus || '').trim().toUpperCase() !== 'VENDIDO'; })
+        .sort(function (a, b) { return String(a.vplaca).localeCompare(String(b.vplaca)); })
+        .map(function (v) {
+          var rot = v.vplaca + (v.vmodelo ? ' — ' + v.vmodelo : '');
+          return '<option value="' + esc(v.vplaca) + '">' + esc(rot) + '</option>';
+        }).join('');
+      sv.innerHTML = '<option value="">Selecione o veículo</option>' + opc;
+      sv.value = atual;
+    }
+    var st = document.getElementById('freterceiro');
+    if (st) {
+      var atualT = st.value;
+      var opcT = listaArr('terceiros').map(function (t) {
+        var rot = (t.terempresa || t.ternome || t.terproprietario || 'Terceiro')
+          + (t.terplaca ? ' — ' + t.terplaca : '');
+        return '<option value="' + esc(rot) + '">' + esc(rot) + '</option>';
+      }).join('');
+      st.innerHTML = '<option value="">Selecione o terceiro</option>' + opcT;
+      st.value = atualT;
+    }
+  }
+  window.alternarExecucaoFrete = function () {
+    var terceiro = val('freexecucao') === 'terceiro';
+    [['grpFreVeiculo', !terceiro], ['grpFreTerceiro', terceiro], ['grpFreCustoTerceiro', terceiro]]
+      .forEach(function (p) {
+        var el = document.getElementById(p[0]);
+        if (el) el.classList.toggle('hidden', !p[1]);
+      });
+  };
+
+  /* ---------------- importacao do CTe (XML) ---------------- */
+  function txtTag(doc, nome) {
+    var ns = doc.getElementsByTagName(nome);
+    return ns && ns[0] ? String(ns[0].textContent || '').trim() : '';
+  }
+  function aplicarCte(xmlTexto) {
+    var doc = new DOMParser().parseFromString(xmlTexto, 'text/xml');
+    if (!doc || doc.getElementsByTagName('parsererror').length) return false;
+    if (!doc.getElementsByTagName('infCte').length) return false;
+    var emi = doc.getElementsByTagName('emit')[0];
+    var transportadora = emi ? String((emi.getElementsByTagName('xNome')[0] || {}).textContent || '').trim() : '';
+    var dh = txtTag(doc, 'dhEmi') || txtTag(doc, 'dEmi');
+    if (dh) setVal('fredata', String(dh).slice(0, 10));
+    var oCid = txtTag(doc, 'xMunIni'), oUf = txtTag(doc, 'UFIni');
+    var dCid = txtTag(doc, 'xMunFim'), dUf = txtTag(doc, 'UFFim');
+    if (oCid && oUf) setVal('freorigem', oCid + '-' + oUf);
+    if (dCid && dUf) setVal('fredestino', dCid + '-' + dUf);
+    var valor = txtTag(doc, 'vTPrest') || txtTag(doc, 'vRec') || txtTag(doc, 'vPrest');
+    var predominante = txtTag(doc, 'proPred');
+    if (predominante) setVal('fretipocarga', predominante);
+    var peso = '', m3 = '';
+    Array.prototype.forEach.call(doc.getElementsByTagName('infQ'), function (q) {
+      var un = String((q.getElementsByTagName('cUnid')[0] || {}).textContent || '').trim();
+      var tp = String((q.getElementsByTagName('tpMed')[0] || {}).textContent || '').trim().toUpperCase();
+      var qt = Number(String((q.getElementsByTagName('qCarga')[0] || {}).textContent || '0').replace(',', '.')) || 0;
+      if (!qt) return;
+      if (un === '00' || tp.indexOf('M3') !== -1 || tp.indexOf('CUB') !== -1) m3 = qt;
+      else if (un === '01' || tp.indexOf('PESO') !== -1) peso = qt;
+    });
+    if (peso !== '') setVal('frepeso', (peso >= 1000 ? (peso / 1000) : peso).toLocaleString('pt-BR') + ' TONELADAS');
+    if (m3 !== '') setVal('frevolume', m3);
+    if (valor) {
+      var reais = Number(String(valor).replace(',', '.')) || 0;
+      var mascarado = moedaBR(String(Math.round(reais * 100)));
+      if (val('freexecucao') === 'terceiro') setVal('frecustoterceiro', mascarado);
+      else setVal('frevalor', mascarado);
+    }
+    if (transportadora && val('freexecucao') === 'terceiro') {
+      var st = document.getElementById('freterceiro');
+      if (st) {
+        var achou = Array.prototype.filter.call(st.options, function (o) {
+          return o.value && transportadora.toUpperCase().indexOf(String(o.value).split(' — ')[0].toUpperCase()) !== -1;
+        })[0];
+        if (achou) st.value = achou.value;
+      }
+    }
+    aplicarRotaNosSelects({ freorigem: val('freorigem'), fredestino: val('fredestino') });
+    return true;
+  }
+  window.importarCteFrete = function (input) {
+    var arq = input && input.files && input.files[0];
+    if (!arq) return;
+    var leitor = new FileReader();
+    leitor.onload = function () {
+      var ok = false;
+      try { ok = aplicarCte(String(leitor.result || '')); } catch (e) { ok = false; }
+      input.value = '';
+      if (ok) alert('Dados do CTe importados. Confira os campos e clique em Salvar.');
+      else alert('Não foi possível ler este arquivo como CTe. Envie o XML original do CTe.');
+    };
+    leitor.onerror = function () { input.value = ''; alert('Não foi possível ler o arquivo.'); };
+    leitor.readAsText(arq, 'UTF-8');
+  };
 
   function telWhats(tel) {
     var d = soDigitos(tel);
@@ -239,6 +344,12 @@
       + '    <div class="col-md-2"><label class="form-label-mini">Valor do Frete</label><input id="frevalor" class="form-control" inputmode="numeric" placeholder="R$ 0,00"></div>'
       + '    <div class="col-md-2"><label class="form-label-mini">Status</label><select id="frestatus" class="form-select"><option value="Disponível">Disponível</option><option value="Fechado">Fechado</option><option value="Cancelado">Cancelado</option></select></div>'
       + '    <div class="col-md-3"><label class="form-label-mini">Tipo de Veículo</label><input id="fretipoveiculo" class="form-control" placeholder="Carreta / Truck"></div>'
+      + '    <div class="col-md-2"><label class="form-label-mini">Volume (m³)</label><input id="frevolume" type="number" min="0" step="0.001" class="form-control" placeholder="0"></div>'
+      + '    <div class="col-md-2"><label class="form-label-mini">Quem executou</label><select id="freexecucao" class="form-select" onchange="alternarExecucaoFrete()"><option value="propria">Frota própria</option><option value="terceiro">Terceiro</option></select></div>'
+      + '    <div class="col-md-3" id="grpFreVeiculo"><label class="form-label-mini">Veículo próprio</label><select id="freveiculo" class="form-select"></select></div>'
+      + '    <div class="col-md-3 hidden" id="grpFreTerceiro"><label class="form-label-mini">Terceiro contratado</label><select id="freterceiro" class="form-select"></select></div>'
+      + '    <div class="col-md-2 hidden" id="grpFreCustoTerceiro"><label class="form-label-mini">Valor pago ao terceiro</label><input id="frecustoterceiro" class="form-control" inputmode="numeric" placeholder="R$ 0,00"></div>'
+      + '    <div class="col-md-4"><label class="form-label-mini">Importar CTe (XML)</label><input type="file" id="freCteArquivo" class="form-control" accept=".xml,text/xml,application/xml" onchange="importarCteFrete(this)"><small class="text-muted">Os dados são lidos do arquivo e o arquivo não fica guardado no sistema.</small></div>'
       + '    <div class="col-md-3"><label class="form-label-mini">WhatsApp do card</label><input id="frecontato" class="form-control" inputmode="tel" maxlength="15" placeholder="(54) 99950-5407"></div>'
       + '    <div class="col-md-6"><label class="form-label-mini">Chamada de rodapé do card</label><input id="frerodape" class="form-control" placeholder="SEGURANÇA, AGILIDADE E COMPROMISSO DO CARREGAMENTO À ENTREGA."></div>'
       + '    <div class="col-md-12"><label class="form-label-mini">Observações</label><textarea id="freobs" class="form-control" placeholder="Observações do frete"></textarea></div>'
@@ -260,7 +371,7 @@
       + '<div class="table-responsive tabela-terceiros">'
       + '  <table class="table table-sm align-middle">'
       + '    <thead><tr>'
-      + '      <th>Data</th><th>Origem</th><th>Destino</th><th>Peso</th><th>Carregamento</th>'
+      + '      <th>Data</th><th>Origem</th><th>Destino</th><th>Peso</th><th>Quem executou</th><th>Carregamento</th>'
       + '      <th>Entrega</th><th>Rastreada</th><th>Valor</th><th>Status</th><th class="col-acoes">Ações</th>'
       + '    </tr></thead>'
       + '    <tbody id="listaFretes"></tbody>'
@@ -551,6 +662,11 @@
       frevalor: moedaBR(val('frevalor')),
       frestatus: val('frestatus') || 'Disponível',
       fretipoveiculo: val('fretipoveiculo'),
+      frevolume: val('frevolume'),
+      freexecucao: val('freexecucao') === 'terceiro' ? 'terceiro' : 'propria',
+      freveiculo: val('freexecucao') === 'terceiro' ? '' : val('freveiculo'),
+      freterceiro: val('freexecucao') === 'terceiro' ? val('freterceiro') : '',
+      frecustoterceiro: val('freexecucao') === 'terceiro' ? moedaBR(val('frecustoterceiro')) : '',
       frecontato: telefoneBR(val('frecontato')),
       frerodape: val('frerodape'),
       freobs: val('freobs')
@@ -595,21 +711,27 @@
 
   window.limparFormFrete = function () {
     ['fredata', 'freorigem', 'fredestino', 'fredistancia', 'frepeso', 'fretipocarga', 'frecarregamento',
-      'freentrega', 'frevalor', 'fretipoveiculo', 'frecontato', 'frerodape', 'freobs', 'fre_idx']
+      'freentrega', 'frevalor', 'fretipoveiculo', 'frecontato', 'frerodape', 'freobs', 'fre_idx',
+      'frevolume', 'freveiculo', 'freterceiro', 'frecustoterceiro']
       .forEach(function (id) { setVal(id, ''); });
     setVal('freorigemuf', ''); setVal('fredestinouf', '');
     carregarCidades('freorigemuf', 'freorigemcid', '');
     carregarCidades('fredestinouf', 'fredestinocid', '');
     setVal('frerastreada', '');
     setVal('frestatus', '');
+    setVal('freexecucao', 'propria');
+    window.alternarExecucaoFrete();
     if (typeof window.fmSincronizarValoresBuscasCadastro === 'function') window.fmSincronizarValoresBuscasCadastro();
   };
 
   window.editarFrete = function (i) {
     var f = fretes[i]; if (!f) return;
+    preencherSelectsFrete();
+    setVal('freexecucao', f.freexecucao === 'terceiro' ? 'terceiro' : 'propria');
+    window.alternarExecucaoFrete();
     Object.keys(f).forEach(function (k) {
       var valor = f[k];
-      if (k === 'frevalor') valor = moedaBR(valor);
+      if (k === 'frevalor' || k === 'frecustoterceiro') valor = moedaBR(valor);
       if (k === 'frecontato') valor = telefoneBR(valor);
       setVal(k, valor);
     });
@@ -636,6 +758,7 @@
   window.renderFretes = function renderFretes() {
     var tb = document.getElementById('listaFretes');
     if (!tb) return;
+    preencherSelectsFrete();
     var busca = (val('filtroFreBusca') || '').toLowerCase();
     var st = val('filtroFreStatus');
     var html = '';
@@ -643,11 +766,15 @@
       var texto = [f.freorigem, f.fredestino, f.fretipocarga, f.fretipoveiculo, f.freobs].join(' ').toLowerCase();
       if (busca && texto.indexOf(busca) === -1) return;
       if (st && f.frestatus !== st) return;
+      var quem = f.freexecucao === 'terceiro'
+        ? (f.freterceiro ? 'Terceiro: ' + f.freterceiro : 'Terceiro')
+        : (f.freveiculo ? 'Própria: ' + f.freveiculo : 'Frota própria');
       html += '<tr>'
         + '<td>' + esc(dataBR(f.fredata)) + '</td>'
         + '<td>' + esc(f.freorigem) + '</td>'
         + '<td>' + esc(f.fredestino) + '</td>'
         + '<td>' + esc(f.frepeso) + '</td>'
+        + '<td>' + esc(quem) + '</td>'
         + '<td>' + esc(dataHoraBR(f.frecarregamento)) + '</td>'
         + '<td>' + esc(dataHoraBR(f.freentrega)) + '</td>'
         + '<td>' + esc(f.frerastreada) + '</td>'
@@ -660,9 +787,10 @@
         + '<button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="excluirFrete(' + i + ')">🗑️</button>'
         + '</td></tr>';
     });
-    tb.innerHTML = html || '<tr><td colspan="10" class="text-center text-muted">Nenhum frete cadastrado.</td></tr>';
+    tb.innerHTML = html || '<tr><td colspan="11" class="text-center text-muted">Nenhum frete cadastrado.</td></tr>';
   };
   var renderFretes = window.renderFretes;
+
 
   /* ---------------- card (canvas) ---------------- */
   var freteAtual = null;
