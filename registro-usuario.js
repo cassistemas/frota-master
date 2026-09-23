@@ -88,6 +88,7 @@
     editarQuilometragem: "quilometragens", excluirQuilometragem: "quilometragens",
     editarProducaoFrota: "producoes", excluirProducaoFrota: "producoes",
     editarDepreciacaoFrota: "gestaoDepreciacoes", excluirDepreciacaoFrota: "gestaoDepreciacoes",
+    editarImplementoFrota: "implementos", excluirImplementoFrota: "implementos", transferirImplementoFrota: "implementos",
     editarEventoPneuFrota: "eventosPneus", excluirEventoPneu: "eventosPneus"
   };
 
