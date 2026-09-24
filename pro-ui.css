@@ -916,3 +916,8 @@ tr.pneu-detalhe > td{background:#f8fafc;border-top:0}
 .fm-status-rapido.fm-status-multa[data-status="Pago"]{color:#166534!important;border-color:#86efac!important;background-color:#dcfce7!important}
 .fm-status-rapido.fm-status-multa[data-status="Recurso"]{color:#92400e!important;border-color:#fcd34d!important;background-color:#fef3c7!important}
 .fm-status-rapido.fm-status-multa[data-status="Enviadas RH"]{color:#1e40af!important;border-color:#93c5fd!important;background-color:#dbeafe!important}
+
+/* Férias: campo de busca de motorista igual aos demais e lista visível */
+.ferias-field.fm-busca-container{overflow:visible}
+.ferias-field .fm-busca-cadastro{width:100%;min-height:25px;height:25px;padding:1px 9px 6px!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;color:#334155;font-size:.74rem}
+.ferias-field .fm-busca-lista{left:0;right:0}

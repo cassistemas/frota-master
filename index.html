@@ -21,7 +21,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="./pro-ui.css?v=20260924-3">
+    <link rel="stylesheet" href="./pro-ui.css?v=20260924-5">
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=1">
@@ -752,9 +752,30 @@ Criar Conta
 </div>
 
 <div class="col-md-3">
-    <input id="tertipoveiculo"
-           class="form-control"
-           placeholder="Tipo Veículo">
+    <select id="tertipoveiculo" class="form-select" title="Mesmas opções do Cadastro de Veículos">
+        <option value="">Tipo Veículo</option>
+        <option value="VUC">VUC</option>
+        <option value="3/4">3/4</option>
+        <option value="Toco">Toco</option>
+        <option value="Truck">Truck</option>
+        <option value="Carreta">Carreta</option>
+        <option value="Bitrem">Bitrem</option>
+        <option value="Rodotrem">Rodotrem</option>
+    </select>
+    <script>
+    (function(){
+      function norm(t){var s=String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+        if(!s)return '';if(s.indexOf('RODOTREM')>-1)return 'Rodotrem';if(s.indexOf('BITREM')>-1)return 'Bitrem';
+        if(s.indexOf('CARRETA')>-1||s.indexOf('CAVALO')>-1)return 'Carreta';if(s.indexOf('TRUCK')>-1||s.indexOf('TRUCADO')>-1)return 'Truck';
+        if(s.indexOf('TOCO')>-1)return 'Toco';if(s.indexOf('34')>-1||s.indexOf('TRESQUARTOS')>-1)return '3/4';if(s.indexOf('VUC')>-1)return 'VUC';return '';}
+      window.addEventListener('load',function(){
+        var orig=window.editar; if(typeof orig!=='function')return;
+        window.editar=function(mod,i){var r=orig.apply(this,arguments);
+          if(mod==='terceiros'){var it=((window.db||{}).terceiros||[])[i]||{};var el=document.getElementById('tertipoveiculo');if(el)el.value=norm(it.tertipoveiculo);}
+          return r;};
+      });
+    })();
+    </script>
 </div>
 
 <div class="col-md-2">
@@ -1546,7 +1567,7 @@ onclick="exportarExcel('saidaVeiculos')">
         <option value="Sim">Indicação: Sim</option>
     </select>
 </div>
-<div class="col-md-12">
+<div class="col-md-12" style="display:none" aria-hidden="true">
     <label>Arquivos (opcional)</label>
     <input type="file" id="muarquivos" class="form-control" multiple>
 </div>
@@ -4609,7 +4630,7 @@ function intervaloFeriasConflita(inicioA, fimA, inicioB, fimB){
 
 function salvarFerias(){
     const idx = document.getElementById('fe_idx').value;
-    const motorista = document.getElementById('femotorista').value;
+    const motorista = (document.getElementById("femotorista")||{}).value;
     const inicio = document.getElementById('feinicio').value;
     const fim = document.getElementById('fefim').value;
     const retorno = document.getElementById('feretorno').value;
@@ -9693,7 +9714,7 @@ style="width:100%; height:400px; border:none;">
 <script src="./fretes-terceiros.js?v=20260924-1"></script>
 <script src="./enter-universal.js?v=1"></script>
 <script src="./campos-busca.js?v=20260911-5"></script>
-<script src="./custos-frota.js?v=20260924-5"></script>
+<script src="./custos-frota.js?v=20260924-9"></script>
 <script src="./resultado-frota.js?v=20260924-3"></script>
 <script src="./producao-xml.js?v=2"></script>
 
