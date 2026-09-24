@@ -911,3 +911,8 @@ tr.pneu-detalhe > td{background:#f8fafc;border-top:0}
 /* Ações inline na tabela de pneus (olho + editar + excluir) */
 .pneu-acoes-linha{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end}
 .pneu-acoes-linha .btn-edit,.pneu-acoes-linha .btn-del{line-height:1}
+/* Multas: cor própria para cada status */
+.fm-status-rapido.fm-status-multa[data-status="Pendente"]{color:#991b1b!important;border-color:#fca5a5!important;background-color:#fee2e2!important}
+.fm-status-rapido.fm-status-multa[data-status="Pago"]{color:#166534!important;border-color:#86efac!important;background-color:#dcfce7!important}
+.fm-status-rapido.fm-status-multa[data-status="Recurso"]{color:#92400e!important;border-color:#fcd34d!important;background-color:#fef3c7!important}
+.fm-status-rapido.fm-status-multa[data-status="Enviadas RH"]{color:#1e40af!important;border-color:#93c5fd!important;background-color:#dbeafe!important}

@@ -21,7 +21,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="./pro-ui.css?v=20260924-2">
+    <link rel="stylesheet" href="./pro-ui.css?v=20260924-3">
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=1">
@@ -5431,6 +5431,7 @@ function fmAplicarCorStatus(seletor, valor){
     if(!seletor || !seletor.classList) return;
     ['fm-status-cor-ok','fm-status-cor-alerta','fm-status-cor-critico','fm-status-cor-info','fm-status-cor-neutro'].forEach(classe => seletor.classList.remove(classe));
     seletor.classList.add(fmClasseStatusCor(valor));
+    seletor.setAttribute('data-status', String(valor == null ? '' : valor));
 }
 
 function fmSincronizarReservaPorStatus(status){
@@ -5447,7 +5448,7 @@ function fmSeletorStatusManual(modulo, indice, valorAtual, classeExtra){
     const config = FM_STATUS_MANUAIS[modulo];
     if(!config) return String(valorAtual || '--');
     const atual = config.valores.includes(valorAtual) ? valorAtual : config.valores[0];
-    return `<select class="form-select form-select-sm fw-semibold fm-status-rapido ${classeExtra || ''} ${fmClasseStatusCor(atual)}" aria-label="Alterar status" onchange="fmAlterarStatusManual('${modulo}',${Number(indice)},this.value,this)">
+    return `<select class="form-select form-select-sm fw-semibold fm-status-rapido ${classeExtra || ''} ${fmClasseStatusCor(atual)}" data-status="${atual}" aria-label="Alterar status" onchange="fmAlterarStatusManual('${modulo}',${Number(indice)},this.value,this)">
         ${config.valores.map(valor => `<option value="${valor}" ${atual === valor ? 'selected' : ''}>${valor}</option>`).join('')}
     </select>`;
 }
