@@ -1186,21 +1186,11 @@ if(modulo === 'terceiros'){
 
     const totalTerceiros = dados.length;
 
-    const totalContratacoes = dados.filter(t =>
-        t.terfrete && t.terfrete !== ""
-    ).length;
+    const fretesTer = t => (window.fmFretesDoTerceiro ? window.fmFretesDoTerceiro(t) : { qtd: 0, total: 0 });
 
-    const valorTotalFretes = dados.reduce((total, t) => {
+    const totalContratacoes = dados.reduce((n, t) => n + fretesTer(t).qtd, 0);
 
-        let valor = String(t.terfrete || "0")
-            .replace("R$", "")
-            .replace(/\s/g, "")
-            .replace(/\./g, "")
-            .replace(",", ".");
-
-        return total + (parseFloat(valor) || 0);
-
-    }, 0);
+    const valorTotalFretes = dados.reduce((total, t) => total + fretesTer(t).total, 0);
 
     // Atualiza os cards (caso existam)
 

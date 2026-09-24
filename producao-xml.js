@@ -6,17 +6,6 @@
   function set(id, val) { var el = document.getElementById(id); if (!el || val === '' || val == null) return; el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }
   function moeda(x) { var n = Number(String(x || '0').replace(',', '.')) || 0; return n ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''; }
   function placaN(p) { return String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
-  function veiculosCadastrados() { return typeof db !== 'undefined' && Array.isArray(db.veiculos) ? db.veiculos : []; }
-  function veiculoPorPlaca(placa) {
-    var p = placaN(placa);
-    if (!p) return null;
-    return veiculosCadastrados().find(function (x) {
-      if (placaN(x && x.vplaca) === p) return true;
-      return Array.isArray(x && x.historicoPlacas) && x.historicoPlacas.some(function (anterior) {
-        return placaN(typeof anterior === 'string' ? anterior : anterior && (anterior.placa || anterior.vplaca)) === p;
-      });
-    }) || null;
-  }
 
   function tomador(doc) {
     var t4 = doc.getElementsByTagName('toma4')[0];
@@ -30,7 +19,7 @@
     if (!doc || doc.getElementsByTagName('parsererror').length || !doc.getElementsByTagName('infCte').length) return null;
     var nCT = tag(doc, 'nCT'), serie = tag(doc, 'serie');
     var documento = nCT ? 'CT-e ' + nCT + (serie ? '/' + serie : '') : '';
-    var existente = (typeof db !== 'undefined' && Array.isArray(db.producoes) ? db.producoes : []).some(function (x) { return documento && x.documento === documento && x.id !== (document.getElementById('resProdId') || {}).value; });
+    var existente = (window.db && Array.isArray(db.producoes) ? db.producoes : []).some(function (x) { return documento && x.documento === documento && x.id !== (document.getElementById('resProdId') || {}).value; });
     var dh = tag(doc, 'dhEmi') || tag(doc, 'dEmi'), data = dh.slice(0, 10);
     var fim = tag(doc, 'dProg') || tag(doc, 'dFimPer') || data;
     var peso = '', pesoReal = '';
@@ -107,7 +96,7 @@
   function atualizarTipo() {
     var el = document.getElementById('resProdTipoVeiculo'); if (!el) return;
     var p = placaN((document.getElementById('resProdVeiculo') || {}).value);
-    var v = veiculoPorPlaca(p);
+    var v = p && window.db && Array.isArray(db.veiculos) ? db.veiculos.find(function (x) { return placaN(x.vplaca) === p; }) : null;
     el.value = v ? (v.vtipo || 'Tipo não informado no cadastro do veículo') : (p ? 'Veículo não encontrado no cadastro' : '');
   }
   document.addEventListener('input', function (e) { if (e.target && e.target.id === 'resProdVeiculo') atualizarTipo(); });
