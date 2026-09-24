@@ -42,7 +42,7 @@
       var escolhida = select.options[select.selectedIndex];
       input.value = escolhida ? escolhida.textContent.trim() : "";
     }
-    if (document.activeElement === input && !lista.hidden) {
+    if (document.activeElement === input && !lista.hidden && input.matches(":focus-visible, :focus")) {
       filtrarSugestoes(select, input, lista);
     }
   }
@@ -159,11 +159,13 @@
     var rotulo = document.querySelector('label[for="' + select.id + '"]');
     if (rotulo) rotulo.setAttribute("for", input.id);
 
-    input.addEventListener("input", function () {
+    input.addEventListener("input", function (event) {
+      if (!event.isTrusted || document.activeElement !== input) return;
       selecionarCorrespondencia(select, input, false);
       filtrarSugestoes(select, input, lista);
     });
-    input.addEventListener("change", function () {
+    input.addEventListener("change", function (event) {
+      if (!event.isTrusted || document.activeElement !== input) return;
       if (!selecionarCorrespondencia(select, input, false)) {
         filtrarSugestoes(select, input, lista);
       }

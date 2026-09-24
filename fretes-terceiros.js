@@ -940,11 +940,32 @@
       if (k === 'freexecucao') return v === 'terceiro' ? 'Terceiro' : 'Frota própria';
       return v;
     }
-    var linhas = '';
-    Object.keys(f).forEach(function (k) {
+    var NOMES = [
+      ['fredata', 'Data'], ['freorigemuf', 'UF de origem'], ['freorigemcid', 'Cidade de origem'], ['freorigem', 'Cidade de origem'],
+      ['fredestinouf', 'UF de destino'], ['fredestinocid', 'Cidade de destino'], ['fredestino', 'Cidade de destino'],
+      ['fredistancia', 'Distância'], ['frepeso', 'Peso'], ['frevolume', 'Volume (m³)'], ['fretipocarga', 'Tipo de carga'],
+      ['fretipoveiculo', 'Tipo de veículo'], ['frerastreada', 'Carga rastreada'], ['frecarregamento', 'Carregamento (data e hora)'],
+      ['freentrega', 'Entrega (data e hora)'], ['freexecucao', 'Quem executou'], ['freveiculo', 'Veículo próprio'],
+      ['freterceiro', 'Terceiro contratado'], ['frevalor', 'Valor do frete'], ['frecustoterceiro', 'Valor pago ao terceiro'],
+      ['frestatus', 'Status'], ['frecontato', 'Contato'], ['frerodape', 'Rodapé do card'], ['freobs', 'Observações'],
+      ['_registradoPor', 'Cadastrado por'], ['_registradoEm', 'Cadastrado em'], ['_alteradoPor', 'Alterado por'], ['_alteradoEm', 'Alterado em']
+    ];
+    var mapa = {}, ordem = {};
+    NOMES.forEach(function (p, n) { mapa[p[0]] = p[1]; ordem[p[0]] = n; });
+    var OCULTOS = { fre_idx: 1, id: 1, _fid: 1, _ts: 1 };
+    var chaves = Object.keys(f).filter(function (k) {
       var v = f[k];
-      if (k === 'fre_idx' || k === 'id' || v === null || v === undefined || v === '' || typeof v === 'object') return;
-      linhas += '<tr><th style="width:40%;color:#64748b;font-weight:600">' + esc(rotulo(k)) + '</th><td style="white-space:pre-wrap">' + esc(String(fmt(k, v))) + '</td></tr>';
+      return !OCULTOS[k] && v !== null && v !== undefined && v !== '' && typeof v !== 'object';
+    }).sort(function (a, b) {
+      var oa = a in ordem ? ordem[a] : 900, ob = b in ordem ? ordem[b] : 900;
+      return oa - ob;
+    });
+    var usados = {}, linhas = '';
+    chaves.forEach(function (k) {
+      var nome = mapa[k] || rotulo(k);
+      if ((k === 'freorigem' || k === 'fredestino') && usados[nome]) return;
+      usados[nome] = 1;
+      linhas += '<tr><th style="width:40%;color:#64748b;font-weight:600">' + esc(nome) + '</th><td style="white-space:pre-wrap">' + esc(String(fmt(k, f[k]))) + '</td></tr>';
     });
     var m = document.getElementById('fmModalVerFrete');
     if (!m) {

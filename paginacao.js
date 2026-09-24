@@ -1345,15 +1345,10 @@ if(modulo==="saidaVeiculos"){
 
                 <br>
 
-                <span class="badge ${
-                    s.svreserva === "Reservado"
-                        ? "bg-danger"
-                        : "bg-success"
-                }">
-
-                    ${s.svreserva}
-
-                </span>
+                <select class="form-select form-select-sm fm-sv-rapido ${s.svreserva === "Reservado" ? "text-danger" : "text-success"}" title="Alterar reserva" onchange="alterarSaidaRapido(${real},'svreserva',this.value)">
+                    <option value="Livre" ${s.svreserva !== "Reservado" ? "selected" : ""}>Livre</option>
+                    <option value="Reservado" ${s.svreserva === "Reservado" ? "selected" : ""}>Reservado</option>
+                </select>
 
             </td>
 
@@ -1413,17 +1408,10 @@ if(modulo==="saidaVeiculos"){
 
             <td class="saida-veiculos-status">
 
-                <span class="badge ${
-                    status === "Finalizado"
-                        ? "bg-success"
-                        : status === "Em Viagem"
-                        ? "bg-danger"
-                        : "bg-secondary"
-                }">
-
-                    ${status}
-
-                </span>
+                <select class="form-select form-select-sm fm-sv-rapido ${status === "Finalizado" ? "text-success" : "text-danger"}" title="Alterar status" onchange="alterarSaidaRapido(${real},'svstatus',this.value)">
+                    <option value="Em Viagem" ${status !== "Finalizado" ? "selected" : ""}>Em Viagem</option>
+                    <option value="Finalizado" ${status === "Finalizado" ? "selected" : ""}>Finalizado</option>
+                </select>
 
             </td>
 
@@ -1986,3 +1974,14 @@ function irUltimaPaginaAlertas(total){
 
 }
 
+
+
+/* Troca rápida de status/reserva na lista de saídas, sem abrir a edição. */
+function alterarSaidaRapido(i, campo, valor){
+    if(!db.saidaVeiculos || !db.saidaVeiculos[i]) return;
+    db.saidaVeiculos[i][campo] = valor;
+    db.saidaVeiculos[i].atualizadoEm = new Date().toISOString();
+    if(typeof salvarNuvem === "function") salvarNuvem(["saidaVeiculos"]);
+    if(typeof sincronizarRevisoes === "function") sincronizarRevisoes();
+    renderModulo("saidaVeiculos");
+}
