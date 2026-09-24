@@ -782,7 +782,7 @@ if (!PAGINACAO.paginas[modulo]) {
     PAGINACAO.paginas[modulo] = 1;
 }
 
-    const btnSet = (m,i) => `<td class="veiculos-acoes-celula"><div class="veiculos-acoes">${m === 'veiculos' ? `<button class="btn-edit btn-km-veiculo" type="button" title="Atualizar quilometragem" aria-label="Atualizar quilometragem" onclick="atualizarKmVeiculo(${i})">🛣 <span>KM</span></button>` : ''}<button class="btn-edit" type="button" title="Editar veículo" aria-label="Editar veículo" onclick="editar('${m}',${i})">✎</button><button class="btn-del" type="button" title="Excluir veículo" aria-label="Excluir veículo" onclick="deletar('${m}',${i})">✕</button></div></td>`;
+    const btnSet = (m,i) => `<td class="veiculos-acoes-celula"><div class="veiculos-acoes">${m === 'veiculos' ? `<button class="btn-edit btn-km-veiculo" type="button" title="Atualizar quilometragem" aria-label="Atualizar quilometragem" onclick="atualizarKmVeiculo(${i})">🛣 <span>KM</span></button><button class="btn-edit btn-historico-km" type="button" title="Ver histórico de KM" aria-label="Ver histórico de KM" onclick="abrirHistoricoKmVeiculo(${i})">◷</button>` : ''}<button class="btn-edit" type="button" title="Editar veículo" aria-label="Editar veículo" onclick="editar('${m}',${i})">✎</button><button class="btn-del" type="button" title="Excluir veículo" aria-label="Excluir veículo" onclick="deletar('${m}',${i})">✕</button></div></td>`;
 
     if(modulo === 'veiculos'){
         const dados = getDadosPaginados('veiculos');
@@ -795,7 +795,6 @@ if (!PAGINACAO.paginas[modulo]) {
             <tr>
             <td><b>${v.vplaca}</b></td>
             <td>${v.vmodelo}</td>
-            <td>${v.vtipo || '--'}</td>
             <td>${v.vkminicial ? v.vkminicial + ' KM' : '--'}</td>
             <td>${v.vkm ? v.vkm + ' KM' : '--'}</td>
             <td>${Number(kmTotal || 0).toLocaleString('pt-BR')} KM</td>
@@ -807,17 +806,7 @@ if (!PAGINACAO.paginas[modulo]) {
             <td style="color:#212529;font-weight:700;">
     ${v.vmedidas || '--'}
 </td>
-            <td>
-<span class="badge ${
-v.vstatus === "Ativo"
-? "bg-success"
-: v.vstatus === "Indisponível"
-? "bg-warning text-dark"
-: "bg-danger"
-}">
-${v.vstatus || "Ativo"}
-</span>
-</td>
+            <td>${typeof fmSeletorStatusVeiculo === 'function' ? fmSeletorStatusVeiculo(v, realIndex) : (v.vstatus || 'Ativo')}</td>
             ${btnSet('veiculos', realIndex)}
             </tr>
             `;
@@ -888,13 +877,13 @@ const dados = getDadosPaginadosCustom(
     <td>${d.dicoleta || '--'}</td>
 
 <td>
-    <select class="form-select form-select-sm ${
+    <select class="form-select form-select-sm fm-status-rapido fm-status-diaria ${
         (d.distatus || 'Pendente') === 'Pago'
             ? 'bg-success text-white'
             : (d.distatus || 'Pendente') === 'Enviadas RH'
             ? 'bg-warning'
             : 'bg-danger text-white'
-    }" style="min-width:140px"
+    }"
     onchange="alterarStatusDiaria(${realIndex}, this.value)">
         <option value="Pendente" ${(d.distatus || 'Pendente') === 'Pendente' ? 'selected' : ''}>Pendente</option>
         <option value="Enviadas RH" ${d.distatus === 'Enviadas RH' ? 'selected' : ''}>Enviadas RH</option>
@@ -1194,11 +1183,21 @@ if(modulo === 'terceiros'){
 
     const totalTerceiros = dados.length;
 
-    const fretesTer = t => (window.fmFretesDoTerceiro ? window.fmFretesDoTerceiro(t) : { qtd: 0, total: 0 });
+    const totalContratacoes = dados.filter(t =>
+        t.terfrete && t.terfrete !== ""
+    ).length;
 
-    const totalContratacoes = dados.reduce((n, t) => n + fretesTer(t).qtd, 0);
+    const valorTotalFretes = dados.reduce((total, t) => {
 
-    const valorTotalFretes = dados.reduce((total, t) => total + fretesTer(t).total, 0);
+        let valor = String(t.terfrete || "0")
+            .replace("R$", "")
+            .replace(/\s/g, "")
+            .replace(/\./g, "")
+            .replace(",", ".");
+
+        return total + (parseFloat(valor) || 0);
+
+    }, 0);
 
     // Atualiza os cards (caso existam)
 
@@ -1275,9 +1274,7 @@ if(modulo === 'terceiros'){
 
 <td class="col-cidade" title="${t.tercidade || ''}">${t.tercidade || '--'}</td>
 
-<td class="col-obs" style="white-space:normal;min-width:180px">${t.terobs || '--'}</td>
-
-<td class="money" title="${fretesTer(t).qtd} frete(s) no Cadastro de Fretes">${fretesTer(t).qtd ? fretesTer(t).texto : 'R$ 0,00'}</td>
+<td class="money">${t.terfrete || 'R$ 0,00'}</td>
 
 <td class="num">
 <span class="ter-badge ${
@@ -1345,10 +1342,15 @@ if(modulo==="saidaVeiculos"){
 
                 <br>
 
-                <select class="form-select form-select-sm fm-sv-rapido ${s.svreserva === "Reservado" ? "text-danger" : "text-success"}" title="Alterar reserva" onchange="alterarSaidaRapido(${real},'svreserva',this.value)">
-                    <option value="Livre" ${s.svreserva !== "Reservado" ? "selected" : ""}>Livre</option>
-                    <option value="Reservado" ${s.svreserva === "Reservado" ? "selected" : ""}>Reservado</option>
-                </select>
+                <span class="badge ${
+                    s.svreserva === "Reservado"
+                        ? "bg-danger"
+                        : "bg-success"
+                }">
+
+                    ${s.svreserva}
+
+                </span>
 
             </td>
 
@@ -1408,10 +1410,17 @@ if(modulo==="saidaVeiculos"){
 
             <td class="saida-veiculos-status">
 
-                <select class="form-select form-select-sm fm-sv-rapido ${status === "Finalizado" ? "text-success" : "text-danger"}" title="Alterar status" onchange="alterarSaidaRapido(${real},'svstatus',this.value)">
-                    <option value="Em Viagem" ${status !== "Finalizado" ? "selected" : ""}>Em Viagem</option>
-                    <option value="Finalizado" ${status === "Finalizado" ? "selected" : ""}>Finalizado</option>
-                </select>
+                <span class="badge ${
+                    status === "Finalizado"
+                        ? "bg-success"
+                        : status === "Em Viagem"
+                        ? "bg-danger"
+                        : "bg-secondary"
+                }">
+
+                    ${status}
+
+                </span>
 
             </td>
 
@@ -1974,14 +1983,3 @@ function irUltimaPaginaAlertas(total){
 
 }
 
-
-
-/* Troca rápida de status/reserva na lista de saídas, sem abrir a edição. */
-function alterarSaidaRapido(i, campo, valor){
-    if(!db.saidaVeiculos || !db.saidaVeiculos[i]) return;
-    db.saidaVeiculos[i][campo] = valor;
-    db.saidaVeiculos[i].atualizadoEm = new Date().toISOString();
-    if(typeof salvarNuvem === "function") salvarNuvem(["saidaVeiculos"]);
-    if(typeof sincronizarRevisoes === "function") sincronizarRevisoes();
-    renderModulo("saidaVeiculos");
-}

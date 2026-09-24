@@ -81,14 +81,13 @@
   var ACOES_POR_MODULO = {
     editarRevisao: "revisoes", excluirRevisao: "revisoes",
     editarDetran: "detran", excluirDetran: "detran", verDetran: "detran",
-    editarFrete: "fretes", verFrete: "fretes", excluirFrete: "fretes", preverCardFrete: "fretes", enviarFreteWhats: "fretes",
+    editarFrete: "fretes", excluirFrete: "fretes", preverCardFrete: "fretes", enviarFreteWhats: "fretes",
     editarEstoque: "estoque", excluirEstoque: "estoque",
     editarCustoFrota: "custos", excluirCustoFrota: "custos",
     editarCustoRecorrente: "custosRecorrentes", excluirCustoRecorrente: "custosRecorrentes",
     editarQuilometragem: "quilometragens", excluirQuilometragem: "quilometragens",
     editarProducaoFrota: "producoes", excluirProducaoFrota: "producoes",
     editarDepreciacaoFrota: "gestaoDepreciacoes", excluirDepreciacaoFrota: "gestaoDepreciacoes",
-    editarImplementoFrota: "implementos", excluirImplementoFrota: "implementos", transferirImplementoFrota: "implementos",
     editarEventoPneuFrota: "eventosPneus", excluirEventoPneu: "eventosPneus"
   };
 

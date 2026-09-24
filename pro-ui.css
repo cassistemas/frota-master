@@ -468,8 +468,8 @@ label, .form-label {
 /* Veículos: mantém KM, editar e excluir alinhados na mesma linha. */
 .veiculos-acoes-cabecalho,
 .veiculos-acoes-celula {
-  min-width: 142px;
-  width: 142px;
+  min-width: 178px;
+  width: 178px;
   text-align: center;
   white-space: nowrap;
 }
@@ -498,6 +498,76 @@ label, .form-label {
   font-size: .72rem;
   font-weight: 800;
 }
+
+.veiculos-acoes .btn-historico-km {
+  color: var(--pro-accent);
+  font-size: 1rem;
+}
+
+.fm-status-veiculo {
+  min-width: 126px;
+  border-width: 1px;
+  cursor: pointer;
+}
+.fm-status-veiculo.status-veiculo-ativo { color: #166534; border-color: #86efac; background: #f0fdf4; }
+.fm-status-veiculo.status-veiculo-indisponivel { color: #854d0e; border-color: #fde047; background: #fefce8; }
+.fm-status-veiculo.status-veiculo-vendido { color: #991b1b; border-color: #fca5a5; background: #fef2f2; }
+.fm-status-veiculo:disabled { opacity: .7; cursor: wait; }
+
+/* Alterações rápidas: reserva espaço para a maior opção e nunca corta palavras. */
+.fm-status-rapido,
+select[onchange*="mudarStatus"],
+select[onchange*="alterarStatus"] {
+  width: auto !important;
+  min-width: 15ch !important;
+  max-width: none !important;
+  padding-right: 2.25rem !important;
+  white-space: nowrap;
+  text-overflow: clip;
+  overflow: visible;
+  field-sizing: content;
+}
+.fm-status-agendamento { min-width: 14ch !important; }
+.fm-status-veiculo { min-width: 16ch !important; }
+.fm-status-diaria { min-width: 15ch !important; }
+td:has(> .fm-status-rapido),
+td:has(> select[onchange*="mudarStatus"]),
+td:has(> select[onchange*="alterarStatus"]) {
+  width: 1%;
+  min-width: 150px;
+  white-space: nowrap;
+}
+
+.fm-historico-km-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, .66);
+}
+.fm-historico-km-dialog {
+  width: min(1040px, 96vw);
+  max-height: 86vh;
+  overflow: hidden;
+  padding: 20px;
+  border: 1px solid var(--pro-line);
+  border-radius: var(--pro-radius);
+  background: var(--pro-surface);
+  box-shadow: var(--pro-shadow);
+}
+.fm-historico-km-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.fm-historico-km-cabecalho h5 { margin: 0; font-weight: 800; color: var(--pro-ink); }
+.fm-historico-km-cabecalho span { color: var(--pro-mute); font-size: .78rem; }
+.fm-historico-km-tabela { max-height: 58vh; overflow: auto; border: 1px solid var(--pro-line); border-radius: 8px; }
 
 /* ---------- Paginação (global + universal) ---------- */
 .paginacao-global,

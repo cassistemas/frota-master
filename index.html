@@ -14,18 +14,18 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Frota Master">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Frota Master — Gestão de Frota</title>
+    <title>Frota Master v23 - Gestão de Multas Integrada</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="./pro-ui.css?v=20260914-7">
+    <link rel="stylesheet" href="./pro-ui.css?v=20260924-2">
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=1">
-    <link rel="stylesheet" href="./custos-frota.css?v=20260922-5">
+    <link rel="stylesheet" href="./custos-frota.css?v=20260924-1">
     <style>
         :root{--sidebar:#0f172a;--accent:#3b82f6;--bg:#f8fafc;--danger:#ef4444;--warning:#f59e0b;--success:#10b981}
         body{background:var(--bg);font-family:Inter,sans-serif;font-size:.85rem}
@@ -751,16 +751,9 @@ Criar Conta
 </div>
 
 <div class="col-md-3">
-    <select id="tertipoveiculo" class="form-control">
-        <option value="">Tipo Veículo</option>
-        <option value="VUC">VUC</option>
-        <option value="3/4">3/4</option>
-        <option value="Toco">Toco</option>
-        <option value="Truck">Truck</option>
-        <option value="Carreta">Carreta</option>
-        <option value="Bitrem">Bitrem</option>
-        <option value="Rodotrem">Rodotrem</option>
-    </select>
+    <input id="tertipoveiculo"
+           class="form-control"
+           placeholder="Tipo Veículo">
 </div>
 
 <div class="col-md-2">
@@ -824,18 +817,18 @@ Criar Conta
 </select>
 </div>
 
-<input type="hidden" id="terfrete">
-<div class="col-md-3 d-flex align-items-center">
-    <small class="text-muted">O valor do frete vem automaticamente do Cadastro de Fretes.</small>
+<div class="col-md-2">
+    <input id="terfrete"
+           class="form-control"
+           placeholder="Valor Frete"
+           oninput="mascaraMoeda(this)">
 </div>
 
 <div class="col-md-12">
-<label class="form-label-mini" for="terobs">Observação</label>
 <textarea
 id="terobs"
 class="form-control"
-rows="3"
-placeholder="Observações do terceiro">
+placeholder="Observações">
 </textarea>
 </div>
 
@@ -1038,8 +1031,7 @@ Limpar
 <th title="Telefone do Proprietário">Tel. Prop.</th>
 <th title="Estado">UF</th>
 <th title="Cidade">Cidade</th>
-<th title="Observação">Observação</th>
-<th title="Soma dos fretes pagos (vem do Cadastro de Fretes)">Fretes pagos</th>
+<th title="Valor do Frete">Frete</th>
 <th title="Status">Status</th>
 <th title="Ações">Ações</th>
 
@@ -1740,7 +1732,6 @@ onclick="exportarExcel('saidaVeiculos')">
             <div class="row g-3">
                 <div class="col-md-2"><input id="vplaca" class="form-control" placeholder="Placa"></div>
                 <div class="col-md-3"><input id="vmodelo" class="form-control" placeholder="Modelo"></div>
-                <div class="col-md-2"><input id="vtipo" class="form-control" list="tiposVeiculoLista" placeholder="Tipo do veículo"><datalist id="tiposVeiculoLista"><option value="VUC"><option value="3/4"><option value="Toco"><option value="Truck"><option value="Carreta"><option value="Bitrem"><option value="Rodotrem"></datalist></div>
                 <div class="col-md-2"><input id="vkminicial" class="form-control" type="number" placeholder="KM Inicial" title="KM do veículo ao entrar na frota" oninput="calcularKmTotalVeiculo()"></div>
                 <div class="col-md-2"><input id="vkm" class="form-control" type="number" placeholder="KM Atual" oninput="calcularKmTotalVeiculo()"></div>
                 <div class="col-md-2"><input id="vkmtotal" class="form-control" type="number" placeholder="KM Total" title="Calculado: KM Atual - KM Inicial" readonly></div>
@@ -1778,12 +1769,12 @@ onclick="exportarExcel('saidaVeiculos')">
 <div class="col-md-12 text-end mt-3">
     <button id="btn_cancel_veiculos"
         class="btn btn-outline-secondary btn-cancelar"
-        onclick="limparForm('veiculos',['vplaca','vmodelo','vtipo','vkminicial','vkm','vkmtotal','vmotorista','vpbt','vtara','vpliquido','vm3','vmedidas','vstatus'],'v_idx')">
+        onclick="limparForm('veiculos',['vplaca','vmodelo','vkminicial','vkm','vkmtotal','vmotorista','vpbt','vtara','vpliquido','vm3','vmedidas','vstatus'],'v_idx')">
         Cancelar
     </button>
 
     <button class="btn btn-primary"
-        onclick="salvar('veiculos',['vplaca','vmodelo','vtipo','vkminicial','vkm','vkmtotal','vmotorista','vpbt','vtara','vpliquido','vm3','vmedidas','vstatus'],'v_idx')">
+        onclick="salvar('veiculos',['vplaca','vmodelo','vkminicial','vkm','vkmtotal','vmotorista','vpbt','vtara','vpliquido','vm3','vmedidas','vstatus'],'v_idx')">
         Salvar
     </button>
 </div>
@@ -1819,7 +1810,6 @@ onclick="exportarExcel('saidaVeiculos')">
             <table class="table align-middle"><thead><tr>
 <th>Placa</th>
 <th>Modelo</th>
-<th>Tipo</th>
 <th>KM Inicial</th>
 <th>KM Atual</th>
 <th>KM Total</th>
@@ -3401,7 +3391,7 @@ oninput="calcularKMPneu()">
           <select id="cusFiltroVeiculo" class="form-select" data-cus-filter></select><input id="cusFiltroInicio" type="date" class="form-control" data-cus-filter><input id="cusFiltroFim" type="date" class="form-control" data-cus-filter>
           <select id="cusFiltroTipo" class="form-select" data-cus-filter><option value="">Todos os tipos</option><option value="fixo">Custos fixos</option><option value="variavel">Custos variáveis</option><option value="indireto">Custos indiretos</option></select>
           <select id="cusFiltroCategoria" class="form-select" data-cus-filter></select>
-          <select id="cusFiltroOrigem" class="form-select" data-cus-filter><option value="">Todas as origens</option><option value="manual">Lançamento manual</option><option value="integrado">Outros módulos</option><option value="recorrente">Recorrente / provisão</option><option value="pessoal">Folha e provisões</option><option value="implemento">Depreciação de implementos</option></select>
+          <select id="cusFiltroOrigem" class="form-select" data-cus-filter><option value="">Todas as origens</option><option value="manual">Lançamento manual</option><option value="integrado">Outros módulos</option><option value="recorrente">Recorrente / provisão</option><option value="pessoal">Folha e provisões</option></select>
           <select id="cusFiltroStatus" class="form-select" data-cus-filter><option value="">Todas as situações</option><option>Realizado</option><option>Pago</option><option>Pendente</option><option>Provisionado</option></select>
         </div>
         <div class="cus-filter-actions">
@@ -3411,7 +3401,7 @@ oninput="calcularKMPneu()">
       </div>
       <div class="cus-kpis" aria-label="Indicadores da Gestão da Frota"><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Custo por km</span><strong id="cusIndicadorCustoKm">--</strong><small id="cusKmAlerta">Quilometragem do período</small></div><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Faturamento médio</span><strong id="cusIndicadorFaturamentoMedio">R$ 0,00</strong><small>Média mensal do período</small></div><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Custo da frota</span><strong id="cusIndicadorCustoFrota">R$ 0,00</strong><small id="cusPeriodoLabel">Competência selecionada</small></div><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Margem</span><strong id="cusIndicadorMargem">0,0%</strong><small>Resultado sobre a receita líquida</small></div></div>
       <div id="cusPendencias" class="cus-pendencias"></div>
-      <div class="cus-tabs"><button class="cus-tab active" data-tab="lancamentos" onclick="trocarAbaCustos('lancamentos')">Lançamentos</button><button class="cus-tab" data-tab="recorrentes" onclick="trocarAbaCustos('recorrentes')">Fixos e pessoal</button><button class="cus-tab" data-tab="implementos" onclick="trocarAbaCustos('implementos')">Implementos</button><button class="cus-tab" data-tab="quilometragem" onclick="trocarAbaCustos('quilometragem')">Quilometragem</button><button class="cus-tab" data-tab="terceirizacao" onclick="trocarAbaCustos('terceirizacao')">Próprio x Terceiro</button><button class="cus-tab" data-tab="analise" onclick="trocarAbaCustos('analise')">Análise por veículo</button></div>
+      <div class="cus-tabs"><button class="cus-tab active" data-tab="lancamentos" onclick="trocarAbaCustos('lancamentos')">Lançamentos</button><button class="cus-tab" data-tab="recorrentes" onclick="trocarAbaCustos('recorrentes')">Fixos e pessoal</button><button class="cus-tab" data-tab="quilometragem" onclick="trocarAbaCustos('quilometragem')">Quilometragem</button><button class="cus-tab" data-tab="analise" onclick="trocarAbaCustos('analise')">Análise por veículo</button></div>
       <div id="cusPane-lancamentos" class="cus-pane">
         <div class="cus-panel cus-pre-panel">
           <div class="cus-pre-head"><div><span class="pneu-kicker">Aguardando conferência</span><h5>Pré-lançamentos dos outros módulos <span id="cusPreContador" class="cus-pre-count">0</span></h5><p>Revise e ajuste os dados. Eles só entram nos cálculos depois da confirmação.</p></div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="selecionarPreLancamentos(true)">Selecionar todos</button><button class="btn btn-primary" onclick="confirmarPreLancamentosSelecionados()">Confirmar selecionados</button></div></div>
@@ -3425,8 +3415,6 @@ oninput="calcularKMPneu()">
          <div class="cus-panel"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Memória de cálculo</h5><span class="cus-note">Parcelamentos são apropriados mês a mês, sem duplicar o lançamento original.</span></div><div class="cus-table-wrap"><table class="table table-hover cus-table"><thead><tr><th>Data</th><th>Competência</th><th>Veículo</th><th>Categoria</th><th>Descrição</th><th>Parcela</th><th>Tipo</th><th>Origem</th><th>Situação</th><th>Valor mensal</th><th>Ações</th></tr></thead><tbody id="cusLista"></tbody></table></div><div id="cusListaPaginacao"></div></div>
       </div>
       <div id="cusPane-recorrentes" class="cus-pane hidden"><div class="cus-grid"><div class="cus-panel"><h5>Custo mensal ou anual</h5><input id="cusRecIdx" type="hidden"><div class="cus-form-grid"><div><label>Categoria</label><select id="cusRecCategoria" class="form-select" onchange="custoCategoriaChange('cusRec')"></select></div><div><label>Tipo</label><select id="cusRecTipo" class="form-select"><option value="fixo">Fixo</option><option value="variavel">Variável</option><option value="indireto">Indireto</option></select></div><div><label>Periodicidade</label><select id="cusRecPeriodicidade" class="form-select"><option value="mensal">Mensal</option><option value="anual">Anual — dividir por 12</option></select></div><div><label>Valor informado</label><input id="cusRecValor" class="form-control" oninput="mascaraMoeda(this)"></div><div><label>Veículo</label><input id="cusRecVeiculo" list="cusVeiculosLista" class="form-control" placeholder="Selecione ou digite"></div><div><label>Motorista</label><input id="cusRecMotorista" list="cusMotoristasLista" class="form-control" placeholder="Selecione ou digite"></div><div class="span-2"><label>Descrição</label><input id="cusRecDescricao" class="form-control" placeholder="Ex.: seguro anual do veículo"></div><div><label>Início da vigência</label><input id="cusRecInicio" type="date" class="form-control"></div><div><label>Fim (opcional)</label><input id="cusRecFim" type="date" class="form-control"></div><div><label>Rateio de custo geral</label><select id="cusRecRateio" class="form-select"><option value="nao">Não ratear</option><option value="igual">Igual por veículo</option><option value="km">Proporcional aos km</option></select></div></div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="cancelarCustoRecorrente()">Cancelar</button><button class="btn btn-primary" onclick="salvarCustoRecorrente()">Salvar custo</button></div></div><div class="cus-panel cus-payroll"><h5>Folha do motorista</h5><p class="cus-note">As alíquotas devem seguir sua contabilidade e convenção coletiva.</p><div class="cus-form-grid cus-payroll-grid"><div><label>Veículo</label><input id="cusPesVeiculo" list="cusVeiculosLista" class="form-control" placeholder="Selecione ou digite"></div><div><label>Motorista</label><input id="cusPesMotorista" list="cusMotoristasLista" class="form-control" placeholder="Selecione ou digite"></div><div><label>Salário-base mensal</label><input id="cusPesSalario" class="form-control" oninput="mascaraMoeda(this);atualizarTotalFolha()"></div><div><label>Benefícios mensais</label><input id="cusPesBeneficios" class="form-control" oninput="mascaraMoeda(this);atualizarTotalFolha()"></div><div><label>Encargos patronais (%)</label><input id="cusPesEncargos" type="number" min="0" step="0.01" class="form-control"></div><div><label>FGTS (%)</label><input id="cusPesFgts" type="number" min="0" step="0.01" class="form-control"></div><div class="span-2"><label>Início da vigência</label><input id="cusPesInicio" type="date" class="form-control"></div></div><div class="cus-payroll-total"><span>Custo total mensal</span><strong id="cusPesTotal">R$ 0,00</strong></div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="cancelarCustoPessoal()">Cancelar</button><button class="btn btn-primary" onclick="salvarCustoPessoal()">Salvar folha e provisões</button></div></div></div><div class="cus-panel"><h5>Custos fixos, anuais e provisões ativos</h5><div id="cusRecLista"></div><div id="cusRecPaginacao"></div></div></div>
-      <div id="cusPane-terceirizacao" class="cus-pane hidden"><div class="cus-panel"><h5>Frota própria x terceiros</h5><p class="cus-note">A comparação considera somente viagens da mesma rota e do mesmo tipo de veículo. Peso e volume são confrontados com a capacidade útil dos veículos cadastrados para indicar o menor porte compatível, sem comparar 3/4, Truck e Carreta entre si.</p><div id="cusTercResumo"></div></div><div class="cus-panel"><h5>Comparação por rota e tipo de veículo</h5><div class="cus-table-wrap"><table class="table table-hover cus-table"><thead><tr><th>Rota</th><th>Tipo utilizado</th><th>Tipo recomendado</th><th>Viagens próprias</th><th>Viagens terceiro</th><th>R$/km próprio</th><th>R$/km terceiro</th><th>Diferença</th><th>Recomendação</th></tr></thead><tbody id="cusTercLista"></tbody></table></div><div id="cusTercPaginacao"></div></div></div>
-      <div id="cusPane-implementos" class="cus-pane hidden"><div class="cus-panel"><h5>Depreciação manual de implementos</h5><p class="cus-note">Cadastre carretas, baús, tanques, pranchas e demais implementos atrelados a um veículo. O sistema calcula a parcela mensal (valor de compra menos valor residual dividido pela vida útil) e lança automaticamente na categoria Depreciação do veículo, competência a competência.</p><input id="cusImpId" type="hidden"><div class="cus-form-grid"><div class="span-2"><label>Implemento</label><input id="cusImpDescricao" class="form-control" placeholder="Ex.: Carreta graneleira LC-1234"></div><div><label>Veículo vinculado</label><input id="cusImpVeiculo" list="cusVeiculosLista" class="form-control" placeholder="Selecione ou digite"></div><div><label>Data da compra</label><input id="cusImpData" type="date" class="form-control" onchange="calcularDepreciacaoImplemento()"></div><div><label>Valor de compra</label><input id="cusImpValor" class="form-control" oninput="mascaraMoeda(this);calcularDepreciacaoImplemento()"></div><div><label>Valor residual (opcional)</label><input id="cusImpResidual" class="form-control" oninput="mascaraMoeda(this);calcularDepreciacaoImplemento()"></div><div><label>Vida útil (meses)</label><input id="cusImpMeses" type="number" min="1" max="600" step="1" class="form-control" oninput="calcularDepreciacaoImplemento()"></div><div><label>Situação</label><select id="cusImpStatus" class="form-select" onchange="calcularDepreciacaoImplemento()"><option value="Ativa">Ativa</option><option value="Suspensa">Suspensa</option><option value="Encerrada">Encerrada</option></select></div><div><label>Depreciação mensal</label><input id="cusImpMensal" class="form-control" readonly></div><div class="span-2"><label>Observação</label><input id="cusImpObs" class="form-control" placeholder="Chassi, nota fiscal, fornecedor"></div></div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="cancelarImplemento()">Cancelar</button><button class="btn btn-primary" onclick="salvarImplemento()">Salvar implemento</button></div></div><div class="cus-panel"><h5>Implementos cadastrados</h5><div class="cus-table-wrap"><table class="table table-hover cus-table"><thead><tr><th>Implemento</th><th>Veículo</th><th>Compra</th><th>Valor de compra</th><th>Residual</th><th>Vida útil</th><th>Depreciação mensal</th><th>Período de apropriação</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="cusImpLista"></tbody></table></div><div id="cusImpPaginacao"></div></div></div>
       <div id="cusPane-quilometragem" class="cus-pane hidden"><div class="cus-panel"><h5>Fechamento manual de quilometragem</h5><p class="cus-note">A quilometragem dos cálculos vem somente dos fechamentos informados aqui.</p><input id="cusKmIdx" type="hidden"><div class="cus-form-grid"><div><label>Veículo</label><input id="cusKmVeiculo" list="cusVeiculosLista" class="form-control" placeholder="Selecione ou digite" onchange="atualizarOdometroInicial()"></div><div><label>Data</label><input id="cusKmData" type="date" class="form-control"></div><div><label>Odômetro inicial</label><input id="cusKmInicial" type="number" min="0" step="1" class="form-control" oninput="calcularQuilometragem('inicial')"></div><div><label>Odômetro final</label><input id="cusKmFinal" type="number" min="0" step="1" class="form-control" oninput="calcularQuilometragem('final')"></div><div><label>KM rodado no período</label><input id="cusKmRodado" type="number" min="0" step="1" class="form-control" oninput="calcularQuilometragem('rodado')"></div><div class="span-2"><label>Observação</label><input id="cusKmObs" class="form-control"></div></div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="cancelarQuilometragem()">Cancelar</button><button class="btn btn-primary" onclick="salvarQuilometragem()">Salvar quilometragem</button></div></div><div class="cus-panel"><div class="cus-table-wrap"><table class="table"><thead><tr><th>Data</th><th>Veículo</th><th>KM rodado</th><th>Odômetro inicial</th><th>Odômetro final</th><th>Observação</th><th>Ações</th></tr></thead><tbody id="cusKmLista"></tbody></table></div><div id="cusKmPaginacao"></div></div></div>
       <div id="cusPane-analise" class="cus-pane hidden"><div class="cus-grid"><div class="cus-panel"><h5>Custos por categoria</h5><div id="cusCategorias"></div></div><div class="cus-panel"><h5>Distribuição dos custos</h5><div class="cus-chart"><canvas id="cusGrafico"></canvas></div></div></div><div class="cus-panel"><h5>Análise por veículo</h5><div class="cus-table-wrap"><table class="table"><thead><tr><th>Veículo</th><th>Faturamento total</th><th>Receita líquida</th><th>Fixos</th><th>Variáveis</th><th>Indiretos</th><th>Custo total</th><th>KM no período</th><th>Custo por km</th></tr></thead><tbody id="cusPorVeiculo"></tbody></table></div><div id="cusVeiculosPaginacao"></div></div></div>
       <datalist id="cusVeiculosLista"></datalist><datalist id="cusMotoristasLista"></datalist><datalist id="cusPneusLista"></datalist>
@@ -3687,7 +3675,7 @@ function formatarDataBR(data){
 
 </script>
 
-<script src="./paginacao.js?v=20260924a"></script>
+<script src="./paginacao.js?v=20260924-2"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -3709,6 +3697,7 @@ const dbCloud = firebase.firestore();
 // permanece desativado para impedir que listas antigas voltem após importações.
 const MAP={
     veiculos:'FM_V',
+    historicoKm:'FM_HKM',
     motoristas:'FM_M',
     terceiros:'FM_TER',
     diarias:'FM_DI',
@@ -3735,7 +3724,6 @@ const MAP={
     metasVeiculos:'FM_METAS',
     eventosPneus:'FM_PNEV',
     gestaoDepreciacoes:'FM_GDEP',
-    implementos:'FM_IMPL',
 };
 const MODULOS = Object.keys(MAP);
 let db={}
@@ -4318,6 +4306,7 @@ function salvar(mod, campos, idCampo){
             if(mudouDetran && modulosVinculadosAlterados.indexOf("detran") === -1)
                 modulosVinculadosAlterados.push("detran");
         }
+        if(anteriorVeiculo) fmRegistrarHistoricoKm(anteriorVeiculo, obj.vkm, "Edição do veículo", obj.vplaca);
     }
 
     // A edicao continua sendo o mesmo cadastro. Sem preservar a identidade,
@@ -4336,6 +4325,7 @@ if(mod === 'manutencoes' && obj.mveiculo && obj.mkm){
 
     if(vei){
 
+        fmRegistrarHistoricoKm(vei, obj.mkm, "Manutenções");
         vei.vkm = Number(obj.mkm);
         fmAplicarKmTotalVeiculo(vei);
 
@@ -4351,6 +4341,7 @@ if(mod === 'combustivel' && obj.cveiculo && obj.ckm){
 
     if(vei){
 
+        fmRegistrarHistoricoKm(vei, obj.ckm, "Combustível");
         vei.vkm = Number(obj.ckm);
         fmAplicarKmTotalVeiculo(vei);
 
@@ -4366,6 +4357,7 @@ if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno){
 
     if(vei){
 
+        fmRegistrarHistoricoKm(vei, obj.svkmretorno, "Saída de veículos");
         vei.vkm = Number(obj.svkmretorno);
         fmAplicarKmTotalVeiculo(vei);
 
@@ -4418,7 +4410,7 @@ if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno){
     }
 
     salvarNuvem(mod === "veiculos"
-        ? ["veiculos"].concat(modulosVinculadosAlterados)
+        ? ["veiculos", "historicoKm"].concat(modulosVinculadosAlterados)
         : undefined);
 
 if(typeof sincronizarRevisoes === "function"){
@@ -5194,7 +5186,7 @@ function iniciarSistema(){
     // Carrega primeiro o essencial da tela inicial e depois os demais modulos
     // em pequenos blocos, para o navegador nao travar ao entrar.
     (function(){
-        const prioritarios = ["veiculos","fretes","manutencoes","motoristas"];
+        const prioritarios = ["veiculos","historicoKm","fretes","manutencoes","motoristas"];
         const todos = Object.keys(MAP);
         const restantes = todos.filter(m => prioritarios.indexOf(m) === -1);
 
@@ -5358,7 +5350,7 @@ function fmSeletorStatusAgendamento(agendamento, indice){
         : atual === 'Cancelado'
         ? 'border-danger text-danger'
         : 'border-warning text-dark';
-    return `<select class="form-select form-select-sm fw-semibold ${classe}" aria-label="Status do agendamento" onchange="mudarStatusAgendamento(${indice},this.value,this)">
+    return `<select class="form-select form-select-sm fw-semibold fm-status-rapido fm-status-agendamento ${classe}" aria-label="Status do agendamento" onchange="mudarStatusAgendamento(${indice},this.value,this)">
         <option value="Agendado" ${atual === 'Agendado' ? 'selected' : ''}>Agendado</option>
         <option value="Concluído" ${atual === 'Concluído' ? 'selected' : ''}>Concluído</option>
         <option value="Cancelado" ${atual === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
@@ -5397,6 +5389,42 @@ function mudarStatusAgendamento(indice, novoStatus, seletor){
         });
 }
 window.mudarStatusAgendamento = mudarStatusAgendamento;
+
+function fmSeletorStatusVeiculo(veiculo, indice){
+    const permitidos = ['Ativo','Indisponível','Vendido'];
+    const atual = permitidos.includes(veiculo && veiculo.vstatus) ? veiculo.vstatus : 'Ativo';
+    const classe = atual === 'Ativo' ? 'status-veiculo-ativo' : atual === 'Indisponível' ? 'status-veiculo-indisponivel' : 'status-veiculo-vendido';
+    return `<select class="form-select form-select-sm fw-semibold fm-status-rapido fm-status-veiculo ${classe}" aria-label="Status do veículo" onchange="mudarStatusVeiculo(${indice},this.value,this)">
+        <option value="Ativo" ${atual === 'Ativo' ? 'selected' : ''}>Ativo</option>
+        <option value="Indisponível" ${atual === 'Indisponível' ? 'selected' : ''}>Indisponível</option>
+        <option value="Vendido" ${atual === 'Vendido' ? 'selected' : ''}>Vendido</option>
+    </select>`;
+}
+
+function mudarStatusVeiculo(indice, novoStatus, seletor){
+    const permitidos = ['Ativo','Indisponível','Vendido'];
+    const item = Array.isArray(db.veiculos) ? db.veiculos[Number(indice)] : null;
+    if(!item || !permitidos.includes(novoStatus)) return;
+    const statusAnterior = permitidos.includes(item.vstatus) ? item.vstatus : 'Ativo';
+    if(statusAnterior === novoStatus) return;
+
+    const atualizado = fmPrepararRegistro('veiculos', Object.assign({}, item, {
+        vstatus: novoStatus,
+        atualizadoEm: new Date().toISOString()
+    }), item);
+    db.veiculos[Number(indice)] = atualizado;
+
+    if(seletor) seletor.disabled = true;
+    Promise.resolve(salvarNuvem(['veiculos']))
+        .then(function(){ renderModulo('veiculos'); })
+        .catch(function(){
+            db.veiculos[Number(indice)] = item;
+            renderModulo('veiculos');
+            alert('Não foi possível alterar o status agora. Tente novamente.');
+        });
+}
+window.fmSeletorStatusVeiculo = fmSeletorStatusVeiculo;
+window.mudarStatusVeiculo = mudarStatusVeiculo;
 
 
 function renderTudo(){
@@ -5913,7 +5941,7 @@ function imprimirRelatorioEstoque() {
     <h2>Movimentações</h2>
     <table><thead><tr><th>Data</th><th>Item</th><th>Categoria</th><th>Tipo</th><th>Placa</th><th>Qtd.</th><th>Valor Unit.</th><th>Total</th><th>Fornecedor</th><th>Lote / NF</th><th>Observações</th></tr></thead><tbody>${linhasMov || '<tr><td colspan="11">Sem registros.</td></tr>'}</tbody></table>
     <script>window.onload=function(){window.print();};<\/script>
-</body></html>`;
+    </body></html>`;
     const janela = window.open('', '_blank');
     if (!janela) { alert('Permita janelas pop-up para imprimir o relatório.'); return; }
     janela.document.write(html);
@@ -6570,6 +6598,14 @@ function fmAtualizarVinculosVeiculo(anterior, novo){
                     registroMudou = true;
                 }
             });
+            if(mod === "gestaoDepreciacoes" && Array.isArray(registro && registro.vinculos)){
+                registro.vinculos.forEach(function(vinculo){
+                    if(fmMesmoVeiculoVinculado(vinculo && vinculo.veiculo, placaAnterior)){
+                        vinculo.veiculo = placaNova;
+                        registroMudou = true;
+                    }
+                });
+            }
             if(Array.isArray(registro && registro.detalhesPedagio)){
                 registro.detalhesPedagio.forEach(function(detalhe){
                     ["veiculo", "placa"].forEach(function(campo){
@@ -6692,8 +6728,8 @@ function fmChaveNegocio(mod, r){
         return mod + "|legado:" + n(r.pneuId + "|" + (r.veiculo || "sem-veiculo") + "|" + r.data + "|" + r.tipo + "|" + (r.odometro === '' || r.odometro == null ? "sem-odometro" : r.odometro));
     if(mod === "metasVeiculos" && r.veiculo && r.competencia)
         return mod + "|" + codigo(r.veiculo) + "|" + r.competencia;
-    if(mod === "gestaoDepreciacoes" && r.veiculo)
-        return mod + "|" + codigo(r.veiculo);
+    if(mod === "gestaoDepreciacoes" && (r.id || r._rid || r.veiculo || r.identificacao))
+        return mod + "|" + (r.id || r._rid ? "id:" + n(r.id || r._rid) : (r.tipoBem === "implemento" ? "implemento:" + n(r.identificacao) : "veiculo:" + codigo(r.veiculo)));
     return fmChaveRegistro(mod, r);
 }
 window.fmChaveNegocio = fmChaveNegocio;
@@ -8167,7 +8203,7 @@ function gerarRelatorioFerias(){
         window.onload = () => window.print();
     <\/script>
 
-</body>
+    </body>
     </html>
     `;
 
@@ -8327,6 +8363,83 @@ function calcularKmTotalVeiculo(){
 window.fmKmTotalVeiculo = fmKmTotalVeiculo;
 window.fmAplicarKmTotalVeiculo = fmAplicarKmTotalVeiculo;
 window.calcularKmTotalVeiculo = calcularKmTotalVeiculo;
+
+function fmUsuarioHistoricoKm(){
+    const atual = typeof usuarioLogado === 'object' && usuarioLogado ? usuarioLogado : {};
+    return String(atual.nome || atual.email || (auth && auth.currentUser && auth.currentUser.email) || 'Usuário').trim();
+}
+
+function fmRegistrarHistoricoKm(veiculo, novoKm, origem, placaAtualizada){
+    if(!veiculo) return false;
+    const anterior = fmKmNumero(veiculo.vkm);
+    const atual = fmKmNumero(novoKm);
+    if(!Number.isFinite(atual) || anterior === atual) return false;
+    if(!Array.isArray(db.historicoKm)) db.historicoKm = [];
+    const agora = new Date().toISOString();
+    const veiculoId = veiculo._rid || veiculo._fid || veiculo.id || '';
+    const placa = String(placaAtualizada || veiculo.vplaca || '').trim().toUpperCase();
+    db.historicoKm.push(fmPrepararRegistro('historicoKm', {
+        veiculoId: veiculoId,
+        placa: placa,
+        kmAnterior: anterior,
+        kmAtual: atual,
+        diferenca: atual - anterior,
+        alteradoEm: agora,
+        alteradoPor: fmUsuarioHistoricoKm(),
+        origem: origem || 'Atualização de KM'
+    }, null));
+    if(typeof fmFilaAdicionar === 'function') fmFilaAdicionar(['historicoKm']);
+    return true;
+}
+window.fmRegistrarHistoricoKm = fmRegistrarHistoricoKm;
+
+function fmEscaparHistoricoKm(valor){
+    return String(valor == null ? '' : valor)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+function fmFormatarDataHoraHistoricoKm(valor){
+    const data = new Date(valor);
+    return Number.isNaN(data.getTime()) ? '--' : data.toLocaleString('pt-BR');
+}
+
+function abrirHistoricoKmVeiculo(indice){
+    const veiculo = Array.isArray(db.veiculos) ? db.veiculos[Number(indice)] : null;
+    if(!veiculo) return;
+    const id = veiculo._rid || veiculo._fid || veiculo.id || '';
+    const placas = [veiculo.vplaca].concat(Array.isArray(veiculo.historicoPlacas)
+        ? veiculo.historicoPlacas.reduce(function(lista, item){
+            lista.push(item.placaAnterior, item.placaNova); return lista;
+        }, []) : []).map(fmNormalizarPlacaVinculo).filter(Boolean);
+    const registros = (Array.isArray(db.historicoKm) ? db.historicoKm : [])
+        .filter(function(item){
+            return (id && item.veiculoId === id) || placas.indexOf(fmNormalizarPlacaVinculo(item.placa)) !== -1;
+        })
+        .sort(function(a,b){ return String(b.alteradoEm || '').localeCompare(String(a.alteradoEm || '')); });
+    const titulo = document.getElementById('historicoKmTitulo');
+    const corpo = document.getElementById('historicoKmLista');
+    const modal = document.getElementById('modalHistoricoKm');
+    if(!titulo || !corpo || !modal) return;
+    titulo.textContent = 'Histórico de KM — ' + String(veiculo.vplaca || 'Veículo');
+    corpo.innerHTML = registros.length ? registros.map(function(item){
+        const diferenca = Number(item.diferenca || 0);
+        const sinal = diferenca > 0 ? '+' : '';
+        return '<tr><td>' + fmEscaparHistoricoKm(fmFormatarDataHoraHistoricoKm(item.alteradoEm)) + '</td>' +
+            '<td>' + Number(item.kmAnterior || 0).toLocaleString('pt-BR') + ' km</td>' +
+            '<td><b>' + Number(item.kmAtual || 0).toLocaleString('pt-BR') + ' km</b></td>' +
+            '<td class="' + (diferenca < 0 ? 'text-danger' : 'text-success') + '">' + sinal + diferenca.toLocaleString('pt-BR') + ' km</td>' +
+            '<td>' + fmEscaparHistoricoKm(item.alteradoPor || 'Usuário') + '</td>' +
+            '<td>' + fmEscaparHistoricoKm(item.origem || 'Atualização de KM') + '</td></tr>';
+    }).join('') : '<tr><td colspan="6" class="text-center text-muted py-4">Nenhuma alteração de KM registrada para este veículo.</td></tr>';
+    modal.style.display = 'flex';
+}
+function fecharHistoricoKmVeiculo(){
+    const modal = document.getElementById('modalHistoricoKm');
+    if(modal) modal.style.display = 'none';
+}
+window.abrirHistoricoKmVeiculo = abrirHistoricoKmVeiculo;
+window.fecharHistoricoKmVeiculo = fecharHistoricoKmVeiculo;
 
 function calcularPesoLiquidoVeiculo(){
     const pbtEl = document.getElementById('vpbt');
@@ -8762,8 +8875,7 @@ function navegarTerceiros() {
             <td>${t.tertelefone || ''}</td>
             <td class="num">${t.terestado || ''}</td>
             <td class="col-cidade" title="${t.tercidade || ''}">${t.tercidade || ''}</td>
-            <td class="col-obs" style="white-space:normal;min-width:180px">${t.terobs || ''}</td>
-            <td class="money" title="${(window.fmFretesDoTerceiro ? window.fmFretesDoTerceiro(t).qtd : 0)} frete(s)">${window.fmFretesDoTerceiro ? window.fmFretesDoTerceiro(t).texto : ''}</td>
+            <td class="money">${t.terfrete || ''}</td>
             <td class="num">${stHtml}</td>
             <td class="col-acoes">
                 <button class="btn btn-sm btn-warning" title="Editar"
@@ -8805,6 +8917,24 @@ function carregarPermissoesAdmin(){
 }
 
 </script>
+<div id="modalHistoricoKm" class="fm-historico-km-modal" role="dialog" aria-modal="true" aria-labelledby="historicoKmTitulo" onclick="if(event.target===this) fecharHistoricoKmVeiculo()">
+    <div class="fm-historico-km-dialog">
+        <div class="fm-historico-km-cabecalho">
+            <div>
+                <h5 id="historicoKmTitulo">Histórico de KM</h5>
+                <span>Registro somente para consulta</span>
+            </div>
+            <button type="button" class="btn btn-outline-secondary" aria-label="Fechar histórico" title="Fechar" onclick="fecharHistoricoKmVeiculo()">✕</button>
+        </div>
+        <div class="fm-historico-km-tabela">
+            <table class="table align-middle">
+                <thead><tr><th>Data e hora</th><th>KM anterior</th><th>KM atualizado</th><th>Diferença</th><th>Alterado por</th><th>Origem</th></tr></thead>
+                <tbody id="historicoKmLista"></tbody>
+            </table>
+        </div>
+        <div class="text-end mt-3"><button type="button" class="btn btn-secondary" onclick="fecharHistoricoKmVeiculo()">Fechar</button></div>
+    </div>
+</div>
 <!-- MODAL DE ANEXOS -->
 <div id="modalAnexos" style="
 position:fixed;
@@ -9062,7 +9192,6 @@ style="width:100%; height:400px; border:none;">
 })();
 </script>
 <script src="./instalar-app.js?v=1"></script>
-<script src="ordenar-arrastar.js?v=2"></script>
 </body>
 
 
@@ -9102,7 +9231,7 @@ style="width:100%; height:400px; border:none;">
     const m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
     return m ? (m[3]+'-'+m[2]+'-'+m[1]) : null;
   };
-  const acoes = (mod,i) => `<td${mod === 'veiculos' ? ' class="veiculos-acoes-celula"' : ''}><div${mod === 'veiculos' ? ' class="veiculos-acoes"' : ''}>${mod === 'veiculos' ? `<button class="btn-edit btn-km-veiculo" type="button" title="Atualizar quilometragem" aria-label="Atualizar quilometragem" onclick="atualizarKmVeiculo(${i})">🛣 <span>KM</span></button>` : ''}<button class="btn-edit" type="button" title="Editar${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Editar${mod === 'veiculos' ? ' veículo' : ''}" onclick="editar('${mod}',${i})">✎</button><button class="btn-del" type="button" title="Excluir${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Excluir${mod === 'veiculos' ? ' veículo' : ''}" onclick="deletar('${mod}',${i})">✕</button></div></td>`;
+  const acoes = (mod,i) => `<td${mod === 'veiculos' ? ' class="veiculos-acoes-celula"' : ''}><div${mod === 'veiculos' ? ' class="veiculos-acoes"' : ''}>${mod === 'veiculos' ? `<button class="btn-edit btn-km-veiculo" type="button" title="Atualizar quilometragem" aria-label="Atualizar quilometragem" onclick="atualizarKmVeiculo(${i})">🛣 <span>KM</span></button><button class="btn-edit btn-historico-km" type="button" title="Ver histórico de KM" aria-label="Ver histórico de KM" onclick="abrirHistoricoKmVeiculo(${i})">◷</button>` : ''}<button class="btn-edit" type="button" title="Editar${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Editar${mod === 'veiculos' ? ' veículo' : ''}" onclick="editar('${mod}',${i})">✎</button><button class="btn-del" type="button" title="Excluir${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Excluir${mod === 'veiculos' ? ' veículo' : ''}" onclick="deletar('${mod}',${i})">✕</button></div></td>`;
   const d = x => (x===undefined||x===null||x==='') ? '--' : x;
 
   window.atualizarKmVeiculo = function(i){
@@ -9121,6 +9250,7 @@ style="width:100%; height:400px; border:none;">
     }
     if(novoKm < atual && !confirm(`O KM informado (${novoKm.toLocaleString('pt-BR')}) é menor que o atual (${atual.toLocaleString('pt-BR')}). Deseja continuar?`)) return;
 
+    fmRegistrarHistoricoKm(veiculo, novoKm, 'Botão KM');
     veiculo.vkm = novoKm;
     fmAplicarKmTotalVeiculo(veiculo);
     veiculo.atualizadoEm = new Date().toISOString();
@@ -9193,7 +9323,7 @@ style="width:100%; height:400px; border:none;">
           if(kmax !== '' && num(x.vkm) > num(kmax)) return false;
           return true;
         })
-        .map(({x,i}) => `<tr><td><b>${d(x.vplaca)}</b></td><td>${d(x.vmodelo)}</td><td>${d(x.vtipo)}</td><td>${d(x.vkminicial)}</td><td>${d(x.vkm)}</td><td>${fmKmTotalVeiculo(x).toLocaleString('pt-BR')}</td><td>${d(x.vmotorista)}</td><td>${d(x.vpbt)}</td><td>${d(x.vtara)}</td><td>${d(x.vpliquido)}</td><td>${d(x.vm3)}</td><td>${d(x.vmedidas)}</td><td>${d(x.vstatus)}</td>${acoes(mod,i)}</tr>`)
+        .map(({x,i}) => `<tr><td><b>${d(x.vplaca)}</b></td><td>${d(x.vmodelo)}</td><td>${d(x.vkminicial)}</td><td>${d(x.vkm)}</td><td>${fmKmTotalVeiculo(x).toLocaleString('pt-BR')}</td><td>${d(x.vmotorista)}</td><td>${d(x.vpbt)}</td><td>${d(x.vtara)}</td><td>${d(x.vpliquido)}</td><td>${d(x.vm3)}</td><td>${d(x.vmedidas)}</td><td>${fmSeletorStatusVeiculo(x,i)}</td>${acoes(mod,i)}</tr>`)
         .join('');
     }
 
@@ -9416,11 +9546,10 @@ style="width:100%; height:400px; border:none;">
 <script src="./pneus-sync.js?v=1"></script>
 <script src="./login-senha.js?v=20260906-2"></script>
 <script src="./card-base-data.js?v=20260907-2"></script>
-<script src="./fretes-terceiros.js?v=20260924v"></script>
+<script src="./fretes-terceiros.js?v=20260916-2"></script>
 <script src="./enter-universal.js?v=1"></script>
-<script src="./campos-busca.js?v=20260924a"></script>
-<script src="./custos-frota.js?v=20260923b-5"></script>
-<script src="./resultado-frota.js?v=20260922-3"></script>
-<script src="./producao-xml.js?v=3"></script>
+<script src="./campos-busca.js?v=20260911-5"></script>
+<script src="./custos-frota.js?v=20260922-5"></script>
+<script src="./resultado-frota.js?v=20260923-1"></script>
 <script src="./limpeza-pos-salvar.js?v=4"></script>
 </html>
