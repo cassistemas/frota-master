@@ -1135,7 +1135,7 @@ Limpar
 <label>Status da Reserva</label>
 
 <select id="svreserva" class="form-select">
-    <option value="Livre">Livre</option>
+    <option value="Liberado">Liberado</option>
     <option value="Reservado">Reservado</option>
 </select>
 
@@ -1217,7 +1217,8 @@ class="form-control">
 
 <select
 id="svstatus"
-class="form-select">
+class="form-select"
+onchange="fmSincronizarReservaPorStatus(this.value)">
 
 <option value="Em Viagem">
 Em Viagem
@@ -4723,6 +4724,8 @@ function editar(mod,i){
 function salvarSaidaVeiculo() {
     const idx = document.getElementById("sv_idx").value;
     const veiculo = document.getElementById("svveiculo").value;
+    const statusSaida = document.getElementById("svstatus").value;
+    fmSincronizarReservaPorStatus(statusSaida);
     const reserva = document.getElementById("svreserva").value;
     const data = document.getElementById("svdataSaida").value;
     const hora = document.getElementById("svhoraSaida").value;
@@ -5390,6 +5393,122 @@ function mudarStatusAgendamento(indice, novoStatus, seletor){
 }
 window.mudarStatusAgendamento = mudarStatusAgendamento;
 
+const FM_STATUS_MANUAIS = {
+    motoristas: { campo: 'motStatus', valores: ['Ativo','Inativo'] },
+    ferias: { campo: 'festatus', valores: ['Agendada','Em andamento','Concluída'] },
+    terceiros: { campo: 'terstatus', valores: ['Ativo','Bloqueado'] },
+    saidaVeiculos: { campo: 'svstatus', valores: ['Em Viagem','Finalizado'] },
+    multas: { campo: 'mustatus', valores: ['Pendente','Pago','Recurso','Enviadas RH'] },
+    pneus: { campo: 'pstatus', valores: ['Em Uso','Estoque','Recapado','Veículo Vendido','Descartado'] }
+};
+
+function fmClasseStatusCor(valor){
+    const status = String(valor == null ? '' : valor).trim().toLocaleLowerCase('pt-BR');
+    const verdes = ['ativo','ativa','agendado','disponível','disponivel','liberado','pago','recebido','realizada','concluído','concluido','concluída','concluida','finalizado','regular','em uso'];
+    const amarelos = ['pendente','parcial','em andamento','a receber','agendada','enviadas rh','estoque','recapado','indisponível','indisponivel','em viagem','recurso','em recurso'];
+    const vermelhos = ['inativo','bloqueado','cancelado','cancelada','vendido','veículo vendido','veiculo vendido','descartado','encerrada'];
+    const azuis = ['reservado','provisionado'];
+    if(verdes.includes(status)) return 'fm-status-cor-ok';
+    if(amarelos.includes(status)) return 'fm-status-cor-alerta';
+    if(vermelhos.includes(status)) return 'fm-status-cor-critico';
+    if(azuis.includes(status)) return 'fm-status-cor-info';
+    if(status === 'suspensa') return 'fm-status-cor-neutro';
+    return 'fm-status-cor-neutro';
+}
+
+function fmAplicarCorStatus(seletor, valor){
+    if(!seletor || !seletor.classList) return;
+    ['fm-status-cor-ok','fm-status-cor-alerta','fm-status-cor-critico','fm-status-cor-info','fm-status-cor-neutro'].forEach(classe => seletor.classList.remove(classe));
+    seletor.classList.add(fmClasseStatusCor(valor));
+}
+
+function fmSincronizarReservaPorStatus(status){
+    const campoReserva = document.getElementById('svreserva');
+    if(!campoReserva) return;
+    const reserva = status === 'Finalizado' ? 'Liberado' : 'Reservado';
+    if(!Array.from(campoReserva.options || []).some(opcao => opcao.value === reserva)){
+        campoReserva.add(new Option(reserva, reserva));
+    }
+    campoReserva.value = reserva;
+}
+
+function fmSeletorStatusManual(modulo, indice, valorAtual, classeExtra){
+    const config = FM_STATUS_MANUAIS[modulo];
+    if(!config) return String(valorAtual || '--');
+    const atual = config.valores.includes(valorAtual) ? valorAtual : config.valores[0];
+    return `<select class="form-select form-select-sm fw-semibold fm-status-rapido ${classeExtra || ''} ${fmClasseStatusCor(atual)}" aria-label="Alterar status" onchange="fmAlterarStatusManual('${modulo}',${Number(indice)},this.value,this)">
+        ${config.valores.map(valor => `<option value="${valor}" ${atual === valor ? 'selected' : ''}>${valor}</option>`).join('')}
+    </select>`;
+}
+
+function fmSeletorReservaSaida(indice, valorAtual){
+    const valores = ['Reservado','Liberado'];
+    const atual = valores.includes(valorAtual) ? valorAtual : valores[0];
+    return `<select class="form-select form-select-sm fw-semibold fm-status-rapido fm-status-saida fm-status-reserva ${fmClasseStatusCor(atual)}" aria-label="Situação da reserva" onchange="fmAlterarReservaSaida(${Number(indice)},this.value,this)">
+        ${valores.map(valor => `<option value="${valor}" ${atual === valor ? 'selected' : ''}>${valor}</option>`).join('')}
+    </select>`;
+}
+
+function fmAlterarReservaSaida(indice, novoStatus, seletor){
+    const valores = ['Reservado','Liberado'];
+    const lista = Array.isArray(db.saidaVeiculos) ? db.saidaVeiculos : null;
+    const item = lista && lista[Number(indice)];
+    if(!item || !valores.includes(novoStatus)) return;
+    const anterior = Object.assign({}, item);
+    if((item.svreserva || 'Reservado') === novoStatus) return;
+    lista[Number(indice)] = fmPrepararRegistro('saidaVeiculos', Object.assign({}, item, {
+        svreserva: novoStatus,
+        atualizadoEm: new Date().toISOString()
+    }), item);
+    if(seletor){ fmAplicarCorStatus(seletor, novoStatus); seletor.disabled = true; }
+    window.fmPularSincronizacaoPreUmaVez = true;
+    Promise.resolve(salvarNuvem(['saidaVeiculos'])).then(function(ok){
+        if(ok === false) throw new Error('Falha ao salvar situação');
+        renderModulo('saidaVeiculos');
+    }).catch(function(){
+        lista[Number(indice)] = anterior;
+        renderModulo('saidaVeiculos');
+        alert('Não foi possível alterar a situação da reserva agora. Tente novamente.');
+    });
+}
+
+function fmAlterarStatusManual(modulo, indice, novoStatus, seletor){
+    const config = FM_STATUS_MANUAIS[modulo];
+    const lista = config && Array.isArray(db[modulo]) ? db[modulo] : null;
+    const item = lista && lista[Number(indice)];
+    if(!item || !config.valores.includes(novoStatus)) return;
+    const anterior = Object.assign({}, item);
+    const statusAnterior = config.valores.includes(item[config.campo]) ? item[config.campo] : config.valores[0];
+    if(statusAnterior === novoStatus) return;
+    const alteracoes = {
+        [config.campo]: novoStatus,
+        atualizadoEm: new Date().toISOString()
+    };
+    if(modulo === 'saidaVeiculos'){
+        alteracoes.svreserva = novoStatus === 'Finalizado' ? 'Liberado' : 'Reservado';
+    }
+    const atualizado = fmPrepararRegistro(modulo, Object.assign({}, item, alteracoes), item);
+    lista[Number(indice)] = atualizado;
+    if(seletor){ fmAplicarCorStatus(seletor, novoStatus); seletor.disabled = true; }
+    window.fmPularSincronizacaoPreUmaVez = true;
+    Promise.resolve(salvarNuvem([modulo])).then(function(ok){
+        if(ok === false) throw new Error('Falha ao salvar status');
+        renderModulo(modulo);
+        if(modulo === 'motoristas' && typeof fmAtualizarSelectsGerais === 'function') fmAtualizarSelectsGerais();
+    }).catch(function(){
+        lista[Number(indice)] = anterior;
+        renderModulo(modulo);
+        alert('Não foi possível alterar o status agora. Tente novamente.');
+    });
+}
+window.fmSeletorStatusManual = fmSeletorStatusManual;
+window.fmAlterarStatusManual = fmAlterarStatusManual;
+window.fmSeletorReservaSaida = fmSeletorReservaSaida;
+window.fmAlterarReservaSaida = fmAlterarReservaSaida;
+window.fmClasseStatusCor = fmClasseStatusCor;
+window.fmAplicarCorStatus = fmAplicarCorStatus;
+window.fmSincronizarReservaPorStatus = fmSincronizarReservaPorStatus;
+
 function fmSeletorStatusVeiculo(veiculo, indice){
     const permitidos = ['Ativo','Indisponível','Vendido'];
     const atual = permitidos.includes(veiculo && veiculo.vstatus) ? veiculo.vstatus : 'Ativo';
@@ -5414,11 +5533,29 @@ function mudarStatusVeiculo(indice, novoStatus, seletor){
     }), item);
     db.veiculos[Number(indice)] = atualizado;
 
+    const detransAlterados = [];
+    if(window.fmModuloCarregado("detran")){
+        (Array.isArray(db.detran) ? db.detran : []).forEach(function(registro, posicao){
+            if(!fmMesmoVeiculoVinculado(registro && registro.dtPlaca, atualizado.vplaca)) return;
+            if(registro.dtSituacao === novoStatus) return;
+            detransAlterados.push({posicao: posicao, anterior: Object.assign({}, registro)});
+            registro.dtSituacao = novoStatus;
+            registro._alteradoEm = atualizado.atualizadoEm;
+            registro.atualizadoEm = atualizado.atualizadoEm;
+        });
+    }
+
     if(seletor) seletor.disabled = true;
-    Promise.resolve(salvarNuvem(['veiculos']))
+    // Alterar o status do veículo não deve criar nem atualizar pré-lançamentos financeiros.
+    window.fmPularSincronizacaoPreUmaVez = true;
+    const modulos = ['veiculos'].concat(detransAlterados.length ? ['detran'] : []);
+    Promise.resolve(salvarNuvem(modulos))
         .then(function(){ renderModulo('veiculos'); })
         .catch(function(){
             db.veiculos[Number(indice)] = item;
+            detransAlterados.forEach(function(registro){
+                db.detran[registro.posicao] = registro.anterior;
+            });
             renderModulo('veiculos');
             alert('Não foi possível alterar o status agora. Tente novamente.');
         });
@@ -5509,6 +5646,7 @@ if(document.getElementById('agmotorista'))
 <td>${m.mcnh || '--'}</td>
 <td>${m.motTel || '--'}</td>
 <td>${m.motInicio || '--'} às ${m.motFim || '--'}</td>
+<td>${fmSeletorStatusManual('motoristas', i, m.motStatus, 'fm-status-motorista')}</td>
 ${btnSet('motoristas',i)}
 </tr>
 `).join('');
@@ -5553,17 +5691,7 @@ document.getElementById('listaFerias').innerHTML =
 
 <td>${formatarDataBR(f.feretorno || adicionarDiasFerias(f.fefim, 1))}</td>
 
-<td>
-    <span class="badge ${
-        f.festatus === 'Concluída'
-            ? 'bg-success'
-            : f.festatus === 'Em andamento'
-            ? 'bg-warning text-dark'
-            : 'bg-danger'
-    }">
-        ${f.festatus}
-    </span>
-</td>
+<td>${fmSeletorStatusManual('ferias', f.originalIndex, f.festatus, 'fm-status-ferias')}</td>
 
 <td>${f.feobs || '--'}</td>
 
@@ -8577,7 +8705,7 @@ ${btnSet('agendamentos', i)}
 <td>${f.fediastotal || diasFeriasInclusive(f.feinicio, f.fefim) || '--'}</td>
 <td>${formatarDataBR(f.fefim)}</td>
 <td>${formatarDataBR(f.feretorno || adicionarDiasFerias(f.fefim, 1))}</td>
-<td><span class="badge ${f.festatus === 'Concluída' ? 'bg-success' : f.festatus === 'Em andamento' ? 'bg-warning text-dark' : 'bg-danger'}">${f.festatus || '--'}</span></td>
+<td>${fmSeletorStatusManual('ferias', f.originalIndex, f.festatus, 'fm-status-ferias')}</td>
 <td>${f.feobs || '--'}</td>
 <td>
 <button class="btn-edit" onclick="editar('ferias',${f.originalIndex})">✎</button>
@@ -8770,11 +8898,7 @@ valorTotal.toLocaleString('pt-BR', {
 
             <td>${p.pkmrodado || 0} KM</td>
 
-            <td>
-                <span class="badge bg-dark">
-                ${p.pstatus}
-                </span>
-            </td>
+            <td>${fmSeletorStatusManual('pneus', realIndex, p.pstatus, 'fm-status-pneu')}</td>
 
             <td>${p.pfornecedor}</td>
 
@@ -8854,9 +8978,7 @@ function navegarTerceiros() {
 
     db.terceiros.forEach((t, i) => {
 
-        const st = (t.terstatus || '').toString();
-        const stCls = st.toLowerCase().startsWith('bloq') ? 'bloq' : (st ? 'ativo' : '');
-        const stHtml = st ? `<span class="ter-badge ${stCls}">${st}</span>` : '';
+        const st = (t.terstatus || 'Ativo').toString();
 
         html += `
         <tr>
@@ -8876,7 +8998,7 @@ function navegarTerceiros() {
             <td class="num">${t.terestado || ''}</td>
             <td class="col-cidade" title="${t.tercidade || ''}">${t.tercidade || ''}</td>
             <td class="money">${t.terfrete || ''}</td>
-            <td class="num">${stHtml}</td>
+            <td class="num">${fmSeletorStatusManual('terceiros', i, st, 'fm-status-terceiro')}</td>
             <td class="col-acoes">
                 <button class="btn btn-sm btn-warning" title="Editar"
                     onclick="editarTerceiro(${i})">
@@ -9306,7 +9428,7 @@ style="width:100%; height:400px; border:none;">
           if(ate){ const vc = iso(m.motVencCnh); if(!vc || vc > ate) return false; }
           return true;
         })
-        .map(({m,i}) => `<tr><td>${d(m.motNome)}</td><td>${d(m.motCpf)}</td><td>${d(m.motCnh)}</td><td>${d(m.mcnh)}</td><td>${d(m.motTel)}</td><td>${d(m.motVencCnh)}</td><td>${d(m.motVencTox)}</td><td>${d(m.motInicio)} às ${d(m.motFim)}</td><td>${d(m.motStatus)}</td>${acoes(mod,i)}</tr>`)
+        .map(({m,i}) => `<tr><td>${d(m.motNome)}</td><td>${d(m.motCpf)}</td><td>${d(m.motCnh)}</td><td>${d(m.mcnh)}</td><td>${d(m.motTel)}</td><td>${d(m.motVencCnh)}</td><td>${d(m.motVencTox)}</td><td>${d(m.motInicio)} às ${d(m.motFim)}</td><td>${fmSeletorStatusManual('motoristas',i,m.motStatus,'fm-status-motorista')}</td>${acoes(mod,i)}</tr>`)
         .join('');
     }
 

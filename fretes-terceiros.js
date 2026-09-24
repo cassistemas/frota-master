@@ -627,6 +627,30 @@
     renderFretes();
   };
 
+  window.alterarStatusFrete = function (i, novoStatus, seletor) {
+    var permitidos = ['Disponível', 'Fechado', 'Cancelado'];
+    var f = fretes[Number(i)];
+    if (!f || permitidos.indexOf(novoStatus) < 0) return;
+    var anterior = f.frestatus || 'Disponível';
+    if (anterior === novoStatus) return;
+    f.frestatus = novoStatus;
+    f._ts = Date.now();
+    f.atualizadoEm = new Date().toISOString();
+    if (typeof db !== 'undefined') db.fretes = fretes;
+    if (seletor) {
+      if (typeof window.fmAplicarCorStatus === 'function') window.fmAplicarCorStatus(seletor, novoStatus);
+      seletor.disabled = true;
+    }
+    persistir().then(function (ok) {
+      if (!ok) throw new Error('Falha ao salvar status');
+      renderFretes();
+    }).catch(function () {
+      f.frestatus = anterior;
+      renderFretes();
+      alert('Não foi possível alterar o status agora. Tente novamente.');
+    });
+  };
+
   window.limparFiltroFretes = function () {
     setVal('filtroFreBusca', '');
     setVal('filtroFreStatus', '');
@@ -652,7 +676,9 @@
         + '<td>' + esc(dataHoraBR(f.freentrega)) + '</td>'
         + '<td>' + esc(f.frerastreada) + '</td>'
         + '<td class="money">' + esc(f.frevalor) + '</td>'
-        + '<td>' + esc(f.frestatus) + '</td>'
+        + '<td><select class="form-select form-select-sm fw-semibold fm-status-rapido fm-status-frete ' + (typeof window.fmClasseStatusCor === 'function' ? window.fmClasseStatusCor(f.frestatus || 'Disponível') : '') + '" aria-label="Alterar status do frete" onchange="alterarStatusFrete(' + i + ',this.value,this)">'
+        + ['Disponível','Fechado','Cancelado'].map(function (status) { return '<option value="' + status + '" ' + ((f.frestatus || 'Disponível') === status ? 'selected' : '') + '>' + status + '</option>'; }).join('')
+        + '</select></td>'
         + '<td class="col-acoes">'
         + '<button class="btn btn-sm btn-outline-primary" title="Editar" onclick="editarFrete(' + i + ')">✏️</button> '
         + '<button class="btn btn-sm btn-outline-success" title="Ver card" onclick="preverCardFrete(' + i + ')">🖼️</button> '

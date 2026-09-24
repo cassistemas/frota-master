@@ -520,14 +520,22 @@ function alterarStatusDiaria(indice, status){
     if(!db || !Array.isArray(db.diarias)) return;
 
     const registro = db.diarias[Number(indice)];
-    if(!registro) return;
-
-    registro.distatus = status;
-    registro._alteradoEm = new Date().toISOString();
-
-    if(typeof salvarNuvem === 'function') salvarNuvem(['diarias']);
-
-    renderModulo('diarias');
+    const permitidos = ['Pendente','Enviadas RH','Pago'];
+    if(!registro || !permitidos.includes(status)) return;
+    const anterior = Object.assign({}, registro);
+    if((registro.distatus || 'Pendente') === status) return;
+    db.diarias[Number(indice)] = typeof fmPrepararRegistro === 'function'
+        ? fmPrepararRegistro('diarias', Object.assign({}, registro, {distatus: status, atualizadoEm: new Date().toISOString()}), registro)
+        : Object.assign({}, registro, {distatus: status, atualizadoEm: new Date().toISOString()});
+    window.fmPularSincronizacaoPreUmaVez = true;
+    Promise.resolve(typeof salvarNuvem === 'function' ? salvarNuvem(['diarias']) : false).then(function(ok){
+        if(ok === false) throw new Error('Falha ao salvar status');
+        renderModulo('diarias');
+    }).catch(function(){
+        db.diarias[Number(indice)] = anterior;
+        renderModulo('diarias');
+        alert('Não foi possível alterar o status agora. Tente novamente.');
+    });
 }
 
 function getDiariasFiltradas(){
@@ -877,13 +885,7 @@ const dados = getDadosPaginadosCustom(
     <td>${d.dicoleta || '--'}</td>
 
 <td>
-    <select class="form-select form-select-sm fm-status-rapido fm-status-diaria ${
-        (d.distatus || 'Pendente') === 'Pago'
-            ? 'bg-success text-white'
-            : (d.distatus || 'Pendente') === 'Enviadas RH'
-            ? 'bg-warning'
-            : 'bg-danger text-white'
-    }"
+    <select class="form-select form-select-sm fw-semibold fm-status-rapido fm-status-diaria ${fmClasseStatusCor(d.distatus || 'Pendente')}"
     onchange="alterarStatusDiaria(${realIndex}, this.value)">
         <option value="Pendente" ${(d.distatus || 'Pendente') === 'Pendente' ? 'selected' : ''}>Pendente</option>
         <option value="Enviadas RH" ${d.distatus === 'Enviadas RH' ? 'selected' : ''}>Enviadas RH</option>
@@ -1147,7 +1149,7 @@ if(modulo === 'pneus'){
         <td>${p.pmarca}</td>
         <td>${p.pveiculo}</td>
         <td>${p.pkmrodado}</td>
-        <td>${p.pstatus}</td>
+        <td>${fmSeletorStatusManual('pneus', realIndex, p.pstatus, 'fm-status-pneu')}</td>
         <td>${p.pfornecedor}</td>
 
         <td>
@@ -1276,15 +1278,7 @@ if(modulo === 'terceiros'){
 
 <td class="money">${t.terfrete || 'R$ 0,00'}</td>
 
-<td class="num">
-<span class="ter-badge ${
-    t.terstatus === 'Ativo'
-        ? 'ativo'
-        : 'bloq'
-}">
-${t.terstatus || '--'}
-</span>
-</td>
+<td class="num">${fmSeletorStatusManual('terceiros', idx, t.terstatus, 'fm-status-terceiro')}</td>
 
 <td class="col-acoes">
 
@@ -1342,15 +1336,7 @@ if(modulo==="saidaVeiculos"){
 
                 <br>
 
-                <span class="badge ${
-                    s.svreserva === "Reservado"
-                        ? "bg-danger"
-                        : "bg-success"
-                }">
-
-                    ${s.svreserva}
-
-                </span>
+                ${fmSeletorReservaSaida(real, s.svreserva)}
 
             </td>
 
@@ -1409,19 +1395,7 @@ if(modulo==="saidaVeiculos"){
             </td>
 
             <td class="saida-veiculos-status">
-
-                <span class="badge ${
-                    status === "Finalizado"
-                        ? "bg-success"
-                        : status === "Em Viagem"
-                        ? "bg-danger"
-                        : "bg-secondary"
-                }">
-
-                    ${status}
-
-                </span>
-
+                ${fmSeletorStatusManual('saidaVeiculos', real, status, 'fm-status-saida')}
             </td>
 
            <td class="saida-veiculos-acoes">
@@ -1514,11 +1488,7 @@ const dados = getDadosPaginadosCustom(filtrados, 'multas');
             <td>${formatarDataBR(mu.mudata || mu.data)}</td>
             <td>${formatarDataBR(mu.muvenc || mu.vencimento)}</td>
             <td><b>${mu.muvalor || mu.valor || '--'}</b></td>
-            <td>
-    <span class="badge ${corStatusMulta(mu.mustatus)}">
-        ${mu.mustatus}
-    </span>
-</td>
+            <td>${fmSeletorStatusManual('multas', realIndex, mu.mustatus, 'fm-status-multa')}</td>
 <td>
     <span class="badge ${
         (mu.muindicacao || "Não") === "Sim"

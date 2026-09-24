@@ -12,6 +12,21 @@
   --pro-bg: #f1f5f9;
   --pro-accent: #2563eb;
   --pro-accent-2: #1d4ed8;
+  --status-ok-text: #166534;
+  --status-ok-border: #86efac;
+  --status-ok-bg: #f0fdf4;
+  --status-alert-text: #854d0e;
+  --status-alert-border: #fde047;
+  --status-alert-bg: #fefce8;
+  --status-critical-text: #991b1b;
+  --status-critical-border: #fca5a5;
+  --status-critical-bg: #fef2f2;
+  --status-info-text: #1e40af;
+  --status-info-border: #93c5fd;
+  --status-info-bg: #eff6ff;
+  --status-neutral-text: #475569;
+  --status-neutral-border: #cbd5e1;
+  --status-neutral-bg: #f8fafc;
   --pro-shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 8px 24px -12px rgba(15, 23, 42, .18);
   --pro-radius: 14px;
 }
@@ -281,14 +296,14 @@ body {
   line-height: 1.25;
   vertical-align: middle;
 }
-#saidaVeiculos .saida-veiculos-table th:nth-child(1) { width: 7%; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(1) { width: 11%; }
 #saidaVeiculos .saida-veiculos-table th:nth-child(2) { width: 11%; }
 #saidaVeiculos .saida-veiculos-table th:nth-child(3) { width: 15%; }
 #saidaVeiculos .saida-veiculos-table th:nth-child(4),
 #saidaVeiculos .saida-veiculos-table th:nth-child(5) { width: 9%; }
 #saidaVeiculos .saida-veiculos-table th:nth-child(6) { width: 11%; }
-#saidaVeiculos .saida-veiculos-table th:nth-child(7) { width: 23%; }
-#saidaVeiculos .saida-veiculos-table th:nth-child(8) { width: 8%; text-align: center; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(7) { width: 16%; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(8) { width: 11%; text-align: center; }
 #saidaVeiculos .saida-veiculos-table th:nth-child(9) { width: 7%; text-align: center; }
 #saidaVeiculos .saida-veiculos-reserva,
 #saidaVeiculos .saida-veiculos-data {
@@ -313,6 +328,26 @@ body {
 #saidaVeiculos .saida-veiculos-acoes {
   text-align: center;
   white-space: nowrap;
+}
+#saidaVeiculos .saida-veiculos-reserva,
+#saidaVeiculos .saida-veiculos-status {
+  min-width: 0;
+  overflow: hidden;
+}
+#saidaVeiculos .saida-veiculos-reserva .fm-status-rapido,
+#saidaVeiculos .saida-veiculos-status .fm-status-rapido {
+  display: block;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 32px;
+  margin: 4px 0 0;
+  padding: 4px 1.6rem 4px 8px !important;
+  box-sizing: border-box;
+  field-sizing: fixed;
+}
+#saidaVeiculos .saida-veiculos-status .fm-status-rapido {
+  margin-top: 0;
 }
 #saidaVeiculos .saida-veiculos-table .badge {
   padding: .3em .58em;
@@ -515,9 +550,7 @@ label, .form-label {
 .fm-status-veiculo:disabled { opacity: .7; cursor: wait; }
 
 /* Alterações rápidas: reserva espaço para a maior opção e nunca corta palavras. */
-.fm-status-rapido,
-select[onchange*="mudarStatus"],
-select[onchange*="alterarStatus"] {
+.fm-status-rapido {
   width: auto !important;
   min-width: 15ch !important;
   max-width: none !important;
@@ -530,9 +563,21 @@ select[onchange*="alterarStatus"] {
 .fm-status-agendamento { min-width: 14ch !important; }
 .fm-status-veiculo { min-width: 16ch !important; }
 .fm-status-diaria { min-width: 15ch !important; }
-td:has(> .fm-status-rapido),
-td:has(> select[onchange*="mudarStatus"]),
-td:has(> select[onchange*="alterarStatus"]) {
+.fm-status-motorista { min-width: 12ch !important; }
+.fm-status-ferias { min-width: 16ch !important; }
+.fm-status-terceiro { min-width: 13ch !important; }
+.fm-status-saida { min-width: 14ch !important; }
+.fm-status-multa { min-width: 16ch !important; }
+.fm-status-pneu { min-width: 18ch !important; }
+.fm-status-frete { min-width: 13ch !important; }
+.fm-status-reserva { min-width: 13ch !important; }
+.fm-status-rapido.fm-status-cor-ok { color: var(--status-ok-text) !important; border-color: var(--status-ok-border) !important; background-color: var(--status-ok-bg) !important; }
+.fm-status-rapido.fm-status-cor-alerta { color: var(--status-alert-text) !important; border-color: var(--status-alert-border) !important; background-color: var(--status-alert-bg) !important; }
+.fm-status-rapido.fm-status-cor-critico { color: var(--status-critical-text) !important; border-color: var(--status-critical-border) !important; background-color: var(--status-critical-bg) !important; }
+.fm-status-rapido.fm-status-cor-info { color: var(--status-info-text) !important; border-color: var(--status-info-border) !important; background-color: var(--status-info-bg) !important; }
+.fm-status-rapido.fm-status-cor-neutro { color: var(--status-neutral-text) !important; border-color: var(--status-neutral-border) !important; background-color: var(--status-neutral-bg) !important; }
+.fm-status-rapido:disabled { opacity: .72; cursor: wait; }
+td:has(> .fm-status-rapido) {
   width: 1%;
   min-width: 150px;
   white-space: nowrap;

@@ -110,11 +110,6 @@ function renderMotoristas() {
 
         const status = m.motStatus || "Ativo";
 
-        const corStatus =
-            status === "Inativo"
-                ? '<span class="badge bg-danger">Inativo</span>'
-                : '<span class="badge bg-success">Ativo</span>';
-
         const tr = document.createElement('tr');
 
         tr.innerHTML = `
@@ -126,7 +121,7 @@ function renderMotoristas() {
             <td>${formatarDataBR(m.motVencCnh)}</td>
             <td>${formatarDataBR(m.motVencTox)}</td>
             <td>${horario}</td>
-            <td>${corStatus}</td>
+            <td>${fmSeletorStatusManual('motoristas', realIndex, status, 'fm-status-motorista')}</td>
             <td>
                 <button class="btn-edit" onclick="editar('motoristas',${realIndex})">✎</button>
                 <button class="btn-del" onclick="deletar('motoristas',${realIndex})">✕</button>
