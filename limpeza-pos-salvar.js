@@ -73,6 +73,7 @@
       if (deveIgnorar(el)) return;
       var tipo = (el.type || "").toLowerCase();
       try {
+        var buscaCadastro = el.classList && el.classList.contains("fm-busca-cadastro");
         if (tipo === "checkbox" || tipo === "radio") {
           el.checked = false;
         } else if (el.tagName === "SELECT") {
@@ -85,8 +86,19 @@
         } else {
           el.value = "";
         }
-        el.dispatchEvent(new Event("input", { bubbles: true }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
+        // Os campos visuais de veículo, motorista e fornecedor abrem a lista
+        // ao receber um evento de digitação. Na limpeza programática, apenas
+        // esvazia e fecha a lista, sem simular um clique/digitação do usuário.
+        if (buscaCadastro) {
+          var lista = document.getElementById(el.getAttribute("aria-controls") || "");
+          if (lista) {
+            lista.innerHTML = "";
+            lista.hidden = true;
+          }
+        } else {
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+        }
       } catch (e) {
         /* campo protegido: segue adiante */
       }

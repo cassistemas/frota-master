@@ -803,6 +803,7 @@ if (!PAGINACAO.paginas[modulo]) {
             <tr>
             <td><b>${v.vplaca}</b></td>
             <td>${v.vmodelo}</td>
+            <td>${v.vtipo || '--'}</td>
             <td>${v.vkminicial ? v.vkminicial + ' KM' : '--'}</td>
             <td>${v.vkm ? v.vkm + ' KM' : '--'}</td>
             <td>${Number(kmTotal || 0).toLocaleString('pt-BR')} KM</td>
