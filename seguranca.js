@@ -170,10 +170,6 @@
     e.preventDefault();
   });
 
-  document.addEventListener("dragstart", function (e) {
-    e.preventDefault();
-  });
-
   /* ---------- 3. Menu do navegador (Inspecionar / Ver código-fonte) ---------- */
   var sonda = /./;
   var detectado = false;

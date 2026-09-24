@@ -9673,5 +9673,13 @@ style="width:100%; height:400px; border:none;">
 <script src="./campos-busca.js?v=20260911-5"></script>
 <script src="./custos-frota.js?v=20260922-5"></script>
 <script src="./resultado-frota.js?v=20260923-1"></script>
+
+<style>
+.fm-campo-arrastavel{cursor:grab}
+.fm-campo-arrastavel :is(input,select,textarea,label){cursor:inherit}
+.fm-campo-em-arraste{opacity:.58;outline:2px dashed #2563eb;outline-offset:-3px;z-index:2}
+.fm-reordenando-campos,.fm-reordenando-campos *{cursor:grabbing!important;user-select:none!important}
+</style>
 <script src="./limpeza-pos-salvar.js?v=4"></script>
+<script src="./organizacao-campos.js?v=20260924-1"></script>
 </html>
