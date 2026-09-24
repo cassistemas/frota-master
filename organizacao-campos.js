@@ -44,13 +44,40 @@
     if (jaOrdenado) return;
     ordenados.forEach(function (item) { container.appendChild(item); });
   }
+  function restaurarPorSecao(nav, itens) {
+    if (!nav || itens.length < 2) return;
+    var ordem = ler(CHAVE_MODULOS).ordem;
+    if (!Array.isArray(ordem)) return;
+    var rank = {};
+    ordem.forEach(function (id, i) { rank[id] = i; });
+    var filhos = Array.prototype.slice.call(nav.children), grupo = [], ancora = null;
+    function aplicar() {
+      if (grupo.length > 1) {
+        var ord = grupo.slice().sort(function (a, b) {
+          var ra = rank[a.dataset.module], rb = rank[b.dataset.module];
+          ra = ra === undefined ? 1e6 + grupo.indexOf(a) : ra;
+          rb = rb === undefined ? 1e6 + grupo.indexOf(b) : rb;
+          return ra - rb;
+        });
+        if (ord.every(function (el, i) { return el === grupo[i]; })) { grupo = []; return; }
+        var ref = ancora ? ancora.nextSibling : nav.firstChild;
+        ord.forEach(function (el) { nav.insertBefore(el, ref); ref = el.nextSibling; });
+      }
+      grupo = [];
+    }
+    filhos.forEach(function (el) {
+      if (el.classList && el.classList.contains("sb-label")) { aplicar(); ancora = el; }
+      else if (itens.indexOf(el) >= 0) grupo.push(el);
+    });
+    aplicar();
+  }
   function prepararModulos() {
     var itens = modulos();
     itens.forEach(function (item) {
       item.classList.add("fm-modulo-arrastavel");
       if (!item.title) item.title = "Segure e arraste para cima ou para baixo";
     });
-    restaurar(document.querySelector("#sistema .sb-nav"), itens, CHAVE_MODULOS, "module");
+    restaurarPorSecao(document.querySelector("#sistema .sb-nav"), itens);
   }
   function prepararAbas() {
     var itens = abas();
