@@ -21,11 +21,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="./pro-ui.css?v=20260924-5">
+    <link rel="stylesheet" href="./pro-ui.css?v=20260924-6">
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=1">
-    <link rel="stylesheet" href="./custos-frota.css?v=20260924-1">
+    <link rel="stylesheet" href="./custos-frota.css?v=20260925-3">
     <style>
         :root{--sidebar:#0f172a;--accent:#3b82f6;--bg:#f8fafc;--danger:#ef4444;--warning:#f59e0b;--success:#10b981}
         body{background:var(--bg);font-family:Inter,sans-serif;font-size:.85rem}
@@ -5381,12 +5381,8 @@ function fmSeletorStatusAgendamento(agendamento, indice){
     const atual = ['Agendado','Concluído','Cancelado'].includes(agendamento && agendamento.agstatus)
         ? agendamento.agstatus
         : 'Agendado';
-    const classe = atual === 'Concluído'
-        ? 'border-success text-success'
-        : atual === 'Cancelado'
-        ? 'border-danger text-danger'
-        : 'border-warning text-dark';
-    return `<select class="form-select form-select-sm fw-semibold fm-status-rapido fm-status-agendamento ${classe}" aria-label="Status do agendamento" onchange="mudarStatusAgendamento(${indice},this.value,this)">
+    const classe = fmClasseStatusCor(atual);
+    return `<select class="form-select form-select-sm fw-semibold fm-status-rapido fm-status-agendamento ${classe}" data-status="${atual}" aria-label="Status do agendamento" onchange="mudarStatusAgendamento(${indice},this.value,this)">
         <option value="Agendado" ${atual === 'Agendado' ? 'selected' : ''}>Agendado</option>
         <option value="Concluído" ${atual === 'Concluído' ? 'selected' : ''}>Concluído</option>
         <option value="Cancelado" ${atual === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
@@ -5411,9 +5407,7 @@ function mudarStatusAgendamento(indice, novoStatus, seletor){
 
     if(seletor){
         seletor.disabled = true;
-        seletor.classList.remove('border-success','text-success','border-danger','text-danger','border-warning','text-dark');
-        seletor.classList.add(novoStatus === 'Concluído' ? 'border-success' : novoStatus === 'Cancelado' ? 'border-danger' : 'border-warning');
-        seletor.classList.add(novoStatus === 'Agendado' ? 'text-dark' : novoStatus === 'Concluído' ? 'text-success' : 'text-danger');
+        fmAplicarCorStatus(seletor, novoStatus);
     }
 
     Promise.resolve(salvarNuvem(['agendamentos']))
@@ -5437,24 +5431,50 @@ const FM_STATUS_MANUAIS = {
 
 function fmClasseStatusCor(valor){
     const status = String(valor == null ? '' : valor).trim().toLocaleLowerCase('pt-BR');
-    const verdes = ['ativo','ativa','agendado','disponível','disponivel','liberado','pago','recebido','realizada','concluído','concluido','concluída','concluida','finalizado','regular','em uso'];
-    const amarelos = ['pendente','parcial','em andamento','a receber','agendada','enviadas rh','estoque','recapado','indisponível','indisponivel','em viagem','recurso','em recurso'];
+    const verdes = ['ativo','ativa','disponível','disponivel','liberado','pago','recebido','realizada','concluído','concluido','concluída','concluida','finalizado','regular','em uso'];
+    const amarelos = ['pendente','em andamento','indisponível','indisponivel','recurso','em recurso','suspensa'];
     const vermelhos = ['inativo','bloqueado','cancelado','cancelada','vendido','veículo vendido','veiculo vendido','descartado','encerrada'];
-    const azuis = ['reservado','provisionado'];
+    const azuis = ['reservado','provisionado','agendado','agendada','a receber','em viagem','enviadas rh','fechado'];
+    const roxos = ['recapado'];
+    const cianos = ['estoque'];
+    const laranjas = ['parcial'];
     if(verdes.includes(status)) return 'fm-status-cor-ok';
     if(amarelos.includes(status)) return 'fm-status-cor-alerta';
     if(vermelhos.includes(status)) return 'fm-status-cor-critico';
     if(azuis.includes(status)) return 'fm-status-cor-info';
-    if(status === 'suspensa') return 'fm-status-cor-neutro';
+    if(roxos.includes(status)) return 'fm-status-cor-roxo';
+    if(cianos.includes(status)) return 'fm-status-cor-ciano';
+    if(laranjas.includes(status)) return 'fm-status-cor-laranja';
     return 'fm-status-cor-neutro';
 }
 
 function fmAplicarCorStatus(seletor, valor){
     if(!seletor || !seletor.classList) return;
-    ['fm-status-cor-ok','fm-status-cor-alerta','fm-status-cor-critico','fm-status-cor-info','fm-status-cor-neutro'].forEach(classe => seletor.classList.remove(classe));
+    ['fm-status-cor-ok','fm-status-cor-alerta','fm-status-cor-critico','fm-status-cor-info','fm-status-cor-neutro','fm-status-cor-roxo','fm-status-cor-ciano','fm-status-cor-laranja'].forEach(classe => seletor.classList.remove(classe));
     seletor.classList.add(fmClasseStatusCor(valor));
     seletor.setAttribute('data-status', String(valor == null ? '' : valor));
 }
+
+function fmColorirCamposStatus(raiz){
+    const ids = ['distatus','terstatus','agstatus','svstatus','mustatus','vstatus','motStatus','festatus','pstatus','cusStatus','cusImpStatus','resProdSituacao','resProdStatus','resDepStatus','frestatus'];
+    ids.forEach(function(id){
+        const seletor = raiz && raiz.id === id ? raiz : (raiz && raiz.querySelector ? raiz.querySelector('#' + id) : null);
+        if(!seletor || seletor.tagName !== 'SELECT' || !seletor.value) return;
+        seletor.classList.add('fm-status-rapido','fm-status-formulario');
+        fmAplicarCorStatus(seletor, seletor.value);
+        if(seletor.dataset.fmCorStatus === '1') return;
+        seletor.dataset.fmCorStatus = '1';
+        seletor.addEventListener('change', function(){ fmAplicarCorStatus(seletor, seletor.value); });
+        seletor.addEventListener('focus', function(){ fmAplicarCorStatus(seletor, seletor.value); });
+    });
+}
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ fmColorirCamposStatus(document); });
+else fmColorirCamposStatus(document);
+new MutationObserver(function(mudancas){
+    mudancas.forEach(function(mudanca){
+        Array.from(mudanca.addedNodes || []).forEach(function(no){ if(no && no.nodeType === 1) fmColorirCamposStatus(no); });
+    });
+}).observe(document.documentElement, {childList:true, subtree:true});
 
 function fmSincronizarReservaPorStatus(status){
     const campoReserva = document.getElementById('svreserva');
@@ -5478,7 +5498,7 @@ function fmSeletorStatusManual(modulo, indice, valorAtual, classeExtra){
 function fmSeletorReservaSaida(indice, valorAtual){
     const valores = ['Reservado','Liberado'];
     const atual = valores.includes(valorAtual) ? valorAtual : valores[0];
-    return `<select class="form-select form-select-sm fw-semibold fm-status-rapido fm-status-saida fm-status-reserva ${fmClasseStatusCor(atual)}" aria-label="Situação da reserva" onchange="fmAlterarReservaSaida(${Number(indice)},this.value,this)">
+    return `<select class="form-select form-select-sm fw-semibold fm-status-rapido fm-status-saida fm-status-reserva ${fmClasseStatusCor(atual)}" data-status="${atual}" aria-label="Situação da reserva" onchange="fmAlterarReservaSaida(${Number(indice)},this.value,this)">
         ${valores.map(valor => `<option value="${valor}" ${atual === valor ? 'selected' : ''}>${valor}</option>`).join('')}
     </select>`;
 }
@@ -5541,13 +5561,14 @@ window.fmSeletorReservaSaida = fmSeletorReservaSaida;
 window.fmAlterarReservaSaida = fmAlterarReservaSaida;
 window.fmClasseStatusCor = fmClasseStatusCor;
 window.fmAplicarCorStatus = fmAplicarCorStatus;
+window.fmColorirCamposStatus = fmColorirCamposStatus;
 window.fmSincronizarReservaPorStatus = fmSincronizarReservaPorStatus;
 
 function fmSeletorStatusVeiculo(veiculo, indice){
     const permitidos = ['Ativo','Indisponível','Vendido'];
     const atual = permitidos.includes(veiculo && veiculo.vstatus) ? veiculo.vstatus : 'Ativo';
     const classe = atual === 'Ativo' ? 'status-veiculo-ativo' : atual === 'Indisponível' ? 'status-veiculo-indisponivel' : 'status-veiculo-vendido';
-    return `<select class="form-select form-select-sm fw-semibold fm-status-rapido fm-status-veiculo ${classe}" aria-label="Status do veículo" onchange="mudarStatusVeiculo(${indice},this.value,this)">
+    return `<select class="form-select form-select-sm fw-semibold fm-status-rapido fm-status-veiculo ${classe}" data-status="${atual}" aria-label="Status do veículo" onchange="mudarStatusVeiculo(${indice},this.value,this)">
         <option value="Ativo" ${atual === 'Ativo' ? 'selected' : ''}>Ativo</option>
         <option value="Indisponível" ${atual === 'Indisponível' ? 'selected' : ''}>Indisponível</option>
         <option value="Vendido" ${atual === 'Vendido' ? 'selected' : ''}>Vendido</option>
@@ -6103,7 +6124,7 @@ function imprimirRelatorioEstoque() {
     <h2>Movimentações</h2>
     <table><thead><tr><th>Data</th><th>Item</th><th>Categoria</th><th>Tipo</th><th>Placa</th><th>Qtd.</th><th>Valor Unit.</th><th>Total</th><th>Fornecedor</th><th>Lote / NF</th><th>Observações</th></tr></thead><tbody>${linhasMov || '<tr><td colspan="11">Sem registros.</td></tr>'}</tbody></table>
     <script>window.onload=function(){window.print();};<\/script>
-    </body></html>`;
+</body></html>`;
     const janela = window.open('', '_blank');
     if (!janela) { alert('Permita janelas pop-up para imprimir o relatório.'); return; }
     janela.document.write(html);
@@ -8373,7 +8394,7 @@ function gerarRelatorioFerias(){
         window.onload = () => window.print();
     <\/script>
 
-    </body>
+</body>
     </html>
     `;
 
@@ -9357,6 +9378,7 @@ style="width:100%; height:400px; border:none;">
 })();
 </script>
 <script src="./instalar-app.js?v=1"></script>
+<script src="./editar-rolar.js?v=1"></script>
 </body>
 
 
@@ -9711,11 +9733,12 @@ style="width:100%; height:400px; border:none;">
 <script src="./pneus-sync.js?v=1"></script>
 <script src="./login-senha.js?v=20260906-2"></script>
 <script src="./card-base-data.js?v=20260907-2"></script>
-<script src="./fretes-terceiros.js?v=20260924-1"></script>
+<script src="./fretes-terceiros.js?v=20260924-2"></script>
 <script src="./enter-universal.js?v=1"></script>
 <script src="./campos-busca.js?v=20260911-5"></script>
-<script src="./custos-frota.js?v=20260924-9"></script>
-<script src="./resultado-frota.js?v=20260924-3"></script>
+<script src="./custos-frota.js?v=20260925-4"></script>
+<script src="./resultado-frota.js?v=20260925-3"></script>
+<script src="./filtros-por-aba.js?v=3"></script>
 <script src="./producao-xml.js?v=2"></script>
 
 <style>

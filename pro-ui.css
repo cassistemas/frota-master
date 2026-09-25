@@ -576,6 +576,11 @@ label, .form-label {
 .fm-status-rapido.fm-status-cor-critico { color: var(--status-critical-text) !important; border-color: var(--status-critical-border) !important; background-color: var(--status-critical-bg) !important; }
 .fm-status-rapido.fm-status-cor-info { color: var(--status-info-text) !important; border-color: var(--status-info-border) !important; background-color: var(--status-info-bg) !important; }
 .fm-status-rapido.fm-status-cor-neutro { color: var(--status-neutral-text) !important; border-color: var(--status-neutral-border) !important; background-color: var(--status-neutral-bg) !important; }
+.fm-status-rapido.fm-status-cor-roxo { color: #6b21a8 !important; border-color: #d8b4fe !important; background-color: #faf5ff !important; }
+.fm-status-rapido.fm-status-cor-ciano { color: #155e75 !important; border-color: #67e8f9 !important; background-color: #ecfeff !important; }
+.fm-status-rapido.fm-status-cor-laranja { color: #9a3412 !important; border-color: #fdba74 !important; background-color: #fff7ed !important; }
+.fm-status-formulario { width: 100% !important; }
+.fm-status-badge { display:inline-flex;align-items:center;justify-content:center;min-width:11ch!important;min-height:28px;padding:4px 9px;border:1px solid;border-radius:5px;font-size:.72rem;font-weight:700;line-height:1.2;white-space:nowrap }
 .fm-status-rapido:disabled { opacity: .72; cursor: wait; }
 td:has(> .fm-status-rapido) {
   width: 1%;
@@ -916,6 +921,14 @@ tr.pneu-detalhe > td{background:#f8fafc;border-top:0}
 .fm-status-rapido.fm-status-multa[data-status="Pago"]{color:#166534!important;border-color:#86efac!important;background-color:#dcfce7!important}
 .fm-status-rapido.fm-status-multa[data-status="Recurso"]{color:#92400e!important;border-color:#fcd34d!important;background-color:#fef3c7!important}
 .fm-status-rapido.fm-status-multa[data-status="Enviadas RH"]{color:#1e40af!important;border-color:#93c5fd!important;background-color:#dbeafe!important}
+
+/* Cada opção mantém uma identidade visual própria dentro do seu módulo. */
+.fm-status-rapido.fm-status-agendamento[data-status="Agendado"],
+.fm-status-rapido.fm-status-ferias[data-status="Agendada"]{color:var(--status-info-text)!important;border-color:var(--status-info-border)!important;background-color:var(--status-info-bg)!important}
+.fm-status-rapido.fm-status-pneu[data-status="Estoque"]{color:#155e75!important;border-color:#67e8f9!important;background-color:#ecfeff!important}
+.fm-status-rapido.fm-status-pneu[data-status="Recapado"]{color:#6b21a8!important;border-color:#d8b4fe!important;background-color:#faf5ff!important}
+.fm-status-rapido.fm-status-pneu[data-status="Veículo Vendido"]{color:#9a3412!important;border-color:#fdba74!important;background-color:#fff7ed!important}
+#pstatus.fm-status-formulario[data-status="Veículo Vendido"]{color:#9a3412!important;border-color:#fdba74!important;background-color:#fff7ed!important}
 
 /* Férias: campo de busca de motorista igual aos demais e lista visível */
 .ferias-field.fm-busca-container{overflow:visible}

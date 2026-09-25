@@ -998,7 +998,7 @@
         + '<td>' + esc(dataHoraBR(f.freentrega)) + '</td>'
         + '<td>' + esc(f.frerastreada) + '</td>'
         + '<td class="money">' + esc(f.frevalor) + '</td>'
-        + '<td>' + esc(f.frestatus) + '</td>'
+        + '<td><span class="fm-status-rapido fm-status-badge fm-status-frete ' + (typeof window.fmClasseStatusCor === 'function' ? window.fmClasseStatusCor(f.frestatus || 'Disponível') : '') + '" data-status="' + esc(f.frestatus || 'Disponível') + '">' + esc(f.frestatus || 'Disponível') + '</span></td>'
         + '<td class="col-acoes">'
         + '<button class="btn btn-sm btn-outline-secondary" title="Visualizar" onclick="verFrete(' + i + ')">👁️</button> '
         + '<button class="btn btn-sm btn-outline-primary" title="Editar" onclick="editarFrete(' + i + ')">✏️</button> '
