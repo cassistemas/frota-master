@@ -26,3 +26,12 @@
 .cus-status-select{width:auto;min-width:15ch;max-width:none;height:32px;padding:4px 30px 4px 8px;border-width:1px;font-size:.72rem;font-weight:700;white-space:nowrap;text-overflow:clip;overflow:visible;field-sizing:content;transition:background-color .15s ease,border-color .15s ease,color .15s ease}.cus-status-select:disabled{cursor:wait;opacity:.65}.cus-status-readonly{display:inline-block;padding:5px 9px;border:1px solid transparent;border-radius:5px;font-size:.72rem;font-weight:700}.cus-status-pago{background:#eefbf3!important;border-color:#b9e5c9!important;color:#24613c!important}.cus-status-realizado{background:#eef7fd!important;border-color:#bedcf0!important;color:#285d7c!important}.cus-status-pendente{background:#fff9e8!important;border-color:#eadca8!important;color:#795f1f!important}.cus-status-provisionado{background:#f4f1fa!important;border-color:#d9cdea!important;color:#5f4d7c!important}
 .btn-transfer{width:auto;height:auto;min-height:30px;padding:5px 10px;border:1px solid #b9e5c9;border-radius:5px;background:#eefbf3;color:#24613c;font-size:.72rem;font-weight:700;line-height:1.25;white-space:nowrap}.btn-transfer:hover{background:#dcfce7}.res-depreciacao-table{min-width:1380px}
 .cus-rec-table{min-width:980px}.cus-rec-table td{font-size:.8rem;white-space:nowrap}.cus-rec-table td:first-child{white-space:normal}.cus-rec-table .cus-history-actions{display:inline-flex;gap:6px;justify-content:flex-end}
+
+/* Only the recurring-cost form: use the available panel width without oversized fields. */
+#cusPane-recorrentes .cus-grid>.cus-panel:first-child{container:cus-rec-form / inline-size}
+#cusPane-recorrentes .cus-rec-form-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px}
+#cusPane-recorrentes .cus-rec-form-grid>div{min-width:0}
+#cusPane-recorrentes .cus-rec-form-grid :is(.form-control,.form-select){min-width:0;width:100%}
+#cusPane-recorrentes .cus-rec-form-grid #cusRecModoGrupo{grid-column:span 2}
+@container cus-rec-form (max-width:470px){#cusPane-recorrentes .cus-rec-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#cusPane-recorrentes .cus-rec-form-grid #cusRecModoGrupo{grid-column:span 1}}
+@container cus-rec-form (max-width:390px){#cusPane-recorrentes .cus-rec-form-grid{grid-template-columns:1fr}#cusPane-recorrentes .cus-rec-form-grid .span-2{grid-column:span 1}}

@@ -343,6 +343,40 @@
     leitor.readAsText(arq, 'UTF-8');
   };
 
+  window.importarMdfeFrete = function (input) {
+    var arq = input && input.files && input.files[0]; if (!arq) return;
+    var leitor = new FileReader();
+    leitor.onload = function () {
+      var x = null;
+      try { x = window.FMMDFeXML && window.FMMDFeXML.ler(String(leitor.result || '')); } catch (e) {}
+      input.value = '';
+      if (!x) { alert('Não foi possível ler este arquivo como MDF-e. Envie o XML original do MDF-e.'); return; }
+      if (x.data && !val('fredata')) setVal('fredata', x.data);
+      if (x.origem && !val('freorigem')) setVal('freorigem', x.origem);
+      if (x.destino && !val('fredestino')) setVal('fredestino', x.destino);
+      if (val('freorigem') || val('fredestino')) aplicarRotaNosSelects({ freorigem: val('freorigem'), fredestino: val('fredestino') });
+      if (x.toneladas !== null && !val('frepeso')) setVal('frepeso', x.toneladas.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) + ' TONELADAS');
+      if (x.carga && !val('fretipocarga')) setVal('fretipocarga', x.carga);
+      if (x.placa) {
+        var veic = document.getElementById('freveiculo');
+        var placa = x.placa;
+        if (veic && val('freexecucao') !== 'terceiro') {
+          var op = Array.prototype.filter.call(veic.options, function (o) { return o.value.toUpperCase().replace(/[^A-Z0-9]/g, '') === placa; })[0];
+          if (op && !veic.value) { veic.value = op.value; preencherTipoPeloVinculo(); }
+        }
+      }
+      var obs = val('freobs'), ref = x.documento || ('MDF-e ' + x.chave);
+      if (ref && obs.indexOf(ref) === -1) {
+        var detalhes = [ref, x.placa && 'Placa: ' + x.placa, x.motorista && 'Condutor: ' + x.motorista, x.valorCarga && 'Valor da mercadoria: ' + x.valorCarga.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), x.quantidadeCtes && 'CT-e vinculados: ' + x.quantidadeCtes, x.quantidadeNfes && 'NF-e vinculadas: ' + x.quantidadeNfes].filter(Boolean);
+        setVal('freobs', [obs, detalhes.join(' | ')].filter(Boolean).join('\n'));
+      }
+      var faltas = [!x.origem && 'origem', !x.destino && 'destino', x.multiplasOrigens && 'município de origem (há vários)', x.multiplosDestinos && 'município de destino (há vários)', x.multiplosCondutores && 'condutor (há vários)'].filter(Boolean);
+      alert('Dados do MDF-e importados. O valor da mercadoria não é o valor do frete; informe e confira os valores reais antes de salvar.' + (faltas.length ? ' Confira também: ' + faltas.join(', ') + '.' : ''));
+    };
+    leitor.onerror = function () { input.value = ''; alert('Não foi possível ler o arquivo.'); };
+    leitor.readAsText(arq, 'UTF-8');
+  };
+
   function telWhats(tel) {
     var d = soDigitos(tel);
     if (!d) return '';
@@ -377,6 +411,7 @@
       + '    <div class="col-md-3 hidden" id="grpFreTerceiro"><label class="form-label-mini">Terceiro contratado</label><select id="freterceiro" class="form-select"></select></div>'
       + '    <div class="col-md-2 hidden" id="grpFreCustoTerceiro"><label class="form-label-mini">Valor pago ao terceiro</label><input id="frecustoterceiro" class="form-control" inputmode="numeric" placeholder="R$ 0,00"></div>'
       + '    <div class="col-md-4"><label class="form-label-mini">Importar CTe (XML)</label><input type="file" id="freCteArquivo" class="form-control" accept=".xml,text/xml,application/xml" onchange="importarCteFrete(this)"><small class="text-muted">Os dados são lidos do arquivo e o arquivo não fica guardado no sistema.</small></div>'
+      + '    <div class="col-md-4"><label class="form-label-mini">Importar MDF-e (XML)</label><input type="file" id="freMdfeArquivo" class="form-control" accept=".xml,text/xml,application/xml" onchange="importarMdfeFrete(this)"><small class="text-muted">Valor da carga não é valor do frete. Confira antes de salvar.</small></div>'
       + '    <div class="col-md-12"><label class="form-label-mini">Observações</label><textarea id="freobs" class="form-control" placeholder="Observações do frete"></textarea></div>'
       + '    <div class="col-md-12 text-end">'
       + '      <button class="btn btn-primary" onclick="salvarFrete()">Salvar</button> '

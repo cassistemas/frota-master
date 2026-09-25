@@ -121,13 +121,54 @@
     r.readAsText(arq, 'UTF-8');
   };
 
+  window.importarMdfeProducao = function (input) {
+    var arq = input && input.files && input.files[0]; if (!arq) return;
+    var leitor = new FileReader();
+    leitor.onload = function () {
+      var x = null;
+      try { x = window.FMMDFeXML && window.FMMDFeXML.ler(String(leitor.result || '')); } catch (e) {}
+      input.value = '';
+      if (!x) { alert('Não foi possível ler este arquivo como MDF-e. Envie o XML original do MDF-e.'); return; }
+      var atual = (document.getElementById('resProdDocumento') || {}).value || '';
+      var juntoCte = /^CT-e /i.test(atual), documento = juntoCte ? atual : x.documento;
+      var duplicado = documento && window.db && Array.isArray(db.producoes) && db.producoes.some(function (p) {
+        return p.documento === documento && p.id !== (document.getElementById('resProdId') || {}).value;
+      });
+      if (duplicado) { alert('Este documento já consta em Produção e Receitas. Confira o registro antes de salvar.'); return; }
+      var tipo = document.getElementById('resProdTipo'); if (tipo) tipo.value = 'viagem';
+      if (x.placa && (!juntoCte || !(document.getElementById('resProdVeiculo') || {}).value)) {
+        var lista = document.getElementById('cusVeiculosLista'), encontrado = '';
+        if (lista) Array.prototype.forEach.call(lista.options, function (o) { if (!encontrado && placaN(o.value) === x.placa) encontrado = o.value; });
+        set('resProdVeiculo', encontrado || x.placa);
+      }
+      if (!juntoCte || !(document.getElementById('resProdMotorista') || {}).value) set('resProdMotorista', x.motorista);
+      set('resProdDocumento', documento);
+      if (!juntoCte || !(document.getElementById('resProdData') || {}).value) set('resProdData', x.data);
+      if (!juntoCte || !(document.getElementById('resProdFim') || {}).value) set('resProdFim', x.data);
+      if (!juntoCte || !(document.getElementById('resProdCompetencia') || {}).value) set('resProdCompetencia', x.data.slice(0, 7));
+      if (!juntoCte || !(document.getElementById('resProdOrigem') || {}).value) set('resProdOrigem', x.origem);
+      if (!juntoCte || !(document.getElementById('resProdDestino') || {}).value) set('resProdDestino', x.destino);
+      if (x.toneladas !== null && (!juntoCte || !(document.getElementById('resProdTon') || {}).value)) set('resProdTon', String(x.toneladas));
+      var obs = document.getElementById('resProdObs'), ref = x.documento || ('MDF-e ' + x.chave);
+      if (obs && ref && obs.value.indexOf(ref) === -1) {
+        var detalhes = [ref, x.carga && 'Carga: ' + x.carga, x.valorCarga && 'Valor da mercadoria: ' + moeda(x.valorCarga), x.quantidadeCtes && 'CT-e vinculados: ' + x.quantidadeCtes, x.quantidadeNfes && 'NF-e vinculadas: ' + x.quantidadeNfes].filter(Boolean);
+        obs.value = [obs.value, detalhes.join(' | ')].filter(Boolean).join(' | ');
+      }
+      atualizarTipo();
+      var faltas = [!x.placa && 'veículo', !x.origem && 'origem', !x.destino && 'destino', x.multiplasOrigens && 'município de origem (há vários)', x.multiplosDestinos && 'município de destino (há vários)', x.multiplosCondutores && 'motorista (há vários)'].filter(Boolean);
+      alert('Dados do MDF-e importados.' + (juntoCte ? ' Os dados do CT-e já preenchidos foram mantidos; confira se o manifesto reúne outras cargas.' : '') + ' O valor da mercadoria não é receita do frete; informe e confira a receita real antes de salvar.' + (faltas.length ? ' Confira também: ' + faltas.join(', ') + '.' : '') + ' Confira o KM da viagem.');
+    };
+    leitor.onerror = function () { input.value = ''; alert('Não foi possível ler o arquivo.'); };
+    leitor.readAsText(arq, 'UTF-8');
+  };
+
   function injetar() {
     var pane = document.getElementById('cusPane-producao');
     if (!pane || document.getElementById('resProdCteArquivo')) return;
     var grid = pane.querySelector('.cus-form-grid'); if (!grid) return;
     var box = document.createElement('div');
     box.style.cssText = 'margin:0 0 12px';
-    box.innerHTML = '<label class="form-label-mini">Importar CT-e (XML)</label><input type="file" id="resProdCteArquivo" data-nao-limpar="1" class="form-control" accept=".xml,text/xml,application/xml" onchange="importarCteProducao(this)"><small class="text-muted">Preenche os campos automaticamente. Confira, informe o KM da viagem e clique em Salvar. O arquivo não fica guardado.</small>';
+    box.innerHTML = '<label class="form-label-mini">Importar CT-e (XML)</label><input type="file" id="resProdCteArquivo" data-nao-limpar="1" class="form-control" accept=".xml,text/xml,application/xml" onchange="importarCteProducao(this)"><label class="form-label-mini mt-2">Importar MDF-e (XML)</label><input type="file" id="resProdMdfeArquivo" data-nao-limpar="1" class="form-control" accept=".xml,text/xml,application/xml" onchange="importarMdfeProducao(this)"><small class="text-muted">Confira veículo, rota, KM e receita do frete antes de salvar. Valor da carga não é receita. Os arquivos não ficam guardados.</small>';
     grid.parentNode.insertBefore(box, grid);
     var kmEl = document.getElementById('resProdKm');
     if (kmEl && !document.getElementById('resProdKmInfo')) kmEl.insertAdjacentHTML('afterend', '<button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="calcularKmProducao()">Calcular pela rota</button><small id="resProdKmInfo" class="text-muted d-block"></small>');
