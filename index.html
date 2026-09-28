@@ -25,7 +25,7 @@
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=1">
-    <link rel="stylesheet" href="./custos-frota.css?v=20260925-5">
+    <link rel="stylesheet" href="./custos-frota.css?v=20260928-6">
     <style>
         :root{--sidebar:#0f172a;--accent:#3b82f6;--bg:#f8fafc;--danger:#ef4444;--warning:#f59e0b;--success:#10b981}
         body{background:var(--bg);font-family:Inter,sans-serif;font-size:.85rem}
@@ -3410,7 +3410,7 @@ oninput="calcularKMPneu()">
     </div>
 
     <div id="custos" class="hidden cus-page">
-      <div class="cus-head"><div><span class="dashboard-eyebrow">Controle operacional e financeiro</span><h2>Gestão da Frota</h2><p>Lançamentos manuais com cálculos automáticos, depreciação e resultado por veículo.</p></div><div class="cus-actions"><button class="btn btn-outline-dark" onclick="window.print()">Imprimir</button><button class="btn btn-success" onclick="exportarCustosFrota()">Exportar Excel</button></div></div>
+      <div class="cus-head"><div><span class="dashboard-eyebrow">Controle operacional e financeiro</span><h2>Gestão da Frota</h2><p>Lançamentos manuais com cálculos automáticos, depreciação e resultado por veículo.</p></div><div class="cus-actions"><button class="btn btn-outline-dark" onclick="imprimirAbaFrota()">Imprimir</button><button class="btn btn-success" onclick="exportarAbaFrota()">Exportar gestão</button></div></div>
       <div class="cus-filter">
         <div class="cus-periods"><button onclick="aplicarPeriodoCustos('mes')">Mês atual</button><button onclick="aplicarPeriodoCustos('anterior')">Mês anterior</button><button onclick="aplicarPeriodoCustos('tri')">Últimos 3 meses</button><button onclick="aplicarPeriodoCustos('ano')">Ano atual</button></div>
         <div class="cus-filter-grid">
@@ -3426,6 +3426,7 @@ oninput="calcularKMPneu()">
         </div>
       </div>
       <div class="cus-kpis" aria-label="Indicadores da Gestão da Frota"><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Custo por km</span><strong id="cusIndicadorCustoKm">--</strong><small id="cusKmAlerta">Quilometragem do período</small></div><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Faturamento médio</span><strong id="cusIndicadorFaturamentoMedio">R$ 0,00</strong><small>Média mensal do período</small></div><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Custo da frota</span><strong id="cusIndicadorCustoFrota">R$ 0,00</strong><small id="cusPeriodoLabel">Competência selecionada</small></div><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Margem</span><strong id="cusIndicadorMargem">0,0%</strong><small>Resultado sobre a receita líquida</small></div></div>
+      <div class="cus-filter-summary" id="cusFiltroResumo" aria-live="polite"><div><span id="cusFiltroResumoTitulo">Valor filtrado</span><strong id="cusFiltroResumoValor">R$ 0,00</strong></div><small id="cusFiltroResumoDetalhe"></small></div>
       <div id="cusPendencias" class="cus-pendencias"></div>
       <div class="cus-tabs"><button class="cus-tab active" data-tab="lancamentos" onclick="trocarAbaCustos('lancamentos')">Lançamentos</button><button class="cus-tab" data-tab="recorrentes" onclick="trocarAbaCustos('recorrentes')">Fixos e pessoal</button><button class="cus-tab" data-tab="implementos" onclick="trocarAbaCustos('implementos')">Implementos</button><button class="cus-tab" data-tab="quilometragem" onclick="trocarAbaCustos('quilometragem')">Quilometragem</button><button class="cus-tab" data-tab="terceirizacao" onclick="trocarAbaCustos('terceirizacao')">Próprio x Terceiro</button><button class="cus-tab" data-tab="analise" onclick="trocarAbaCustos('analise')">Análise por veículo</button></div>
       <div id="cusPane-lancamentos" class="cus-pane">
@@ -9753,9 +9754,11 @@ style="width:100%; height:400px; border:none;">
 <script src="./fretes-terceiros.js?v=20260925-mdfe"></script>
 <script src="./enter-universal.js?v=1"></script>
 <script src="./campos-busca.js?v=20260911-5"></script>
-<script src="./custos-frota.js?v=20260928-5"></script>
+<script src="./custos-frota.js?v=20260928-6"></script>
 <script src="./resultado-frota.js?v=20260925-3"></script>
 <script src="./filtros-por-aba.js?v=3"></script>
+<script src="./resumo-filtros-frota.js?v=1"></script>
+<script src="./exportar-aba-frota.js?v=1"></script>
 <script src="./producao-xml.js?v=20260925-mdfe"></script>
 
 <style>
