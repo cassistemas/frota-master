@@ -25,6 +25,14 @@
   function abas() {
     return Array.prototype.slice.call(document.querySelectorAll("#custos .cus-tabs > .cus-tab[data-tab]"));
   }
+  function partesMenu(nav) {
+    return Array.prototype.slice.call(nav.children).filter(function (item) {
+      return item.matches(".sb-label, a[data-module]");
+    });
+  }
+  function chaveMenu(item) {
+    return item.matches(".sb-label") ? "secao:" + item.textContent.trim() : "modulo:" + item.dataset.module;
+  }
   function restaurar(container, itens, chave, atributo) {
     if (!container || itens.length < 2) return;
     var ordem = ler(chave).ordem;
@@ -45,17 +53,36 @@
   }
   function restaurarModulos(nav, itens) {
     if (!nav || itens.length < 2) return;
-    var ordem = ler(CHAVE_MODULOS).ordem;
-    if (!Array.isArray(ordem)) return;
-    var porId = {};
-    itens.forEach(function (item) { porId[item.dataset.module] = item; });
-    var ordenados = ordem.map(function (id) { return porId[id]; }).filter(Boolean);
-    itens.forEach(function (item) { if (ordenados.indexOf(item) < 0) ordenados.push(item); });
-    // Os títulos continuam nas posições originais; cada vaga de módulo recebe
-    // o módulo correspondente à ordem salva, inclusive entre seções diferentes.
-    if (itens.every(function (item, i) { return item === ordenados[i]; })) return;
-    var vagas = itens.map(function (item) {
-      var marca = document.createComment("posição do módulo");
+    var salvo = ler(CHAVE_MODULOS), partes = partesMenu(nav), porChave = {};
+    partes.forEach(function (item) { porChave[chaveMenu(item)] = item; });
+    var ordenados;
+    if (Array.isArray(salvo.sequencia)) {
+      ordenados = salvo.sequencia.map(function (chave) { return porChave[chave]; }).filter(Boolean);
+      partes.forEach(function (item) { if (ordenados.indexOf(item) < 0) ordenados.push(item); });
+    } else if (Array.isArray(salvo.ordem)) {
+      // Preferências antigas guardavam só módulos. Respeite a ordem dentro de
+      // cada seção sem deslocar os títulos para meio de outros grupos.
+      var posicoes = {};
+      salvo.ordem.forEach(function (id, i) { if (posicoes[id] === undefined) posicoes[id] = i; });
+      ordenados = [];
+      var grupo = [];
+      function adicionarGrupo() {
+        grupo.sort(function (a, b) {
+          var ai = posicoes[a.dataset.module], bi = posicoes[b.dataset.module];
+          return (ai === undefined ? Infinity : ai) - (bi === undefined ? Infinity : bi);
+        });
+        ordenados.push.apply(ordenados, grupo);
+        grupo = [];
+      }
+      partes.forEach(function (item) {
+        if (item.matches(".sb-label")) { adicionarGrupo(); ordenados.push(item); }
+        else grupo.push(item);
+      });
+      adicionarGrupo();
+    } else return;
+    if (partes.every(function (item, i) { return item === ordenados[i]; })) return;
+    var vagas = partes.map(function (item) {
+      var marca = document.createComment("posição do menu");
       nav.insertBefore(marca, item);
       return marca;
     });
@@ -128,7 +155,7 @@
   }
   function gravarOrdem(atual) {
     if (atual.tipo === "modulo") {
-      salvar(CHAVE_MODULOS, { ordem: modulos().map(function (item) { return item.dataset.module; }) });
+      salvar(CHAVE_MODULOS, { sequencia: partesMenu(atual.recipiente).map(chaveMenu) });
       return;
     }
     salvar(CHAVE_ABAS, { ordem: abas().map(function (item) { return item.dataset.tab; }) });
