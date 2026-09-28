@@ -35,41 +35,31 @@
     itens.forEach(function (item) {
       if (ordenados.indexOf(item) < 0) ordenados.push(item);
     });
-    var atual = Array.prototype.slice.call(container.children).filter(function (item) {
-      return itens.indexOf(item) >= 0;
+    if (itens.every(function (item, i) { return item === ordenados[i]; })) return;
+    var vagas = itens.map(function (item) {
+      var marca = document.createComment("posição da aba");
+      container.insertBefore(marca, item);
+      return marca;
     });
-    var jaOrdenado = ordenados.length === atual.length && ordenados.every(function (item, indice) {
-      return item === atual[indice];
-    });
-    if (jaOrdenado) return;
-    ordenados.forEach(function (item) { container.appendChild(item); });
+    vagas.forEach(function (marca, i) { container.replaceChild(ordenados[i], marca); });
   }
-  function restaurarPorSecao(nav, itens) {
+  function restaurarModulos(nav, itens) {
     if (!nav || itens.length < 2) return;
     var ordem = ler(CHAVE_MODULOS).ordem;
     if (!Array.isArray(ordem)) return;
-    var rank = {};
-    ordem.forEach(function (id, i) { rank[id] = i; });
-    var filhos = Array.prototype.slice.call(nav.children), grupo = [], ancora = null;
-    function aplicar() {
-      if (grupo.length > 1) {
-        var ord = grupo.slice().sort(function (a, b) {
-          var ra = rank[a.dataset.module], rb = rank[b.dataset.module];
-          ra = ra === undefined ? 1e6 + grupo.indexOf(a) : ra;
-          rb = rb === undefined ? 1e6 + grupo.indexOf(b) : rb;
-          return ra - rb;
-        });
-        if (ord.every(function (el, i) { return el === grupo[i]; })) { grupo = []; return; }
-        var ref = ancora ? ancora.nextSibling : nav.firstChild;
-        ord.forEach(function (el) { nav.insertBefore(el, ref); ref = el.nextSibling; });
-      }
-      grupo = [];
-    }
-    filhos.forEach(function (el) {
-      if (el.classList && el.classList.contains("sb-label")) { aplicar(); ancora = el; }
-      else if (itens.indexOf(el) >= 0) grupo.push(el);
+    var porId = {};
+    itens.forEach(function (item) { porId[item.dataset.module] = item; });
+    var ordenados = ordem.map(function (id) { return porId[id]; }).filter(Boolean);
+    itens.forEach(function (item) { if (ordenados.indexOf(item) < 0) ordenados.push(item); });
+    // Os títulos continuam nas posições originais; cada vaga de módulo recebe
+    // o módulo correspondente à ordem salva, inclusive entre seções diferentes.
+    if (itens.every(function (item, i) { return item === ordenados[i]; })) return;
+    var vagas = itens.map(function (item) {
+      var marca = document.createComment("posição do módulo");
+      nav.insertBefore(marca, item);
+      return marca;
     });
-    aplicar();
+    vagas.forEach(function (marca, i) { nav.replaceChild(ordenados[i], marca); });
   }
   function prepararModulos() {
     var itens = modulos();
@@ -77,7 +67,7 @@
       item.classList.add("fm-modulo-arrastavel");
       if (!item.title) item.title = "Segure e arraste para cima ou para baixo";
     });
-    restaurarPorSecao(document.querySelector("#sistema .sb-nav"), itens);
+    restaurarModulos(document.querySelector("#sistema .sb-nav"), itens);
   }
   function prepararAbas() {
     var itens = abas();
@@ -109,7 +99,9 @@
     estado.ativo = true;
     estado.item.classList.add("fm-item-em-arraste");
     document.body.classList.add("fm-reordenando-campos");
-    try { estado.item.setPointerCapture(evento.pointerId); } catch (e) {}
+    // O recipiente não muda de lugar durante o arraste; capturar no item
+    // perderia o pointerup quando ele é movido no DOM.
+    try { estado.recipiente.setPointerCapture(evento.pointerId); } catch (e) {}
   }
   function moverItem(destino, evento) {
     if (!destino || destino === estado.item || destino.parentElement !== estado.recipiente) return;
