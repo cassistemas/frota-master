@@ -43,7 +43,7 @@
     var aba = nomeAba(), pane = aba && document.getElementById('cusPane-' + aba.id);
     if (!pane) return null;
     var tabelas = Array.prototype.slice.call(pane.querySelectorAll('table')).filter(function (t) {
-      return !t.closest('.hidden') && t.querySelector('thead') && t.querySelector('tbody');
+      return !t.closest('.hidden') && !t.hasAttribute('data-sem-relatorio') && t.querySelector('thead') && t.querySelector('tbody');
     });
     var grupos = tabelas.map(function (t, i) {
       var secao = t.closest('.cus-panel') || t.parentElement;

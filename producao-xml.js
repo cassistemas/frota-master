@@ -19,7 +19,7 @@
     if (!doc || doc.getElementsByTagName('parsererror').length || !doc.getElementsByTagName('infCte').length) return null;
     var nCT = tag(doc, 'nCT'), serie = tag(doc, 'serie');
     var documento = nCT ? 'CT-e ' + nCT + (serie ? '/' + serie : '') : '';
-    var existente = (Array.isArray(banco().producoes) ? banco().producoes : []).some(function (x) { return documento && x.documento === documento && x.id !== (document.getElementById('resProdId') || {}).value; });
+    var existente = (window.db && Array.isArray(db.producoes) ? db.producoes : []).some(function (x) { return documento && x.documento === documento && x.id !== (document.getElementById('resProdId') || {}).value; });
     var dh = tag(doc, 'dhEmi') || tag(doc, 'dEmi'), data = dh.slice(0, 10);
     var fim = tag(doc, 'dProg') || tag(doc, 'dFimPer') || data;
     var peso = '', pesoReal = '';
@@ -68,26 +68,12 @@
 
 
   /* ---- KM da viagem pela rota (OpenStreetMap) ---- */
-  var cacheGeo = {}, filaGeo = Promise.resolve();
-  var UFS = { AC: 'Acre', AL: 'Alagoas', AP: 'Amapá', AM: 'Amazonas', BA: 'Bahia', CE: 'Ceará', DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás', MA: 'Maranhão', MT: 'Mato Grosso', MS: 'Mato Grosso do Sul', MG: 'Minas Gerais', PA: 'Pará', PB: 'Paraíba', PR: 'Paraná', PE: 'Pernambuco', PI: 'Piauí', RJ: 'Rio de Janeiro', RN: 'Rio Grande do Norte', RS: 'Rio Grande do Sul', RO: 'Rondônia', RR: 'Roraima', SC: 'Santa Catarina', SP: 'São Paulo', SE: 'Sergipe', TO: 'Tocantins' };
-  function buscaGeo(url) {
-    // Nominatim aceita 1 consulta por segundo: consultas em fila
-    var p = filaGeo.then(function () { return fetch(url, { headers: { 'Accept-Language': 'pt-BR' } }).then(function (r) { return r.json(); }); });
-    filaGeo = p.catch(function () {}).then(function () { return new Promise(function (ok) { setTimeout(ok, 1100); }); });
-    return p;
-  }
+  var cacheGeo = {};
   function geo(local) {
-    var k = local.toUpperCase().trim(); if (cacheGeo[k]) return cacheGeo[k];
-    var partes = local.split('-'), uf = partes.length > 1 ? partes.pop().trim().toUpperCase() : '', cid = partes.join('-').trim() || local.trim();
-    var estado = UFS[uf] || uf;
-    var base = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br';
-    var url1 = base + '&city=' + encodeURIComponent(cid) + (estado ? '&state=' + encodeURIComponent(estado) : '');
-    var url2 = base + '&q=' + encodeURIComponent(cid + (estado ? ', ' + estado : '') + ', Brasil');
-    var pos = function (j) { if (!j || !j[0]) throw 0; return j[0].lon + ',' + j[0].lat; };
-    var p = buscaGeo(url1).then(pos).catch(function () { return buscaGeo(url2).then(pos); });
-    cacheGeo[k] = p;
-    p.catch(function () { delete cacheGeo[k]; });
-    return p;
+    var k = local.toUpperCase(); if (cacheGeo[k]) return cacheGeo[k];
+    var partes = local.split('-'), uf = partes.length > 1 ? partes.pop().trim() : '', cid = partes.join('-').trim();
+    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&city=' + encodeURIComponent(cid) + (uf ? '&state=' + encodeURIComponent(uf) : '');
+    return (cacheGeo[k] = fetch(url, { headers: { 'Accept-Language': 'pt-BR' } }).then(function (r) { return r.json(); }).then(function (j) { if (!j || !j[0]) throw 0; return j[0].lon + ',' + j[0].lat; }));
   }
   function calcularKm(forcar) {
     var o = (document.getElementById('resProdOrigem') || {}).value || '', d = (document.getElementById('resProdDestino') || {}).value || '';
@@ -107,17 +93,10 @@
   window.calcularKmProducao = function () { calcularKm(true); };
 
   /* ---- Tipo do veículo: lido do cadastro (usado nos cálculos) ---- */
-  function banco() { try { if (typeof db !== 'undefined' && db) return db; } catch (e) {} return window.db || {}; }
-  function veiculoPorPlaca(p) {
-    var lista = Array.isArray(banco().veiculos) ? banco().veiculos : [];
-    return lista.find(function (x) { return x && placaN(x.vplaca) === p; }) || lista.find(function (x) {
-      return x && Array.isArray(x.historicoPlacas) && x.historicoPlacas.some(function (h) { return placaN(h && (h.placa || h.placaAnterior || h)) === p; });
-    }) || null;
-  }
   function atualizarTipo() {
     var el = document.getElementById('resProdTipoVeiculo'); if (!el) return;
     var p = placaN((document.getElementById('resProdVeiculo') || {}).value);
-    var v = p ? veiculoPorPlaca(p) : null;
+    var v = p && typeof db !== 'undefined' && Array.isArray(db.veiculos) ? db.veiculos.find(function (x) { return placaN(x.vplaca) === p; }) : null;
     el.value = v ? (v.vtipo || 'Tipo não informado no cadastro do veículo') : (p ? 'Veículo não encontrado no cadastro' : '');
   }
   document.addEventListener('input', function (e) { if (e.target && e.target.id === 'resProdVeiculo') atualizarTipo(); });
@@ -152,7 +131,7 @@
       if (!x) { alert('Não foi possível ler este arquivo como MDF-e. Envie o XML original do MDF-e.'); return; }
       var atual = (document.getElementById('resProdDocumento') || {}).value || '';
       var juntoCte = /^CT-e /i.test(atual), documento = juntoCte ? atual : x.documento;
-      var duplicado = documento && Array.isArray(banco().producoes) && banco().producoes.some(function (p) {
+      var duplicado = documento && window.db && Array.isArray(db.producoes) && db.producoes.some(function (p) {
         return p.documento === documento && p.id !== (document.getElementById('resProdId') || {}).value;
       });
       if (duplicado) { alert('Este documento já consta em Produção e Receitas. Confira o registro antes de salvar.'); return; }
