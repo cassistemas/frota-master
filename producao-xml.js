@@ -19,7 +19,7 @@
     if (!doc || doc.getElementsByTagName('parsererror').length || !doc.getElementsByTagName('infCte').length) return null;
     var nCT = tag(doc, 'nCT'), serie = tag(doc, 'serie');
     var documento = nCT ? 'CT-e ' + nCT + (serie ? '/' + serie : '') : '';
-    var existente = (window.db && Array.isArray(db.producoes) ? db.producoes : []).some(function (x) { return documento && x.documento === documento && x.id !== (document.getElementById('resProdId') || {}).value; });
+    var existente = (Array.isArray(banco().producoes) ? banco().producoes : []).some(function (x) { return documento && x.documento === documento && x.id !== (document.getElementById('resProdId') || {}).value; });
     var dh = tag(doc, 'dhEmi') || tag(doc, 'dEmi'), data = dh.slice(0, 10);
     var fim = tag(doc, 'dProg') || tag(doc, 'dFimPer') || data;
     var peso = '', pesoReal = '';
@@ -93,10 +93,17 @@
   window.calcularKmProducao = function () { calcularKm(true); };
 
   /* ---- Tipo do veículo: lido do cadastro (usado nos cálculos) ---- */
+  function banco() { try { if (typeof db !== 'undefined' && db) return db; } catch (e) {} return window.db || {}; }
+  function veiculoPorPlaca(p) {
+    var lista = Array.isArray(banco().veiculos) ? banco().veiculos : [];
+    return lista.find(function (x) { return x && placaN(x.vplaca) === p; }) || lista.find(function (x) {
+      return x && Array.isArray(x.historicoPlacas) && x.historicoPlacas.some(function (h) { return placaN(h && (h.placa || h.placaAnterior || h)) === p; });
+    }) || null;
+  }
   function atualizarTipo() {
     var el = document.getElementById('resProdTipoVeiculo'); if (!el) return;
     var p = placaN((document.getElementById('resProdVeiculo') || {}).value);
-    var v = p && window.db && Array.isArray(db.veiculos) ? db.veiculos.find(function (x) { return placaN(x.vplaca) === p; }) : null;
+    var v = p ? veiculoPorPlaca(p) : null;
     el.value = v ? (v.vtipo || 'Tipo não informado no cadastro do veículo') : (p ? 'Veículo não encontrado no cadastro' : '');
   }
   document.addEventListener('input', function (e) { if (e.target && e.target.id === 'resProdVeiculo') atualizarTipo(); });
@@ -131,7 +138,7 @@
       if (!x) { alert('Não foi possível ler este arquivo como MDF-e. Envie o XML original do MDF-e.'); return; }
       var atual = (document.getElementById('resProdDocumento') || {}).value || '';
       var juntoCte = /^CT-e /i.test(atual), documento = juntoCte ? atual : x.documento;
-      var duplicado = documento && window.db && Array.isArray(db.producoes) && db.producoes.some(function (p) {
+      var duplicado = documento && Array.isArray(banco().producoes) && banco().producoes.some(function (p) {
         return p.documento === documento && p.id !== (document.getElementById('resProdId') || {}).value;
       });
       if (duplicado) { alert('Este documento já consta em Produção e Receitas. Confira o registro antes de salvar.'); return; }
