@@ -88,8 +88,8 @@
     if (typeof window.limparProducaoFrota === 'function') window.limparProducaoFrota();
     var cadastro = veiculoCadastrado(item.placa), agora = new Date();
     var competencia = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0');
-    var valores = {resProdTipo:'viagem',resProdVeiculo:cadastro ? cadastro.vplaca : item.placa,resProdCompetencia:competencia,resProdDocumento:'CT-e ' + item.cte,resProdOrigem:item.origem,resProdDestino:item.destino,resProdTon:item.peso ? String(item.peso / 1000) : '',resProdReceita:moeda(item.frete),resProdObs:'Planilha: ' + nomeArquivo + ' | Viagem(ns): ' + item.viagens.join(', ') + (item.linhas.filter(Boolean).length ? ' | Linha(s): ' + item.linhas.filter(Boolean).join('; ') : '')};
-    Object.keys(valores).forEach(function (id) { var campo = el(id); if (campo) { campo.value = valores[id]; campo.dispatchEvent(new Event('input', { bubbles: true })); } });
+    var valores = {resProdTipo:'viagem',resProdVeiculo:cadastro ? cadastro.vplaca : item.placa,resProdCompetencia:competencia,resProdData:competencia + '-01',resProdFim:competencia + '-' + String(agora.getDate()).padStart(2, '0'),resProdSituacao:'Recebido',resProdDocumento:'CT-e ' + item.cte,resProdOrigem:item.origem,resProdDestino:item.destino,resProdTon:item.peso ? String(item.peso / 1000) : '',resProdReceita:moeda(item.frete),resProdObs:'Planilha: ' + nomeArquivo + ' | Viagem(ns): ' + item.viagens.join(', ') + (item.linhas.filter(Boolean).length ? ' | Linha(s): ' + item.linhas.filter(Boolean).join('; ') : '')};
+    Object.keys(valores).forEach(function (id) { var campo = el(id); if (campo) { campo.value = valores[id]; campo.dispatchEvent(new Event('input', { bubbles: true })); if (id === 'resProdSituacao') campo.dispatchEvent(new Event('change', { bubbles: true })); } });
     preencherVinculoVeiculo(valores.resProdVeiculo, true);
     el('resProdData').focus();
     el('resProdData').scrollIntoView({ behavior: 'smooth', block: 'center' });

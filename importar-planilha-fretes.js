@@ -85,7 +85,12 @@
     if (typeof window.limparFormFrete === 'function') window.limparFormFrete();
     var cadastro = typeof db !== 'undefined' && Array.isArray(db.veiculos) && db.veiculos.find(function (v) { return normalizar(v.vplaca) === normalizar(item.placa) && texto(v.vstatus).toUpperCase() !== 'VENDIDO'; });
     setar('freexecucao', 'propria');
-    setar('frestatus', 'Disponível');
+    setar('frestatus', 'Fechado');
+    var hoje = new Date(), ymd = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
+    var dia = ymd + '-' + String(hoje.getDate()).padStart(2, '0');
+    setar('fredata', dia);
+    setar('frecarregamento', ymd + '-01T00:00');
+    setar('freentrega', dia + 'T' + String(hoje.getHours()).padStart(2, '0') + ':' + String(hoje.getMinutes()).padStart(2, '0'));
     setar('frerastreada', 'Sim');
     if (typeof window.alternarExecucaoFrete === 'function') window.alternarExecucaoFrete();
     var select = el('freveiculo');
