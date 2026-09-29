@@ -36,3 +36,11 @@
 #cusPane-recorrentes .cus-rec-form-grid #cusRecModoGrupo{grid-column:span 2}
 @container cus-rec-form (max-width:470px){#cusPane-recorrentes .cus-rec-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#cusPane-recorrentes .cus-rec-form-grid #cusRecModoGrupo{grid-column:span 1}}
 @container cus-rec-form (max-width:390px){#cusPane-recorrentes .cus-rec-form-grid{grid-template-columns:1fr}#cusPane-recorrentes .cus-rec-form-grid .span-2{grid-column:span 1}}
+
+/* Produção e receitas: ações completas, sem texto saindo dos botões ou da coluna. */
+#cusPane-producao .cus-table{min-width:1320px}
+#cusPane-producao .cus-table th:last-child,
+#cusPane-producao .cus-table td:last-child{min-width:176px;white-space:nowrap}
+#cusPane-producao .cus-table td:last-child .btn-edit,
+#cusPane-producao .cus-table td:last-child .btn-del{width:auto;min-width:70px;height:32px;padding:5px 9px;margin-right:6px;white-space:nowrap;font-size:.72rem;font-weight:700;line-height:1.2}
+#cusPane-producao .cus-table td:last-child .btn-del{margin-right:0}

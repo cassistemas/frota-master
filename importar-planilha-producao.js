@@ -1,7 +1,7 @@
 /* Prévia local da planilha de viagens: nenhum registro é salvo ao ler o arquivo. */
 (function () {
   'use strict';
-  var itens = [], nomeArquivo = '';
+  var itens = [], nomeArquivo = '', linhasLidas = 0;
   function el(id) { return document.getElementById(id); }
   function texto(x) { return String(x == null ? '' : x).trim(); }
   function chave(x) { return texto(x).toUpperCase().replace(/\s+/g, ''); }
@@ -75,6 +75,13 @@
     }).join('');
     container.hidden = false;
   }
+  window.addEventListener('fm:producao-salva', function () {
+    if (!itens.length) return;
+    var restantes = itens.filter(function (x) { return !jaExiste(x); });
+    if (restantes.length === itens.length) return;
+    itens = restantes;
+    desenhar(linhasLidas);
+  });
   function preencher(item) {
     if (!item || item.divergente || jaExiste(item) || !(item.frete > 0)) return;
     if (el('resProdId') && el('resProdId').value && !confirm('Há uma edição aberta. Descartar as alterações do formulário?')) return;
@@ -112,7 +119,7 @@
         if (!sheet) throw new Error('A planilha não tem dados.');
         var resultado = ler(XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true }));
         if (!resultado.itens.length) throw new Error('Nenhum CT-e com a coluna Valor do Frete foi encontrado.');
-        itens = resultado.itens; desenhar(resultado.linhas);
+         itens = resultado.itens; linhasLidas = resultado.linhas; desenhar(linhasLidas);
       }).catch(function (err) { alert('Não foi possível ler a planilha: ' + err.message); }).finally(function () { ev.target.value = ''; });
     });
     box.addEventListener('click', function (ev) {

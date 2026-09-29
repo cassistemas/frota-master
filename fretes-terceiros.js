@@ -864,8 +864,10 @@
     var ps = [];
     if (o) { setVal('freorigemuf', o.uf); ps.push(carregarCidades('freorigemuf', 'freorigemcid', o.cidade)); }
     if (d) { setVal('fredestinouf', d.uf); ps.push(carregarCidades('fredestinouf', 'fredestinocid', d.cidade)); }
-    Promise.all(ps).then(sincronizarRota);
+    return Promise.all(ps).then(sincronizarRota);
   }
+  // Permite à prévia da planilha usar a mesma seleção de cidades e cálculo de distância do cadastro.
+  window.fmAplicarRotaFrete = aplicarRotaNosSelects;
 
   function coletar() {
 
@@ -918,6 +920,7 @@
     });
     window.limparFormFrete();
     renderFretes();
+    window.dispatchEvent(new Event('fm:frete-salvo'));
     // o card agora e gerado na aba exclusiva "Gerar Card"
     if (typeof window.renderAbaCard === 'function') window.renderAbaCard();
     try { if (typeof renderModulo === 'function') renderModulo('terceiros'); } catch (e) {}
