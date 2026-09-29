@@ -68,12 +68,26 @@
 
 
   /* ---- KM da viagem pela rota (OpenStreetMap) ---- */
-  var cacheGeo = {};
+  var cacheGeo = {}, filaGeo = Promise.resolve();
+  var UFS = { AC: 'Acre', AL: 'Alagoas', AP: 'Amapá', AM: 'Amazonas', BA: 'Bahia', CE: 'Ceará', DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás', MA: 'Maranhão', MT: 'Mato Grosso', MS: 'Mato Grosso do Sul', MG: 'Minas Gerais', PA: 'Pará', PB: 'Paraíba', PR: 'Paraná', PE: 'Pernambuco', PI: 'Piauí', RJ: 'Rio de Janeiro', RN: 'Rio Grande do Norte', RS: 'Rio Grande do Sul', RO: 'Rondônia', RR: 'Roraima', SC: 'Santa Catarina', SP: 'São Paulo', SE: 'Sergipe', TO: 'Tocantins' };
+  function buscaGeo(url) {
+    // Nominatim aceita 1 consulta por segundo: consultas em fila
+    var p = filaGeo.then(function () { return fetch(url, { headers: { 'Accept-Language': 'pt-BR' } }).then(function (r) { return r.json(); }); });
+    filaGeo = p.catch(function () {}).then(function () { return new Promise(function (ok) { setTimeout(ok, 1100); }); });
+    return p;
+  }
   function geo(local) {
-    var k = local.toUpperCase(); if (cacheGeo[k]) return cacheGeo[k];
-    var partes = local.split('-'), uf = partes.length > 1 ? partes.pop().trim() : '', cid = partes.join('-').trim();
-    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&city=' + encodeURIComponent(cid) + (uf ? '&state=' + encodeURIComponent(uf) : '');
-    return (cacheGeo[k] = fetch(url, { headers: { 'Accept-Language': 'pt-BR' } }).then(function (r) { return r.json(); }).then(function (j) { if (!j || !j[0]) throw 0; return j[0].lon + ',' + j[0].lat; }));
+    var k = local.toUpperCase().trim(); if (cacheGeo[k]) return cacheGeo[k];
+    var partes = local.split('-'), uf = partes.length > 1 ? partes.pop().trim().toUpperCase() : '', cid = partes.join('-').trim() || local.trim();
+    var estado = UFS[uf] || uf;
+    var base = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br';
+    var url1 = base + '&city=' + encodeURIComponent(cid) + (estado ? '&state=' + encodeURIComponent(estado) : '');
+    var url2 = base + '&q=' + encodeURIComponent(cid + (estado ? ', ' + estado : '') + ', Brasil');
+    var pos = function (j) { if (!j || !j[0]) throw 0; return j[0].lon + ',' + j[0].lat; };
+    var p = buscaGeo(url1).then(pos).catch(function () { return buscaGeo(url2).then(pos); });
+    cacheGeo[k] = p;
+    p.catch(function () { delete cacheGeo[k]; });
+    return p;
   }
   function calcularKm(forcar) {
     var o = (document.getElementById('resProdOrigem') || {}).value || '', d = (document.getElementById('resProdDestino') || {}).value || '';
