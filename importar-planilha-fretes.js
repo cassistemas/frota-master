@@ -1,7 +1,7 @@
 /* Prévia local da planilha de viagens no Cadastro de Fretes: só o formulário salva registros. */
 (function () {
   'use strict';
-  var itens = [], nomeArquivo = '', linhasLidas = 0;
+  var itens = [], visiveis = [], nomeArquivo = '';
   function el(id) { return document.getElementById(id); }
   function texto(x) { return String(x == null ? '' : x).trim(); }
   function normalizar(x) { return texto(x).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
@@ -17,7 +17,7 @@
   function numero(x) { return Number(texto(x).replace(/\./g, '').replace(',', '.')) || 0; }
   function celula(row, i) { return i < 0 ? '' : texto((row || [])[i]); }
   function ler(rows) {
-    var porCte = new Map(), viagem = '', placa = '', linha = '', colunas = null, contagem = 0;
+    var porCte = new Map(), viagem = '', placa = '', linha = '', colunas = null;
     rows.forEach(function (row) {
       var primeiro = celula(row, 0), tipo = primeiro.toLowerCase();
       if (tipo === 'viagem') { viagem = celula(row, 1); placa = ''; linha = ''; colunas = null; return; }
@@ -34,14 +34,14 @@
       var origem = celula(row, colunas.origem), ufOrigem = celula(row, colunas.ufOrigem).toUpperCase();
       var destino = celula(row, colunas.destino), ufDestino = celula(row, colunas.ufDestino).toUpperCase();
       var registro = { cte: primeiro, placa: placa, frete: frete, peso: numero((row || [])[colunas.peso]), origem: origem && ufOrigem ? origem + '-' + ufOrigem : '', destino: destino && ufDestino ? destino + '-' + ufDestino : '', viagens: [viagem], linhas: [linha], divergente: false };
-      var id = normalizar(primeiro); contagem++;
+      var id = normalizar(primeiro);
       if (!porCte.has(id)) { porCte.set(id, registro); return; }
       var anterior = porCte.get(id);
       if (anterior.viagens.indexOf(viagem) < 0) anterior.viagens.push(viagem);
       if (linha && anterior.linhas.indexOf(linha) < 0) anterior.linhas.push(linha);
       if (anterior.frete !== frete || normalizar(anterior.placa) !== normalizar(placa) || anterior.origem !== registro.origem || anterior.destino !== registro.destino || anterior.peso !== registro.peso) anterior.divergente = true;
     });
-    return { itens: Array.from(porCte.values()), linhas: contagem };
+    return Array.from(porCte.values());
   }
   function jaExiste(item) {
     if (typeof db === 'undefined' || !Array.isArray(db.fretes)) return false;
@@ -53,19 +53,21 @@
   }
   function motivo(item) {
     if (item.divergente) return 'Divergência: conferir';
-    if (jaExiste(item)) return 'Já cadastrado';
     if (!(item.frete > 0)) return 'Frete ausente/zero';
     if (!item.origem || !item.destino || !/.*-[A-Z]{2}$/.test(item.origem) || !/.*-[A-Z]{2}$/.test(item.destino)) return 'Cidade/UF ausente';
     return 'Disponível';
   }
-  function desenhar(linhas) {
-    var aceitos = itens.filter(function (x) { return motivo(x) === 'Disponível'; });
+  function desenhar() {
+    visiveis = itens.filter(function (x) { return !jaExiste(x); });
+    var aceitos = visiveis.filter(function (x) { return motivo(x) === 'Disponível'; });
     var total = aceitos.reduce(function (s, x) { return s + x.frete; }, 0);
-    el('frePlanilhaResumo').textContent = nomeArquivo + ' · ' + linhas + ' linhas de CT-e · ' + itens.length + ' CT-e distintos · ' + aceitos.length + ' disponíveis · ' + moeda(total) + ' em Valor do Frete distinto';
-    el('frePlanilhaLinhas').innerHTML = itens.map(function (x, i) {
+    el('frePlanilhaResumo').textContent = visiveis.length ? nomeArquivo + ' · ' + visiveis.length + ' CT-e na prévia · ' + aceitos.length + ' disponíveis · ' + moeda(total) + ' em Valor do Frete distinto' : 'Nenhuma viagem pendente nesta planilha.';
+    el('frePlanilhaAviso').textContent = visiveis.length ? 'Valor da viagem não entra no frete. CT-e repetido conta uma vez; divergências ficam bloqueadas. A planilha não informa data, valor pago ao terceiro nem KM real: confira cada frete antes de salvar.' : '';
+    el('frePlanilhaLinhas').innerHTML = visiveis.map(function (x, i) {
       var situacao = motivo(x);
       return '<tr><td>' + escapar(x.cte) + '</td><td>' + escapar(x.placa) + '</td><td>' + escapar(x.viagens.join(', ')) + '</td><td>' + escapar(x.origem) + ' → ' + escapar(x.destino) + '</td><td>' + (isFinite(x.frete) ? moeda(x.frete) : '—') + '</td><td>' + situacao + '</td><td>' + (situacao === 'Disponível' ? '<button type="button" class="btn btn-sm btn-outline-primary" data-fre-planilha-indice="' + i + '">Preencher formulário</button>' : '—') + '</td></tr>';
     }).join('');
+    el('frePlanilhaPrevia').querySelector('.cus-table-wrap').hidden = !visiveis.length;
     el('frePlanilhaPrevia').hidden = false;
   }
   window.addEventListener('fm:frete-salvo', function () {
@@ -73,7 +75,7 @@
     var restantes = itens.filter(function (x) { return !jaExiste(x); });
     if (restantes.length === itens.length) return;
     itens = restantes;
-    desenhar(linhasLidas);
+    desenhar();
   });
   function setar(id, valor) {
     var campo = el(id);
@@ -85,12 +87,7 @@
     if (typeof window.limparFormFrete === 'function') window.limparFormFrete();
     var cadastro = typeof db !== 'undefined' && Array.isArray(db.veiculos) && db.veiculos.find(function (v) { return normalizar(v.vplaca) === normalizar(item.placa) && texto(v.vstatus).toUpperCase() !== 'VENDIDO'; });
     setar('freexecucao', 'propria');
-    setar('frestatus', 'Fechado');
-    var hoje = new Date(), ymd = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
-    var dia = ymd + '-' + String(hoje.getDate()).padStart(2, '0');
-    setar('fredata', dia);
-    setar('frecarregamento', ymd + '-01T00:00');
-    setar('freentrega', dia + 'T' + String(hoje.getHours()).padStart(2, '0') + ':' + String(hoje.getMinutes()).padStart(2, '0'));
+    setar('frestatus', 'Disponível');
     setar('frerastreada', 'Sim');
     if (typeof window.alternarExecucaoFrete === 'function') window.alternarExecucaoFrete();
     var select = el('freveiculo');
@@ -125,13 +122,13 @@
         var wb = XLSX.read(buffer, { type: 'array' }), sheet = wb.Sheets[wb.SheetNames[0]];
         if (!sheet) throw new Error('A planilha não tem dados.');
         var resultado = ler(XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true }));
-        if (!resultado.itens.length) throw new Error('Nenhum CT-e com a coluna Valor do Frete foi encontrado.');
-         itens = resultado.itens; linhasLidas = resultado.linhas; desenhar(linhasLidas);
+        if (!resultado.length) throw new Error('Nenhum CT-e com a coluna Valor do Frete foi encontrado.');
+          itens = resultado; desenhar();
       }).catch(function (err) { alert('Não foi possível ler a planilha: ' + err.message); }).finally(function () { ev.target.value = ''; });
     });
     box.addEventListener('click', function (ev) {
       var botao = ev.target.closest('[data-fre-planilha-indice]');
-      if (botao) preencher(itens[Number(botao.dataset.frePlanilhaIndice)]).catch(function () { alert('Confira as cidades da rota e tente novamente.'); });
+      if (botao) preencher(visiveis[Number(botao.dataset.frePlanilhaIndice)]).catch(function () { alert('Confira as cidades da rota e tente novamente.'); });
     });
   }
   new MutationObserver(iniciar).observe(document.documentElement, { childList: true, subtree: true });

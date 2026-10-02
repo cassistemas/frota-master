@@ -1,7 +1,7 @@
 /* Prévia local da planilha de viagens: nenhum registro é salvo ao ler o arquivo. */
 (function () {
   'use strict';
-  var itens = [], nomeArquivo = '', linhasLidas = 0;
+  var itens = [], visiveis = [], nomeArquivo = '';
   function el(id) { return document.getElementById(id); }
   function texto(x) { return String(x == null ? '' : x).trim(); }
   function chave(x) { return texto(x).toUpperCase().replace(/\s+/g, ''); }
@@ -33,7 +33,7 @@
   }
   function celula(row, idx) { return texto((row || [])[idx]); }
   function ler(rows) {
-    var porCte = new Map(), viagem = '', placa = '', linha = '', colunas = null, contagem = 0;
+    var porCte = new Map(), viagem = '', placa = '', linha = '', colunas = null;
     rows.forEach(function (row) {
       var primeiro = celula(row, 0), tipo = primeiro.toLowerCase();
       if (tipo === 'viagem') { viagem = celula(row, 1); placa = ''; linha = ''; colunas = null; return; }
@@ -49,30 +49,31 @@
       var frete = dinheiro((row || [])[colunas.frete]);
       var id = chave(primeiro), origem = celula(row, colunas.origem), destino = celula(row, colunas.destino);
       var registro = { cte: primeiro, placa: placa, frete: frete, peso: numero((row || [])[colunas.peso]), origem: origem + (celula(row, colunas.ufOrigem) ? '-' + celula(row, colunas.ufOrigem) : ''), destino: destino + (celula(row, colunas.ufDestino) ? '-' + celula(row, colunas.ufDestino) : ''), viagens: [viagem], linhas: [linha], divergente: false };
-      contagem++;
       if (!porCte.has(id)) { porCte.set(id, registro); return; }
       var anterior = porCte.get(id);
       if (anterior.viagens.indexOf(viagem) < 0) anterior.viagens.push(viagem);
       if (linha && anterior.linhas.indexOf(linha) < 0) anterior.linhas.push(linha);
       if (anterior.frete !== frete || normalizar(anterior.placa) !== normalizar(placa) || anterior.origem !== registro.origem || anterior.destino !== registro.destino || anterior.peso !== registro.peso) anterior.divergente = true;
     });
-    return { itens: Array.from(porCte.values()), linhas: contagem };
+    return Array.from(porCte.values());
   }
   function jaExiste(item) {
     return typeof db !== 'undefined' && Array.isArray(db.producoes) && db.producoes.some(function (p) {
       return normalizar(p.documento) === normalizar('CT-e ' + item.cte);
     });
   }
-  function desenhar(linhas) {
+  function desenhar() {
     var container = el('resPlanilhaPrevia'); if (!container) return;
-    var aceitos = itens.filter(function (x) { return !x.divergente && !jaExiste(x) && x.frete > 0; });
+    visiveis = itens.filter(function (x) { return !jaExiste(x); });
+    var aceitos = visiveis.filter(function (x) { return !x.divergente && x.frete > 0; });
     var total = aceitos.reduce(function (sum, x) { return sum + x.frete; }, 0);
-    el('resPlanilhaResumo').textContent = nomeArquivo + ' · ' + linhas + ' linhas de CT-e · ' + itens.length + ' CT-e distintos · ' + aceitos.length + ' disponíveis · ' + moeda(total) + ' em Valor do Frete distinto';
-    el('resPlanilhaAviso').textContent = 'Valor da viagem não entra na receita. CT-e repetido conta uma vez; divergências e documentos já lançados ficam bloqueados. A planilha não informa data, cliente, motorista nem KM: confira e complete antes de salvar cada CT-e.';
-    el('resPlanilhaLinhas').innerHTML = itens.map(function (x, i) {
-      var motivo = x.divergente ? 'Divergência: conferir' : jaExiste(x) ? 'Já lançado' : !(x.frete > 0) ? 'Frete ausente/zero' : 'Disponível';
+    el('resPlanilhaResumo').textContent = visiveis.length ? nomeArquivo + ' · ' + visiveis.length + ' CT-e na prévia · ' + aceitos.length + ' disponíveis · ' + moeda(total) + ' em Valor do Frete distinto' : 'Nenhuma viagem pendente nesta planilha.';
+    el('resPlanilhaAviso').textContent = visiveis.length ? 'Valor da viagem não entra na receita. CT-e repetido conta uma vez; divergências ficam bloqueadas. A planilha não informa data, cliente, motorista nem KM: confira e complete antes de salvar cada CT-e.' : '';
+    el('resPlanilhaLinhas').innerHTML = visiveis.map(function (x, i) {
+      var motivo = x.divergente ? 'Divergência: conferir' : !(x.frete > 0) ? 'Frete ausente/zero' : 'Disponível';
       return '<tr><td>' + escapar(x.cte) + '</td><td>' + escapar(x.placa) + '</td><td>' + escapar(x.viagens.join(', ')) + '</td><td>' + escapar(x.origem) + ' → ' + escapar(x.destino) + '</td><td>' + (isFinite(x.frete) ? moeda(x.frete) : '—') + '</td><td>' + motivo + '</td><td>' + (motivo === 'Disponível' ? '<button type="button" class="btn btn-sm btn-outline-primary" data-planilha-indice="' + i + '">Preencher formulário</button>' : '—') + '</td></tr>';
     }).join('');
+    container.querySelector('.cus-table-wrap').hidden = !visiveis.length;
     container.hidden = false;
   }
   window.addEventListener('fm:producao-salva', function () {
@@ -80,7 +81,7 @@
     var restantes = itens.filter(function (x) { return !jaExiste(x); });
     if (restantes.length === itens.length) return;
     itens = restantes;
-    desenhar(linhasLidas);
+    desenhar();
   });
   function preencher(item) {
     if (!item || item.divergente || jaExiste(item) || !(item.frete > 0)) return;
@@ -88,8 +89,8 @@
     if (typeof window.limparProducaoFrota === 'function') window.limparProducaoFrota();
     var cadastro = veiculoCadastrado(item.placa), agora = new Date();
     var competencia = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0');
-    var valores = {resProdTipo:'viagem',resProdVeiculo:cadastro ? cadastro.vplaca : item.placa,resProdCompetencia:competencia,resProdData:competencia + '-01',resProdFim:competencia + '-' + String(agora.getDate()).padStart(2, '0'),resProdSituacao:'Recebido',resProdDocumento:'CT-e ' + item.cte,resProdOrigem:item.origem,resProdDestino:item.destino,resProdTon:item.peso ? String(item.peso / 1000) : '',resProdReceita:moeda(item.frete),resProdObs:'Planilha: ' + nomeArquivo + ' | Viagem(ns): ' + item.viagens.join(', ') + (item.linhas.filter(Boolean).length ? ' | Linha(s): ' + item.linhas.filter(Boolean).join('; ') : '')};
-    Object.keys(valores).forEach(function (id) { var campo = el(id); if (campo) { campo.value = valores[id]; campo.dispatchEvent(new Event('input', { bubbles: true })); if (id === 'resProdSituacao') campo.dispatchEvent(new Event('change', { bubbles: true })); } });
+    var valores = {resProdTipo:'viagem',resProdVeiculo:cadastro ? cadastro.vplaca : item.placa,resProdCompetencia:competencia,resProdDocumento:'CT-e ' + item.cte,resProdOrigem:item.origem,resProdDestino:item.destino,resProdTon:item.peso ? String(item.peso / 1000) : '',resProdReceita:moeda(item.frete),resProdObs:'Planilha: ' + nomeArquivo + ' | Viagem(ns): ' + item.viagens.join(', ') + (item.linhas.filter(Boolean).length ? ' | Linha(s): ' + item.linhas.filter(Boolean).join('; ') : '')};
+    Object.keys(valores).forEach(function (id) { var campo = el(id); if (campo) { campo.value = valores[id]; campo.dispatchEvent(new Event('input', { bubbles: true })); } });
     preencherVinculoVeiculo(valores.resProdVeiculo, true);
     el('resProdData').focus();
     el('resProdData').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -118,13 +119,13 @@
         var wb = XLSX.read(buffer, { type: 'array' }), sheet = wb.Sheets[wb.SheetNames[0]];
         if (!sheet) throw new Error('A planilha não tem dados.');
         var resultado = ler(XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true }));
-        if (!resultado.itens.length) throw new Error('Nenhum CT-e com a coluna Valor do Frete foi encontrado.');
-         itens = resultado.itens; linhasLidas = resultado.linhas; desenhar(linhasLidas);
+         if (!resultado.length) throw new Error('Nenhum CT-e com a coluna Valor do Frete foi encontrado.');
+         itens = resultado; desenhar();
       }).catch(function (err) { alert('Não foi possível ler a planilha: ' + err.message); }).finally(function () { ev.target.value = ''; });
     });
     box.addEventListener('click', function (ev) {
       var botao = ev.target.closest('[data-planilha-indice]');
-      if (botao) preencher(itens[Number(botao.dataset.planilhaIndice)]);
+      if (botao) preencher(visiveis[Number(botao.dataset.planilhaIndice)]);
     });
   }
   new MutationObserver(iniciar).observe(document.documentElement, { childList: true, subtree: true });

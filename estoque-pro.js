@@ -402,12 +402,6 @@
     if (dl) dl.innerHTML = itens.map(function (it) { return '<option value="' + it.item.replace(/"/g, "&quot;") + '">'; }).join("");
   }
 
-  window.atualizarTotalEntradaEstoque = function () {
-    var q = parseFloat((document.getElementById("equantidade") || {}).value) || 0;
-    var vu = num((document.getElementById("evalorunitario") || {}).value);
-    var el = document.getElementById("etotalcampo");
-    if (el) el.value = q > 0 && vu > 0 ? moeda(q * vu) : "";
-  };
   window.atualizarSaldoItemSaida = function () {
     var sel = document.getElementById("sitem");
     var hint = document.getElementById("saldoItemSaida");
@@ -416,7 +410,6 @@
     var idx = (document.getElementById("s_idx") || {}).value;
     var nome = sel.value;
     if (!nome) {
-      var stc0 = document.getElementById("stotalcampo"); if (stc0) stc0.value = "";
       hint.className = "est-hint";
       hint.textContent = "Selecione um item para ver o saldo disponível.";
       if (btn) btn.disabled = false;
@@ -424,8 +417,6 @@
     }
     var pos = posicaoEstoque(idx === "" ? null : idx)[chave(nome)] || { saldo: 0, custoMedio: 0 };
     var q = parseFloat((document.getElementById("squantidade") || {}).value) || 0;
-    var stc = document.getElementById("stotalcampo");
-    if (stc) stc.value = q > 0 ? moeda(q * (pos.custoMedio || 0)) : "";
     if (pos.saldo <= 0) {
       hint.className = "est-hint danger";
       hint.textContent = "Sem estoque disponível para este item. Registre uma entrada primeiro.";
@@ -524,12 +515,11 @@
 
   /* ---- limpar formulários ---- */
   window.limparFormEstoqueEntrada = function () {
-    ["eitem", "ecategoria", "equantidade", "evalorunitario", "etotalcampo", "edata", "efornecedor", "elote", "eestoqueminimo", "eobservacoes", "e_idx"]
+    ["eitem", "ecategoria", "equantidade", "evalorunitario", "edata", "efornecedor", "elote", "eestoqueminimo", "eobservacoes", "e_idx"]
       .forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ""; });
     if (typeof window.fmSincronizarValoresBuscasCadastro === "function") window.fmSincronizarValoresBuscasCadastro();
   };
   window.limparFormEstoqueSaida = function () {
-    var stl = document.getElementById("stotalcampo"); if (stl) stl.value = "";
     ["sitem", "squantidade", "sdata", "splaca", "sresponsavel", "slote", "sobservacoes", "s_idx"]
       .forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ""; });
     if (typeof window.fmSincronizarValoresBuscasCadastro === "function") window.fmSincronizarValoresBuscasCadastro();
@@ -558,7 +548,7 @@
       document.getElementById("eitem").value = m.eitem || "";
       document.getElementById("ecategoria").value = m.ecategoria || "";
       document.getElementById("equantidade").value = m.equantidade == null ? "" : m.equantidade;
-      document.getElementById("evalorunitario").value = moeda(num(m.evalorunitario)); if (window.atualizarTotalEntradaEstoque) window.atualizarTotalEntradaEstoque();
+      document.getElementById("evalorunitario").value = moeda(num(m.evalorunitario));
       document.getElementById("edata").value = m.edata || "";
       document.getElementById("efornecedor").value = m.efornecedor || "";
       document.getElementById("elote").value = m.elote || "";

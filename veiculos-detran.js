@@ -1261,6 +1261,21 @@
     return Math.max(0, cobertura - excesso);
   }
 
+  function nomeMarcaFipe(v) {
+    var nome = txtNorm(v);
+    // Os cadastros de frota costumam abreviar a marca que a FIPE escreve por extenso.
+    if (nome === "VW") return "VOLKSWAGEN";
+    if (nome === "MB" || nome === "M B") return "MERCEDES BENZ";
+    return nome;
+  }
+
+  function modeloCadastroFipe(v) {
+    return String(v || "")
+      .replace(/\bANO\s*\d{2,4}\s*\/\s*\d{2,4}\b/gi, "")
+      .replace(/\bANO\s*\d{4}\b/gi, "")
+      .trim();
+  }
+
   function melhor(lista, campoNome, alvo, minimo) {
     var top = null;
     var topPontos = 0;
@@ -1291,10 +1306,17 @@
 
   function partesMarcaModelo(x) {
     var txt = String(x.dtMarca || "").trim();
-    var sep = txt.indexOf("/") >= 0 ? "/" : " ";
-    var p = txt.split(sep);
-    var marca = (p.shift() || "").trim();
-    var modelo = p.join(sep === "/" ? "/" : " ").trim();
+    var barra = txt.match(/^([^/]+)\s*\/\s*(.+)$/);
+    var marca = "", modelo = "";
+    if (barra && !/^\s*\d/.test(barra[2])) {
+      marca = barra[1].trim();
+      modelo = barra[2].trim();
+    } else {
+      var p = txt.split(/\s+/);
+      marca = (p.shift() || "").trim();
+      if (txtNorm(marca) === "MERCEDES" && txtNorm(p[0]) === "BENZ") marca += " " + p.shift();
+      modelo = p.join(" ").trim();
+    }
     return { marca: marca, modelo: modelo || txt };
   }
 
@@ -1323,35 +1345,49 @@
       var tipo = tipos[i];
       return fipeMarcas(tipo)
         .then(function (marcas) {
-          var m = melhor(marcas, "nome", mm.marca, 0.8);
+          var m = melhor(marcas, "nome", nomeMarcaFipe(mm.marca), 0.8);
           if (!m) throw new Error("marca");
           return fipeModelos(tipo, m.codigo).then(function (modelos) {
-            var mo = melhor(modelos, "nome", mm.modelo, 0.7);
-            if (!mo) throw new Error("modelo");
-            return fipeAnos(tipo, m.codigo, mo.codigo).then(function (anos) {
-              var lista = anos || [];
-              var comb = txtNorm(x.dtCombustivel);
-              var doAno = lista.filter(function (a) {
-                return soAno(a.nome) === ano;
-              });
-              if (!doAno.length) throw new Error("ano");
-              var escolhido = null;
-              if (comb)
-                escolhido = doAno.filter(function (a) {
-                  return txtNorm(a.nome).indexOf(comb.split(" ")[0]) >= 0;
-                })[0];
-              // sem combustivel informado e mais de uma opcao: nao adivinha
-              if (!escolhido) {
-                if (doAno.length > 1) throw new Error("combustivel");
-                escolhido = doAno[0];
-              }
-              return fipeValor(tipo, m.codigo, mo.codigo, escolhido.codigo).then(function (p) {
-                // confere se o retorno bate com o veiculo antes de aceitar
-                if (p && soAno(p.AnoModelo) && soAno(p.AnoModelo) !== ano) throw new Error("ano");
-                if (p && pontuar(mm.marca, p.Marca) < 0.8) throw new Error("marca");
-                return p;
-              });
+            var modeloSalvo = txtNorm(x.dtFipeModelo);
+            var modeloLimpo = modeloCadastroFipe(mm.modelo);
+            var candidatos = modelos.filter(function (item) {
+              return (modeloSalvo && txtNorm(item.nome) === modeloSalvo) ||
+                pontuar(modeloLimpo, item.nome) >= 0.7;
             });
+            if (!candidatos.length) throw new Error("modelo");
+            // O código FIPE já salvo é a identidade da variante; nunca trocar por outra parecida.
+            if (!x.dtFipeCodigo && candidatos.length !== 1) throw new Error("modelo ambiguo");
+            var codigoSalvo = x.dtFipeCodigo ? normFipe(x.dtFipeCodigo) : "";
+            function consultarModelo(mo) {
+              return fipeAnos(tipo, m.codigo, mo.codigo).then(function (anos) {
+                var doAno = (anos || []).filter(function (a) { return soAno(a.nome) === ano; });
+                var comb = txtNorm(x.dtCombustivel);
+                if (comb && doAno.some(function (a) { return /DIESEL|GASOLINA|FLEX|ELETRICO|ALCOOL/.test(txtNorm(a.nome)); }))
+                  doAno = doAno.filter(function (a) {
+                    return txtNorm(a.nome).indexOf(comb.split(" ")[0]) >= 0;
+                  });
+                if (!codigoSalvo && doAno.length !== 1) throw new Error("ano ou combustivel ambiguo");
+                function consultarAno(pos) {
+                  if (pos >= doAno.length) throw new Error("codigo FIPE nao corresponde");
+                  return fipeValor(tipo, m.codigo, mo.codigo, doAno[pos].codigo)
+                    .then(function (p) {
+                      if (!p || soAno(p.AnoModelo) !== ano ||
+                          pontuar(nomeMarcaFipe(mm.marca), p.Marca) < 0.8 ||
+                          (codigoSalvo && normFipe(p.CodigoFipe) !== codigoSalvo))
+                        return consultarAno(pos + 1);
+                      return p;
+                    });
+                }
+                return consultarAno(0);
+              });
+            }
+            function consultarCandidato(pos) {
+              if (pos >= candidatos.length) throw new Error("modelo FIPE nao corresponde");
+              return consultarModelo(candidatos[pos]).catch(function () {
+                return consultarCandidato(pos + 1);
+              });
+            }
+            return consultarCandidato(0);
           });
         })
         .catch(function () {
