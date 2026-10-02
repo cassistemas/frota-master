@@ -1,7 +1,7 @@
 /* Extrato de pedágios: leitura local, consolidação por placa e confirmação explícita. */
 (function () {
   'use strict';
-  var grupos = [], divergencias = [], arquivo = '', salvando = false, competencias = {}, datasResumo = {}, competenciasResumo = {};
+  var grupos = [], divergencias = [], arquivo = '', salvando = false, competencias = {}, datasResumo = {}, competenciasResumo = {}, cancelados = new Set(), resumosCancelados = new Set();
   function el(id) { return document.getElementById(id); }
   function texto(v) { return String(v == null ? '' : v).trim(); }
   function placa(v) { return texto(v).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
@@ -91,31 +91,34 @@
   function pendentes(g) { var vistos = existentes(); return g.detalhes.filter(function (d) { return !vistos.has(d.chave); }); }
   function desenhar() {
     var box = el('cusPedPrevia'); if (!box) return;
-    var pend = grupos.map(function (g) { return { grupo:g, detalhes:pendentes(g) }; }).filter(function (x) { return x.detalhes.length; });
+    var pend = grupos.filter(function (g) { return !cancelados.has(g.id); }).map(function (g) { return { grupo:g, detalhes:pendentes(g) }; }).filter(function (x) { return x.detalhes.length; });
     var cents = pend.reduce(function (s,x) { return s + x.detalhes.reduce(function (a,d) { return a + d.centavos; },0); },0);
      el('cusPedResumo').textContent = arquivo + ' · ' + pend.length + ' pré-lançamento(s) por placa · ' + pend.reduce(function (n,x) { return n+x.detalhes.length; },0) + ' passagens pendentes · ' + reais(cents);
     var prontoBanco = typeof window.fmModuloCarregado === 'function' && window.fmModuloCarregado('custos') && window.fmModuloCarregado('veiculos');
      el('cusPedLinhas').innerHTML = grupos.map(function (g, i) {
-       var falta = pendentes(g); if (!falta.length) return '';
+       var falta = cancelados.has(g.id) ? [] : pendentes(g); if (!falta.length) return '';
        var valor = falta.reduce(function (n,d) { return n+d.centavos; },0), v = cadastro(g.placa), pronto = !!v && texto(v.vstatus).toUpperCase() !== 'VENDIDO';
        var meses = Array.from(new Set(falta.map(function (d) { return d.data.slice(0,7); }))).sort(), selecionado = competencias[g.id] || (meses.length === 1 ? meses[0] : '');
        var celulaMes = meses.length === 1 ? esc(meses[0].slice(5) + '/' + meses[0].slice(0,4)) : '<select class="form-select form-select-sm" data-ped-competencia="' + i + '" aria-label="Competência de ' + esc(g.placa) + '"><option value="">Escolha o mês</option>' + meses.map(function (m) { return '<option value="' + m + '"' + (m === selecionado ? ' selected' : '') + '>' + m.slice(5) + '/' + m.slice(0,4) + '</option>'; }).join('') + '</select>';
-       return '<tr><td><b>' + esc(g.placa) + '</b></td><td>' + celulaMes + '</td><td>' + falta.length + (falta.length !== g.detalhes.length ? ' de ' + g.detalhes.length : '') + '</td><td><b>' + reais(valor) + '</b></td><td>' + (!prontoBanco ? 'Aguardando dados' : !v ? 'Veículo não cadastrado' : !pronto ? 'Veículo vendido' : !selecionado ? 'Escolha a competência' : 'Aguardando confirmação') + '</td><td>' + (prontoBanco && pronto && selecionado ? '<button type="button" class="btn btn-primary btn-sm" data-ped-confirmar="' + i + '">Confirmar lançamento</button>' : '—') + '</td></tr>';
+       return '<tr><td><b>' + esc(g.placa) + '</b></td><td>' + celulaMes + '</td><td>' + falta.length + (falta.length !== g.detalhes.length ? ' de ' + g.detalhes.length : '') + '</td><td><b>' + reais(valor) + '</b></td><td>' + (!prontoBanco ? 'Aguardando dados' : !v ? 'Veículo não cadastrado' : !pronto ? 'Veículo vendido' : !selecionado ? 'Escolha a competência' : 'Aguardando confirmação') + '</td><td class="cus-history-actions">' + (prontoBanco && pronto && selecionado ? '<button type="button" class="btn btn-primary btn-sm" data-ped-confirmar="' + i + '">Confirmar lançamento</button>' : '') + '<button type="button" class="btn btn-outline-secondary btn-sm" data-ped-cancelar="' + i + '">Cancelar</button></td></tr>';
     }).join('');
      var vistosResumo = resumosExistentes();
-     el('cusPedDivergencias').innerHTML = divergencias.length ? '<strong>Diferenças do resumo para conferência:</strong> ' + divergencias.map(function (d) { return esc(d.placa) + ' · ' + esc(d.categoria) + ' · ' + d.count + ' passagem(ns) · ' + reais(d.cents) + (vistosResumo.has(referenciaResumo(d)) ? ' (lançado)' : ''); }).join('; ') : 'Resumo conciliado com as passagens detalhadas.';
+      var avisos = divergencias.filter(function (d, i) { return !resumosCancelados.has(i); });
+      el('cusPedDivergencias').innerHTML = avisos.length ? '<strong>Diferenças do resumo para conferência:</strong> ' + avisos.map(function (d) { return esc(d.placa) + ' · ' + esc(d.categoria) + ' · ' + d.count + ' passagem(ns) · ' + reais(d.cents) + (vistosResumo.has(referenciaResumo(d)) ? ' (lançado)' : ''); }).join('; ') : 'Nenhuma diferença do resumo pendente nesta prévia.';
      el('cusPedResumoLinhas').innerHTML = divergencias.map(function (d, i) {
-       if (d.count <= 0 || d.cents <= 0 || vistosResumo.has(referenciaResumo(d))) return '';
+        if (resumosCancelados.has(i) || d.count <= 0 || d.cents <= 0 || vistosResumo.has(referenciaResumo(d))) return '';
        var v = cadastro(d.placa), pronto = !!v && texto(v.vstatus).toUpperCase() !== 'VENDIDO', dia = datasResumo[i] || '', mes = competenciasResumo[i] || (dia ? dia.slice(0,7) : '');
-       return '<tr><td><b>' + esc(d.placa) + '</b></td><td>' + d.count + ' sem detalhe</td><td><b>' + reais(d.cents) + '</b></td><td><input type="date" class="form-control form-control-sm" data-ped-resumo-data="' + i + '" aria-label="Data conferida para ' + esc(d.placa) + '" value="' + esc(dia) + '"></td><td><input type="month" class="form-control form-control-sm" data-ped-resumo-mes="' + i + '" aria-label="Competência conferida para ' + esc(d.placa) + '" value="' + esc(mes) + '"></td><td>' + (!prontoBanco ? 'Aguardando dados' : !v ? 'Veículo não cadastrado' : !pronto ? 'Veículo vendido' : !dia || !mes ? 'Informe data e competência' : 'Aguardando confirmação') + '</td><td>' + (prontoBanco && pronto && dia && mes ? '<button type="button" class="btn btn-primary btn-sm" data-ped-resumo-confirmar="' + i + '">Confirmar lançamento</button>' : '—') + '</td></tr>';
+        return '<tr><td><b>' + esc(d.placa) + '</b></td><td>' + d.count + ' sem detalhe</td><td><b>' + reais(d.cents) + '</b></td><td><input type="date" class="form-control form-control-sm" data-ped-resumo-data="' + i + '" aria-label="Data conferida para ' + esc(d.placa) + '" value="' + esc(dia) + '"></td><td><input type="month" class="form-control form-control-sm" data-ped-resumo-mes="' + i + '" aria-label="Competência conferida para ' + esc(d.placa) + '" value="' + esc(mes) + '"></td><td>' + (!prontoBanco ? 'Aguardando dados' : !v ? 'Veículo não cadastrado' : !pronto ? 'Veículo vendido' : !dia || !mes ? 'Informe data e competência' : 'Aguardando confirmação') + '</td><td class="cus-history-actions">' + (prontoBanco && pronto && dia && mes ? '<button type="button" class="btn btn-primary btn-sm" data-ped-resumo-confirmar="' + i + '">Confirmar lançamento</button>' : '') + '<button type="button" class="btn btn-outline-secondary btn-sm" data-ped-resumo-cancelar="' + i + '">Cancelar</button></td></tr>';
      }).join('');
      el('cusPedResumoConferencia').hidden = !el('cusPedResumoLinhas').innerHTML;
+      el('cusPedCancelarTodos').hidden = !pend.length && !el('cusPedResumoLinhas').innerHTML;
+      el('cusPedLinhas').closest('.cus-table-wrap').hidden = !pend.length;
     box.hidden = false;
   }
   async function confirmarResumo(i) {
     if (salvando || typeof window.fmModuloCarregado !== 'function' || !window.fmModuloCarregado('custos') || !window.fmModuloCarregado('veiculos')) return;
     var d = divergencias[i];
-    if (!d || d.count <= 0 || d.cents <= 0 || typeof db === 'undefined' || !Array.isArray(db.custos)) return;
+    if (!d || resumosCancelados.has(i) || d.count <= 0 || d.cents <= 0 || typeof db === 'undefined' || !Array.isArray(db.custos)) return;
     var v = cadastro(d.placa), dia = datasResumo[i], mes = competenciasResumo[i] || (dia ? dia.slice(0,7) : ''), ref = referenciaResumo(d);
     if (!v || texto(v.vstatus).toUpperCase() === 'VENDIDO' || !/^\d{4}-\d{2}-\d{2}$/.test(dia || '') || data(dia.split('-').reverse().join('/')) !== dia || !/^\d{4}-(0[1-9]|1[0-2])$/.test(mes || '') || resumosExistentes().has(ref)) { desenhar(); return; }
     if (!confirm('O resumo indica ' + d.count + ' passagem(ns) de ' + v.vplaca + ' sem data ou praça detalhada. Conferiu que ' + reais(d.cents) + ' ainda não foi lançado? Salvar em ' + dia.split('-').reverse().join('/') + ', competência ' + mes.slice(5) + '/' + mes.slice(0,4) + '?')) return;
@@ -135,7 +138,7 @@
   }
   async function confirmar(i) {
     if (salvando || typeof window.fmModuloCarregado !== 'function' || !window.fmModuloCarregado('custos') || !window.fmModuloCarregado('veiculos')) return;
-    var g = grupos[i]; if (!g || typeof db === 'undefined' || !Array.isArray(db.custos)) return;
+    var g = grupos[i]; if (!g || cancelados.has(g.id) || typeof db === 'undefined' || !Array.isArray(db.custos)) return;
      var v = cadastro(g.placa), detalhes = pendentes(g), meses = Array.from(new Set(detalhes.map(function (d) { return d.data.slice(0,7); }))), mes = competencias[g.id] || (meses.length === 1 ? meses[0] : '');
      if (!v || texto(v.vstatus).toUpperCase() === 'VENDIDO' || !detalhes.length || !mes || meses.indexOf(mes) < 0) { desenhar(); return; }
     var soma = detalhes.reduce(function (s,d) { return s + d.centavos; },0);
@@ -156,11 +159,11 @@
   }
   function iniciar() {
     var pane = el('cusPane-lancamentos'); if (!pane || el('cusPedArquivo')) return;
-     var box = document.createElement('section'); box.className = 'cus-panel'; box.innerHTML = '<h5>Importar extrato de pedágios</h5><label for="cusPedArquivo">Planilha de extrato (.xlsx)</label><input id="cusPedArquivo" type="file" accept=".xlsx,.xls" class="form-control" data-nao-limpar="1"><div id="cusPedPrevia" hidden><p id="cusPedResumo" class="cus-note" aria-live="polite"></p><div class="cus-table-wrap"><table class="table cus-table" data-sem-relatorio="1"><thead><tr><th>Placa</th><th>Competência</th><th>Passagens</th><th>Total</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="cusPedLinhas"></tbody></table></div><p id="cusPedDivergencias" class="cus-note"></p><div id="cusPedResumoConferencia" hidden><div class="cus-table-wrap"><table class="table cus-table" data-sem-relatorio="1"><thead><tr><th>Placa</th><th>Resumo</th><th>Total</th><th>Data conferida</th><th>Competência</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="cusPedResumoLinhas"></tbody></table></div></div></div>';
+     var box = document.createElement('section'); box.className = 'cus-panel'; box.innerHTML = '<h5>Importar extrato de pedágios</h5><label for="cusPedArquivo">Planilha de extrato (.xlsx)</label><input id="cusPedArquivo" type="file" accept=".xlsx,.xls" class="form-control" data-nao-limpar="1"><div id="cusPedPrevia" hidden><p id="cusPedResumo" class="cus-note" aria-live="polite"></p><button id="cusPedCancelarTodos" type="button" class="btn btn-outline-secondary btn-sm">Cancelar todos</button><div class="cus-table-wrap"><table class="table cus-table" data-sem-relatorio="1"><thead><tr><th>Placa</th><th>Competência</th><th>Passagens</th><th>Total</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="cusPedLinhas"></tbody></table></div><p id="cusPedDivergencias" class="cus-note"></p><div id="cusPedResumoConferencia" hidden><div class="cus-table-wrap"><table class="table cus-table" data-sem-relatorio="1"><thead><tr><th>Placa</th><th>Resumo</th><th>Total</th><th>Data conferida</th><th>Competência</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="cusPedResumoLinhas"></tbody></table></div></div></div>';
     pane.insertBefore(box, pane.firstChild);
     el('cusPedArquivo').addEventListener('change', function (ev) {
       var file = ev.target.files && ev.target.files[0]; if (!file) return;
-       grupos = []; divergencias = []; competencias = {}; datasResumo = {}; competenciasResumo = {}; el('cusPedPrevia').hidden = true;
+       grupos = []; divergencias = []; competencias = {}; datasResumo = {}; competenciasResumo = {}; cancelados = new Set(); resumosCancelados = new Set(); el('cusPedPrevia').hidden = true;
       if (!/\.xlsx?$/i.test(file.name) || file.size > 10 * 1024 * 1024) { alert('Selecione uma planilha Excel de até 10 MB.'); ev.target.value = ''; return; }
       file.arrayBuffer().then(function (buffer) {
         if (!window.XLSX) throw new Error('Leitor de Excel indisponível.');
@@ -169,7 +172,21 @@
         arquivo = file.name; grupos = result.grupos; divergencias = result.divergencias; desenhar();
       }).catch(function (err) { alert('Não foi possível ler o extrato: ' + err.message); }).finally(function () { ev.target.value = ''; });
     });
-     box.addEventListener('click', function (ev) { var btn = ev.target.closest('[data-ped-confirmar]'); if (btn) confirmar(Number(btn.dataset.pedConfirmar)); var resumo = ev.target.closest('[data-ped-resumo-confirmar]'); if (resumo) confirmarResumo(Number(resumo.dataset.pedResumoConfirmar)); });
+     box.addEventListener('click', function (ev) {
+       if (salvando) return;
+       var cancelar = ev.target.closest('[data-ped-cancelar]');
+       if (cancelar) { var g = grupos[Number(cancelar.dataset.pedCancelar)]; if (g) { cancelados.add(g.id); desenhar(); } return; }
+       var cancelarResumo = ev.target.closest('[data-ped-resumo-cancelar]');
+       if (cancelarResumo) { resumosCancelados.add(Number(cancelarResumo.dataset.pedResumoCancelar)); desenhar(); return; }
+       if (ev.target.closest('#cusPedCancelarTodos')) {
+         if (!confirm('Cancelar todos os pré-lançamentos desta prévia? Nenhum lançamento salvo será alterado.')) return;
+         grupos.forEach(function (g) { cancelados.add(g.id); });
+         divergencias.forEach(function (d, i) { resumosCancelados.add(i); });
+         desenhar(); return;
+       }
+       var btn = ev.target.closest('[data-ped-confirmar]'); if (btn) confirmar(Number(btn.dataset.pedConfirmar));
+       var resumo = ev.target.closest('[data-ped-resumo-confirmar]'); if (resumo) confirmarResumo(Number(resumo.dataset.pedResumoConfirmar));
+     });
      box.addEventListener('change', function (ev) { if (ev.target.matches('[data-ped-competencia]')) { var g = grupos[Number(ev.target.dataset.pedCompetencia)]; if (g) competencias[g.id] = ev.target.value; } else if (ev.target.matches('[data-ped-resumo-data]')) { var i = Number(ev.target.dataset.pedResumoData); datasResumo[i] = ev.target.value; if (!competenciasResumo[i]) competenciasResumo[i] = ev.target.value.slice(0,7); } else if (ev.target.matches('[data-ped-resumo-mes]')) competenciasResumo[Number(ev.target.dataset.pedResumoMes)] = ev.target.value; else return; desenhar(); });
     window.addEventListener('fmModulosCarregados', function () { if (grupos.length) desenhar(); });
   }
