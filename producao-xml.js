@@ -51,7 +51,7 @@
     var oC = tag(doc, 'xMunIni'), oU = tag(doc, 'UFIni'), dC = tag(doc, 'xMunFim'), dU = tag(doc, 'UFFim');
     set('resProdOrigem', oC ? oC + (oU ? '-' + oU : '') : '');
     set('resProdDestino', dC ? dC + (dU ? '-' + dU : '') : '');
-    if (peso !== '') set('resProdTon', String(Math.round(peso / 1000 * 1000) / 1000));
+    if (peso !== '') set('resProdTon', String(Math.round(peso * 1000) / 1000));
     set('resProdReceita', moeda(tag(doc, 'vTPrest') || tag(doc, 'vPrest')));
     set('resProdImpostos', moeda(icms));
     var obs = [];
@@ -148,7 +148,7 @@
       if (!juntoCte || !(document.getElementById('resProdCompetencia') || {}).value) set('resProdCompetencia', x.data.slice(0, 7));
       if (!juntoCte || !(document.getElementById('resProdOrigem') || {}).value) set('resProdOrigem', x.origem);
       if (!juntoCte || !(document.getElementById('resProdDestino') || {}).value) set('resProdDestino', x.destino);
-      if (x.toneladas !== null && (!juntoCte || !(document.getElementById('resProdTon') || {}).value)) set('resProdTon', String(x.toneladas));
+      if (x.toneladas !== null && (!juntoCte || !(document.getElementById('resProdTon') || {}).value)) set('resProdTon', String(Math.round(x.toneladas * 1000 * 1000) / 1000));
       var obs = document.getElementById('resProdObs'), ref = x.documento || ('MDF-e ' + x.chave);
       if (obs && ref && obs.value.indexOf(ref) === -1) {
         var detalhes = [ref, x.carga && 'Carga: ' + x.carga, x.valorCarga && 'Valor da mercadoria: ' + moeda(x.valorCarga), x.quantidadeCtes && 'CT-e vinculados: ' + x.quantidadeCtes, x.quantidadeNfes && 'NF-e vinculadas: ' + x.quantidadeNfes].filter(Boolean);
