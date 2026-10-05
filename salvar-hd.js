@@ -26,9 +26,11 @@
     if (!b) {
       b = document.createElement('button');
       b.id = 'fmPastaHd'; b.type = 'button';
-      b.style.cssText = 'position:fixed;right:14px;bottom:14px;z-index:9999;border:0;border-radius:8px;padding:8px 12px;font:600 12px system-ui,sans-serif;color:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)';
+      b.style.cssText = 'border:0;border-radius:8px;padding:6px 12px;font:600 12px system-ui,sans-serif;color:#fff;cursor:pointer';
       b.onclick = clicar;
-      document.body.appendChild(b);
+      var ref = document.querySelector('.dashboard-date');
+      if (ref && ref.parentNode) ref.parentNode.insertBefore(b, ref.nextSibling);
+      else { b.style.cssText += ';position:fixed;right:14px;bottom:14px;z-index:9999'; document.body.appendChild(b); }
     }
     b.textContent = texto; b.title = titulo || ''; b.style.background = cor;
   }

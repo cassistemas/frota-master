@@ -340,10 +340,31 @@
   };
 
   /* ---- filtros ---- */
+  function normPlaca(p) { return String(p || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+  function completarOpcoesFiltro() {
+    var cat = document.getElementById("filtroEstoqueCategoria");
+    if (cat) {
+      var tem = {}; Array.prototype.forEach.call(cat.options, function (o) { tem[o.value || o.text] = 1; });
+      movimentos().forEach(function (m) { var c = String(m.ecategoria || "").trim(); if (c && !tem[c]) { tem[c] = 1; var o = document.createElement("option"); o.textContent = c; cat.appendChild(o); } });
+    }
+    var vs = document.getElementById("filtroEstoqueVeiculo");
+    if (vs) {
+      var atual = vs.value, mapa = {};
+      var vv = raiz().veiculos; if (!Array.isArray(vv)) vv = [];
+      vv.forEach(function (v) { var p = v && (v.vplaca || v.placa); if (p) mapa[normPlaca(p)] = String(p).toUpperCase() + (v.vmodelo ? " - " + v.vmodelo : ""); });
+      movimentos().forEach(function (m) { var k = normPlaca(m.eplaca); if (k && !mapa[k]) mapa[k] = String(m.eplaca).toUpperCase(); });
+      var chaves = Object.keys(mapa).sort();
+      var html = '<option value="">Todos os veículos</option>' + chaves.map(function (k) { return '<option value="' + k + '">' + mapa[k].replace(/</g, "&lt;") + "</option>"; }).join("");
+      if (vs.getAttribute("data-html") !== html) { vs.innerHTML = html; vs.setAttribute("data-html", html); vs.value = atual; }
+    }
+  }
   function filtro() {
+    try { completarOpcoesFiltro(); } catch (e) {}
     return {
       item: (document.getElementById("filtroEstoqueItem") || {}).value || "",
       cat: (document.getElementById("filtroEstoqueCategoria") || {}).value || "",
+      veic: (document.getElementById("filtroEstoqueVeiculo") || {}).value || "",
+      sit: (document.getElementById("filtroEstoqueSituacao") || {}).value || "",
       ini: (document.getElementById("filtroEstoqueIni") || {}).value || "",
       fim: (document.getElementById("filtroEstoqueFim") || {}).value || ""
     };
@@ -353,9 +374,11 @@
     return movimentos().map(function (m, i) { return { mov: m, i: i }; }).filter(function (x) {
       var m = x.mov;
       var eTipo = m.etipo === "Saída" ? "Saída" : "Entrada";
+      var texto = [m.eitem, m.efornecedor, m.eresponsavel, m.elote, m.eobservacoes, m.eplaca, m.ecategoria].join(" ").toLowerCase();
       return eTipo === tipo &&
-        (!termo || String(m.eitem || "").toLowerCase().indexOf(termo) >= 0) &&
+        (!termo || texto.indexOf(termo) >= 0) &&
         (!f.cat || m.ecategoria === f.cat) &&
+        (!f.veic || tipo !== "Saída" || normPlaca(m.eplaca) === f.veic) &&
         (!f.ini || (m.edata || "") >= f.ini) &&
         (!f.fim || (m.edata || "") <= f.fim);
     }).sort(function (a, b) { return String(b.mov.edata || "").localeCompare(String(a.mov.edata || "")); });
@@ -409,6 +432,13 @@
     if (!sel || !hint) return;
     var idx = (document.getElementById("s_idx") || {}).value;
     var nome = sel.value;
+    var totEl = document.getElementById("stotalcampo");
+    if (totEl) {
+      var posT = nome ? (posicaoEstoque(idx === "" ? null : idx)[chave(nome)] || { custoMedio: 0 }) : { custoMedio: 0 };
+      var qT = parseFloat((document.getElementById("squantidade") || {}).value) || 0;
+      totEl.value = nome && qT > 0 ? "Total: " + moeda(qT * (posT.custoMedio || 0)) : "";
+      totEl.title = "Quantidade × custo médio do item";
+    }
     if (!nome) {
       hint.className = "est-hint";
       hint.textContent = "Selecione um item para ver o saldo disponível.";
@@ -592,7 +622,7 @@
 
   window.aplicarFiltrosEstoque = function () { pag.entrada = 1; pag.saida = 1; pag.saldo = 1; renderModulo("estoque"); };
   window.limparFiltrosEstoque = function () {
-    ["filtroEstoqueItem", "filtroEstoqueCategoria", "filtroEstoqueIni", "filtroEstoqueFim"]
+    ["filtroEstoqueItem", "filtroEstoqueCategoria", "filtroEstoqueVeiculo", "filtroEstoqueSituacao", "filtroEstoqueIni", "filtroEstoqueFim"]
       .forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ""; });
     pag.entrada = 1; pag.saida = 1; pag.saldo = 1;
     renderModulo("estoque");
@@ -690,7 +720,8 @@
     // posição
     var f = filtro(), termo = f.item.trim().toLowerCase();
     var listaPos = lista.filter(function (it) {
-      return (!termo || it.item.toLowerCase().indexOf(termo) >= 0) && (!f.cat || it.categoria === f.cat);
+      var sit = it.saldo <= 0 ? "sem" : (it.minimo > 0 && it.saldo <= it.minimo ? "baixo" : "ok");
+      return (!termo || it.item.toLowerCase().indexOf(termo) >= 0) && (!f.cat || it.categoria === f.cat) && (!f.sit || f.sit === sit);
     });
     pager("saldo", listaPos.length, "pagEstoqueSaldo");
     var iniP = (pag.saldo - 1) * itensPorPagina();
@@ -775,4 +806,25 @@
     });
   });
 
+})();
+
+/* Valor total automático na Entrada do estoque (quantidade × valor unitário) */
+(function () {
+  function num(v) {
+    var s = String(v == null ? "" : v).replace(/[^\d,.-]/g, "");
+    if (s.indexOf(",") >= 0) s = s.replace(/\./g, "").replace(",", ".");
+    return parseFloat(s) || 0;
+  }
+  window.atualizarTotalEntradaEstoque = function () {
+    var tot = document.getElementById("etotalcampo");
+    if (!tot) return;
+    var q = num((document.getElementById("equantidade") || {}).value);
+    var u = num((document.getElementById("evalorunitario") || {}).value);
+    tot.value = q > 0 && u > 0 ? "Total: " + (q * u).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "";
+    tot.title = "Quantidade × valor unitário";
+  };
+  document.addEventListener("input", function (e) {
+    if (e.target && (e.target.id === "equantidade" || e.target.id === "evalorunitario")) setTimeout(window.atualizarTotalEntradaEstoque, 0);
+  }, true);
+  document.addEventListener("click", function () { setTimeout(window.atualizarTotalEntradaEstoque, 120); }, true);
 })();
