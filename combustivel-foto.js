@@ -27,7 +27,7 @@
     });
   }
   function canvasDe(img, graus) {
-    var alvo = 2000, w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    var alvo = 2600, w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
     var esc = Math.min(3, Math.max(1, alvo / Math.max(w, h)));
     if (Math.max(w, h) > alvo) esc = alvo / Math.max(w, h);
     var W = Math.round(w * esc), H = Math.round(h * esc), gira = graus === 90 || graus === 270;
@@ -35,6 +35,13 @@
     var x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
     x.translate(c.width / 2, c.height / 2); x.rotate((graus || 0) * Math.PI / 180); x.drawImage(img, -W / 2, -H / 2, W, H);
     return c;
+  }
+  function recortar(c, inicio, fim) {
+    var y = Math.max(0, Math.round(c.height * inicio)), h = Math.max(1, Math.round(c.height * (fim - inicio)));
+    var margem = Math.round(c.width * 0.025), r = document.createElement('canvas');
+    r.width = c.width - margem * 2; r.height = h;
+    r.getContext('2d').drawImage(c, margem, y, r.width, h, 0, 0, r.width, h);
+    return r;
   }
   function tratar(c, modo) {
     var x = c.getContext('2d'), W = c.width, H = c.height, d = x.getImageData(0, 0, W, H), p = d.data, g = new Float32Array(W * H), i;
@@ -63,7 +70,7 @@
 
   /* ---------- Extração dos dados ---------- */
   var TIPOS = [
-    [/ARLA/, 'Arla32'], [/S[\s-]?10\b|S-?1O\b|DIESEL\s*S\s*10/, 'Diesel S10'], [/S[\s-]?500|S-?5OO/, 'Diesel S500'],
+    [/S[\s-]?[1I][0O]\b|DIESEL\s*S\s*[1I][0O]/, 'Diesel S10'], [/S[\s-]?500|S-?5OO/, 'Diesel S500'],
     [/DIESEL|OLEO\s*DIESEL/, 'Diesel S500'], [/GASOLINA|GAS\.?\s*(COMUM|ADIT)/, 'Gasolina'], [/ETANOL|ALCOOL/, 'Etanol']
   ];
   function valores(T, rotulos, padrao) {
@@ -74,7 +81,12 @@
   function extrair(txt) {
     var T = txt.toUpperCase().replace(/[“”"]/g, ' '), d = {};
     var m = T.match(/\b([0-3]?\d)[\/.-]([01]?\d)[\/.-](20\d{2}|\d{2})\b/);
-    if (m) { var a = m[3].length === 2 ? '20' + m[3] : m[3], mes = ('0' + m[2]).slice(-2), dia = ('0' + m[1]).slice(-2); if (+mes >= 1 && +mes <= 12 && +dia >= 1 && +dia <= 31) d.data = a + '-' + mes + '-' + dia; }
+    if (m) {
+      var a = m[3].length === 2 ? '20' + m[3] : m[3], atual = new Date().getFullYear();
+      if (Math.abs(+a - atual) > 2 && String(a).slice(-1) === String(atual).slice(-1)) a = String(atual);
+      var mes = ('0' + m[2]).slice(-2), dia = ('0' + m[1]).slice(-2);
+      if (+a >= 2020 && +a <= atual + 2 && +mes >= 1 && +mes <= 12 && +dia >= 1 && +dia <= 31) d.data = a + '-' + mes + '-' + dia;
+    }
     for (var t = 0; t < TIPOS.length; t++) if (TIPOS[t][0].test(T)) { d.tipo = TIPOS[t][1]; break; }
     var NUM = '\\d{1,4}[.,]\\d{1,3}';
     var litros = valores(T, 'LITROS|LITRO|QTDE?\\.?|QUANT[A-Z.]*|VOLUME|VOL\\.?', NUM);
@@ -84,26 +96,67 @@
     litros = litros.filter(function (v) { return v > 0.5 && v < 2000; });
     unit = unit.filter(function (v) { return v > 0.5 && v < 20; });
     totais = totais.filter(function (v) { return v > 1 && v < 100000; });
+    // Cupom NFC-e: os dados do abastecimento normalmente ficam em uma linha da tabela
+    // Descrição | Qtde | UN | Vl Unit | Total. Diesel tem prioridade sobre ARLA.
+    var linhasProduto = T.split(/\n/).filter(function (linha) { return /DIESEL|GASOLINA|ETANOL|ALCOOL/.test(linha); });
+    var produto = null;
+    linhasProduto.forEach(function (linha) {
+      var limpo = linha.replace(/^\s*\d{6,14}\s+/, '').replace(/S[\s-]?[1I]O\b/g, 'S10').replace(/S[\s-]?[1I]0\b/g, 'S10').replace(/S[\s-]?5[O0]0\b/g, 'S500');
+      var depois = limpo.replace(/^.*?(?:DIESEL(?:\s+S(?:10|500))?|GASOLINA(?:\s+COMUM)?|ETANOL|ALCOOL)\s*/i, '');
+      depois = depois.replace(/\bB[I1]\b/g, ' ').replace(/(\d)[.,]\s+(\d)/g, '$1,$2').replace(/(\d)\s*[.,]\s*(\d{2})\b/g, '$1,$2').replace(/[|¦]/g, ' ').replace(/(\d,\d{2,3})\.(?=\s)/g, '$1 ');
+      var ml = depois.match(/(?:B[I1]\s*)?(\d{1,4}(?:[.,]\d{1,3})?)\s*(?:L|LT|LTS|1)?\s+(\d{1,2}[.,]\d{2,4})\s+(\d{1,3}(?:\.\d{3})*[.,]\d{2})/);
+      if (!ml) {
+        var ns = depois.match(/\d{1,4}(?:[.,]\d{1,3})?/g) || [];
+        for (var ni = 0; ni + 2 < ns.length; ni++) {
+          var q = num(ns[ni]), u = num(ns[ni + 1]), tt = num(ns[ni + 2]);
+          if (q >= 100 && q < 2000 && u > 1 && u < 20 && tt > 10 && Math.abs(q * u - tt) > Math.max(0.2, tt * 0.012)) {
+            var candidatosQ = [q / 10, q / 100, q / 1000];
+            for (var qi = 0; qi < candidatosQ.length; qi++) if (Math.abs(candidatosQ[qi] * u - tt) <= Math.max(0.2, tt * 0.012)) { q = candidatosQ[qi]; break; }
+          }
+          if (q > 1 && q < 2000 && u > 1 && u < 20 && tt > 10 && Math.abs(q * u - tt) <= Math.max(0.2, tt * 0.012)) { ml = [null, String(q), String(u), String(tt)]; break; }
+        }
+      }
+      if (!ml) return;
+      var candidato = { l: q || num(ml[1]), u: num(ml[2]), t: num(ml[3]), linha: linha };
+      candidato.dif = Math.abs(candidato.l * candidato.u - candidato.t);
+      if (candidato.l > 1 && candidato.l < 2000 && candidato.u > 1 && candidato.u < 20 && candidato.dif <= Math.max(0.2, candidato.t * 0.012) && (!produto || candidato.dif < produto.dif)) produto = candidato;
+    });
+    if (produto) {
+      d.litros = produto.l; d.valorLitro = produto.u; d.total = produto.t; d.conferido = true;
+      if (/S\s*10|S10|S1O/.test(produto.linha)) d.tipo = 'Diesel S10';
+      else if (/S\s*500|S500|S5OO/.test(produto.linha)) d.tipo = 'Diesel S500';
+      else if (/DIESEL/.test(produto.linha)) d.tipo = 'Diesel S500';
+    }
     // conferência: litros × preço = total
     var melhor = null;
     litros.forEach(function (l) { unit.forEach(function (u) { totais.forEach(function (tt) { var dif = Math.abs(l * u - tt); if (dif <= Math.max(0.1, tt * 0.005) && (!melhor || dif < melhor.dif)) melhor = { l: l, u: u, t: tt, dif: dif }; }); }); });
-    if (melhor) { d.litros = melhor.l; d.valorLitro = melhor.u; d.total = melhor.t; d.conferido = true; }
-    else {
+    if (!produto && melhor) { d.litros = melhor.l; d.valorLitro = melhor.u; d.total = melhor.t; d.conferido = true; }
+    else if (!produto) {
       d.litros = litros[0]; d.valorLitro = unit[0]; d.total = totais.length ? Math.max.apply(null, totais) : 0;
       if (d.litros && d.total && !d.valorLitro) d.valorLitro = Math.round(d.total / d.litros * 1000) / 1000;
       if (!d.litros && d.total && d.valorLitro) d.litros = Math.round(d.total / d.valorLitro * 100) / 100;
       if (d.litros && d.valorLitro && d.total && Math.abs(d.litros * d.valorLitro - d.total) > Math.max(0.1, d.total * 0.01)) d.divergente = true;
     }
-    m = T.match(/(?:KM|HOD[OÔ0]METRO|ODOMETRO|QUILOMETRAGEM)\s*[:.]?\s*(\d{1,3}(?:\.\d{3})+|\d{3,7})/);
+    m = T.match(/\b(?:KM|KH|HOD[OÔ0]METRO|ODOMETRO|QUILOMETRAGEM)\s*[:.]?\s*(\d{1,3}(?:\.\d{3})+|\d{4,7})\b/);
     if (m) d.km = String(m[1]).replace(/\D/g, '');
     var placas = [], rp = /\b([A-Z0-9]{3})[\s-]?([0-9OIBS][A-Z0-9][0-9OIBS]{2})\b/g;
     while ((m = rp.exec(T))) { var le = m[1].replace(/0/g, 'O').replace(/1/g, 'I').replace(/5/g, 'S').replace(/8/g, 'B'), nu = m[2], cor = nu[0].replace(/O/g, '0').replace(/I/g, '1').replace(/S/g, '5').replace(/B/g, '8') + nu[1] + nu.slice(2).replace(/O/g, '0').replace(/I/g, '1').replace(/S/g, '5').replace(/B/g, '8'); if (/^[A-Z]{3}$/.test(le)) placas.push(le + cor); }
     d.placas = placas;
     m = T.match(/CNPJ\s*[:.]?\s*(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/); if (m) d.cnpj = m[1];
     var linhas = txt.split(/\n/).map(function (l) { return l.trim(); }).filter(function (l) { return l.length > 3 && /[A-Za-z]{3}/.test(l); });
-    var p = linhas.filter(function (l) { return /AUTO\s*POSTO|POSTO|COMBUST|DERIVADOS|PETROL|LTDA|EIRELI|\bME\b/i.test(l); })[0] || linhas[0];
+    var p = linhas.filter(function (l) { return /AUTO\s*POSTO|POSTO|COMBUST|DERIVADOS|PETROL|LTDA|EIRELI|\bME\b/i.test(l) && !/CONSUMIDOR|CLIENTE|CARGAS/i.test(l); })[0] || linhas[0];
     if (p) d.posto = p.replace(/[^\wÀ-ú .&-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
     return d;
+  }
+  function unirDados(destino, novo) {
+    if (!novo) return destino;
+    ['data', 'posto', 'cnpj', 'km'].forEach(function (k) { if (!destino[k] && novo[k]) destino[k] = novo[k]; });
+    if ((!destino.placas || !destino.placas.length) && novo.placas && novo.placas.length) destino.placas = novo.placas.slice();
+    if (novo.conferido && (!destino.conferido || !destino.litros)) {
+      destino.litros = novo.litros; destino.valorLitro = novo.valorLitro; destino.total = novo.total; destino.conferido = true; destino.divergente = false;
+    }
+    if (novo.tipo && novo.tipo !== 'Arla32' && (!destino.tipo || destino.tipo === 'Arla32' || (destino.tipo === 'Diesel S500' && novo.tipo === 'Diesel S10'))) destino.tipo = novo.tipo;
+    return destino;
   }
   function pontuar(d) {
     var s = 0; ['data', 'tipo', 'litros', 'valorLitro', 'total', 'km', 'posto'].forEach(function (k) { if (d[k]) s += 2; });
@@ -131,22 +184,30 @@
     }).then(function (w) {
       worker = w;
       var tentativas = [
-        { g: 0, modo: 'binario', psm: '6' }, { g: 0, modo: 'nitido', psm: '4' }, { g: 0, modo: 'cinza', psm: '6' },
-        { g: 90, modo: 'binario', psm: '6' }, { g: 270, modo: 'binario', psm: '6' }, { g: 180, modo: 'binario', psm: '6' }
-      ], melhor = null, n = 0;
+        { g: 0, modo: 'nitido', psm: '4', area: [0, 1] },
+        { g: 0, modo: 'binario', psm: '6', area: [.12, .44] },
+        { g: 0, modo: 'nitido', psm: '6', area: [.12, .44] },
+        { g: 0, modo: 'cinza', psm: '6', area: [.12, .44] },
+        { g: 0, modo: 'cinza', psm: '4', area: [.15, .38] },
+        { g: 0, modo: 'nitido', psm: '6', area: [.62, 1] },
+        { g: 0, modo: 'cinza', psm: '6', area: [0, 1] },
+        { g: 90, modo: 'binario', psm: '6', area: [0, 1] }, { g: 270, modo: 'binario', psm: '6', area: [0, 1] }, { g: 180, modo: 'binario', psm: '6', area: [0, 1] }
+      ], melhor = null, combinado = {}, n = 0;
       function proxima() {
         if (n >= tentativas.length || (melhor && melhor.pontos >= 20)) return Promise.resolve(melhor);
         var t = tentativas[n++]; aviso('Lendo a foto... tentativa ' + n + ' de ' + tentativas.length);
-        var c = tratar(canvasDe(img, t.g), t.modo);
+        var base = canvasDe(img, t.g), c = t.area[0] || t.area[1] !== 1 ? recortar(base, t.area[0], t.area[1]) : base;
+        c = tratar(c, t.modo);
         return worker.setParameters({ tessedit_pageseg_mode: t.psm, preserve_interword_spaces: '1' }).then(function () { return worker.recognize(c); }).then(function (r) {
           var txt = (r && r.data && r.data.text) || '', d = extrair(txt), pts = pontuar(d);
+          unirDados(combinado, d);
           if (!melhor || pts > melhor.pontos) { if (melhor) melhor.canvas = null; melhor = { dados: d, pontos: pts, canvas: c }; }
-          // depois das 3 primeiras, só gira se a leitura ainda estiver fraca
-          if (n === 3 && melhor.pontos >= 10) n = tentativas.length;
+          // As quatro primeiras leituras cobrem cupom inteiro, tabela e rodapé; só gira se ainda estiver fraca.
+          if (n === 7 && pontuar(combinado) >= 16) n = tentativas.length;
           return proxima();
         });
       }
-      return proxima();
+      return proxima().then(function () { if (!melhor) return null; melhor.dados = unirDados(combinado, melhor.dados); melhor.pontos = pontuar(melhor.dados); return melhor; });
     }).then(function (res) { if (worker) worker.terminate(); img = null; return res; }, function (e) { if (worker) worker.terminate(); throw e; });
   }
 

@@ -144,6 +144,10 @@
         .stat-card{border-left:4px solid var(--accent);padding:15px;background:#fff;border-radius:8px}
         .dashboard-page{max-width:1500px}
         .dashboard-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:24px}
+        .dashboard-statuses{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:nowrap;overflow-x:auto;max-width:100%}
+        .dashboard-statuses #fmPastaHd{height:34px;margin:0;white-space:nowrap}
+        .dashboard-statuses .dashboard-date,.dashboard-statuses .fm-banco-status{height:34px;display:inline-flex;align-items:center}
+        .dashboard-statuses .fm-ultima-sync{flex:0 0 auto}
         .dashboard-eyebrow{display:block;color:#64748b;font-size:.68rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin-bottom:7px}
         .dashboard-heading h2{margin:0;color:#0f172a;letter-spacing:-.03em}
         .dashboard-heading p{margin:7px 0 0;color:#64748b;font-size:.88rem}
@@ -165,7 +169,7 @@
         .stock-card.in{border-top:3px solid #10b981}.stock-card.out{border-top:3px solid #f59e0b}.stock-card.value{border-top:3px solid #3b82f6}
         @media(max-width:1100px){.stock-overview{grid-template-columns:repeat(3,minmax(0,1fr))}}
         @media(max-width:760px){.stock-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:760px){.dashboard-heading{display:block}.dashboard-date{display:inline-block;margin-top:14px}.fuel-overview{grid-template-columns:1fr}}
+        @media(max-width:760px){.dashboard-heading{display:block}.dashboard-statuses{justify-content:flex-start;margin-top:14px}.dashboard-statuses .dashboard-date{margin-top:0}.fuel-overview{grid-template-columns:1fr}}
         @media(max-width:900px){
             .sidebar{width:288px;transform:translateX(-102%);transition:transform .25s ease}
             .sidebar.sb-mobile-open{transform:translateX(0);box-shadow:12px 0 34px rgba(2,6,23,.45)}
@@ -1444,7 +1448,7 @@ onclick="exportarExcel('saidaVeiculos')">
                 <h2 class="fw-bold">Painel de Controle</h2>
                 <p>Acompanhe a frota, os custos e os principais alertas em um só lugar.</p>
             </div>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="dashboard-statuses">
                 <div class="dashboard-date">Atualização automática</div>
                 <div id="fmBancoStatus" class="fm-banco-status verificando" title="Situação do banco de dados">
                     <span class="fm-banco-dot"></span><span id="fmBancoStatusTxt">Verificando banco...</span>
