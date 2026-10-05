@@ -34,3 +34,16 @@
   document.addEventListener('click',function(ev){if(ev.target&&ev.target.closest&&ev.target.closest('#custos .cus-tab, #custos .cus-filter button'))setTimeout(function(){try{ajustar()}catch(e){}},150)});
   document.addEventListener('change',function(ev){if(ev.target&&ev.target.closest&&ev.target.closest('#custos .cus-filter'))setTimeout(function(){try{ajustar()}catch(e){}},150)});
 })();
+/* Botões de período (Mês atual, Mês anterior, Últimos 3 meses, Ano atual): marca o escolhido, por aba. */
+(function(){
+  'use strict';
+  var marcado={};
+  var st=document.createElement('style');st.textContent='#custos .cus-periods button.fm-periodo-ativo{background:#2563eb!important;color:#fff!important;border-color:#2563eb!important;box-shadow:0 0 0 2px rgba(37,99,235,.25)}';document.head.appendChild(st);
+  function aba(){var a=document.querySelector('#custos .cus-tab.active');return a&&a.dataset.tab||''}
+  function pintar(){var k=marcado[aba()]||'';document.querySelectorAll('#custos .cus-periods button').forEach(function(b){var m=(b.getAttribute('onclick')||'').match(/aplicarPeriodoCustos\('([^']+)'\)/);b.classList.toggle('fm-periodo-ativo',!!m&&m[1]===k)})}
+  document.addEventListener('click',function(ev){var t=ev.target&&ev.target.closest&&ev.target.closest('#custos button');if(!t)return;var m=(t.getAttribute('onclick')||'').match(/aplicarPeriodoCustos\('([^']+)'\)/);
+    if(m){marcado[aba()]=m[1];setTimeout(pintar,0);return}
+    if(t.closest('.cus-tab')){setTimeout(pintar,50);return}
+    if(t.closest('.cus-filter')&&/limpar/i.test(t.textContent||'')){delete marcado[aba()];setTimeout(pintar,0)}});
+  document.addEventListener('change',function(ev){if(ev.isTrusted&&ev.target&&(ev.target.id==='cusFiltroInicio'||ev.target.id==='cusFiltroFim')){delete marcado[aba()];pintar()}});
+})();
