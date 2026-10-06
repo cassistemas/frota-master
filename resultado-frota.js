@@ -13,7 +13,7 @@ function v(id){var el=document.getElementById(id);return el?el.value:''}
 function t(id,x){var el=document.getElementById(id);if(el)el.textContent=x}
 function id(p){return p+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8)}
 function iso(x){var t=String(x||'').trim(),m=t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);if(m)return m[3]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2);return t.slice(0,10)}
-function compIso(c){var t=String(c||'').trim(),m=t.match(/^(\d{1,2})[\/.-](\d{4})$/);return m?m[2]+'-'+('0'+m[1]).slice(-2):t.slice(0,7)}
+function compIso(c){var t=String(c||'').trim(),m;if(!t)return '';m=t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);if(m)return m[3]+'-'+('0'+m[2]).slice(-2);m=t.match(/^(\d{1,2})[\/.-](\d{4})$/);if(m&&+m[1]>=1&&+m[1]<=12)return m[2]+'-'+('0'+m[1]).slice(-2);m=t.match(/^(\d{4})[\/.-](\d{1,2})(?:[\/.-]\d{1,2})?/);if(m&&+m[2]>=1&&+m[2]<=12)return m[1]+'-'+('0'+m[2]).slice(-2);return ''}
 function dataBr(x){var d=iso(x),p=d.split('-');return p.length===3&&p[0]&&p[1]&&p[2]?p[2]+'/'+p[1]+'/'+p[0]:'--'}
 function mes(x){return iso(x).slice(0,7)}
 function mesesEntre(a0,b0){var x=new Date(a0+'T12:00:00'),y=new Date(b0+'T12:00:00');return (y.getFullYear()-x.getFullYear())*12+y.getMonth()-x.getMonth()}
@@ -31,7 +31,7 @@ function fipeDepreciacao(x){return tipoDepreciacao(x)==='implemento'?{valor:0,re
 function validarVeiculoNovo(placa,xid){if(veiculoVendido(placa)&&!xid){alert('Este veículo está marcado como vendido e não pode receber novos registros.');return false}return true}
 function preencherFipeDepreciacao(placa){var info=fipeDetran(placa),valor=document.getElementById('resDepFipe'),ref=document.getElementById('resDepFipeData');if(valor)valor.value=info?m(info.valor):'';if(ref)ref.value=info?(info.referencia||(info.data?mes(info.data):'')):'';atualizarPreviaDepreciacao()}
 function noPeriodo(data,f){var d=iso(data);return d>=f.ini&&d<=f.fim}
-function prodNoPeriodo(x,f){var c=compIso(x.competencia)||mes(iso(x.dataInicio||x.dataFim));var mi=mes(f.ini)||'0000-01',mf=mes(f.fim)||'9999-12';if(c&&c>=mi&&c<=mf)return true;var i=iso(x.dataInicio),e=iso(x.dataFim)||i;if(!i&&c){i=c+'-01';e=c+'-31'}if(!e||e<i)e=i;if(!i)return false;var ini=f.ini||'0000-01-01',fim=f.fim||'9999-12-31';return i<=fim&&e>=ini}
+function prodNoPeriodo(x,f){var mi=mes(f.ini)||'0000-01',mf=mes(f.fim)||'9999-12',c=compIso(x.competencia);if(c)return c>=mi&&c<=mf;var i=iso(x.dataInicio),e=iso(x.dataFim)||i;if(!i)i=e;if(!i)return false;if(!e||e<i)e=i;var ini=f.ini||'0000-01-01',fim=f.fim||'9999-12-31';return i<=fim&&e>=ini}
 function liquida(x){return n(x.receitaBruta)-n(x.descontos)-n(x.impostos)+n(x.ajuste)}
 function producoes(placa,f,modo){return todasProducoes().filter(function(x){if(x.statusOperacional==='Cancelada'||(placa&&placaNormalizada(x.veiculo)!==placaNormalizada(placa)))return false;if(modo!=='caixa')return prodNoPeriodo(x,f);var d=x.dataRecebimento||'';return !!d&&noPeriodo(d,{ini:f.ini||'0000-01-01',fim:f.fim||'9999-12-31'})&&(modo!=='caixa'||x.situacao==='Recebido')})}
 function receita(placa,f,modo){return producoes(placa,f,modo).reduce(function(s,x){return s+liquida(x)},0)}
@@ -125,3 +125,7 @@ document.addEventListener('change',function(ev){var c=ev.target;if(!ev.isTrusted
 
 /* Corrige pesos gravados errado (ponto decimal lido como milhar): nenhuma viagem passa de 100 t. */
 setInterval(function(){try{if(typeof db==='undefined'||!Array.isArray(db.producoes)||(typeof window.fmModuloCarregado==='function'&&!window.fmModuloCarregado('producoes')))return;var mudou=false;db.producoes.forEach(function(x){if(!x)return;var t=typeof x.toneladas==='number'?x.toneladas:parseFloat(String(x.toneladas||'').replace(',','.'))||0,o=t;while(t>100)t=t/1000;t=Math.round(t*1000000)/1000000;if(t!==x.toneladas&&(o>100||typeof x.toneladas!=='number')){x.toneladas=t;mudou=true}});if(mudou&&typeof salvarNuvem==='function'){salvarNuvem(['producoes']);if(typeof window.renderCustosFrota==='function')window.renderCustosFrota()}}catch(e){console.warn('Corrigir peso',e)}},5000);
+
+/* Produção e receitas: Filtrar, Limpar e períodos rápidos também atualizam as abas desta tela
+   (Produção, Resultado, Relatório, Depreciação, Pneus), mesmo com "Todos os veículos ativos". */
+(function(){'use strict';var t=setInterval(function(){var nomes=['filtrarCustosFrota','limparFiltrosCustos','aplicarPeriodoCustos','trocarAbaCustos'];if(!nomes.every(function(n){return typeof window[n]==='function'})||typeof window.renderResultadoFrota!=='function')return;clearInterval(t);nomes.forEach(function(n){var o=window[n];if(o.__fmProd)return;var w=function(){var r=o.apply(this,arguments);setTimeout(function(){try{window.renderResultadoFrota()}catch(e){}},0);return r};w.__fmProd=true;window[n]=w})},300)})();
