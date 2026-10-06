@@ -5,6 +5,14 @@
   var BASE = 'vendor/';
   function el(id) { return document.getElementById(id); }
   function N(p) { return String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+  function carregarScript(src, pronto) {
+    if (pronto()) return Promise.resolve();
+    return new Promise(function (ok, err) {
+      var anterior = document.querySelector('script[data-cupom-lib="' + src + '"]');
+      if (anterior) { anterior.addEventListener('load', ok, { once:true }); anterior.addEventListener('error', err, { once:true }); return; }
+      var s = document.createElement('script'); s.src = src; s.dataset.cupomLib = src; s.onload = ok; s.onerror = err; document.head.appendChild(s);
+    });
+  }
   function num(s) {
     s = String(s || '').replace(/\s/g, '').replace(/[Oo]/g, '0').replace(/[Il|]/g, '1').replace(/S/g, '5').replace(/B/g, '8');
     s = s.replace(/[^\d.,-]/g, '');
@@ -14,17 +22,57 @@
   }
   function carregarLib() {
     if (window.Tesseract) return Promise.resolve();
-    return new Promise(function (ok, err) { var s = document.createElement('script'); s.src = BASE + 'tesseract.min.js'; s.onload = ok; s.onerror = err; document.head.appendChild(s); });
+    return carregarScript(BASE + 'tesseract.min.js', function () { return !!window.Tesseract; });
   }
 
   /* ---------- Melhoria da imagem ---------- */
-  function carregarImagem(arquivo) {
-    return new Promise(function (ok, err) {
-      var url = URL.createObjectURL(arquivo), img = new Image();
-      img.onload = function () { URL.revokeObjectURL(url); ok(img); };
-      img.onerror = function (e) { URL.revokeObjectURL(url); err(e); };
-      img.src = url;
+  function nomeExt(arquivo) { var m = String(arquivo && arquivo.name || '').toLowerCase().match(/\.([a-z0-9]+)$/); return m ? m[1] : ''; }
+  function ehHeic(arquivo) { return /heic|heif/i.test(arquivo.type || '') || /^(heic|heif)$/.test(nomeExt(arquivo)); }
+  function ehPdf(arquivo) { return arquivo.type === 'application/pdf' || nomeExt(arquivo) === 'pdf'; }
+  function blobCanvas(canvas, tipo, qualidade) {
+    return new Promise(function (ok, err) { canvas.toBlob(function (blob) { if (blob) ok(blob); else err(new Error('Não foi possível preparar a imagem.')); }, tipo || 'image/jpeg', qualidade || .92); });
+  }
+  function converterHeic(arquivo, aviso) {
+    aviso('Convertendo a foto HEIC/HEIF...');
+    return carregarScript(BASE + 'heic2any.min.js', function () { return typeof window.heic2any === 'function'; }).then(function () {
+      return window.heic2any({ blob:arquivo, toType:'image/jpeg', quality:.94 });
+    }).then(function (resultado) { return Array.isArray(resultado) ? resultado[0] : resultado; }).catch(function () {
+      throw new Error('HEIC_CONVERSAO');
     });
+  }
+  function converterPdf(arquivo, aviso) {
+    aviso('Convertendo a primeira página do PDF...');
+    return carregarScript(BASE + 'pdf.min.js', function () { return !!window.pdfjsLib; }).then(function () {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = BASE + 'pdf.worker.min.js';
+      return arquivo.arrayBuffer();
+    }).then(function (buffer) { return window.pdfjsLib.getDocument({ data:buffer }).promise; }).then(function (pdf) {
+      if (!pdf.numPages) throw new Error('PDF_VAZIO');
+      return pdf.getPage(1);
+    }).then(function (pagina) {
+      var inicial = pagina.getViewport({ scale:1 }), escala = Math.min(3, 2600 / Math.max(inicial.width, inicial.height));
+      var vista = pagina.getViewport({ scale:Math.max(1.5, escala) }), canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(vista.width); canvas.height = Math.ceil(vista.height);
+      return pagina.render({ canvasContext:canvas.getContext('2d'), viewport:vista }).promise.then(function () { return blobCanvas(canvas); });
+    }).catch(function (e) {
+      if (e && e.message === 'PDF_VAZIO') throw e;
+      throw new Error('PDF_CONVERSAO');
+    });
+  }
+  function prepararArquivo(arquivo, aviso) {
+    if (arquivo.size > 20 * 1024 * 1024) return Promise.reject(new Error('ARQUIVO_GRANDE'));
+    if (ehHeic(arquivo)) return converterHeic(arquivo, aviso);
+    if (ehPdf(arquivo)) return converterPdf(arquivo, aviso);
+    var ext = nomeExt(arquivo), permitido = /^image\//.test(arquivo.type || '') || /^(jpg|jpeg|png|webp|bmp|gif)$/.test(ext);
+    if (!permitido) return Promise.reject(new Error('FORMATO_INVALIDO'));
+    return Promise.resolve(arquivo);
+  }
+  function carregarImagem(arquivo, aviso) {
+    return prepararArquivo(arquivo, aviso).then(function (preparado) { return new Promise(function (ok, err) {
+      var url = URL.createObjectURL(preparado), img = new Image();
+      img.onload = function () { URL.revokeObjectURL(url); ok(img); };
+      img.onerror = function () { URL.revokeObjectURL(url); err(new Error('IMAGEM_INVALIDA')); };
+      img.src = url;
+    }); });
   }
   function canvasDe(img, graus) {
     var alvo = 2600, w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
@@ -178,7 +226,7 @@
   /* ---------- Leitura com várias tentativas ---------- */
   function ler(arquivo, aviso) {
     var worker, img;
-    return carregarLib().then(function () { return carregarImagem(arquivo); }).then(function (i) {
+    return carregarLib().then(function () { return carregarImagem(arquivo, aviso); }).then(function (i) {
       img = i;
       return Tesseract.createWorker('por', 1, { workerPath: BASE + 'tesseract/worker.min.js', corePath: BASE + 'tesseract/tesseract-core-simd-lstm.wasm.js', langPath: BASE + 'tesseract' });
     }).then(function (w) {
@@ -209,6 +257,122 @@
       }
       return proxima().then(function () { if (!melhor) return null; melhor.dados = unirDados(combinado, melhor.dados); melhor.pontos = pontuar(melhor.dados); return melhor; });
     }).then(function (res) { if (worker) worker.terminate(); img = null; return res; }, function (e) { if (worker) worker.terminate(); throw e; });
+  }
+
+  /* ---------- Leitura por IA (Google Gemini, chave gratuita do próprio usuário) ---------- */
+  var CHAVE_GEMINI = 'fm_gemini_chave';
+  function chaveGemini() { try { return localStorage.getItem(CHAVE_GEMINI) || ''; } catch (e) { return ''; } }
+  function configurarGemini() {
+    var atual = chaveGemini();
+    var nova = prompt('Cole aqui a sua chave gratuita do Google Gemini (Google AI Studio).\nEla fica guardada só neste computador.\nDeixe em branco e clique OK para remover a chave.', atual);
+    if (nova === null) return;
+    try { if (nova.trim()) localStorage.setItem(CHAVE_GEMINI, nova.trim()); else localStorage.removeItem(CHAVE_GEMINI); } catch (e) {}
+    estadoGemini();
+  }
+  function estadoGemini() {
+    var b = el('cGeminiCfg'); if (!b) return;
+    b.textContent = chaveGemini() ? '🤖 IA Gemini ativa (trocar chave)' : '🤖 Ativar leitura por IA Gemini';
+  }
+  function base64De(blob) {
+    return new Promise(function (ok, err) { var r = new FileReader(); r.onload = function () { ok(String(r.result).split(',')[1]); }; r.onerror = err; r.readAsDataURL(blob); });
+  }
+  function lerGemini(arquivo, aviso) {
+    var chave = chaveGemini(); if (!chave) return Promise.reject(new Error('SEM_CHAVE'));
+    var canvasPrev;
+    return carregarImagem(arquivo, aviso).then(function (img) {
+      var c = canvasDe(img, 0); canvasPrev = c; return blobCanvas(c, 'image/jpeg', .9);
+    }).then(base64De).then(function (b64) {
+      aviso('Lendo a foto com a IA Gemini...');
+      var tipos = 'Gasolina, Diesel S500, Diesel S10, Arla32, Etanol';
+      var corpo = {
+        contents: [{ parts: [
+          { text: 'Leia este cupom/comprovante de abastecimento brasileiro e extraia os dados. Responda somente com o que está escrito; use null quando não estiver legível. data no formato AAAA-MM-DD. tipo deve ser um destes: ' + tipos + '. litros, valorLitro e total como números com ponto decimal. km apenas dígitos. placa sem hífen. posto = nome do estabelecimento.' },
+          { inline_data: { mime_type: 'image/jpeg', data: b64 } }
+        ] }],
+        generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: { type: 'OBJECT', properties: {
+          data: { type: 'STRING', nullable: true }, tipo: { type: 'STRING', nullable: true }, litros: { type: 'NUMBER', nullable: true },
+          valorLitro: { type: 'NUMBER', nullable: true }, total: { type: 'NUMBER', nullable: true }, km: { type: 'STRING', nullable: true },
+          placa: { type: 'STRING', nullable: true }, posto: { type: 'STRING', nullable: true }, cnpj: { type: 'STRING', nullable: true } } } }
+      };
+      var modelos = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite'];
+      var limpa = String(chave).replace(/["'\s]/g, '');
+      function tentar(i, ultimoErro) {
+        if (i >= modelos.length) return Promise.reject(ultimoErro || new Error('GEMINI_FALHA'));
+        var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        var tm = ctl ? setTimeout(function () { ctl.abort(); }, 45000) : null;
+        return fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelos[i] + ':generateContent?key=' + encodeURIComponent(limpa), {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), signal: ctl ? ctl.signal : undefined
+        }).then(function (r) {
+          if (tm) clearTimeout(tm);
+          if (r.ok) return r.json();
+          return r.text().then(function (t) {
+            try { console.warn('Gemini', modelos[i], r.status, t.slice(0, 300)); } catch (e) {}
+            if (r.status === 400 && /API key|API_KEY/i.test(t)) throw new Error('GEMINI_CHAVE');
+            if (r.status === 401 || r.status === 403) throw new Error('GEMINI_CHAVE');
+            // 404 (modelo indisponível), 429 (limite do modelo), 5xx (sobrecarga): tenta o próximo modelo
+            var err = new Error(r.status === 429 ? 'GEMINI_LIMITE' : 'GEMINI_FALHA');
+            return tentar(i + 1, err);
+          });
+        }, function (e) {
+          if (tm) clearTimeout(tm);
+          try { console.warn('Gemini rede', modelos[i], e); } catch (x) {}
+          return tentar(i + 1, new Error('GEMINI_REDE'));
+        });
+      }
+      return tentar(0);
+    }).then(function (j) {
+      var txt = j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts && j.candidates[0].content.parts[0] && j.candidates[0].content.parts[0].text;
+      txt = String(txt || '{}').replace(/^\s*```(?:json)?/i, '').replace(/```\s*$/, '');
+      var g; try { g = JSON.parse(txt); } catch (e) { throw new Error('GEMINI_VAZIO'); }
+      return normalizarIA(g, canvasPrev);
+    });
+  }
+  function normalizarIA(g, canvasPrev) {
+      g = g || {}; var d = {};
+      if (g.data && /^\d{4}-\d{2}-\d{2}$/.test(g.data)) d.data = g.data;
+      if (g.tipo) d.tipo = String(g.tipo);
+      if (g.litros > 0) d.litros = Number(g.litros);
+      if (g.valorLitro > 0) d.valorLitro = Number(g.valorLitro);
+      if (g.total > 0) d.total = Number(g.total);
+      if (d.litros && d.total && !d.valorLitro) d.valorLitro = Math.round(d.total / d.litros * 1000) / 1000;
+      if (!d.litros && d.total && d.valorLitro) d.litros = Math.round(d.total / d.valorLitro * 100) / 100;
+      if (d.litros && d.valorLitro && d.total) { if (Math.abs(d.litros * d.valorLitro - d.total) <= Math.max(0.1, d.total * 0.01)) d.conferido = true; else d.divergente = true; }
+      if (g.km) d.km = String(g.km).replace(/\D/g, '');
+      d.placas = g.placa ? [N(g.placa)] : [];
+      if (g.posto) d.posto = String(g.posto).slice(0, 80);
+      if (g.cnpj) d.cnpj = String(g.cnpj);
+      if (!d.litros && !d.total && !d.data) throw new Error('GEMINI_VAZIO');
+      return { dados: d, canvas: canvasPrev, viaIA: true };
+  }
+  /* IA do próprio sistema (principal): não precisa de chave */
+  function lerSistema(arquivo, aviso) {
+    var canvasPrev;
+    return carregarImagem(arquivo, aviso).then(function (img) {
+      var c = canvasDe(img, 0); canvasPrev = c; return blobCanvas(c, 'image/jpeg', .85);
+    }).then(base64De).then(function (b64) {
+      aviso('Lendo a foto com a IA do sistema...');
+      return fetch('/api/public/ler-cupom', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imagem: b64 }) });
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok || !j.dados) throw new Error('SISTEMA:' + (j.erro || ('erro ' + r.status)));
+        var res = normalizarIA(j.dados, canvasPrev); res.via = 'sistema'; return res;
+      });
+    });
+  }
+  function lerComIA(arquivo, aviso) {
+    return lerSistema(arquivo, aviso).catch(function (e) {
+      try { console.warn('IA do sistema', e); } catch (x) {}
+      aviso('IA do sistema indisponível (' + String(e && e.message || 'sem conexão').replace('SISTEMA:', '') + '). Tentando outra leitura...');
+      return new Promise(function (ok) { setTimeout(ok, 1000); }).then(function () { return lerComGemini(arquivo, aviso); });
+    });
+  }
+  function lerComGemini(arquivo, aviso) {
+    if (!chaveGemini()) return ler(arquivo, aviso);
+    return lerGemini(arquivo, aviso).catch(function (e) {
+      var motivo = { GEMINI_LIMITE: 'limite gratuito do dia atingido', GEMINI_CHAVE: 'chave inválida ou sem permissão', GEMINI_VAZIO: 'a IA não encontrou os dados' }[e && e.message] || 'sem conexão com a IA';
+      aviso('IA Gemini indisponível (' + motivo + '). Usando a leitura local...');
+      return new Promise(function (ok) { setTimeout(ok, 1200); }).then(function () { return ler(arquivo, aviso); });
+    });
   }
 
   /* ---------- Preencher formulário e mostrar conferência ---------- */
@@ -248,20 +412,33 @@
     var form = el('c_idx'); if (!form || el('cFotoCupom')) return;
     var w = document.createElement('div'); w.className = 'mb-3';
     w.innerHTML = '<label class="form-label fw-semibold" for="cFotoCupom">📷 Ler foto do cupom de abastecimento</label>' +
-      '<input type="file" id="cFotoCupom" accept="image/*" capture="environment" class="form-control" data-nao-limpar>' +
-      '<div id="cFotoAviso" class="small text-muted mt-1">A foto é melhorada e lida aqui no computador, preenche os campos abaixo para você conferir e é descartada. Nada é salvo até clicar em Salvar.</div>' +
+      '<input type="file" id="cFotoCupom" accept="image/*,.heic,.heif,.pdf,application/pdf" class="form-control" data-nao-limpar>' +
+      '<div id="cFotoAviso" class="small text-muted mt-1">Aceita JPG, PNG, WEBP, BMP, HEIC, HEIF e PDF (primeira página), até 20 MB. O arquivo é lido aqui, preenche os campos para conferência e é descartado. Nada é salvo até clicar em Salvar.</div>' +
+      '<button type="button" id="cGeminiCfg" class="btn btn-sm btn-outline-primary mt-1"></button>' +
       '<div id="cFotoResultado" data-nao-limpar></div>';
     form.parentNode.insertBefore(w, form.nextSibling);
+    el('cGeminiCfg').onclick = configurarGemini; estadoGemini();
     var inp = el('cFotoCupom'), aviso = function (t) { el('cFotoAviso').textContent = t; };
     inp.addEventListener('change', function () {
       var f = inp.files && inp.files[0]; if (!f) return;
       inp.disabled = true; el('cFotoResultado').innerHTML = ''; aviso('Preparando leitura...');
-      ler(f, aviso).then(function (res) {
+      lerComIA(f, aviso).then(function (res) {
         if (!res) throw new Error('sem resultado');
-        var r = preencher(res.dados); mostrar(r, res.canvas); res.canvas = null;
+        var r = preencher(res.dados); r.lidos.unshift(res.via === 'sistema' ? 'Lido pela IA do sistema' : res.viaIA ? 'Lido pela IA Gemini' : 'Lido pela leitura local'); mostrar(r, res.canvas); res.canvas = null;
         aviso(r.faltam.length || r.conferir.length ? 'Pré-lançamento preenchido. Confira os itens marcados, complete o que falta e clique em Salvar.' : 'Pré-lançamento preenchido. Confira os dados e clique em Salvar.');
         var c = el('cveiculo'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }).catch(function (e) { console.warn('Foto combustível', e); aviso('Não foi possível ler a foto. Tente uma foto mais nítida, com boa luz e o cupom reto, ou preencha à mão.'); })
+      }).catch(function (e) {
+        console.warn('Foto combustível', e);
+        var mensagens = {
+          ARQUIVO_GRANDE:'O arquivo ultrapassa 20 MB. Reduza o tamanho e tente novamente.',
+          FORMATO_INVALIDO:'Formato não aceito. Use JPG, JPEG, PNG, WEBP, BMP, HEIC, HEIF ou PDF.',
+          HEIC_CONVERSAO:'Não foi possível converter esta foto HEIC/HEIF. Exporte-a como JPG e tente novamente.',
+          PDF_CONVERSAO:'Não foi possível abrir este PDF. Verifique se ele não está protegido ou danificado.',
+          PDF_VAZIO:'O PDF não possui páginas para leitura.',
+          IMAGEM_INVALIDA:'A imagem está danificada ou não pôde ser aberta pelo navegador.'
+        };
+        aviso(mensagens[e && e.message] || 'O arquivo foi aberto, mas os dados do cupom não puderam ser reconhecidos. Fotografe somente o cupom, reto, próximo e com o rodapé legível, ou complete à mão.');
+      })
         .then(function () { inp.value = ''; f = null; inp.disabled = false; });
     });
   }

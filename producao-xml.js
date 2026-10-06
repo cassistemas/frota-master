@@ -90,7 +90,7 @@
       return true;
     }).catch(function () { if (info) info.textContent = 'Não foi possível calcular a rota. Informe o KM manualmente.'; return false; });
   }
-  window.calcularKmProducao = function () { calcularKm(true); };
+  window.calcularKmProducao = function () { return calcularKm(true); };
 
   /* ---- Tipo do veículo: lido do cadastro (usado nos cálculos) ---- */
   function atualizarTipo() {
