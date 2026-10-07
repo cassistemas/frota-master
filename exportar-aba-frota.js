@@ -37,7 +37,7 @@
     return { cabecalho: indices.map(function (i) { return texto(th[i]); }), linhas: linhas };
   }
   function tabelaAtual(g) {
-    return g.dinamica ? document.querySelector('#cusRecLista table') : g.tabela;
+    return g.dinamica ? document.querySelector('#' + g.listaId + ' table') : g.tabela;
   }
   function coletar() {
     var aba = nomeAba(), pane = aba && document.getElementById('cusPane-' + aba.id);
@@ -48,12 +48,12 @@
     var grupos = tabelas.map(function (t, i) {
       var secao = t.closest('.cus-panel') || t.parentElement;
       var titulo = secao && secao.querySelector('h4,h5,h3') || pane.querySelector('h4,h5,h3');
-      return { tabela: t, dinamica: !!t.closest('#cusRecLista'), titulo: texto(titulo) || aba.titulo + ' ' + (i + 1), cabecalho: [], linhas: [] };
+      return { tabela: t, dinamica: !!t.closest('#cusRecLista, #cusFolhaLista'), listaId: t.closest('#cusFolhaLista') ? 'cusFolhaLista' : 'cusRecLista', titulo: texto(titulo) || aba.titulo + ' ' + (i + 1), cabecalho: [], linhas: [] };
     });
     // A paginação é lida da própria lista e devolvida à página original após a coleta.
     grupos.forEach(function (g) {
       var wrap = g.tabela.closest('.cus-table-wrap, .table-responsive');
-      var pager = g.dinamica ? document.getElementById('cusRecPaginacao') : (wrap && wrap.nextElementSibling);
+      var pager = g.dinamica ? document.getElementById(g.listaId === 'cusFolhaLista' ? 'cusFolhaPaginacao' : 'cusRecPaginacao') : (wrap && wrap.nextElementSibling);
       if ((!pager || !pager.querySelector('.pagina-info')) && wrap) {
         var panel = wrap.closest('.cus-panel');
         pager = panel && panel.querySelector('.paginacao-global')?.parentElement;

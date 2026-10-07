@@ -19,9 +19,12 @@
     if (aba === 'quilometragem') {
       titulo = 'Quilometragem filtrada'; unidade = 'km';
       valor = custos.kmPeriodo(f.v, f.ini, f.fim);
+    } else if (aba === 'folha') {
+      titulo = 'Custo da folha no período';
+      valor = somar(lista.filter(function (x) { return x.origem === 'pessoal'; }));
     } else if (aba === 'recorrentes' || aba === 'pessoal') {
       titulo = 'Custo de fixos e pessoal no período';
-      valor = somar(lista.filter(function (x) { return x.projecaoRecorrente || x.origem === 'recorrente' || x.origem === 'pessoal'; }));
+      valor = somar(lista.filter(function (x) { return x.origem !== 'pessoal' && (x.projecaoRecorrente || x.origem === 'recorrente'); }));
     } else if (aba === 'implementos' || aba === 'depreciacao') {
       titulo = 'Depreciação filtrada';
       valor = aba === 'depreciacao' && resultado ? resultado.totalGeral(f, f.modo, base).depreciacao : somar(lista.filter(function (x) { return x.categoria === 'Depreciação'; }));
