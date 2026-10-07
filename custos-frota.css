@@ -52,3 +52,11 @@
 .cus-payroll-summary dd{margin:0;text-align:right;font-size:.85rem;font-weight:800;font-variant-numeric:tabular-nums}
 .cus-payroll-summary>div:nth-last-child(-n+3){color:var(--bs-primary)}
 .cus-payroll-grid>div{min-width:0}
+
+.fm-folha-detalhe>td{background:var(--bs-tertiary-bg,#f8fafc);font-size:.92em}
+.fm-folha-detalhe>td:first-child{padding-left:28px}
+tr.fm-folha-detalhe{display:none!important}
+tr.fm-folha-detalhe.fm-folha-aberta{display:table-row!important}
+.fm-folha-acoes-td{white-space:nowrap;min-width:240px}
+.fm-folha-acoes{display:inline-flex;gap:6px;justify-content:flex-end;flex-wrap:nowrap}
+.fm-folha-acoes button{white-space:nowrap}
