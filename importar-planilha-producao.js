@@ -13,7 +13,7 @@
     return isFinite(Number(s)) ? Math.round(Number(s) * 100) : NaN;
   }
   function moeda(centavos) { return (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
-  function numero(x) { return Number(texto(x).replace(/\./g, '').replace(',', '.')) || 0; }
+  function numero(x) { if (typeof x === 'number') return isFinite(x) ? x : 0; var s = texto(x).replace(/[^\d.,-]/g, ''); if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.'); return Number(s) || 0; }
   function escapar(x) { return texto(x).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function normalizar(x) { return texto(x).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
   function veiculoCadastrado(placa) {
@@ -32,8 +32,16 @@
     return cadastro;
   }
   function celula(row, idx) { return texto((row || [])[idx]); }
+  function numeroComparacao(x) {
+    var s = texto(x);
+    if (!s) return '';
+    if (typeof x === 'number') return isFinite(x) ? String(x) : s;
+    s = s.replace(/R\$\s*/g, '').replace(/\s/g, '');
+    if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+    return isFinite(Number(s)) ? String(Number(s)) : texto(x);
+  }
   function ler(rows) {
-    var porCte = new Map(), viagem = '', placa = '', linha = '', colunas = null;
+    var porRegistro = new Map(), viagem = '', placa = '', linha = '', colunas = null;
     rows.forEach(function (row) {
       var primeiro = celula(row, 0), tipo = primeiro.toLowerCase();
       if (tipo === 'viagem') { viagem = celula(row, 1); placa = ''; linha = ''; colunas = null; return; }
@@ -41,26 +49,43 @@
       if (tipo === 'linha') { linha = celula(row, 1); return; }
       if (tipo === 'cte' || tipo === 'ct-e') {
         var nomes = row.map(function (v) { return texto(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' '); });
-        colunas = { cte: 0, peso: nomes.indexOf('peso'), frete: nomes.indexOf('valor do frete'), origem: nomes.indexOf('cidade origem'), ufOrigem: nomes.indexOf('estado origem'), destino: nomes.indexOf('cidade destino'), ufDestino: nomes.indexOf('estado destino') };
+        colunas = { cte: 0, volume: nomes.indexOf('volume'), peso: nomes.indexOf('peso'), pesoTaxado: nomes.indexOf('peso taxado'), frete: nomes.indexOf('valor do frete'), origem: nomes.indexOf('cidade origem'), ufOrigem: nomes.indexOf('estado origem'), destino: nomes.indexOf('cidade destino'), ufDestino: nomes.indexOf('estado destino') };
         if (colunas.frete < 0) colunas = null;
         return;
       }
       if (!colunas || !primeiro || !viagem || !placa) return;
       var frete = dinheiro((row || [])[colunas.frete]);
-      var id = chave(primeiro), origem = celula(row, colunas.origem), destino = celula(row, colunas.destino);
-      var registro = { cte: primeiro, placa: placa, frete: frete, peso: numero((row || [])[colunas.peso]), origem: origem + (celula(row, colunas.ufOrigem) ? '-' + celula(row, colunas.ufOrigem) : ''), destino: destino + (celula(row, colunas.ufDestino) ? '-' + celula(row, colunas.ufDestino) : ''), viagens: [viagem], linhas: [linha], divergente: false };
-      if (!porCte.has(id)) { porCte.set(id, registro); return; }
-      var anterior = porCte.get(id);
-      if (anterior.viagens.indexOf(viagem) < 0) anterior.viagens.push(viagem);
-      if (linha && anterior.linhas.indexOf(linha) < 0) anterior.linhas.push(linha);
-      if (anterior.frete !== frete || normalizar(anterior.placa) !== normalizar(placa) || anterior.origem !== registro.origem || anterior.destino !== registro.destino || anterior.peso !== registro.peso) anterior.divergente = true;
+      var origem = celula(row, colunas.origem), destino = celula(row, colunas.destino);
+      var registro = { cte: primeiro, placa: placa, frete: frete, peso: numero((row || [])[colunas.peso]), pesoTaxado: numero((row || [])[colunas.pesoTaxado]), origem: origem + (celula(row, colunas.ufOrigem) ? '-' + celula(row, colunas.ufOrigem) : ''), destino: destino + (celula(row, colunas.ufDestino) ? '-' + celula(row, colunas.ufDestino) : ''), viagens: [viagem], linhas: [linha], divergente: false };
+       registro.volume = celula(row, colunas.volume);
+       // Guardar cada coluna separadamente: cidade/UF concatenadas e pesos arredondados não provam igualdade.
+       var campos = ['cte', 'volume', 'peso', 'pesoTaxado', 'frete', 'origem', 'ufOrigem', 'destino', 'ufDestino'];
+       registro.camposComparacao = campos.every(function (campo) { return colunas[campo] >= 0; }) ? campos.map(function (campo) {
+         var valor = (row || [])[colunas[campo]];
+         return ['volume', 'peso', 'pesoTaxado', 'frete'].indexOf(campo) >= 0 ? numeroComparacao(valor) : texto(valor);
+       }) : null;
+      registro.chave = identidade(registro);
+       var chaveRegistro = registro.chave || registro;
+       if (!porRegistro.has(chaveRegistro)) porRegistro.set(chaveRegistro, registro);
     });
-    return Array.from(porCte.values());
+    return Array.from(porRegistro.values());
+  }
+  function identidade(item) {
+    if (!Array.isArray(item.camposComparacao) || item.camposComparacao.length !== 9) return '';
+    return JSON.stringify([item.camposComparacao, normalizar(item.placa), texto((item.viagens || [])[0]), texto((item.linhas || [])[0])]);
+  }
+  function mesmaProducao(p, item) {
+    var codigo = identidade(item);
+    // Sem as nove colunas guardadas (inclusive Volume), não há prova de repetição idêntica.
+    return !!codigo && !!p.planilhaImportacao && identidade(p.planilhaImportacao) === codigo;
   }
   function jaExiste(item) {
-    return typeof db !== 'undefined' && Array.isArray(db.producoes) && db.producoes.some(function (p) {
-      return normalizar(p.documento) === normalizar('CT-e ' + item.cte);
-    });
+    return typeof db !== 'undefined' && Array.isArray(db.producoes) && db.producoes.some(function (p) { return mesmaProducao(p, item); });
+  }
+  window.fmPlanilhaProducaoDuplicada = mesmaProducao;
+  function guardarIdentidade(item) {
+    var campo = el('resProdPlanilhaDados');
+    if (campo) campo.value = JSON.stringify(item);
   }
   var selecionados = new Set();
   function podarSelecao() {
@@ -87,12 +112,12 @@
     podarSelecao();
     var aceitos = visiveis.filter(function (x) { return !x.divergente && x.frete > 0; });
     var total = aceitos.reduce(function (sum, x) { return sum + x.frete; }, 0);
-    el('resPlanilhaResumo').textContent = visiveis.length ? nomeArquivo + ' · ' + visiveis.length + ' CT-e na prévia · ' + aceitos.length + ' disponíveis · ' + moeda(total) + ' em Valor do Frete distinto' : 'Nenhuma viagem pendente nesta planilha.';
-    el('resPlanilhaAviso').textContent = visiveis.length ? 'Valor da viagem não entra na receita. CT-e repetido conta uma vez; divergências ficam bloqueadas. A planilha não informa data, cliente, motorista nem KM: confira e complete antes de salvar cada CT-e.' : '';
+    el('resPlanilhaResumo').textContent = visiveis.length ? nomeArquivo + ' · ' + visiveis.length + ' CT-e na prévia · ' + aceitos.length + ' disponíveis · ' + moeda(total) + ' em Valor do Frete' : 'Nenhuma viagem pendente nesta planilha.';
+    el('resPlanilhaAviso').textContent = visiveis.length ? 'Valor da viagem não entra na receita. Só são removidas repetições com CT-e, Volume, Peso, Peso Taxado, Valor do Frete, cidades e estados de origem e destino iguais, no mesmo veículo e contexto da viagem. Sem todas as colunas para comparação, o registro é mantido. Confira os dados antes de salvar.' : '';
     el('resPlanilhaLinhas').innerHTML = visiveis.map(function (x, i) {
       var motivo = x.divergente ? 'Divergência: conferir' : !(x.frete > 0) ? 'Frete ausente/zero' : 'Disponível';
       var marca = selecionados.has(x) ? ' checked' : '';
-      return '<tr><td class="cus-td-check"><input type="checkbox" data-planilha-check="' + i + '"' + marca + ' aria-label="Selecionar CT-e ' + escapar(x.cte) + '"></td><td>' + escapar(x.cte) + '</td><td>' + escapar(x.placa) + '</td><td>' + escapar(x.viagens.join(', ')) + '</td><td>' + escapar(x.origem) + ' → ' + escapar(x.destino) + '</td><td>' + (isFinite(x.frete) ? moeda(x.frete) : '—') + '</td><td>' + motivo + '</td><td>' + (motivo === 'Disponível' ? '<button type="button" class="btn btn-sm btn-outline-primary" data-planilha-indice="' + i + '">Preencher formulário</button>' : '—') + '</td><td><button type="button" class="btn btn-sm btn-outline-danger" data-planilha-excluir="' + i + '" aria-label="Excluir CT-e ' + escapar(x.cte) + ' da prévia">Excluir</button></td></tr>';
+      return '<tr><td class="cus-td-check"><input type="checkbox" data-planilha-check="' + i + '"' + marca + ' aria-label="Selecionar CT-e ' + escapar(x.cte) + '"></td><td>' + escapar(x.cte) + '</td><td>' + escapar(x.placa) + '</td><td>' + escapar(x.viagens.join(', ')) + '</td><td>' + escapar(x.origem) + ' → ' + escapar(x.destino) + '</td><td>' + escapar(x.volume) + '</td><td>' + x.peso.toLocaleString('pt-BR', {maximumFractionDigits:3}) + '</td><td>' + x.pesoTaxado.toLocaleString('pt-BR', {maximumFractionDigits:3}) + '</td><td>' + (isFinite(x.frete) ? moeda(x.frete) : '—') + '</td><td>' + motivo + '</td><td>' + (motivo === 'Disponível' ? '<button type="button" class="btn btn-sm btn-outline-primary" data-planilha-indice="' + i + '">Preencher formulário</button>' : '—') + '</td><td><button type="button" class="btn btn-sm btn-outline-danger" data-planilha-excluir="' + i + '" aria-label="Excluir CT-e ' + escapar(x.cte) + ' da prévia">Excluir</button></td></tr>';
     }).join('');
     atualizarAcoes();
     container.querySelector('.cus-table-wrap').hidden = !visiveis.length;
@@ -114,6 +139,7 @@
     var competencia = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0');
     var valores = {resProdTipo:'viagem',resProdVeiculo:cadastro ? cadastro.vplaca : item.placa,resProdCompetencia:competencia,resProdDocumento:'CT-e ' + item.cte,resProdOrigem:item.origem,resProdDestino:item.destino,resProdTon:item.peso ? String(item.peso) : '',resProdReceita:moeda(item.frete),resProdObs:'Planilha: ' + nomeArquivo + ' | Viagem(ns): ' + item.viagens.join(', ') + (item.linhas.filter(Boolean).length ? ' | Linha(s): ' + item.linhas.filter(Boolean).join('; ') : '')};
     Object.keys(valores).forEach(function (id) { var campo = el(id); if (campo) { campo.value = valores[id]; campo.dispatchEvent(new Event('input', { bubbles: true })); } });
+    guardarIdentidade(item);
     preencherVinculoVeiculo(valores.resProdVeiculo, true);
     el('resProdData').focus();
     el('resProdData').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -125,12 +151,13 @@
   function lancarUm(item, comp) {
     if (item.divergente) return Promise.resolve('Divergência na planilha');
     if (!(item.frete > 0)) return Promise.resolve('Valor do frete ausente ou zero');
-    if (jaExiste(item)) return Promise.resolve('CT-e já lançado');
+    if (jaExiste(item)) return Promise.resolve('Viagem idêntica já lançada');
     var cadastro = veiculoCadastrado(item.placa);
     if (!cadastro) return Promise.resolve('Veículo ' + item.placa + ' não está no cadastro');
     if (typeof window.limparProducaoFrota === 'function') window.limparProducaoFrota();
     var valores = {resProdTipo:'viagem',resProdVeiculo:cadastro.vplaca,resProdCompetencia:comp,resProdData:comp + '-01',resProdFim:ultimoDia(comp),resProdDocumento:'CT-e ' + item.cte,resProdOrigem:item.origem,resProdDestino:item.destino,resProdTon:item.peso ? String(item.peso) : '',resProdReceita:moeda(item.frete),resProdObs:'Planilha: ' + nomeArquivo + ' | Viagem(ns): ' + item.viagens.join(', ') + (item.linhas.filter(Boolean).length ? ' | Linha(s): ' + item.linhas.filter(Boolean).join('; ') : '')};
     Object.keys(valores).forEach(function (id) { var campo = el(id); if (campo) { campo.value = valores[id]; campo.dispatchEvent(new Event('input', { bubbles: true })); } });
+    guardarIdentidade(item);
     preencherVinculoVeiculo(cadastro.vplaca, true);
     var km = el('resProdKm'); if (km) km.value = '';
     var calc = typeof window.calcularKmProducao === 'function' ? window.calcularKmProducao() : null;
@@ -180,6 +207,7 @@
   function iniciar() {
     var pane = el('cusPane-producao'); if (!pane || el('resPlanilhaArquivo')) return;
     var formulario = pane.querySelector('.cus-form-wrap'); if (!formulario) return;
+    var dados = document.createElement('input'); dados.type = 'hidden'; dados.id = 'resProdPlanilhaDados'; formulario.appendChild(dados);
     var campoVeiculo = el('resProdVeiculo');
     if (campoVeiculo) {
       campoVeiculo.addEventListener('change', function () { preencherVinculoVeiculo(campoVeiculo.value, true); });
@@ -190,7 +218,7 @@
       });
     }
     var box = document.createElement('section'); box.className = 'cus-planilha';
-    box.innerHTML = '<h5>Prévia de viagens por CT-e</h5><label for="resPlanilhaArquivo" class="form-label-mini">Planilha de viagens (.xlsx)</label><input id="resPlanilhaArquivo" type="file" accept=".xlsx,.xls" class="form-control" data-nao-limpar="1"><div id="resPlanilhaPrevia" hidden><p id="resPlanilhaResumo" class="cus-note" aria-live="polite"></p><p id="resPlanilhaAviso" class="cus-note"></p><div id="resPlanilhaAcoes" class="cus-planilha-acoes" hidden><button type="button" id="resPlanilhaExcluirSel" class="btn btn-sm btn-outline-danger" disabled>Excluir selecionadas</button></div><div class="cus-table-wrap"><table class="table cus-table" data-sem-relatorio="1"><thead><tr><th class="cus-th-check"><input type="checkbox" id="resPlanilhaTudo" aria-label="Selecionar todas as linhas da prévia"></th><th>CT-e</th><th>Veículo</th><th>Viagens</th><th>Rota do CT-e</th><th>Valor do Frete</th><th>Situação</th><th></th><th></th></tr></thead><tbody id="resPlanilhaLinhas"></tbody></table></div></div>';
+    box.innerHTML = '<h5>Prévia de viagens por CT-e</h5><label for="resPlanilhaArquivo" class="form-label-mini">Planilha de viagens (.xlsx)</label><input id="resPlanilhaArquivo" type="file" accept=".xlsx,.xls" class="form-control" data-nao-limpar="1"><div id="resPlanilhaPrevia" hidden><p id="resPlanilhaResumo" class="cus-note" aria-live="polite"></p><p id="resPlanilhaAviso" class="cus-note"></p><div id="resPlanilhaAcoes" class="cus-planilha-acoes" hidden><button type="button" id="resPlanilhaExcluirSel" class="btn btn-sm btn-outline-danger" disabled>Excluir selecionadas</button></div><div class="cus-table-wrap"><table class="table cus-table" data-sem-relatorio="1"><thead><tr><th class="cus-th-check"><input type="checkbox" id="resPlanilhaTudo" aria-label="Selecionar todas as linhas da prévia"></th><th>CT-e</th><th>Veículo</th><th>Viagens</th><th>Rota do CT-e</th><th>Volume</th><th>Peso (kg)</th><th>Peso taxado (kg)</th><th>Valor do Frete</th><th>Situação</th><th></th><th></th></tr></thead><tbody id="resPlanilhaLinhas"></tbody></table></div></div>';
     pane.insertBefore(box, formulario);
     montarLote(box);
     el('resPlanilhaArquivo').addEventListener('change', function (ev) {
