@@ -573,6 +573,8 @@ label, .form-label {
 .fm-status-reserva { min-width: 13ch !important; }
 .fm-status-rapido.fm-status-cor-ok { color: var(--status-ok-text) !important; border-color: var(--status-ok-border) !important; background-color: var(--status-ok-bg) !important; }
 .fm-status-rapido.fm-status-cor-alerta { color: var(--status-alert-text) !important; border-color: var(--status-alert-border) !important; background-color: var(--status-alert-bg) !important; }
+#diarias .fm-status-rapido[data-status="Pendente"],
+#diarias .fm-status-diaria:has(option[value="Pendente"]:checked) { color: var(--status-critical-text) !important; border-color: var(--status-critical-border) !important; background-color: var(--status-critical-bg) !important; }
 .fm-status-rapido.fm-status-cor-critico { color: var(--status-critical-text) !important; border-color: var(--status-critical-border) !important; background-color: var(--status-critical-bg) !important; }
 .fm-status-rapido.fm-status-cor-info { color: var(--status-info-text) !important; border-color: var(--status-info-border) !important; background-color: var(--status-info-bg) !important; }
 .fm-status-rapido.fm-status-cor-neutro { color: var(--status-neutral-text) !important; border-color: var(--status-neutral-border) !important; background-color: var(--status-neutral-bg) !important; }
