@@ -16,14 +16,21 @@
     return typeof db !== 'undefined' && Array.isArray(db.custos) && db.custos.some(function (c) { return c.origemChave === chave(g); });
   }
 
-  function carregarPdfJs() {
-    if (window.pdfjsLib) return Promise.resolve();
+  var CDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';
+  function script(src) {
     return new Promise(function (ok, erro) {
-      var s = document.createElement('script'); s.src = 'vendor/pdf.min.js';
-      s.onload = function () { window.pdfjsLib ? ok() : erro(new Error('Leitor de PDF indisponível.')); };
-      s.onerror = function () { erro(new Error('Leitor de PDF indisponível.')); };
+      var s = document.createElement('script'); s.src = src;
+      s.onload = function () { window.pdfjsLib ? ok() : erro(new Error('x')); };
+      s.onerror = function () { s.remove(); erro(new Error('x')); };
       document.head.appendChild(s);
-    }).then(function () { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js'; });
+    });
+  }
+  function carregarPdfJs() {
+    if (window.pdfjsLib) { if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc) window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js'; return Promise.resolve(); }
+    return script('vendor/pdf.min.js').then(function () { return 'vendor/pdf.worker.min.js'; }, function () {
+      return script(CDN + 'pdf.min.js').then(function () { return CDN + 'pdf.worker.min.js'; });
+    }).then(function (w) { window.pdfjsLib.GlobalWorkerOptions.workerSrc = w; },
+      function () { throw new Error('Leitor de PDF não encontrado (pasta vendor ausente no site e sem internet).'); });
   }
   async function linhasPdf(buffer) {
     var pdf = await window.pdfjsLib.getDocument({ data:buffer }).promise, out = [];

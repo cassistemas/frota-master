@@ -13,3 +13,6 @@
 
 ### Rastreamento: competência e data
 Na prévia do demonstrativo há os campos **Competência** e **Data do lançamento**. Ao escolher a competência, a data é preenchida automaticamente com o dia 1 daquele mês (pode ser alterada).
+
+### Rastreamento: leitor de PDF de reserva
+Se a pasta `vendor` não existir no site, o sistema baixa o leitor de PDF automaticamente pela internet.
