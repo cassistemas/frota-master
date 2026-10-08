@@ -74,10 +74,12 @@
     if (!Array.isArray(item.camposComparacao) || item.camposComparacao.length !== 9) return '';
     return JSON.stringify([item.camposComparacao, normalizar(item.placa), texto((item.viagens || [])[0]), texto((item.linhas || [])[0])]);
   }
-  function mesmaProducao(p, item) {
+   function mesmaProducao(p, item, competencia) {
     var codigo = identidade(item);
+     var comp = competencia || item.competencia || (el('resPlanilhaCompetencia') || {}).value || '';
+     var existente = p.competencia || texto(p.dataInicio).slice(0,7);
     // Sem as nove colunas guardadas (inclusive Volume), não há prova de repetição idêntica.
-    return !!codigo && !!p.planilhaImportacao && identidade(p.planilhaImportacao) === codigo;
+     return !!comp && existente === comp && !!codigo && !!p.planilhaImportacao && identidade(p.planilhaImportacao) === codigo;
   }
   function jaExiste(item) {
     return typeof db !== 'undefined' && Array.isArray(db.producoes) && db.producoes.some(function (p) { return mesmaProducao(p, item); });
@@ -124,9 +126,10 @@
     var acoes = el('resPlanilhaAcoes'); if (acoes) acoes.hidden = !visiveis.length;
     container.hidden = false;
   }
-  window.addEventListener('fm:producao-salva', function () {
+   window.addEventListener('fm:producao-salva', function (ev) {
     if (!itens.length) return;
-    var restantes = itens.filter(function (x) { return !jaExiste(x); });
+     var salvo = ev.detail && ev.detail.planilhaImportacao;
+     var restantes = itens.filter(function (x) { return !(salvo && salvo.previaId && salvo.previaId === x.previaId) && !jaExiste(x); });
     if (restantes.length === itens.length) return;
     itens = restantes;
     desenhar();
@@ -136,7 +139,7 @@
     if (el('resProdId') && el('resProdId').value && !confirm('Há uma edição aberta. Descartar as alterações do formulário?')) return;
     if (typeof window.limparProducaoFrota === 'function') window.limparProducaoFrota();
     var cadastro = veiculoCadastrado(item.placa), agora = new Date();
-    var competencia = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0');
+     var competencia = (el('resPlanilhaCompetencia') || {}).value || agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0');
     var valores = {resProdTipo:'viagem',resProdVeiculo:cadastro ? cadastro.vplaca : item.placa,resProdCompetencia:competencia,resProdDocumento:'CT-e ' + item.cte,resProdOrigem:item.origem,resProdDestino:item.destino,resProdTon:item.peso ? String(item.peso) : '',resProdReceita:moeda(item.frete),resProdObs:'Planilha: ' + nomeArquivo + ' | Viagem(ns): ' + item.viagens.join(', ') + (item.linhas.filter(Boolean).length ? ' | Linha(s): ' + item.linhas.filter(Boolean).join('; ') : '')};
     Object.keys(valores).forEach(function (id) { var campo = el(id); if (campo) { campo.value = valores[id]; campo.dispatchEvent(new Event('input', { bubbles: true })); } });
     guardarIdentidade(item);
@@ -165,10 +168,13 @@
       if (!ok || !(Number(el('resProdKm') && el('resProdKm').value) > 0)) { if (window.limparProducaoFrota) window.limparProducaoFrota(); return 'KM não calculado pela rota'; }
       var aviso = '', alertaOriginal = window.alert;
       window.alert = function (m) { aviso = String(m || ''); };
-      try { window.salvarProducaoFrota(); } catch (e) { aviso = e.message || 'Erro ao salvar'; } finally { window.alert = alertaOriginal; }
-      if (jaExiste(item)) return '';
-      if (window.limparProducaoFrota) window.limparProducaoFrota();
-      return aviso || 'Não foi salvo';
+       var gravacao;
+       try { gravacao = window.salvarProducaoFrota(); } catch (e) { aviso = e.message || 'Erro ao salvar'; }
+       return Promise.resolve(gravacao).then(function (ok) {
+         if (ok === true) return '';
+         if (window.limparProducaoFrota) window.limparProducaoFrota();
+         return aviso || 'Não foi salvo';
+       }).finally(function () { window.alert = alertaOriginal; });
     });
   }
   function lancarTodos() {
@@ -203,6 +209,7 @@
     div.innerHTML = '<label for="resPlanilhaCompetencia" class="form-label-mini">Mês de competência para todos</label> <input id="resPlanilhaCompetencia" type="month" class="form-control" style="display:inline-block;width:auto" value="' + comp + '" data-nao-limpar="1"> <button type="button" id="resPlanilhaLancar" class="btn btn-sm btn-primary">Calcular KM e lançar todos</button><div id="resPlanilhaResultado" aria-live="polite" style="margin-top:6px"></div>';
     previa.insertBefore(div, previa.firstChild);
     el('resPlanilhaLancar').addEventListener('click', lancarTodos);
+     el('resPlanilhaCompetencia').addEventListener('change', desenhar);
   }
   function iniciar() {
     var pane = el('cusPane-producao'); if (!pane || el('resPlanilhaArquivo')) return;
@@ -231,7 +238,7 @@
         if (!sheet) throw new Error('A planilha não tem dados.');
         var resultado = ler(XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true }));
          if (!resultado.length) throw new Error('Nenhum CT-e com a coluna Valor do Frete foi encontrado.');
-         itens = resultado; desenhar();
+          itens = resultado; itens.forEach(function(x,i){x.previaId=Date.now().toString(36)+'-'+i+'-'+Math.random().toString(36).slice(2);});desenhar();
       }).catch(function (err) { alert('Não foi possível ler a planilha: ' + err.message); }).finally(function () { ev.target.value = ''; });
     });
     box.addEventListener('click', function (ev) {

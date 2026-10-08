@@ -69,14 +69,16 @@
   }
   function desenhar() {
     if(!el('folhaImportLinhas'))return;
-    el('folhaImportLinhas').innerHTML=itens.map(function(x,i){var bloqueado=ocupado||x.confirmado,disabled=bloqueado?'disabled':'';
+    itens=itens.filter(function(x){return !x.confirmado;});
+    itens.forEach(function(x){x.duplicada=Boolean(window.FMFolhaImportacao?.duplicada(dados(x)));if(x.duplicada)x.selecionado=false;});
+    el('folhaImportLinhas').innerHTML=itens.map(function(x,i){var bloqueado=ocupado||x.confirmado||x.duplicada,disabled=bloqueado?'disabled':'';
       return '<tr data-folha-linha="'+i+'"><td><input type="checkbox" aria-label="Selecionar '+esc(x.motorista)+'" data-folha-selecao="'+i+'" '+(x.selecionado?'checked':'')+' '+(bloqueado||x.erro?'disabled':'')+'></td><td><input class="form-control" list="cusMotoristasLista" aria-label="Motorista da linha '+x.linha+'" data-folha-motorista="'+i+'" value="'+esc(x.motorista)+'" '+disabled+'><div class="cus-mini">Linha '+x.linha+'</div></td><td><select class="form-select" aria-label="Veículo da linha '+x.linha+'" data-folha-veiculo="'+i+'" '+disabled+'>'+opcoesVeiculos(x.veiculo)+'</select></td><td data-folha-total></td><td data-folha-status></td><td><input type="checkbox" aria-label="Conferência de '+esc(x.motorista)+'" data-folha-revisao="'+i+'" '+(x.revisado?'checked':'')+' '+(bloqueado||x.erro?'disabled':'')+'></td><td><div class="cus-history-actions"><button type="button" class="btn-edit" data-folha-editar="'+i+'" '+(bloqueado||x.erro?'disabled':'')+'>✎ Editar</button><button type="button" class="btn-del" data-folha-excluir="'+i+'" '+disabled+'>✕ Excluir</button></div></td></tr>';
     }).join('');
     itens.forEach(function(x,i){atualizarLinha(i);});
     if(!itens.length)el('folhaImportTotal').textContent='Nenhum funcionário na prévia.';
     el('folhaImportPrevia').hidden=!itens.length;
     el('folhaImportConfirmar').disabled=ocupado||!itens.some(function(x){return x.selecionado&&!x.confirmado&&!x.erro;});
-    var validos=itens.filter(function(x){return !x.confirmado&&!x.erro;});
+    var validos=itens.filter(function(x){return !x.confirmado&&!x.erro&&!x.duplicada;});
     var todos=el('folhaImportTodos');todos.checked=validos.length>0&&validos.every(function(x){return x.selecionado;});todos.indeterminate=!todos.checked&&validos.some(function(x){return x.selecionado;});todos.disabled=ocupado||!validos.length;
   }
   function abrirEdicao(i) {
@@ -103,7 +105,7 @@
     ocupado = true; el('folhaImportMes').disabled=true; el('folhaImportArquivo').disabled=true; desenhar();
     var ok = 0;
     try {
-      for (var x of lista) { var resultado = await window.FMFolhaImportacao.salvar(dados(x)); if (resultado !== true) throw new Error(typeof resultado==='string'?resultado:'Salvamento não confirmado; tente novamente sem reimportar.'); x.confirmado=true;x.selecionado=false;ok++; }
+      for (var x of lista) { var resultado = await window.FMFolhaImportacao.salvar(dados(x)); if (resultado !== true) throw new Error(typeof resultado==='string'?resultado:'Salvamento não confirmado; tente novamente sem reimportar.'); x.confirmado=true;x.selecionado=false;ok++;desenhar(); }
       el('folhaImportMensagem').textContent=ok+' folha(s) confirmada(s).';
     } catch(e) { el('folhaImportMensagem').textContent=ok+' confirmada(s). '+e.message; }
     finally { ocupado=false;el('folhaImportMes').disabled=false;el('folhaImportArquivo').disabled=false;desenhar(); }
@@ -121,7 +123,7 @@
     el('folhaImportMes').addEventListener('change',function(){itens.forEach(function(x){x.revisado=false;});desenhar();});
     box.addEventListener('input',function(ev){if(ocupado)return;var t=ev.target;if(!t.hasAttribute('data-folha-motorista'))return;var i=Number(t.dataset.folhaMotorista),x=itens[i];if(!x||x.confirmado)return;x.motorista=t.value;x.revisado=false;atualizarLinha(i);});
     box.addEventListener('change',function(ev){if(ocupado)return;var t=ev.target;
-      if(t.id==='folhaImportTodos'){itens.forEach(function(x){if(!x.confirmado&&!x.erro)x.selecionado=t.checked;});desenhar();return;}
+      if(t.id==='folhaImportTodos'){itens.forEach(function(x){if(!x.confirmado&&!x.erro&&!x.duplicada)x.selecionado=t.checked;});desenhar();return;}
       var attr=t.hasAttribute('data-folha-veiculo')?'folhaVeiculo':t.hasAttribute('data-folha-selecao')?'folhaSelecao':t.hasAttribute('data-folha-revisao')?'folhaRevisao':'';if(!attr)return;
       var i=Number(t.dataset[attr]),x=itens[i];if(!x||x.confirmado)return;
       if(attr==='folhaVeiculo'){x.veiculo=t.value;x.revisado=false;atualizarLinha(i);}
