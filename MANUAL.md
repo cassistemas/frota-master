@@ -23,3 +23,9 @@ Se a pasta `vendor` não existir no site, o sistema baixa o leitor de PDF automa
 - "Custo da frota" passou a se chamar **Custo total da frota**; "Custo dos lançamentos filtrados" passou a **Soma dos lançamentos (lista)**.
 - Na aba Lançamentos aparece o quadro **De onde vem a diferença**, que mostra como a soma da lista chega ao custo total da frota (depreciação e pneus calculados).
 - Nenhuma conta foi alterada; é só apresentação.
+
+## Troca de placa no cadastro de veículos
+Ao alterar a placa de um veículo, todos os registros ligados a ela são atualizados — inclusive fretes, diárias, folha e qualquer outra tela que guarde placa (com ou sem hífen). A mensagem de confirmação mostra quantos registros de cada tela serão trocados. A placa antiga fica no histórico do veículo.
+
+## Resultado: Editar e Excluir
+Na aba Resultado, cada veículo tem **Editar** (abre os Lançamentos já filtrados por esse veículo) e **Excluir** (tira o veículo da tabela de Resultado, sem apagar lançamentos ou produções; use "Mostrar todos" para voltar).
