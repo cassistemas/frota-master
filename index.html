@@ -2597,9 +2597,10 @@ Limpar
                 <div class="col-md-6"><h6>CIV</h6><input type="date" id="venciv" class="form-control mb-2"><input id="numciv" class="form-control" placeholder="Nº CIV"></div>
                 <div class="col-md-6"><h6>CIPP</h6><input type="date" id="vencipp" class="form-control mb-2"><input id="numcipp" class="form-control" placeholder="Nº CIPP"></div>
                 <div class="col-md-4"><h6>Valor</h6><input id="levalor" class="form-control" placeholder="Valor R$" oninput="mascaraMoeda(this)"></div>
+                <div class="col-md-4"><h6>Competência</h6><input type="month" id="lecompetencia" class="form-control" title="Mês em que o custo entra nos Pré-lançamentos"></div>
                 <div class="col-md-12 text-end mt-2">
-                    <button id="btn_cancel_licencas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('licencas',['leveiculo','venciv','numciv','vencipp','numcipp','levalor'],'le_idx')">Cancelar</button>
-                    <button class="btn btn-primary" onclick="salvar('licencas',['leveiculo','venciv','numciv','vencipp','numcipp','levalor'],'le_idx')">Salvar</button>
+                    <button id="btn_cancel_licencas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('licencas',['leveiculo','venciv','numciv','vencipp','numcipp','levalor','lecompetencia'],'le_idx')">Cancelar</button>
+                    <button class="btn btn-primary" onclick="salvar('licencas',['leveiculo','venciv','numciv','vencipp','numcipp','levalor','lecompetencia'],'le_idx')">Salvar</button>
                 </div>
             </div>
         </div>
@@ -9805,7 +9806,7 @@ style="width:100%; height:400px; border:none;">
 <script src="./fretes-terceiros.js?v=20260929-previa"></script>
 <script src="./enter-universal.js?v=1"></script>
 <script src="./campos-busca.js?v=20260911-5"></script>
-<script src="./custos-frota.js?v=20261008-folha-foco"></script>
+<script src="./custos-frota.js?v=20261008-civcomp"></script>
 <script src="./importar-planilha-folha.js?v=20261008-previa-3"></script>
 <script src="./resultado-frota.js?v=20261008-res-acoes"></script>
 <script src="./importar-rastreamento-pdf.js?v=20261008d"></script>

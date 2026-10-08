@@ -29,3 +29,6 @@ Ao alterar a placa de um veículo, todos os registros ligados a ela são atualiz
 
 ## Resultado: Editar e Excluir
 Na aba Resultado, cada veículo tem **Editar** (abre os Lançamentos já filtrados por esse veículo) e **Excluir** (tira o veículo da tabela de Resultado, sem apagar lançamentos ou produções; use "Mostrar todos" para voltar).
+
+## CIV / CIPP: competência
+O cadastro de CIV / CIPP tem o campo **Competência**. Quando preenchido, o custo entra nos Pré-lançamentos no dia 1º desse mês. Se ficar vazio, continua usando o vencimento do CIV (ou do CIPP).
