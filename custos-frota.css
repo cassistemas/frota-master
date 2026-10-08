@@ -57,6 +57,23 @@
 .fm-folha-detalhe>td:first-child{padding-left:28px}
 tr.fm-folha-detalhe{display:none!important}
 tr.fm-folha-detalhe.fm-folha-aberta{display:table-row!important}
-.fm-folha-acoes-td{white-space:nowrap;min-width:240px}
+.fm-folha-acoes-td{white-space:nowrap;min-width:126px}
 .fm-folha-acoes{display:inline-flex;gap:6px;justify-content:flex-end;flex-wrap:nowrap}
-.fm-folha-acoes button{white-space:nowrap}
+.fm-folha-acoes .btn-edit,.fm-folha-acoes .btn-del{display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px;width:32px;min-width:32px;height:32px;padding:0;margin:0;line-height:1;font-size:1rem;white-space:nowrap}
+#cusFolhaLista tr[hidden]{display:none!important}
+
+.cus-planilha{margin-top:16px}.cus-planilha summary{cursor:pointer;font-weight:800;margin-bottom:14px}.cus-planilha .cus-table input.form-control{min-width:140px}
+.folha-import-table{min-width:1060px;table-layout:fixed}
+.folha-import-table th:nth-child(1){width:110px}
+.folha-import-table th:nth-child(2){width:220px}
+.folha-import-table th:nth-child(3){width:210px}
+.folha-import-table th:nth-child(4){width:140px}
+.folha-import-table th:nth-child(5){width:210px}
+.folha-import-table th:nth-child(6){width:110px}
+.folha-import-table th:nth-child(7){width:170px}
+#cusPane-folha .folha-import-table th,#cusPane-folha .folha-import-table td{white-space:normal!important;overflow-wrap:anywhere;letter-spacing:0}
+.folha-import-table .cus-history-actions{display:flex;gap:6px;flex-wrap:nowrap}
+.folha-import-editor{width:min(780px,calc(100% - 24px));max-height:90vh;overflow:auto;border:1px solid var(--bs-border-color);border-radius:8px;padding:24px;background:var(--bs-body-bg);color:var(--bs-body-color)}
+.folha-import-editor::backdrop{background:var(--bs-secondary-bg);opacity:.7}
+.folha-import-editor .cus-payroll-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+@media(max-width:600px){.folha-import-editor .cus-payroll-grid{grid-template-columns:minmax(0,1fr)}}

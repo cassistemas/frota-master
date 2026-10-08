@@ -4,7 +4,7 @@
    (Firebase/Firestore/Google) passa direto pela rede, para o programa
    instalado e o site usarem sempre os mesmos dados sincronizados. */
 
-const CACHE = 'frota-master-v3';
+const CACHE = 'frota-master-v2';
 
 // Somente os arquivos do próprio sistema (telas e códigos), nunca dados.
 const ARQUIVOS = [

@@ -259,6 +259,122 @@
     }).then(function (res) { if (worker) worker.terminate(); img = null; return res; }, function (e) { if (worker) worker.terminate(); throw e; });
   }
 
+  /* ---------- Leitura por IA (Google Gemini, chave gratuita do próprio usuário) ---------- */
+  var CHAVE_GEMINI = 'fm_gemini_chave';
+  function chaveGemini() { try { return localStorage.getItem(CHAVE_GEMINI) || ''; } catch (e) { return ''; } }
+  function configurarGemini() {
+    var atual = chaveGemini();
+    var nova = prompt('Cole aqui a sua chave gratuita do Google Gemini (Google AI Studio).\nEla fica guardada só neste computador.\nDeixe em branco e clique OK para remover a chave.', atual);
+    if (nova === null) return;
+    try { if (nova.trim()) localStorage.setItem(CHAVE_GEMINI, nova.trim()); else localStorage.removeItem(CHAVE_GEMINI); } catch (e) {}
+    estadoGemini();
+  }
+  function estadoGemini() {
+    var b = el('cGeminiCfg'); if (!b) return;
+    b.textContent = chaveGemini() ? '🤖 IA Gemini ativa (trocar chave)' : '🤖 Ativar leitura por IA Gemini';
+  }
+  function base64De(blob) {
+    return new Promise(function (ok, err) { var r = new FileReader(); r.onload = function () { ok(String(r.result).split(',')[1]); }; r.onerror = err; r.readAsDataURL(blob); });
+  }
+  function lerGemini(arquivo, aviso) {
+    var chave = chaveGemini(); if (!chave) return Promise.reject(new Error('SEM_CHAVE'));
+    var canvasPrev;
+    return carregarImagem(arquivo, aviso).then(function (img) {
+      var c = canvasDe(img, 0); canvasPrev = c; return blobCanvas(c, 'image/jpeg', .9);
+    }).then(base64De).then(function (b64) {
+      aviso('Lendo a foto com a IA Gemini...');
+      var tipos = 'Gasolina, Diesel S500, Diesel S10, Arla32, Etanol';
+      var corpo = {
+        contents: [{ parts: [
+          { text: 'Leia este cupom/comprovante de abastecimento brasileiro e extraia os dados. Responda somente com o que está escrito; use null quando não estiver legível. data no formato AAAA-MM-DD. tipo deve ser um destes: ' + tipos + '. litros, valorLitro e total como números com ponto decimal. km apenas dígitos. placa sem hífen. posto = nome do estabelecimento.' },
+          { inline_data: { mime_type: 'image/jpeg', data: b64 } }
+        ] }],
+        generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: { type: 'OBJECT', properties: {
+          data: { type: 'STRING', nullable: true }, tipo: { type: 'STRING', nullable: true }, litros: { type: 'NUMBER', nullable: true },
+          valorLitro: { type: 'NUMBER', nullable: true }, total: { type: 'NUMBER', nullable: true }, km: { type: 'STRING', nullable: true },
+          placa: { type: 'STRING', nullable: true }, posto: { type: 'STRING', nullable: true }, cnpj: { type: 'STRING', nullable: true } } } }
+      };
+      var modelos = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite'];
+      var limpa = String(chave).replace(/["'\s]/g, '');
+      function tentar(i, ultimoErro) {
+        if (i >= modelos.length) return Promise.reject(ultimoErro || new Error('GEMINI_FALHA'));
+        var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        var tm = ctl ? setTimeout(function () { ctl.abort(); }, 45000) : null;
+        return fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelos[i] + ':generateContent?key=' + encodeURIComponent(limpa), {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), signal: ctl ? ctl.signal : undefined
+        }).then(function (r) {
+          if (tm) clearTimeout(tm);
+          if (r.ok) return r.json();
+          return r.text().then(function (t) {
+            try { console.warn('Gemini', modelos[i], r.status, t.slice(0, 300)); } catch (e) {}
+            if (r.status === 400 && /API key|API_KEY/i.test(t)) throw new Error('GEMINI_CHAVE');
+            if (r.status === 401 || r.status === 403) throw new Error('GEMINI_CHAVE');
+            // 404 (modelo indisponível), 429 (limite do modelo), 5xx (sobrecarga): tenta o próximo modelo
+            var err = new Error(r.status === 429 ? 'GEMINI_LIMITE' : 'GEMINI_FALHA');
+            return tentar(i + 1, err);
+          });
+        }, function (e) {
+          if (tm) clearTimeout(tm);
+          try { console.warn('Gemini rede', modelos[i], e); } catch (x) {}
+          return tentar(i + 1, new Error('GEMINI_REDE'));
+        });
+      }
+      return tentar(0);
+    }).then(function (j) {
+      var txt = j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts && j.candidates[0].content.parts[0] && j.candidates[0].content.parts[0].text;
+      txt = String(txt || '{}').replace(/^\s*```(?:json)?/i, '').replace(/```\s*$/, '');
+      var g; try { g = JSON.parse(txt); } catch (e) { throw new Error('GEMINI_VAZIO'); }
+      return normalizarIA(g, canvasPrev);
+    });
+  }
+  function normalizarIA(g, canvasPrev) {
+      g = g || {}; var d = {};
+      if (g.data && /^\d{4}-\d{2}-\d{2}$/.test(g.data)) d.data = g.data;
+      if (g.tipo) d.tipo = String(g.tipo);
+      if (g.litros > 0) d.litros = Number(g.litros);
+      if (g.valorLitro > 0) d.valorLitro = Number(g.valorLitro);
+      if (g.total > 0) d.total = Number(g.total);
+      if (d.litros && d.total && !d.valorLitro) d.valorLitro = Math.round(d.total / d.litros * 1000) / 1000;
+      if (!d.litros && d.total && d.valorLitro) d.litros = Math.round(d.total / d.valorLitro * 100) / 100;
+      if (d.litros && d.valorLitro && d.total) { if (Math.abs(d.litros * d.valorLitro - d.total) <= Math.max(0.1, d.total * 0.01)) d.conferido = true; else d.divergente = true; }
+      if (g.km) d.km = String(g.km).replace(/\D/g, '');
+      d.placas = g.placa ? [N(g.placa)] : [];
+      if (g.posto) d.posto = String(g.posto).slice(0, 80);
+      if (g.cnpj) d.cnpj = String(g.cnpj);
+      if (!d.litros && !d.total && !d.data) throw new Error('GEMINI_VAZIO');
+      return { dados: d, canvas: canvasPrev, viaIA: true };
+  }
+  /* IA do próprio sistema (principal): não precisa de chave */
+  function lerSistema(arquivo, aviso) {
+    var canvasPrev;
+    return carregarImagem(arquivo, aviso).then(function (img) {
+      var c = canvasDe(img, 0); canvasPrev = c; return blobCanvas(c, 'image/jpeg', .85);
+    }).then(base64De).then(function (b64) {
+      aviso('Lendo a foto com a IA do sistema...');
+      return fetch('/api/public/ler-cupom', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imagem: b64 }) });
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok || !j.dados) throw new Error('SISTEMA:' + (j.erro || ('erro ' + r.status)));
+        var res = normalizarIA(j.dados, canvasPrev); res.via = 'sistema'; return res;
+      });
+    });
+  }
+  function lerComIA(arquivo, aviso) {
+    return lerSistema(arquivo, aviso).catch(function (e) {
+      try { console.warn('IA do sistema', e); } catch (x) {}
+      aviso('IA do sistema indisponível (' + String(e && e.message || 'sem conexão').replace('SISTEMA:', '') + '). Tentando outra leitura...');
+      return new Promise(function (ok) { setTimeout(ok, 1000); }).then(function () { return lerComGemini(arquivo, aviso); });
+    });
+  }
+  function lerComGemini(arquivo, aviso) {
+    if (!chaveGemini()) return ler(arquivo, aviso);
+    return lerGemini(arquivo, aviso).catch(function (e) {
+      var motivo = { GEMINI_LIMITE: 'limite gratuito do dia atingido', GEMINI_CHAVE: 'chave inválida ou sem permissão', GEMINI_VAZIO: 'a IA não encontrou os dados' }[e && e.message] || 'sem conexão com a IA';
+      aviso('IA Gemini indisponível (' + motivo + '). Usando a leitura local...');
+      return new Promise(function (ok) { setTimeout(ok, 1200); }).then(function () { return ler(arquivo, aviso); });
+    });
+  }
+
   /* ---------- Preencher formulário e mostrar conferência ---------- */
   function br(v, casas) { return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: casas || 2 }); }
   function preencher(d) {
@@ -298,15 +414,17 @@
     w.innerHTML = '<label class="form-label fw-semibold" for="cFotoCupom">📷 Ler foto do cupom de abastecimento</label>' +
       '<input type="file" id="cFotoCupom" accept="image/*,.heic,.heif,.pdf,application/pdf" class="form-control" data-nao-limpar>' +
       '<div id="cFotoAviso" class="small text-muted mt-1">Aceita JPG, PNG, WEBP, BMP, HEIC, HEIF e PDF (primeira página), até 20 MB. O arquivo é lido aqui, preenche os campos para conferência e é descartado. Nada é salvo até clicar em Salvar.</div>' +
+      '<button type="button" id="cGeminiCfg" class="btn btn-sm btn-outline-primary mt-1"></button>' +
       '<div id="cFotoResultado" data-nao-limpar></div>';
     form.parentNode.insertBefore(w, form.nextSibling);
+    el('cGeminiCfg').onclick = configurarGemini; estadoGemini();
     var inp = el('cFotoCupom'), aviso = function (t) { el('cFotoAviso').textContent = t; };
     inp.addEventListener('change', function () {
       var f = inp.files && inp.files[0]; if (!f) return;
       inp.disabled = true; el('cFotoResultado').innerHTML = ''; aviso('Preparando leitura...');
-      ler(f, aviso).then(function (res) {
+      lerComIA(f, aviso).then(function (res) {
         if (!res) throw new Error('sem resultado');
-        var r = preencher(res.dados); mostrar(r, res.canvas); res.canvas = null;
+        var r = preencher(res.dados); r.lidos.unshift(res.via === 'sistema' ? 'Lido pela IA do sistema' : res.viaIA ? 'Lido pela IA Gemini' : 'Lido pela leitura local'); mostrar(r, res.canvas); res.canvas = null;
         aviso(r.faltam.length || r.conferir.length ? 'Pré-lançamento preenchido. Confira os itens marcados, complete o que falta e clique em Salvar.' : 'Pré-lançamento preenchido. Confira os dados e clique em Salvar.');
         var c = el('cveiculo'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }).catch(function (e) {

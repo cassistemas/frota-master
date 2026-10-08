@@ -22,7 +22,7 @@
   }
   function gravar() {
     if (typeof window.persistirEstoque === "function") window.persistirEstoque();
-    if (typeof salvarNuvem === "function") return salvarNuvem(['pneus','eventosPneus']);
+    else if (typeof salvarNuvem === "function") salvarNuvem();
   }
   function n(v) {
     if (typeof v === "number") return v;
@@ -157,7 +157,7 @@
 
   /* ---------- salvar pneu (substitui o original) ---------- */
   window.salvarPneu = function () {
-    var campos = ["pnumero","pmarca","pmodelo","pmedida","pdot","pvalor","pdata","pdatainstalacao","pvida","psulco",
+    var campos = ["pnumero","pmarca","pmodelo","pmedida","pdot","pvalor","pdata","pvida","psulco",
       "pveiculo","pfornecedor","pposicao","pkminstalacao","pkmatual","pkmrodado","pstatus","pobs"];
 
     var b = base();
@@ -174,14 +174,6 @@
     var idx = document.getElementById("p_idx").value;
     var novo = idx === "";
     var anterior = novo ? null : Object.assign({}, b.pneus[Number(idx)]);
-    if (!novo && !b.pneus[Number(idx)]) { alert('Pneu não encontrado.'); return; }
-    obj.pid = anterior && anterior.pid;
-    garantirId(obj);
-    if (b.pneus.some(function(p,i){return i!==Number(novo?-1:idx)&&String(p.pnumero||'').trim().toUpperCase()===String(obj.pnumero).trim().toUpperCase();})) {
-      alert('Este número de pneu já está cadastrado. Edite o registro existente.'); return;
-    }
-    var plano = window.FMPneusFrota ? window.FMPneusFrota.preparar(obj, anterior) : {erro:'A integração de Pneus por KM não está disponível.'};
-    if (plano.erro) { alert(plano.erro); return; }
     if (typeof window.fmPrepararRegistro === "function") {
       window.fmPrepararRegistro("pneus", obj, anterior);
     }
@@ -195,7 +187,7 @@
       if (typeof irParaUltimaPagina === "function") irParaUltimaPagina("pneus");
     } else {
       obj.pdatacadastro = anterior.pdatacadastro || new Date().toISOString();
-      obj.pid = anterior.pid || obj.pid;
+      obj.pid = anterior.pid;
       obj.phist = Array.isArray(anterior.phist) ? anterior.phist.slice() : [];
       garantirId(obj);
       registrar(obj, "Edição", "Dados do pneu atualizados");
@@ -213,25 +205,12 @@
       anterior.pstatus !== obj.pstatus ||
       anterior.pveiculo !== obj.pveiculo;
     if (mudouEstado) sincronizar(obj);
-    window.FMPneusFrota.aplicar(plano);
 
     gravar();
 
     if (typeof limparForm === "function") limparForm("pneus", campos, "p_idx");
     renderModulo("pneus");
     if (typeof renderDashboard === "function") renderDashboard();
-    if (typeof window.renderResultadoFrota === 'function') window.renderResultadoFrota();
-    if (typeof window.renderCustosFrota === 'function') window.renderCustosFrota();
-  };
-
-  // A exclusão do cadastro não apaga os eventos nem os movimentos já registrados.
-  var excluirAnterior = window.deletar;
-  window.deletar = function(mod, i) {
-    if (mod === 'pneus') {
-      var p = base().pneus && base().pneus[Number(i)];
-      if (p && p.pstatus === 'Em Uso') { alert('Registre a retirada do pneu antes de excluir seu cadastro. O histórico será preservado.'); return; }
-    }
-    return typeof excluirAnterior === 'function' ? excluirAnterior.apply(this, arguments) : undefined;
   };
 
   /* ---------- linhas ocultas com 👁 ---------- */
