@@ -16,3 +16,10 @@ Na prévia do demonstrativo há os campos **Competência** e **Data do lançamen
 
 ### Rastreamento: leitor de PDF de reserva
 Se a pasta `vendor` não existir no site, o sistema baixa o leitor de PDF automaticamente pela internet.
+
+
+## Gestão da Frota — cartões mais claros
+- Os cartões mostram um **?** com a explicação da conta e o período usado.
+- "Custo da frota" passou a se chamar **Custo total da frota**; "Custo dos lançamentos filtrados" passou a **Soma dos lançamentos (lista)**.
+- Na aba Lançamentos aparece o quadro **De onde vem a diferença**, que mostra como a soma da lista chega ao custo total da frota (depreciação e pneus calculados).
+- Nenhuma conta foi alterada; é só apresentação.
