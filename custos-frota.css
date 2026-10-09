@@ -53,27 +53,11 @@
 .cus-payroll-summary>div:nth-last-child(-n+3){color:var(--bs-primary)}
 .cus-payroll-grid>div{min-width:0}
 
-.fm-folha-detalhe>td{background:var(--bs-tertiary-bg,#f8fafc);font-size:.92em}
-.fm-folha-detalhe>td:first-child{padding-left:28px}
-tr.fm-folha-detalhe{display:none!important}
-tr.fm-folha-detalhe.fm-folha-aberta{display:table-row!important}
-.fm-folha-acoes-td{white-space:nowrap;min-width:126px}
-.fm-folha-acoes{display:inline-flex;gap:6px;justify-content:flex-end;flex-wrap:nowrap}
-.fm-folha-acoes .btn-edit,.fm-folha-acoes .btn-del{display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px;width:32px;min-width:32px;height:32px;padding:0;margin:0;line-height:1;font-size:1rem;white-space:nowrap}
-#cusFolhaLista tr[hidden]{display:none!important}
-
-.cus-planilha{margin-top:16px}.cus-planilha summary{cursor:pointer;font-weight:800;margin-bottom:14px}.cus-planilha .cus-table input.form-control{min-width:140px}
-.folha-import-table{min-width:1060px;table-layout:fixed}
-.folha-import-table th:nth-child(1){width:110px}
-.folha-import-table th:nth-child(2){width:220px}
-.folha-import-table th:nth-child(3){width:210px}
-.folha-import-table th:nth-child(4){width:140px}
-.folha-import-table th:nth-child(5){width:210px}
-.folha-import-table th:nth-child(6){width:110px}
-.folha-import-table th:nth-child(7){width:170px}
-#cusPane-folha .folha-import-table th,#cusPane-folha .folha-import-table td{white-space:normal!important;overflow-wrap:anywhere;letter-spacing:0}
-.folha-import-table .cus-history-actions{display:flex;gap:6px;flex-wrap:nowrap}
-.folha-import-editor{width:min(780px,calc(100% - 24px));max-height:90vh;overflow:auto;border:1px solid var(--bs-border-color);border-radius:8px;padding:24px;background:var(--bs-body-bg);color:var(--bs-body-color)}
-.folha-import-editor::backdrop{background:var(--bs-secondary-bg);opacity:.7}
-.folha-import-editor .cus-payroll-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
-@media(max-width:600px){.folha-import-editor .cus-payroll-grid{grid-template-columns:minmax(0,1fr)}}
+/* CIV/CIPP: compact entry fields; other module forms stay unchanged. */
+#licencas .licencas-form-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px 14px;width:100%}
+#licencas .licencas-form-grid>div{min-width:0}
+#licencas .licencas-form-grid label{display:block;margin-bottom:4px;font-size:.75rem;font-weight:700}
+#licencas .licencas-form-grid :is(.form-control,.form-select){width:100%;min-width:0;min-height:36px;padding-top:6px;padding-bottom:6px}
+#licencas .licencas-form-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px;margin-top:2px}
+@media(max-width:850px){#licencas .licencas-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){#licencas .licencas-form-grid{grid-template-columns:minmax(0,1fr)}}

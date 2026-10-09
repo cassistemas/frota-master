@@ -189,7 +189,8 @@
           " un x " + moeda(num(s.evalorunitario)) +
           (s.eresponsavel ? " (resp.: " + s.eresponsavel + ")" : ""),
         morigem: "estoque",
-        mestoqueid: s.eid
+        mestoqueid: s.eid,
+        mpneuid: s.epneuid || ""
       };
       if (existente) {
         for (var k in dados) {

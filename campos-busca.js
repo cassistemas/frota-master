@@ -179,10 +179,17 @@
       }
     });
     input.addEventListener("focus", function () {
+      var indice = document.getElementById("le_idx");
+      if (select.id === "leveiculo" && indice && indice.value !== "") {
+        fecharSugestoes(lista);
+        return;
+      }
       filtrarSugestoes(select, input, lista, true);
     });
     input.addEventListener("click", function () {
-      filtrarSugestoes(select, input, lista, true);
+      var indice = document.getElementById("le_idx");
+      var editandoLicenca = select.id === "leveiculo" && indice && indice.value !== "";
+      filtrarSugestoes(select, input, lista, !editandoLicenca);
     });
     input.addEventListener("blur", function () {
       window.setTimeout(function () { fecharSugestoes(lista); }, 120);

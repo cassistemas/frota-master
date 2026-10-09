@@ -8,13 +8,5 @@ function ajustar(obj,campo,m){var val=obj&&obj[campo];if(!val||typeof val!=='str
 function executar(){if(typeof db==='undefined'||!Array.isArray(db.veiculos)||!db.veiculos.length||!carregado('veiculos'))return;var m=mapa(),alterados=[];
 Object.keys(CAMPOS).forEach(function(mod){if(!Array.isArray(db[mod])||!carregado(mod))return;var mudou=false;db[mod].forEach(function(r){CAMPOS[mod].forEach(function(c){if(ajustar(r,c,m))mudou=true});if(r&&Array.isArray(r.vinculos))r.vinculos.forEach(function(v){if(ajustar(v,'veiculo',m))mudou=true})});if(mudou)alterados.push(mod)});
 if(alterados.length&&typeof salvarNuvem==='function'){try{salvarNuvem(alterados)}catch(e){console.warn('Unificar placas',e)}if(typeof window.renderCustosFrota==='function')try{window.renderCustosFrota()}catch(e){}}}
-function veic(p){var k=N(p);if(!k||typeof db==='undefined')return null;var m=mapa(),c=m[k];return c?(db.veiculos||[]).find(function(v){return N(v.vplaca)===N(c)}):null}
-window.fmPlacaCadastro=function(p){var v=veic(p);return v?String(v.vplaca).trim().toUpperCase():String(p||'').trim().toUpperCase()};
-window.fmTipoDaPlaca=function(p){var v=veic(p);return v?String(v.vtipo||'').trim():''};
-function tipos(){if(typeof db==='undefined'||!carregado('veiculos'))return;var alt=[];
-if(Array.isArray(db.producoes)&&carregado('producoes')){var m1=false;db.producoes.forEach(function(r){var t=window.fmTipoDaPlaca(r.veiculo);if(t&&r.tipoVeiculo!==t){r.tipoVeiculo=t;m1=true}});if(m1)alt.push('producoes')}
-if(Array.isArray(db.fretes)&&carregado('fretes')){var m2=false;db.fretes.forEach(function(f){if(f.freexecucao==='terceiro'||!f.freveiculo)return;var c=window.fmPlacaCadastro(f.freveiculo),t=window.fmTipoDaPlaca(c);if(veic(c)&&c!==f.freveiculo){f.freveiculo=c;m2=true}if(t&&f.fretipoveiculo!==t){f.fretipoveiculo=t;m2=true}});if(m2)alt.push('fretes')}
-if(alt.length&&typeof salvarNuvem==='function')try{salvarNuvem(alt)}catch(e){}}
-document.addEventListener('change',function(e){var el=e.target;if(!el||['resProdVeiculo','freveiculo'].indexOf(el.id)<0||el.tagName!=='INPUT')return;var c=window.fmPlacaCadastro(el.value);if(veic(c)&&c!==el.value){el.value=c;el.dispatchEvent(new Event('input',{bubbles:true}))}},true);
-window.fmUnificarPlacas=executar;setInterval(function(){try{tipos()}catch(e){console.warn('Tipos',e)}},5000);setInterval(function(){try{executar()}catch(e){console.warn('Unificar placas',e)}},5000);
+window.fmUnificarPlacas=executar;setInterval(function(){try{executar()}catch(e){console.warn('Unificar placas',e)}},5000);
 })();
