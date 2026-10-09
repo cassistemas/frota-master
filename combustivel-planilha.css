@@ -1,0 +1,24 @@
+#combustivel .comb-planilha{margin:18px 0;padding:16px 0;border-top:1px solid var(--bs-border-color);border-bottom:1px solid var(--bs-border-color)}
+#combustivel .comb-planilha h5{margin:0 0 12px}
+#combustivel .comb-planilha .comb-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0}
+#combustivel .comb-planilha .comb-upload{max-width:480px}
+#combustivel .comb-planilha table{width:max-content;min-width:100%;font-size:13px}
+#combustivel .comb-planilha th{white-space:nowrap}
+#combustivel .comb-planilha td{vertical-align:middle}
+#combustivel .comb-planilha td:first-child{width:42px}
+#combustivel .comb-planilha .comb-posto{min-width:140px;max-width:210px;overflow-wrap:anywhere;white-space:normal}
+#combustivel .comb-planilha .comb-produto{min-width:150px;max-width:180px;white-space:normal;overflow-wrap:anywhere}
+#combustivel .comb-planilha .comb-acoes{display:flex;gap:4px;white-space:nowrap}
+#combustivel .comb-planilha td,#combustivel .comb-planilha th{padding:8px 6px}
+#combustivel .comb-planilha input:not([type=checkbox]):not([type=file]),#combustivel .comb-planilha select{width:auto;min-width:8ch;max-width:28ch;font-size:13px;field-sizing:content}
+#combustivel .comb-planilha input[type=number]{min-width:7ch;max-width:12ch}
+#combustivel .comb-planilha [data-comum=data]{min-width:12ch;max-width:14ch}
+#combustivel .comb-planilha [data-comum=placa]{min-width:12ch;max-width:16ch}
+#combustivel .comb-planilha small{display:block;white-space:normal}
+#combustivel .comb-planilha [aria-invalid=true]{border-color:var(--bs-danger)}
+#combustivel .comb-planilha .comb-summary{display:flex;flex-wrap:wrap;gap:12px 24px;margin:12px 0}
+#combustivel .comb-planilha .comb-summary strong{display:block}
+@media(max-width:700px){#combustivel .comb-planilha .comb-upload{max-width:100%}#combustivel .comb-planilha .comb-toolbar .btn{flex:1;min-width:145px}}
+#combustivel .comb-planilha .comb-posto-texto{width:190px;max-width:210px;white-space:pre-wrap;overflow-wrap:anywhere}
+#combustivel .comb-planilha textarea.comb-texto{width:100%;min-height:36px;resize:none;overflow:hidden;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}
+#combustivel .comb-planilha .comb-produto{width:150px}

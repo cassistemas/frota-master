@@ -271,6 +271,8 @@ function getManutencoesFiltradas(){
     const servico =
     document.getElementById('filtroManServico')?.value?.toLowerCase() || '';
 
+    const tipo = document.getElementById('filtroManTipo')?.value || '';
+
     const txt = x => String(x == null ? '' : x).trim().toLowerCase();
 
     const numKm = x => {
@@ -324,6 +326,10 @@ function getManutencoesFiltradas(){
             &&
 
             (!servico || txt(m.mservico).includes(servico))
+
+            &&
+
+            (!tipo || window.FMManutencaoTipos.tipo(m) === tipo)
 
         );
 
@@ -1042,6 +1048,7 @@ filtrados;
         <td>${m.mvalornfse||''}</td>
         <td>${m.mtotal|| (typeof floatParaMoeda==='function' && typeof totalManutencaoRegistro==='function' ? floatParaMoeda(totalManutencaoRegistro(m)) : '')}</td>
         <td>${Number(m.mparcelas) > 1 ? m.mparcelas + 'x' : 'À vista'}</td>
+        <td>${window.FMManutencaoTipos.tipo(m)}</td>
         <td>${m.mfornecedor}</td>
         <td>${m.mservico}</td>
 
@@ -1597,7 +1604,8 @@ function limparFiltroManutencoes(){
     'filtroManKmMin',
     'filtroManKmMax',
     'filtroManNF',
-    'filtroManServico'
+    'filtroManServico',
+    'filtroManTipo'
     ].forEach(id => {
 
         const el = document.getElementById(id);
