@@ -32,3 +32,5 @@ Na aba Resultado, cada veículo tem **Editar** (abre os Lançamentos já filtrad
 
 ## CIV / CIPP: competência
 O cadastro de CIV / CIPP tem o campo **Competência**. Quando preenchido, o custo entra nos Pré-lançamentos no dia 1º desse mês. Se ficar vazio, continua usando o vencimento do CIV (ou do CIPP).
+
+A competência aparece na lista de CIV / CIPP, nos **Pré-lançamentos** e, depois da confirmação, na **Memória de cálculo** dos Lançamentos. Nos Pré-lançamentos, alterar a competência ajusta a data para o primeiro dia do mês escolhido. Registros antigos sem competência aparecem como **Pelo vencimento**.

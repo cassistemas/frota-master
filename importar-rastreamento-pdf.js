@@ -79,7 +79,11 @@
 
   function situacao(g) {
     if (!g.veiculo) return { t:'Veículo não cadastrado', ok:false };
+    var v = veiculo(placa(g.veiculo));
+    if (!v || texto(v.vstatus).toUpperCase() === 'VENDIDO') return { t:'Veículo não disponível', ok:false };
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(g.competencia) || !/^\d{4}-\d{2}-\d{2}$/.test(g.data || '') || !Number.isSafeInteger(g.cents) || g.cents <= 0) return { t:'Confira data, competência e valor', ok:false };
     if (jaLancado(g)) return { t:'Já lançado', ok:false };
+    if (typeof db !== 'undefined' && Array.isArray(db.custosRecorrentes) && db.custosRecorrentes.some(function(r) { return r.ativo !== false && r.categoria === CATEGORIA && placa(r.veiculo) === placa(g.veiculo) && (!r.inicio || r.inicio.slice(0,7) <= g.competencia) && (!r.fim || r.fim.slice(0,7) >= g.competencia); })) return { t:'Já existe contrato ativo neste mês', ok:false };
     return { t:'Pronto para lançar', ok:true };
   }
   function desenhar() {
@@ -108,6 +112,7 @@
   }
   async function lancar(lista) {
     if (salvando || typeof db === 'undefined' || !Array.isArray(db.custos)) return;
+    if (typeof window.fmModuloCarregado === 'function' && ['custos','custosRecorrentes','veiculos'].some(function(m) { return !window.fmModuloCarregado(m); })) { alert('Aguarde o carregamento dos dados antes de lançar.'); return; }
     lista = lista.filter(function (g) { return situacao(g).ok; });
     if (!lista.length) { alert('Nenhum veículo apto para lançar.'); return; }
     var soma = lista.reduce(function (s, g) { return s + g.cents; }, 0);
@@ -118,12 +123,13 @@
     try {
       if (typeof salvarNuvem !== 'function') throw new Error('Gravação indisponível.');
       var ok = await salvarNuvem(['custos']);
-      if (ok === false) throw new Error('Falha ao salvar.');
+      if (ok !== true) throw new Error('Salvamento ainda não confirmado; sincronize antes de tentar novamente.');
       grupos = grupos.filter(function (g) { return lista.indexOf(g) < 0; });
       desenhar(); if (typeof window.renderCustosFrota === 'function') window.renderCustosFrota();
     } catch (err) {
-      novos.forEach(function (r) { var ix = db.custos.indexOf(r); if (ix >= 0) db.custos.splice(ix, 1); });
+      // Shared writer may acknowledge late; retain source keys to prevent another charge.
       alert('Não foi possível lançar: ' + err.message);
+      desenhar();
     } finally { salvando = false; }
   }
   function editar(g) {
