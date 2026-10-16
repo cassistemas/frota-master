@@ -567,6 +567,7 @@
     set("dtBuscaPlaca", "");
     set("dtBuscaRenavam", "");
     editIdx = -1;
+    FIPE.aplicado = null;
   }
 
   /* ---------------- salvar / editar / excluir ---------------- */
@@ -589,6 +590,8 @@
       obj[c[0]] = val(c[0]);
     });
     obj.dtPlaca = obj.dtPlaca.toUpperCase();
+    var fipeAplicada = FIPE.aplicado;
+    if (fipeAplicada) Object.keys(fipeAplicada).forEach(function (k) { obj[k] = fipeAplicada[k]; });
 
     if (typeof window.fmPrepararRegistro === "function") {
       window.fmPrepararRegistro("detran", obj, idx !== "" ? lista[Number(idx)] : null);
@@ -622,6 +625,22 @@
     st.className = "fm-status fm-ok";
     st.textContent = "✔ Consulta salva com sucesso.";
     renderDetran();
+    if (typeof window.renderResultadoFrota === "function") window.renderResultadoFrota();
+    // Veículo salvo sem FIPE: busca automaticamente o valor na tabela FIPE.
+    var salvoIdx = base().findIndex(function (r) {
+      return (obj.dtPlaca && norm(r.dtPlaca) === norm(obj.dtPlaca)) ||
+        (!obj.dtPlaca && obj.dtRenavam && norm(r.dtRenavam) === norm(obj.dtRenavam));
+    });
+    var salvo = base()[salvoIdx];
+    if (salvo && !salvo.dtFipeValor && typeof window.atualizarFipeDetran === "function") {
+      st.textContent = "✔ Consulta salva. Buscando a FIPE automaticamente…";
+      window.atualizarFipeDetran(salvoIdx, function (ok, erro) {
+        st.className = ok ? "fm-status fm-ok" : "fm-status fm-err";
+        st.textContent = ok
+          ? "✔ Consulta salva e FIPE atualizada: " + (salvo.dtFipeValor || "") + (salvo.dtFipeRef ? " (ref. " + salvo.dtFipeRef + ")" : "")
+          : "✔ Consulta salva, mas a FIPE não foi atualizada: " + erro + " Use 🔄 Atualizar FIPE ou a Consulta FIPE.";
+      });
+    }
   }
 
   window.editarDetran = function (i) {
@@ -1225,6 +1244,15 @@
       (p.Valor || "") +
       (p.MesReferencia ? " — ref. " + String(p.MesReferencia).trim() : "");
     set("dtObs", obs ? obs + " | " + linha : linha);
+    // Guarda a FIPE estruturada para gravar junto ao salvar (inclusive em veículo novo).
+    FIPE.aplicado = {
+      dtFipeCodigo: normFipe(p.CodigoFipe || "") || val("fipeCodigo"),
+      dtFipeValor: p.Valor || "",
+      dtFipeRef: p.MesReferencia ? String(p.MesReferencia).trim() : "",
+      dtFipeMarca: p.Marca || "",
+      dtFipeModelo: p.Modelo || "",
+      dtFipeAtualizado: new Date().toISOString().slice(0, 10),
+    };
 
     statusMsg("fm-ok", "✔ Dados da FIPE aplicados. Confira e clique em Salvar consulta.");
   }
@@ -1397,7 +1425,7 @@
     return tentar(0);
   }
 
-  window.atualizarFipeDetran = function (i) {
+  window.atualizarFipeDetran = function (i, retorno) {
     var lista = base();
     var x = lista[i];
     if (!x) return;
@@ -1460,10 +1488,12 @@
             (x.dtFipeRef ? " (ref. " + x.dtFipeRef + ")" : "");
           m2.style.color = "#198754";
         }
+        if (typeof retorno === "function") retorno(true);
 
       })
       .catch(function (e) {
         aviso("✖ " + (e && e.message ? e.message : "Falha ao consultar a FIPE."), "#dc2626");
+        if (typeof retorno === "function") retorno(false, e && e.message ? e.message : "Falha ao consultar a FIPE.");
       })
       .then(function () {
         var b2 = document.getElementById("fipeUpBtn" + i);
