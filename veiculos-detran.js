@@ -27,7 +27,7 @@
   "use strict";
 
   var FIPEAPI = "https://parallelum.com.br/fipe/api/v1";
-  var TIMEOUT = 20000;
+  var TIMEOUT = 40000;
   var PAG = { pagina: 1, porPagina: 10 };
   var editIdx = -1;
   var FIPE = { marcas: [], modelos: [], anos: [], marcaNome: "", modeloNome: "", atual: null };
@@ -53,8 +53,8 @@
   }
 
   /* ---------------- FIPE API (Deivid Fortuna) ---------------- */
-  function getJson(caminho) {
-    var url = FIPEAPI + caminho;
+  function getJson(caminho, absoluta) {
+    var url = absoluta ? caminho : FIPEAPI + caminho;
     var opts = { method: "GET", headers: { Accept: "application/json" } };
     var ctrl = null;
     var timer = null;
@@ -85,7 +85,9 @@
               msg =
                 "A FIPE API esta temporariamente indisponivel. Preencha os dados manualmente.";
             else if (!msg) msg = "FIPE API retornou erro " + r.status + ".";
-            throw new Error(msg);
+            var er = new Error(msg);
+            if (r.status === 429 || r.status >= 500) er.fatal = true;
+            throw er;
           }
           if (!j) throw new Error("Resposta invalida da FIPE API.");
           return j;
@@ -93,11 +95,11 @@
       },
       function (e) {
         if (timer) clearTimeout(timer);
-        if (e && e.name === "AbortError")
-          throw new Error("Tempo esgotado ao consultar a FIPE API (20s).");
-        throw new Error(
-          "Nao foi possivel acessar a FIPE API (sem internet ou bloqueio de rede)."
-        );
+        var er = new Error(e && e.name === "AbortError"
+          ? "Tempo esgotado ao consultar a tabela FIPE (40s) — o serviço gratuito está lento. Tente novamente em alguns minutos."
+          : "Nao foi possivel acessar a FIPE API (sem internet ou bloqueio de rede).");
+        er.fatal = true;
+        throw er;
       }
     );
   }
@@ -1260,9 +1262,11 @@
   /* ---------------- atualizacao automatica da FIPE (por registro) ---------------- */
   function txtNorm(v) {
     return String(v || "")
+      .replace(/\u00d7/g, "x")
       .toUpperCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\b([A-Z]{1,3})[\s-]+(\d{2,4})\b/g, "$1$2")
       .replace(/[^A-Z0-9 ]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
@@ -1411,18 +1415,83 @@
             }
             function consultarCandidato(pos) {
               if (pos >= candidatos.length) throw new Error("modelo FIPE nao corresponde");
-              return consultarModelo(candidatos[pos]).catch(function () {
+              return consultarModelo(candidatos[pos]).catch(function (e) {
+                if (e && e.fatal) throw e;
                 return consultarCandidato(pos + 1);
               });
             }
             return consultarCandidato(0);
           });
         })
-        .catch(function () {
+        .catch(function (e) {
+          if (e && e.fatal) throw e;
+          motivo = (e && e.message) || motivo;
           return tentar(i + 1);
         });
     }
-    return tentar(0);
+    var motivo = "";
+    var MOTIVOS = { marca: "marca não encontrada", modelo: "modelo não encontrado pelo nome", "modelo ambiguo": "mais de uma versão do modelo possível", "ano ou combustivel ambiguo": "ano/combustível com mais de uma opção", "codigo FIPE nao corresponde": "ano " + ano + " não existe para este modelo na FIPE", "modelo FIPE nao corresponde": "nenhuma versão do modelo tem o ano " + ano };
+    function porNome() {
+      return tentar(0).catch(function (e) {
+        if (e && e.fatal) throw e;
+        throw new Error("Não encontrei este veículo na tabela FIPE" + (MOTIVOS[motivo] ? " (" + MOTIVOS[motivo] + ")" : "") + ". Use a Consulta FIPE manual.");
+      });
+    }
+    var codigo = x.dtFipeCodigo ? normFipe(x.dtFipeCodigo) : "";
+    // Código gravado só nas Observações (cadastros antigos): "FIPE 513352-1: ..."
+    if (!codigo) {
+      var mo = String(x.dtObs || "").match(/FIPE\s+(\d{6}-?\d)/i);
+      if (mo) codigo = normFipe(mo[1]);
+    }
+    if (!codigo) return porNome();
+    // 0º: BrasilAPI pelo código (fonte alternativa); se falhar, segue para a FIPE API
+    function porBrasilApi() {
+      return getJson("https://brasilapi.com.br/api/fipe/preco/v1/" + encodeURIComponent(codigo), true).then(function (lst) {
+        var doAno = (Array.isArray(lst) ? lst : []).filter(function (a) { return String(a.anoModelo) === ano; });
+        if (doAno.length > 1 && comb) {
+          var f = doAno.filter(function (a) { return txtNorm(a.combustivel).indexOf(comb) >= 0; });
+          if (f.length) doAno = f;
+        }
+        if (!doAno.length || !doAno[0].valor) throw new Error("codigo");
+        var v = doAno[0];
+        return { Valor: v.valor, MesReferencia: v.mesReferencia, CodigoFipe: v.codigoFipe || codigo, Marca: v.marca, Modelo: v.modelo, AnoModelo: v.anoModelo, Combustivel: v.combustivel };
+      });
+    }
+    // 1º: busca direta pelo código FIPE já gravado (sem comparar nomes)
+    var V2 = { carros: "cars", caminhoes: "trucks", motos: "motorcycles" };
+    var V2BASE = "https://parallelum.com.br/fipe/api/v2/";
+    var comb = txtNorm(x.dtCombustivel).split(" ")[0] || "";
+    function porCodigo(k) {
+      if (k >= tipos.length) return Promise.reject(new Error("codigo"));
+      var base2 = V2BASE + V2[tipos[k]] + "/" + encodeURIComponent(codigo) + "/years";
+      return getJson(base2, true).then(function (anos) {
+        var doAno = (anos || []).filter(function (a) { return soAno(a.name || a.code) === ano; });
+        if (doAno.length > 1 && comb) {
+          var f = doAno.filter(function (a) { return txtNorm(a.name).indexOf(comb) >= 0; });
+          if (f.length) doAno = f;
+        }
+        if (!doAno.length) { var er = new Error("O código FIPE " + codigo + " não tem valor para o ano " + ano + "."); er.final = true; throw er; }
+        return getJson(base2 + "/" + encodeURIComponent(doAno[0].code), true).then(function (v) {
+          if (!v || !v.price) throw new Error("codigo");
+          return { Valor: v.price, MesReferencia: v.referenceMonth, CodigoFipe: v.codeFipe || codigo, Marca: v.brand, Modelo: v.model, AnoModelo: v.modelYear, Combustivel: v.fuel };
+        });
+      }).catch(function (e) {
+        if (e && (e.fatal || e.final)) throw e;
+        return porCodigo(k + 1);
+      });
+    }
+    var erroBrasil = null;
+    return porBrasilApi().catch(function (e) {
+      erroBrasil = e;
+      return porCodigo(0).catch(function (e2) {
+        // nova tentativa única na FIPE API se a primeira esgotou o tempo
+        if (e2 && e2.fatal && /Tempo esgotado/.test(e2.message)) return porCodigo(0);
+        throw e2;
+      });
+    }).catch(function (e) {
+      if (e && (e.fatal || e.final)) throw e;
+      return porNome();
+    });
   }
 
   window.atualizarFipeDetran = function (i, retorno) {
