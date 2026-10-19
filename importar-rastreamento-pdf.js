@@ -65,6 +65,8 @@
       mapa[p].itens.push({ contrato:r[1], serie:r[3], antena:r[4] || '', equipamento:equipamento, plano:texto(r[7]), inicio:r[8], fim:r[9], valor:valor / 100 });
       mapa[p].cents += valor;
     });
+    if (!Object.keys(mapa).length) generico(linhas, mapa);
+    if (!comp) comp = mesMaisFrequente(linhas);
     if (!comp) throw new Error('Competência não encontrada no demonstrativo.');
     var lista = Object.keys(mapa).sort().map(function (p) {
       var g = mapa[p], v = veiculo(p);
@@ -75,6 +77,32 @@
       return g;
     });
     return { grupos:lista, competencia:comp, total:total };
+  }
+
+  // Outros formatos: placa com espaço/traço, valor no fim da linha; subtotais e total geral ficam fora da soma.
+  var RE_PLACA = /\b([A-Z]{3})[\s-]?(\d[A-Z0-9]\d{2})\b/;
+  function generico(linhas, mapa) {
+    linhas.forEach(function (l) {
+      var u = l.toUpperCase();
+      if (/\b(SUB-?TOTAL|TOTAL|TOTAIS|SOMA)\b/.test(u)) return;
+      var m = u.match(RE_PLACA); if (!m) return;
+      var vals = u.match(/\d{1,3}(?:\.\d{3})*,\d{2}\b/g); if (!vals) return;
+      var valor = centavos(vals[vals.length - 1]); if (!Number.isFinite(valor) || valor <= 0) return;
+      var p = m[1] + m[2];
+      if (!mapa[p]) mapa[p] = { placa:p, itens:[], cents:0 };
+      mapa[p].itens.push({ contrato:'', serie:'', antena:'', equipamento:'', plano:texto(l).slice(0, 120), inicio:'', fim:'', valor:valor / 100 });
+      mapa[p].cents += valor;
+    });
+  }
+  function mesMaisFrequente(linhas) {
+    var cont = {}, melhor = '', n = 0;
+    linhas.forEach(function (l) {
+      (l.match(/\b\d{2}\/(0[1-9]|1[0-2])\/(20\d{2})\b/g) || []).forEach(function (d) {
+        var k = d.slice(6) + '-' + d.slice(3, 5); cont[k] = (cont[k] || 0) + 1;
+        if (cont[k] > n) { n = cont[k]; melhor = k; }
+      });
+    });
+    return melhor;
   }
 
   function situacao(g) {
@@ -159,6 +187,7 @@
       grupos = []; desenhar();
       if (!/\.pdf$/i.test(file.name) || file.size > 15 * 1024 * 1024) { alert('Selecione um PDF de até 15 MB.'); ev.target.value = ''; return; }
       Promise.all([carregarPdfJs(), file.arrayBuffer()]).then(function (r) { return linhasPdf(r[1]); }).then(function (linhas) {
+        if (!linhas.join('').trim()) throw new Error('Este PDF parece escaneado (só imagem, sem texto). Use o PDF original emitido pela empresa de rastreamento.');
         var res = interpretar(linhas);
         if (!res.grupos.length) throw new Error('Nenhuma linha de equipamento encontrada.');
         arquivo = file.name; competenciaPdf = res.competencia; totalPdf = res.total; grupos = res.grupos; grupos.forEach(function (g) { g.data = res.competencia + '-01'; }); el('cusRastComp').value = res.competencia; el('cusRastData').value = res.competencia + '-01'; desenhar();

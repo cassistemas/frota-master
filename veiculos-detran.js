@@ -388,7 +388,7 @@
       '<div class="titulo-filtro">🔎 Buscar veículo por Placa ou RENAVAM</div>' +
       '<div class="row g-2 align-items-end">' +
       '<div class="col-md-3"><label class="fm-lbl">Placa</label>' +
-      '<input id="dtBuscaPlaca" class="form-control" placeholder="ABC1D23" maxlength="7"></div>' +
+      '<input id="dtBuscaPlaca" class="form-control" placeholder="ABC1D23" maxlength="8" list="dtListaPlacas" autocomplete="off"><datalist id="dtListaPlacas"></datalist></div>' +
       '<div class="col-md-3"><label class="fm-lbl">RENAVAM</label>' +
       '<input id="dtBuscaRenavam" class="form-control" placeholder="00000000000" maxlength="11"></div>' +
       '<div class="col-md-6 d-flex gap-2">' +
@@ -538,11 +538,14 @@
         }
       ) || null;
 
+    var buscaPlaca = val("dtBuscaPlaca"), buscaRenavam = val("dtBuscaRenavam");
     limparForm();
     editIdx = -1;
     set("dt_idx", "");
-    set("dtPlaca", normPlaca(val("dtBuscaPlaca")));
-    set("dtRenavam", normRenavam(val("dtBuscaRenavam")));
+    set("dtBuscaPlaca", buscaPlaca);
+    set("dtBuscaRenavam", buscaRenavam);
+    set("dtPlaca", normPlaca(buscaPlaca));
+    set("dtRenavam", normRenavam(buscaRenavam));
 
     if (vei) {
       set("dtMarca", vei.vmodelo || "");
@@ -965,6 +968,26 @@
     };
 
     on("dtBtnBuscar", buscar);
+    // Lista de placas cadastradas (com modelo) na busca; escolher uma já busca.
+    var bp = document.getElementById("dtBuscaPlaca"), dl = document.getElementById("dtListaPlacas");
+    if (bp && dl) {
+      var montarLista = function () {
+        var vs = typeof db !== "undefined" && Array.isArray(db.veiculos) ? db.veiculos : [];
+        dl.innerHTML = vs.filter(function (v) { return v && v.vplaca; }).map(function (v) {
+          var o = document.createElement("option");
+          o.value = normPlaca(v.vplaca);
+          o.label = (v.vmodelo || "") + (v.vstatus ? " · " + v.vstatus : "");
+          o.textContent = o.label;
+          return o.outerHTML;
+        }).join("");
+      };
+      bp.addEventListener("focus", montarLista);
+      bp.addEventListener("input", function () {
+        var p = norm(bp.value);
+        var vs = typeof db !== "undefined" && Array.isArray(db.veiculos) ? db.veiculos : [];
+        if (p.length === 7 && vs.some(function (v) { return norm(v.vplaca) === p; })) { bp.value = normPlaca(bp.value); buscar(); }
+      });
+    }
     on("dtBtnLimpar", function () {
       set("dtBuscaPlaca", "");
       set("dtBuscaRenavam", "");
