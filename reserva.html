@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reserva de Veículo - Frota Master</title>
+<meta name="description" content="Solicite a reserva de um veículo da frota. A reserva fica pendente até a aprovação do administrador.">
+<meta name="theme-color" content="#0d6efd">
+<link rel="manifest" href="./manifest-reserva.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Reserva">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="./favicon.ico?v=3">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<style>
+:root{--azul:#0d3b66;--azul2:#0d6efd;--borda:#d6dde6;--txt:#1f2937;--mut:#64748b}
+:root{--superficie:#fff;--suave:#f4f7fb;--perigo:#b91c1c;--sombra:0 6px 20px #0002}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--txt);background:linear-gradient(rgba(8,24,44,.78),rgba(8,24,44,.78)),url("./login-bg.png") center/cover fixed #0d3b66;padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:10;background:var(--azul);color:#fff;padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top));display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 10px #0004}
+.marca{display:flex;align-items:center;gap:10px}.marca img{width:34px;height:34px;border-radius:8px;background:#fff}
+header h1{font-size:16px;margin:0;line-height:1.1}header h1 small{display:block;font-size:11px;font-weight:500;opacity:.75}
+.topo{display:flex;align-items:center;gap:10px}#nomeTopo{font-size:13px;font-weight:600;max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+header button{background:transparent;border:1px solid #fff9;color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600}
+main{max-width:560px;margin:0 auto;padding:16px}
+.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 6px 20px #0002}
+#telaLogin{max-width:340px;margin:10vh auto 0;padding:20px 22px;text-align:left}#telaLogin .logo{display:block;width:56px;height:56px;margin:0 auto 8px;border-radius:12px}#telaLogin input{padding:10px;font-size:15px}#telaLogin label{margin:10px 0 4px}#telaLogin .btn{margin-top:14px;padding:11px}.lembrar{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:#334155;text-transform:none;letter-spacing:0;font-weight:500}.lembrar input{width:auto;margin:0}
+#telaLogin h2{text-align:center;font-size:18px}#telaLogin p{text-align:center;color:var(--mut);font-size:13px;margin:0 0 6px}
+h2{font-size:16px;margin:0 0 12px;color:var(--azul)}label{display:block;font-size:12px;font-weight:600;color:#334155;margin:12px 0 5px;text-transform:uppercase;letter-spacing:.03em}
+input,select,textarea{width:100%;padding:12px;border:1px solid var(--borda);border-radius:10px;font-size:16px;background:#fff;color:var(--txt);font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--azul2);box-shadow:0 0 0 3px #0d6efd22}
+.lin{display:flex;gap:10px}.lin>div{flex:1;min-width:0}
+.btn{display:block;width:100%;margin-top:16px;padding:13px;border:0;border-radius:10px;background:var(--azul2);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.6}.btn.zap{background:#1f9d55}.btn.sec{background:var(--azul)}
+.msg{margin-top:10px;font-size:14px;padding:10px 12px;border-radius:10px;display:none}.msg.err{display:block;background:#fde8e8;color:#9b1c1c}.msg.ok{display:block;background:#e6f6ec;color:#14532d}
+.item{border:1px solid #e5e7eb;border-left:4px solid var(--azul2);border-radius:10px;padding:12px;margin-bottom:10px;font-size:14px}
+.item small{color:var(--mut);display:block;margin-top:4px}
+.st{float:right;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px}
+.st.Pendente{background:#fff4cc;color:#8a6100}.st.Aprovada{background:#dcfce7;color:#166534}.st.Recusada{background:#fee2e2;color:#991b1b}.st.Cancelada{background:#e5e7eb;color:#374151}
+.st.Em-uso{background:#ffedd5;color:#9a3412}.st.Em-aprovação,.st.Devolução-informada{background:#dbeafe;color:#1e3a8a}.st.Concluída{background:#e5e7eb;color:#111827}
+.link{background:none;border:0;color:#b91c1c;text-decoration:underline;padding:0;margin-top:8px;font-size:13px}
+.hidden{display:none!important}
+.abas{display:flex;padding:4px;gap:4px;margin-bottom:14px;background:#ffffff26;border-radius:12px}
+.aba{flex:1;padding:10px;border:0;background:transparent;border-radius:9px;font-weight:600;font-size:14px;color:#fff}.aba.ativa{background:#fff;color:var(--azul)}
+.pag{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px}.pag button{padding:8px 12px;border:1px solid var(--borda);background:#fff;border-radius:8px}.pag button:disabled{opacity:.4}
+.dev{margin-top:10px;padding:10px;background:#f8fafc;border-radius:10px}.dev .btn{margin-top:8px}
+.instalar{display:none;background:#fff;border-radius:12px;padding:12px;margin-bottom:14px;font-size:13px;box-shadow:0 6px 20px #0002}.instalar .btn{margin-top:8px;padding:10px}
+main.historico-aberto{max-width:1180px}
+#abaHistorico>.card{border-radius:8px;padding:20px}
+.filtros-historico{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.filtros-historico label{margin-top:0;letter-spacing:0}
+#listaHistorico{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#listaHistorico .item{margin:0;border-radius:8px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.item-topo{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px}
+.item-topo>div{min-width:0;overflow-wrap:anywhere}.item-topo .st{float:none;white-space:nowrap}
+.item-dados{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;font-size:13px}
+.item-dados>div{min-width:0;overflow-wrap:anywhere}.item-dados .largo{grid-column:1/-1}
+.item-dados span{display:block;color:var(--mut);font-size:11px;margin-bottom:3px}
+.item-rodape{border-top:1px solid var(--borda);padding-top:10px;margin-top:auto}
+.item-acoes{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.acao-icone{display:grid;place-items:center;width:36px;height:36px;background:var(--suave);color:var(--azul);border:1px solid var(--borda);border-radius:6px;cursor:pointer}
+.acao-icone.excluir{color:var(--perigo)}.acao-icone svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8}
+.acao-icone:focus-visible{outline:2px solid var(--azul2);outline-offset:2px}
+#btnCancelarEdicao{background:var(--suave);color:var(--azul);border:1px solid var(--borda);margin-top:8px}
+@media(min-width:1100px){#listaHistorico{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.filtros-historico{grid-template-columns:repeat(2,minmax(0,1fr))}#listaHistorico{grid-template-columns:minmax(0,1fr)}main{padding:12px}#abaHistorico>.card{padding:14px}header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.marca{min-width:0}.marca img{flex-shrink:0}.marca h1{font-size:14px}.topo{gap:6px}#nomeTopo{max-width:28vw;font-size:12px}}
+</style>
+</head>
+<body>
+<header><div class="marca"><img src="./icon-192.png" alt="Frota Master"><h1>Reserva de Veículo<small>Frota Master</small></h1></div><div class="topo"><span id="nomeTopo"></span><button id="btnSair" class="hidden" type="button">Sair</button></div></header>
+<main>
+  <div id="boxInstalar" class="instalar"><b>Use como aplicativo</b><div id="txtInstalar"></div><button class="btn sec hidden" id="btnInstalar" type="button">Instalar aplicativo</button></div>
+  <section id="telaLogin" class="card">
+    <img class="logo" src="./icon-192.png" alt="Frota Master"><h2>Reserva de Veículo</h2><p>Entre com o seu usuário da Frota Master</p>
+    <label for="lEmail">E-mail</label><input id="lEmail" type="email" autocomplete="username">
+    <label for="lSenha">Senha</label><input id="lSenha" type="password" autocomplete="current-password">
+    <label class="lembrar"><input id="lLembrar" type="checkbox"> Lembrar usuário e senha</label>
+    <button class="btn" id="btnEntrar" type="button">Entrar</button>
+    <div id="msgLogin" class="msg"></div>
+  </section>
+
+  <section id="telaReserva" class="hidden">
+    <div class="abas"><button type="button" class="aba ativa" data-aba="reservar">Reservar</button><button type="button" class="aba" data-aba="historico">Histórico</button></div>
+    <div id="abaReservar">
+    <div class="card">
+      <h2 id="tituloSolicitacao">Nova solicitação</h2>
+      <div style="font-size:13px;color:#6b7280">Solicitante: <b id="rNome"></b>. A reserva fica <b>pendente</b> até a aprovação.</div>
+      <label for="rVeiculo">Veículo</label><select id="rVeiculo"><option value="">Carregando...</option></select>
+      <div class="lin"><div><label for="rDataSaida">Data saída</label><input id="rDataSaida" type="date"></div><div><label for="rHoraSaida">Hora saída</label><input id="rHoraSaida" type="time"></div></div>
+      <div class="lin"><div><label for="rDataChegada">Data chegada</label><input id="rDataChegada" type="date"></div><div><label for="rHoraChegada">Hora chegada</label><input id="rHoraChegada" type="time"></div></div>
+      <label for="rDestino">Destino</label><input id="rDestino" maxlength="120">
+      <label for="rMotivo">Motivo</label><textarea id="rMotivo" rows="2" maxlength="300"></textarea>
+      <button class="btn" id="btnSolicitar" type="button">Solicitar reserva</button>
+      <button class="btn hidden" id="btnCancelarEdicao" type="button">Cancelar edição</button>
+      <div id="msgReserva" class="msg"></div>
+      <a id="btnZap" class="btn zap" style="display:none;text-align:center;text-decoration:none" target="_blank" rel="noopener">📲 Toque aqui para avisar o administrador no WhatsApp</a>
+    </div>
+    <div class="card"><h2>Em andamento</h2><div id="listaMinhas">Carregando...</div></div>
+    </div>
+    <div id="abaHistorico" class="hidden">
+      <div class="card">
+        <h2>Histórico</h2>
+        <div class="filtros-historico"><div><label for="hStatus">Situação</label><select id="hStatus"><option value="">Todas</option><option>Pendente</option><option>Aprovada</option><option>Em uso</option><option>Devolução informada</option><option>Concluída</option><option>Recusada</option><option>Cancelada</option></select></div>
+        <div id="hUsuarioBox" class="hidden"><label for="hUsuario">Usuário</label><select id="hUsuario"><option value="">Todos</option></select></div>
+        <div><label for="hDe">De</label><input id="hDe" type="date"></div><div><label for="hAte">Até</label><input id="hAte" type="date"></div></div>
+        <div id="msgHist" class="msg"></div>
+        <a id="btnZapHist" class="btn zap" style="display:none;text-align:center;text-decoration:none" target="_blank" rel="noopener">📲 Avisar o administrador no WhatsApp</a>
+        <div id="hResumo" style="font-size:13px;color:#6b7280;margin:10px 0"></div>
+        <div id="listaHistorico"></div>
+        <div class="pag"><button type="button" id="hAnt">‹ Anterior</button><span id="hPag"></span><button type="button" id="hProx">Próxima ›</button></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="./reservas-regras.js?v=6"></script>
+<script>
+(function(){
+  "use strict";
+  firebase.initializeApp({ apiKey:"AIzaSyCM4rujKma6_ggBuET2DkDdCnTt-LcjRXY", authDomain:"frotamastercarlos.firebaseapp.com", projectId:"frotamastercarlos" });
+  firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+  var auth = firebase.auth(), fs = firebase.firestore(), R = window.FMReservasRegras;
+  var COL = "reservasVeiculos";
+  var estado = { veiculos:[], saidas:[], solicitacoes:[], nome:"", zap:"54999505407", escutas:[] };
+  var editandoId="";
+  var camposSolicitacao=["rVeiculo","rDataSaida","rHoraSaida","rDataChegada","rHoraChegada","rDestino","rMotivo"];
+  function limparSolicitacao(){
+    camposSolicitacao.forEach(function(id){ $(id).value=""; });
+    editandoId=""; $("tituloSolicitacao").textContent="Nova solicitação";
+    $("btnSolicitar").textContent="Solicitar reserva"; $("btnCancelarEdicao").classList.add("hidden");
+  }
+  $("btnCancelarEdicao").onclick=function(){ limparSolicitacao(); msg("msgReserva",""); $("btnZap").style.display="none"; };
+  function $(id){ return document.getElementById(id); }
+  function msg(id, txt, ok){ var m=$(id); m.textContent=txt||""; m.className="msg"+(txt?(ok?" ok":" err"):""); }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+
+  $("btnEntrar").onclick = function(){
+    var e=$("lEmail").value.trim(), s=$("lSenha").value;
+    if(!e||!s){ msg("msgLogin","Informe e-mail e senha."); return; }
+    try{ if($("lLembrar").checked) localStorage.setItem("fmReservaLogin",JSON.stringify({e:e,s:s})); else localStorage.removeItem("fmReservaLogin"); }catch(_){}
+    $("btnEntrar").disabled=true; msg("msgLogin","");
+    auth.signInWithEmailAndPassword(e,s).catch(function(){ msg("msgLogin","E-mail ou senha incorretos."); }).then(function(){ $("btnEntrar").disabled=false; });
+  };
+  try{ var lg=JSON.parse(localStorage.getItem("fmReservaLogin")||"null"); if(lg){ $("lEmail").value=lg.e||""; $("lSenha").value=lg.s||""; $("lLembrar").checked=true; } }catch(_){}
+  $("lSenha").addEventListener("keydown",function(ev){ if(ev.key==="Enter") $("btnEntrar").click(); });
+  $("btnSair").onclick = function(){ auth.signOut(); };
+
+  function montarVeiculos(){
+    var sel=$("rVeiculo"), atual=sel.value;
+    var lista=estado.veiculos.filter(R.veiculoDisponivel).sort(function(a,b){return String(a.vplaca).localeCompare(String(b.vplaca));});
+    sel.innerHTML='<option value="">Selecione o veículo</option>'+lista.map(function(v){ return '<option value="'+esc(v.vplaca)+'">'+esc(v.vplaca)+(v.vmodelo?' — '+esc(v.vmodelo):'')+'</option>'; }).join("");
+    sel.value=atual;
+  }
+  function montarMinhas(){
+    var uid=auth.currentUser&&auth.currentUser.uid;
+    var minhas=estado.solicitacoes.filter(function(s){return s.uid===uid && !(s.ocultadoPor||[]).includes(uid);}).sort(function(a,b){return String(b.criadoEm).localeCompare(String(a.criadoEm));});
+    var ativos={"Pendente":1,"Em aprovação":1,"Aprovada":1,"Em uso":1};
+    var and=minhas.filter(function(s){return ativos[s.status];});
+    $("listaMinhas").innerHTML = and.length ? and.map(function(s){ return itemHtml(s,true); }).join("") : "Nenhuma reserva em andamento.";
+    montarHistorico();
+  }
+  function cls(s){ return String(s||"").replace(/\s+/g,"-"); }
+  function itemHtml(s, acoes){
+      var dev = "";
+      if(acoes && s.status==="Aprovada") dev='<button class="btn sec" data-iniciar="'+esc(s.id)+'">▶ Iniciar saída</button><div class="msg" id="msgdev_'+esc(s.id)+'"></div>';
+      if(acoes && s.status==="Em uso") dev='<div class="dev"><small>A data, a hora e o endereço da devolução são registrados automaticamente.</small>'+
+        '<button class="btn" data-devolver="'+esc(s.id)+'">⏹ Devolver veículo</button><div class="msg" id="msgdev_'+esc(s.id)+'"></div></div>';
+      if(!acoes){
+        return '<article class="item"><div class="item-topo"><div><b>'+esc(s.placa)+'</b><small>'+esc(s.destino)+'</small></div><span class="st '+esc(cls(s.status))+'">'+esc(s.status)+'</span></div><div class="item-dados">'+
+          '<div><span>Reserva</span>'+esc(s.numeroReserva||'—')+'</div><div><span>Solicitante</span>'+esc(s.solicitante||s.email)+'</div>'+
+          '<div><span>Saída prevista</span>'+esc(R.dataBR(s.dataSaida))+' · '+esc(s.horaSaida)+'</div><div><span>Chegada prevista</span>'+esc(R.dataBR(s.dataChegada))+' · '+esc(s.horaChegada)+'</div>'+
+          '<div><span>Saída registrada</span>'+(s.dataSaidaReal?esc(R.dataBR(s.dataSaidaReal))+' · '+esc(s.horaSaidaReal):'—')+'</div><div><span>Devolução registrada</span>'+(s.dataDevolucao?esc(R.dataBR(s.dataDevolucao))+' · '+esc(s.horaDevolucao):'—')+'</div>'+
+          (s.motivo?'<div class="largo"><span>Motivo</span>'+esc(s.motivo)+'</div>':'')+
+          (s.enderecoDevolucao?'<div class="largo"><span>Endereço da devolução</span>'+esc(s.enderecoDevolucao)+(s.latitude?' · <a target="_blank" rel="noopener" href="https://www.google.com/maps?q='+esc(s.latitude)+','+esc(s.longitude)+'">Ver no mapa</a>':'')+'</div>':'')+
+          (s.motivoRecusa?'<div class="largo"><span>Motivo da recusa</span>'+esc(s.motivoRecusa)+'</div>':'')+'</div><div class="item-rodape">'+
+          (s.criadoEm?'<small>Solicitado em '+esc(new Date(s.criadoEm).toLocaleString("pt-BR"))+'</small>':'')+
+          (s.aprovadoPor?'<small>Aprovado por '+esc(s.aprovadoPor)+'</small>':'')+(s.confirmadoPor?'<small>Confirmado por '+esc(s.confirmadoPor)+'</small>':'')+botoesRegistro(s)+'</div></article>';
+      }
+      return '<div class="item"><span class="st '+esc(cls(s.status))+'">'+esc(s.status)+'</span><b>'+esc(s.placa)+'</b> · '+esc(s.destino)+
+        (estado.admin&&!acoes?'<small>Usuário: '+esc(s.solicitante||s.email)+'</small>':'')+'<small>Previsto: '+R.dataBR(s.dataSaida)+' '+esc(s.horaSaida)+' → '+R.dataBR(s.dataChegada)+' '+esc(s.horaChegada)+'</small>'+
+        (s.dataSaidaReal?'<small>Saída registrada: '+R.dataBR(s.dataSaidaReal)+' '+esc(s.horaSaidaReal)+'</small>':'')+
+        (s.dataDevolucao?'<small>Devolução registrada: '+R.dataBR(s.dataDevolucao)+' '+esc(s.horaDevolucao)+(s.kmFinal?' · KM '+esc(s.kmFinal):'')+'</small>':'')+
+        (s.enderecoDevolucao?'<small>Endereço da devolução: '+esc(s.enderecoDevolucao)+(s.latitude?' · <a target="_blank" rel="noopener" href="https://www.google.com/maps?q='+esc(s.latitude)+','+esc(s.longitude)+'">ver no mapa</a>':'')+'</small>':'')+
+        (s.numeroReserva?'<small>Nº da reserva: '+esc(s.numeroReserva)+'</small>':'')+
+        (s.motivoRecusa?'<small>Motivo da recusa: '+esc(s.motivoRecusa)+'</small>':'')+
+        (acoes&&s.status==="Pendente"?'<button class="link" data-cancelar="'+esc(s.id)+'">Cancelar solicitação</button>':'')+dev+(s.status==="Pendente"?botoesRegistro(s):'')+'</div>';
+  }
+  function botoesRegistro(s){
+    return ""; // Solicitante nunca edita nem exclui.
+    return '<div class="item-acoes">'+(s.status==="Pendente"?'<button type="button" class="acao-icone" title="Editar solicitação" aria-label="Editar solicitação" data-editar="'+esc(s.id)+'"><svg viewBox="0 0 24 24"><path d="m16 3 5 5-12 12-6 1 1-6Z M14 5l5 5"/></svg></button>':'')+
+      '<button type="button" class="acao-icone excluir" title="Excluir da minha lista" aria-label="Excluir da minha lista" data-excluir="'+esc(s.id)+'"><svg viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></div>';
+  }
+  var POR_PAGINA=10, hPagina=1;
+  function montarHistorico(){
+    var uid=auth.currentUser&&auth.currentUser.uid;
+    var base=estado.solicitacoes.filter(function(s){ return (estado.admin || s.uid===uid) && !(s.ocultadoPor||[]).includes(uid); });
+    if(estado.admin){
+      var sel=$("hUsuario"), atual=sel.value, nomes={};
+      base.forEach(function(s){ nomes[s.uid]=s.solicitante||s.email||s.uid; });
+      sel.innerHTML='<option value="">Todos</option>'+Object.keys(nomes).sort(function(a,b){return nomes[a].localeCompare(nomes[b]);}).map(function(k){return '<option value="'+esc(k)+'">'+esc(nomes[k])+'</option>';}).join("");
+      sel.value=atual; $("hUsuarioBox").classList.remove("hidden");
+    }
+    var st=$("hStatus").value, us=$("hUsuario").value, de=$("hDe").value, ate=$("hAte").value;
+    var l=base.filter(function(s){
+      if(st && s.status!==st) return false;
+      if(us && s.uid!==us) return false;
+      if(de && String(s.dataSaida)<de) return false;
+      if(ate && String(s.dataSaida)>ate) return false;
+      return true;
+    }).sort(function(a,b){ return String(b.dataSaida+b.horaSaida).localeCompare(String(a.dataSaida+a.horaSaida)) || String(b.criadoEm).localeCompare(String(a.criadoEm)); });
+    var paginas=Math.max(1,Math.ceil(l.length/POR_PAGINA)); if(hPagina>paginas) hPagina=paginas;
+    var parte=l.slice((hPagina-1)*POR_PAGINA,hPagina*POR_PAGINA);
+    $("listaHistorico").innerHTML = parte.length ? parte.map(function(s){ return itemHtml(s,false); }).join("") : "Nenhum registro encontrado.";
+    $("hResumo").textContent = l.length + " registro(s)";
+    $("hPag").textContent = "Página " + hPagina + " de " + paginas;
+    $("hAnt").disabled = hPagina<=1; $("hProx").disabled = hPagina>=paginas;
+  }
+  ["hStatus","hUsuario","hDe","hAte"].forEach(function(id){ $(id).addEventListener("change",function(){ hPagina=1; montarHistorico(); }); });
+  $("hAnt").onclick=function(){ if(hPagina>1){ hPagina--; montarHistorico(); } };
+  $("hProx").onclick=function(){ hPagina++; montarHistorico(); };
+  function irAba(aba){
+    document.querySelector("main").classList.toggle("historico-aberto",aba==="historico");
+    document.querySelectorAll(".aba").forEach(function(b){ b.classList.toggle("ativa", b.getAttribute("data-aba")===aba); });
+    $("abaReservar").classList.toggle("hidden", aba!=="reservar"); $("abaHistorico").classList.toggle("hidden", aba!=="historico");
+    if(aba==="historico") montarHistorico(); else { msg("msgHist",""); $("btnZapHist").style.display="none"; }
+  }
+  document.querySelector(".abas").addEventListener("click",function(ev){
+    var aba=ev.target&&ev.target.getAttribute("data-aba"); if(aba) irAba(aba);
+  });
+  // Instalar como aplicativo
+  var pedidoInstalar=null, standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+  if(!standalone && /iphone|ipad|ipod/i.test(navigator.userAgent)){ $("txtInstalar").textContent="No Safari, toque em Compartilhar e depois em \"Adicionar à Tela de Início\"."; $("boxInstalar").style.display="block"; }
+  window.addEventListener("beforeinstallprompt",function(e){ e.preventDefault(); pedidoInstalar=e; $("txtInstalar").textContent="Instale a reserva na tela inicial do celular."; $("btnInstalar").classList.remove("hidden"); $("boxInstalar").style.display="block"; });
+  $("btnInstalar").onclick=function(){ if(!pedidoInstalar) return; pedidoInstalar.prompt(); pedidoInstalar=null; $("boxInstalar").style.display="none"; };
+  window.addEventListener("appinstalled",function(){ $("boxInstalar").style.display="none"; });
+  function partesData(ts){ var d=ts&&ts.toDate?ts.toDate():new Date(ts); var p=function(n){return String(n).padStart(2,"0");};
+    return { data:d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()), hora:p(d.getHours())+":"+p(d.getMinutes()) }; }
+  // Grava o horário do servidor e depois deriva data/hora a partir dele.
+  function gravarComHoraServidor(ref, statusExigido, campos, campoTs, prefixo){
+    var FV=firebase.firestore.FieldValue;
+    return fs.runTransaction(function(t){ return t.get(ref).then(function(d){
+      if(!d.exists||d.data().status!==statusExigido) throw new Error("Esta reserva não está mais em \""+statusExigido+"\".");
+      var up=Object.assign({},campos); up[campoTs]=FV.serverTimestamp(); t.update(ref,up);
+    });}).then(function(){ return ref.get(); }).then(function(d){
+      var pd=partesData(d.data()[campoTs]); var up={}; up["data"+prefixo]=pd.data; up["hora"+prefixo]=pd.hora;
+      return ref.update(up).then(function(){ return Object.assign({},d.data(),up); });
+    });
+  }
+  function localizar(){
+    return new Promise(function(ok,falha){
+      if(!navigator.geolocation) return falha(new Error("Este aparelho não informa a localização."));
+      navigator.geolocation.getCurrentPosition(function(p){ ok({lat:p.coords.latitude,lon:p.coords.longitude}); },
+        function(){ falha(new Error("Ative a localização do celular e permita o acesso para registrar o endereço da devolução.")); },
+        {enableHighAccuracy:true,timeout:20000,maximumAge:0});
+    }).then(function(c){
+      var lat=c.lat.toFixed(6), lon=c.lon.toFixed(6), alt="Coordenadas "+lat+", "+lon;
+      return fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=pt-BR&lat="+lat+"&lon="+lon)
+        .then(function(r){ return r.ok?r.json():null; }).catch(function(){ return null; })
+        .then(function(j){ var a=j&&j.address||{};
+          var end=[[a.road,a.house_number].filter(Boolean).join(", "),a.suburb||a.neighbourhood,a.city||a.town||a.village||a.municipality,a.state].filter(Boolean).join(" - ");
+          return { enderecoDevolucao: end || (j&&j.display_name) || alt, latitude:lat, longitude:lon }; });
+    });
+  }
+  $("listaMinhas").addEventListener("click",function(ev){
+    var alvo=ev.target; if(!alvo||!alvo.getAttribute) return;
+    var ini=alvo.getAttribute("data-iniciar"), dv=alvo.getAttribute("data-devolver");
+    if(ini){
+      if(!confirm("Iniciar a saída agora? A data e a hora serão registradas automaticamente.")) return;
+      alvo.disabled=true;
+      gravarComHoraServidor(fs.collection(COL).doc(ini),"Aprovada",{status:"Em uso"},"saidaRealEm","SaidaReal")
+        .catch(function(e){ msg("msgdev_"+ini,e.message||"Não foi possível iniciar a saída."); alvo.disabled=false; });
+      return;
+    }
+    if(!dv) return;
+    var id=dv;
+    if(!confirm("Devolver o veículo agora? A data, a hora e o endereço serão registrados automaticamente.")) return;
+    alvo.disabled=true; msg("msgdev_"+id,"Obtendo a localização...",true);
+    localizar().then(function(loc){
+      return gravarComHoraServidor(fs.collection(COL).doc(id),"Em uso",Object.assign({status:"Devolução informada"},loc),"devolucaoEm","Devolucao");
+    }).then(function(final){
+      var link=R.linkWhatsApp(estado.zap,final,"Veículo devolvido (confirmar no sistema)");
+      irAba("historico"); hPagina=1; $("hStatus").value=""; montarHistorico();
+      msg("msgHist","Viagem finalizada. A devolução foi registrada e o administrador confirma no sistema."+(link?"":" (O administrador ainda não cadastrou o WhatsApp para receber avisos.)"),true);
+      if(link){ $("btnZapHist").href=link; $("btnZapHist").style.display="block"; } else $("btnZapHist").style.display="none";
+      window.scrollTo({top:0,behavior:"smooth"});
+    }).catch(function(e){ msg("msgdev_"+id,e.message||"Não foi possível registrar a devolução."); alvo.disabled=false; });
+  });
+  function avisoSemZap(){ msg("msgReserva",$("msgReserva").textContent+" (O administrador ainda não cadastrou o WhatsApp para receber avisos.)",true); }
+  $("telaReserva").addEventListener("click",function(ev){
+    var botao=ev.target&&ev.target.closest("[data-editar],[data-excluir]"); if(!botao) return;
+    var acao=botao.hasAttribute("data-editar")?"editar":"excluir", id=botao.getAttribute("data-"+acao);
+    var u=auth.currentUser, sol=estado.solicitacoes.find(function(s){return s.id===id;}); if(!u) return;
+    var erro=R.validarAcao(sol,u.uid,acao); if(erro){ alert(erro); return; }
+    if(acao==="editar"){
+      editandoId=id; irAba("reservar");
+      camposSolicitacao.forEach(function(c){var chave=c.slice(1); chave=chave.charAt(0).toLowerCase()+chave.slice(1); $(c).value=sol[chave==="veiculo"?"placa":chave]||"";});
+      $("tituloSolicitacao").textContent="Editar solicitação"; $("btnSolicitar").textContent="Salvar alterações"; $("btnCancelarEdicao").classList.remove("hidden");
+      msg("msgReserva",""); $("btnZap").style.display="none"; $("tituloSolicitacao").scrollIntoView({behavior:"smooth",block:"start"}); return;
+    }
+    if(!confirm(sol.status==="Pendente"?"Excluir esta solicitação? O pedido pendente será cancelado e retirado da sua lista.":"Excluir este registro da sua lista? A viagem, os horários e a confirmação do administrador serão preservados no sistema.")) return;
+    botao.disabled=true;
+    var ref=fs.collection(COL).doc(id);
+    fs.runTransaction(function(t){return t.get(ref).then(function(d){
+      var atual=d.exists?d.data():null, erro=R.validarAcao(atual,u.uid,"excluir"); if(erro) throw new Error(erro);
+      var up={ocultadoPor:firebase.firestore.FieldValue.arrayUnion(u.uid)};
+      if(atual.status==="Pendente") up.status="Cancelada";
+      t.update(ref,up);
+    });}).then(function(){ if(editandoId===id) limparSolicitacao(); }).catch(function(e){alert(e.message||"Não foi possível excluir.");botao.disabled=false;});
+  });
+  $("listaMinhas").addEventListener("click",function(ev){
+    var id=ev.target&&ev.target.getAttribute("data-cancelar"); if(!id) return;
+    if(!confirm("Cancelar esta solicitação?")) return;
+    var ref=fs.collection(COL).doc(id);
+    fs.runTransaction(function(t){ return t.get(ref).then(function(d){
+      if(!d.exists||d.data().status!=="Pendente") throw new Error("Esta solicitação já foi analisada.");
+      t.update(ref,{status:"Cancelada",atualizadoEm:new Date().toISOString()});
+    });}).catch(function(e){ alert(e.message||"Não foi possível cancelar."); });
+  });
+
+  function escutar(){
+    estado.escutas.push(fs.collection("frota").doc("veiculos").onSnapshot(function(d){ estado.veiculos=(d.exists&&Array.isArray(d.data().dados))?d.data().dados:[]; montarVeiculos(); }, function(){ msg("msgReserva","Sem permissão para ler os veículos. Fale com o administrador."); }));
+    estado.escutas.push(fs.collection("frota").doc("saidaVeiculos").onSnapshot(function(d){ estado.saidas=(d.exists&&Array.isArray(d.data().dados))?d.data().dados:[]; }, function(){}));
+    estado.escutas.push(fs.collection(COL).onSnapshot(function(snap){
+      var l=[]; snap.forEach(function(d){ if(d.id==="_config"){ estado.zap=(d.data()||{}).whatsapp||"54999505407"; return; } l.push(Object.assign({id:d.id},d.data())); });
+      estado.solicitacoes=l; montarMinhas();
+    }, function(){ $("listaMinhas").textContent="Não foi possível carregar as solicitações."; }));
+  }
+
+  $("btnSolicitar").onclick = function(){
+    var u=auth.currentUser; if(!u) return;
+    var sol={ uid:u.uid, email:u.email||"", solicitante:estado.nome, placa:$("rVeiculo").value,
+      dataSaida:$("rDataSaida").value, horaSaida:$("rHoraSaida").value, dataChegada:$("rDataChegada").value, horaChegada:$("rHoraChegada").value,
+      destino:$("rDestino").value.trim(), motivo:$("rMotivo").value.trim(), status:"Pendente", criadoEm:new Date().toISOString() };
+    var idEdicao=editandoId;
+    if(idEdicao) sol.id=idEdicao;
+    var erro=R.validarSolicitacao(sol,{veiculos:estado.veiculos,saidas:estado.saidas,solicitacoes:estado.solicitacoes});
+    $("btnZap").style.display="none";
+    if(erro){ msg("msgReserva",erro); return; }
+    $("btnSolicitar").disabled=true; msg("msgReserva","Enviando...",true);
+    var gravacao;
+    if(idEdicao){
+      var ref=fs.collection(COL).doc(idEdicao);
+      gravacao=fs.runTransaction(function(t){return t.get(ref).then(function(d){
+        var atual=d.exists?d.data():null, erro=R.validarAcao(atual,u.uid,"editar"); if(erro) throw new Error(erro);
+        var up={}; ["placa","dataSaida","horaSaida","dataChegada","horaChegada","destino","motivo"].forEach(function(k){up[k]=sol[k];});
+        var conflito=R.validarSolicitacao(sol,{veiculos:estado.veiculos,saidas:estado.saidas,solicitacoes:estado.solicitacoes}); if(conflito) throw new Error(conflito);
+        up.atualizadoEm=firebase.firestore.FieldValue.serverTimestamp(); t.update(ref,up);
+      });});
+    } else gravacao=fs.collection(COL).add(sol);
+    gravacao.then(function(){
+      limparSolicitacao();
+      msg("msgReserva",idEdicao?"Alterações salvas. A solicitação continua pendente.":"Solicitação enviada. Ela aparece como Pendente até a aprovação.",true);
+      var link=R.linkWhatsApp(estado.zap,sol,idEdicao?"Solicitação de reserva atualizada":undefined);
+      if(link){ $("btnZap").href=link; $("btnZap").style.display="block"; } else avisoSemZap();
+    }).catch(function(e){ msg("msgReserva",e.message||"Não foi possível salvar agora. Tente novamente."); }).then(function(){ $("btnSolicitar").disabled=false; });
+  };
+
+  auth.onAuthStateChanged(function(u){
+    estado.escutas.forEach(function(f){ try{f();}catch(e){} }); estado.escutas=[];
+    $("telaLogin").classList.toggle("hidden",!!u); $("telaReserva").classList.toggle("hidden",!u); $("btnSair").classList.toggle("hidden",!u);
+    if(!u){ $("nomeTopo").textContent=""; limparSolicitacao(); irAba("reservar"); return; }
+    estado.nome=u.displayName||u.email||"Usuário"; $("rNome").textContent=estado.nome; $("nomeTopo").textContent=estado.nome;
+    estado.admin=false; fs.collection("usuarios").doc(u.uid).get().then(function(d){ if(d.exists&&d.data().tipo==="admin"){ estado.admin=true; montarHistorico(); } if(d.exists&&d.data().nome){ estado.nome=d.data().nome; $("rNome").textContent=estado.nome; $("nomeTopo").textContent=estado.nome; $("nomeTopo").textContent=estado.nome; } }).catch(function(){});
+    escutar();
+  });
+})();
+</script>
+</body>
+</html>
