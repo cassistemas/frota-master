@@ -368,23 +368,5 @@ main.historico-aberto{max-width:1180px}
   });
 })();
 </script>
-<script>
-/* Hora no celular: seletores de hora e minuto, que funcionam também no app instalado. */
-(function(){
-  function montar(id){
-    var inp=document.getElementById(id); if(!inp||inp.dataset.fmHora) return; inp.dataset.fmHora="1";
-    var box=document.createElement("div"); box.style.cssText="display:flex;gap:6px";
-    function sel(n,step,rot){ var s=document.createElement("select"); s.setAttribute("aria-label",rot); s.innerHTML='<option value="">--</option>'; for(var i=0;i<n;i+=step){var v=(i<10?"0":"")+i; s.innerHTML+='<option value="'+v+'">'+v+'</option>';} return s; }
-    var h=sel(24,1,"Hora"), m=sel(60,5,"Minuto"); box.appendChild(h); box.appendChild(m);
-    var proto=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value");
-    inp.type="hidden"; inp.parentNode.insertBefore(box,inp.nextSibling);
-    function mostrar(v){ var p=String(v||"").split(":"); h.value=p[0]||""; var mm=p[1]||""; if(mm&&!m.querySelector('option[value="'+mm+'"]')){var o=document.createElement("option");o.value=o.textContent=mm;m.appendChild(o);} m.value=mm; }
-    Object.defineProperty(inp,"value",{get:function(){return proto.get.call(inp);},set:function(v){proto.set.call(inp,v);mostrar(v);}});
-    function gravar(){ if(h.value&&!m.value) m.value="00"; proto.set.call(inp,h.value?h.value+":"+m.value:""); inp.dispatchEvent(new Event("change",{bubbles:true})); }
-    h.addEventListener("change",gravar); m.addEventListener("change",gravar); mostrar(proto.get.call(inp));
-  }
-  ["rHoraSaida","rHoraChegada"].forEach(montar);
-})();
-</script>
 </body>
 </html>
