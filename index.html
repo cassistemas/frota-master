@@ -4870,7 +4870,9 @@ if (!horaChegada) {
 const inicioNovo = new Date(`${data}T${hora}`);
 const fimNovo = new Date(`${dataChegada}T${horaChegada}`);
 
-if (fimNovo <= inicioNovo) {
+// Ao finalizar a viagem, saída e chegada podem ter o mesmo horário (devolução no mesmo minuto).
+const finalizando = (document.getElementById("svstatus") || {}).value === "Finalizado";
+if (finalizando ? fimNovo < inicioNovo : fimNovo <= inicioNovo) {
     alert("A data/hora de chegada deve ser maior que a data/hora de saída.");
     return;
 }
