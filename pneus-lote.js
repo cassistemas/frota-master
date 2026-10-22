@@ -34,7 +34,9 @@
 
   function salvarLote() {
     if ($('p_idx').value !== '') { alert('Cancele a edição do pneu antes de lançar vários pneus.'); return; }
-    if (!$('pveiculo').value) { alert('Selecione o veículo no formulário acima.'); return; }
+    var estoque = ($('pstatus') || {}).value === 'Estoque';
+    if (estoque) { $('pveiculo').value = ''; $('pkminstalacao').value = ''; }
+    else if (!$('pveiculo').value) { alert('Selecione o veículo no formulário acima.'); return; }
     var linhas = lerLinhas();
     if (!linhas.length) { alert('Informe o número de pelo menos um pneu.'); return; }
     var comum = {}; COMUNS.forEach(function (id) { comum[id] = $(id) ? $(id).value : ''; });
@@ -44,8 +46,9 @@
       var k = chave(l.num), rot = 'Pneu ' + l.num + ': ';
       if (existentes[k]) erros.push(rot + 'número já cadastrado.');
       if (vistos[k]) erros.push(rot + 'número repetido na lista.');
-      if (posUsadas[l.pos]) erros.push(rot + 'posição ' + l.pos + ' repetida.');
-      vistos[k] = posUsadas[l.pos] = 1;
+      if (estoque) l.pos = '';
+      else if (posUsadas[l.pos]) erros.push(rot + 'posição ' + l.pos + ' repetida.');
+      vistos[k] = 1; if (!estoque) posUsadas[l.pos] = 1;
       var obj = Object.assign({}, comum, { pnumero: l.num, pdot: l.dot, pposicao: l.pos, pid: 'lote-teste-' + i });
       if (l.marca) obj.pmarca = l.marca;
       if (l.valor) obj.pvalor = l.valor;
@@ -53,7 +56,7 @@
       if (plano.erro) erros.push(rot + plano.erro);
     });
     if (erros.length) { alert('Nada foi salvo. Corrija:\n\n' + erros.join('\n')); return; }
-    if (!confirm('Salvar ' + linhas.length + ' pneus no veículo ' + comum.pveiculo + '?')) return;
+    if (!confirm(estoque ? 'Salvar ' + linhas.length + ' pneus no estoque?' : 'Salvar ' + linhas.length + ' pneus no veículo ' + comum.pveiculo + '?')) return;
     var alerta = window.alert, falhas = [];
     linhas.forEach(function (l) {
       COMUNS.forEach(function (id) { if ($(id)) $(id).value = comum[id]; });
@@ -75,7 +78,7 @@
     cont.insertAdjacentHTML('beforeend',
       '<div id="pneusLote" class="mt-3"><button type="button" class="btn btn-outline-dark" id="plAbrir">🛞 Lançar vários pneus de uma vez</button>' +
       '<div id="plPainel" class="mt-3" style="display:none"><p class="text-muted mb-2">Preencha acima o veículo e os dados iguais para todos (marca, medida, valor, datas, KM, status). ' +
-      'Aqui informe só o que muda em cada pneu. Linhas sem número são ignoradas.</p>' +
+      'Aqui informe só o que muda em cada pneu. Linhas sem número são ignoradas. Com status Estoque, veículo e posição não são necessários.</p>' +
       '<label>Quantidade de pneus <input id="plQtd" type="number" min="1" max="30" value="6" class="form-control form-control-sm d-inline-block" style="width:80px"></label>' +
       '<div class="table-responsive mt-2"><table class="table table-sm"><thead><tr><th>#</th><th>Posição</th><th>Número</th><th>DOT</th><th>Marca (se diferente)</th><th>Valor (se diferente)</th></tr></thead><tbody id="plLinhas"></tbody></table></div>' +
       '<div class="text-end"><button type="button" class="btn btn-outline-secondary" id="plFechar">Cancelar</button> <button type="button" class="btn btn-dark" id="plSalvar">Salvar todos</button></div></div></div>');
