@@ -189,7 +189,7 @@
     if (escuta) return true;
     escuta = fs.collection(COL).onSnapshot(function (snap) {
       var l = []; snap.forEach(function (d) { if (d.id === "_config") { zap = (d.data() || {}).whatsapp || ""; return; } l.push(Object.assign({ id: d.id }, d.data())); });
-      lista = l; render();
+      lista = l; render(); if (window.FMAvisos && ehAdmin()) window.FMAvisos.admin(l);
     }, function () { var p = painel(); if (p) p.innerHTML = '<div class="text-muted" style="font-size:13px">Não foi possível carregar as solicitações de reserva.</div>'; });
     render();
     return true;

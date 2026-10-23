@@ -325,7 +325,7 @@ main.historico-aberto{max-width:1180px}
     estado.escutas.push(fs.collection("frota").doc("saidaVeiculos").onSnapshot(function(d){ estado.saidas=(d.exists&&Array.isArray(d.data().dados))?d.data().dados:[]; }, function(){}));
     estado.escutas.push(fs.collection(COL).onSnapshot(function(snap){
       var l=[]; snap.forEach(function(d){ if(d.id==="_config"){ estado.zap=(d.data()||{}).whatsapp||"54999505407"; return; } l.push(Object.assign({id:d.id},d.data())); });
-      estado.solicitacoes=l; montarMinhas();
+      estado.solicitacoes=l; montarMinhas(); try{ var u=auth.currentUser&&auth.currentUser.uid; if(window.FMAvisos) FMAvisos.reserva(l.filter(function(s){return s.uid===u;})); }catch(e){}
     }, function(){ $("listaMinhas").textContent="Não foi possível carregar as solicitações."; }));
   }
 
@@ -370,5 +370,6 @@ main.historico-aberto{max-width:1180px}
 </script>
 <script src="./hora-ok.js"></script>
 <script src="./reserva-senha.js"></script>
+<script src="./avisos-reserva.js"></script>
 </body>
 </html>
