@@ -186,7 +186,7 @@ main.historico-aberto{max-width:1180px}
         (s.enderecoDevolucao?'<small>Endereço da devolução: '+esc(s.enderecoDevolucao)+(s.latitude?' · <a target="_blank" rel="noopener" href="https://www.google.com/maps?q='+esc(s.latitude)+','+esc(s.longitude)+'">ver no mapa</a>':'')+'</small>':'')+
         (s.numeroReserva?'<small>Nº da reserva: '+esc(s.numeroReserva)+'</small>':'')+
         (s.motivoRecusa?'<small>Motivo da recusa: '+esc(s.motivoRecusa)+'</small>':'')+
-        (acoes&&s.status==="Pendente"?'<button class="link" data-cancelar="'+esc(s.id)+'">Cancelar solicitação</button>':'')+dev+(s.status==="Pendente"?botoesRegistro(s):'')+'</div>';
+        (acoes&&R.podeCancelar&&R.podeCancelar(s)?'<button class="link" data-cancelar="'+esc(s.id)+'">Cancelar solicitação</button>':'')+dev+(s.status==="Pendente"?botoesRegistro(s):'')+'</div>';
   }
   function botoesRegistro(s){
     return ""; // Solicitante nunca edita nem exclui.
@@ -312,11 +312,12 @@ main.historico-aberto{max-width:1180px}
   });
   $("listaMinhas").addEventListener("click",function(ev){
     var id=ev.target&&ev.target.getAttribute("data-cancelar"); if(!id) return;
-    if(!confirm("Cancelar esta solicitação?")) return;
+    if(!confirm("Cancelar esta solicitação?\nDepois de iniciada a viagem não é mais possível cancelar.")) return;
     var ref=fs.collection(COL).doc(id);
     fs.runTransaction(function(t){ return t.get(ref).then(function(d){
-      if(!d.exists||d.data().status!=="Pendente") throw new Error("Esta solicitação já foi analisada.");
-      t.update(ref,{status:"Cancelada",atualizadoEm:new Date().toISOString()});
+      if(!d.exists) throw new Error("Solicitação não encontrada.");
+      var dd=d.data(); if(!R.podeCancelar(dd)) throw new Error(dd.status==="Em aprovação"?"O administrador está analisando agora. Tente de novo em instantes.":"Não é possível cancelar: a viagem já foi iniciada ou a solicitação já foi encerrada.");
+      t.update(ref,{status:"Cancelada",canceladaApos:dd.status,canceladoEm:new Date().toISOString(),atualizadoEm:new Date().toISOString()});
     });}).catch(function(e){ alert(e.message||"Não foi possível cancelar."); });
   });
 

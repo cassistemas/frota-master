@@ -88,6 +88,12 @@
     return "";
   }
 
+  // Solicitante cancela antes ou depois de aprovada, nunca depois de iniciada a viagem.
+  function podeCancelar(sol) {
+    if (!sol || sol.dataSaidaReal || sol.saidaRealEm) return false;
+    return sol.status === "Pendente" || sol.status === "Aprovada";
+  }
+
   function linkWhatsApp(numero, sol, titulo) {
     var dig = String(numero || "").replace(/\D/g, "");
     if (dig.length < 10) return "";
@@ -103,7 +109,7 @@
     return "https://wa.me/" + dig + "?text=" + encodeURIComponent(txt);
   }
 
-  var api = { validarAcao: validarAcao, validarAcaoAdmin: validarAcaoAdmin, validarSolicitacao: validarSolicitacao, validarDevolucao: validarDevolucao, veiculoDisponivel: veiculoDisponivel, linkWhatsApp: linkWhatsApp, placaNorm: placaNorm, dataBR: dataBR };
+  var api = { podeCancelar: podeCancelar, validarAcao: validarAcao, validarAcaoAdmin: validarAcaoAdmin, validarSolicitacao: validarSolicitacao, validarDevolucao: validarDevolucao, veiculoDisponivel: veiculoDisponivel, linkWhatsApp: linkWhatsApp, placaNorm: placaNorm, dataBR: dataBR };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (raiz) raiz.FMReservasRegras = api;
 })(typeof window !== "undefined" ? window : (typeof globalThis !== "undefined" ? globalThis : null));

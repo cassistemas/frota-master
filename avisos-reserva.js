@@ -67,6 +67,7 @@
       lista.forEach(function (s) {
         if (antes[s.id] === s.status) return;
         if (s.status === "Pendente") avisar("Nova solicitação de reserva", (s.solicitante || "") + " · " + s.placa + " · " + (s.destino || ""), "#0d6efd");
+        else if (s.status === "Cancelada" && antes[s.id] === "Aprovada") avisar("Reserva aprovada foi cancelada", (s.solicitante || "") + " · " + s.placa + (s.numeroReserva ? " · Nº " + s.numeroReserva + " — libere em Saída de Veículos" : ""), "#6c757d");
         else if (s.status === "Devolução informada") avisar("Devolução informada", (s.solicitante || "") + " · " + s.placa, "#0dcaf0");
       });
     },
