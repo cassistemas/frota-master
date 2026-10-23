@@ -8511,7 +8511,7 @@ function salvarPneu(){
         psulco: document.getElementById('psulco').value,
         pveiculo: document.getElementById('pveiculo').value,
         pfornecedor: document.getElementById('pfornecedor').value,
-        pposicao: document.getElementById('pposicao').value,
+        pposicao: document.getElementById('pstatus').value === 'Estoque' ? '' : document.getElementById('pposicao').value,
         pkminstalacao: document.getElementById('pkminstalacao').value,
         pkmatual: document.getElementById('pkmatual').value,
         pkmrodado: document.getElementById('pkmrodado').value,
