@@ -1081,7 +1081,9 @@ filtrados;
 }
 
 if(modulo === 'combustivel'){
-        const dados = getDadosPaginados('combustivel');
+        if (typeof window.atualizarSelectsFiltros === 'function') { try { window.atualizarSelectsFiltros(); } catch (e) {} }
+        const filtradosComb = typeof obterCombustiveisFiltrados === 'function' ? obterCombustiveisFiltrados() : (db.combustivel || []);
+        const dados = getDadosPaginadosCustom(filtradosComb, 'combustivel');
 
         document.getElementById('listaCombustivel').innerHTML =
 dados.map(c => {
@@ -1129,7 +1131,10 @@ dados.map(c => {
     `;
 }).join('');
 
-        renderPaginacao('combustivel', 'paginacaoCombustivel');
+        renderPaginacaoCustom(filtradosComb, 'combustivel', 'paginacaoCombustivel');
+        const pagC = document.getElementById('paginacaoCombustivel'); if (pagC) pagC.style.display = '';
+        const contC = document.getElementById('contFiltro_combustivel');
+        if (contC) contC.textContent = filtradosComb.length !== (db.combustivel || []).length ? filtradosComb.length + ' registro(s) encontrado(s)' : '';
     }
 
 if(modulo=="motoristas"){
