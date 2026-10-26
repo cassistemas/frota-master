@@ -300,9 +300,17 @@
         ] }],
         generationConfig: { temperature: 0 }
       };
-      return fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(chave), {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo)
-      });
+      // Tenta vários modelos: o Google retira nomes antigos (erro 404)
+      var modelos = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-lite-latest', 'gemini-1.5-flash'];
+      function tentar(i) {
+        return fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelos[i] + ':generateContent?key=' + encodeURIComponent(chave), {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo)
+        }).then(function (r) {
+          if ((r.status === 404 || r.status === 503) && i + 1 < modelos.length) return tentar(i + 1);
+          return r;
+        });
+      }
+      return tentar(0);
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
         if (!r.ok) {
@@ -333,7 +341,9 @@
       return u.getIdToken();
     }).then(function (token) {
       aviso('Lendo o cupom com leitura inteligente...');
-      return fetch('/api/public/ler-cupom', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ imagem: canvas.toDataURL('image/jpeg', 0.85) }) });
+      // Fora do Lovable (ex.: frotamaster.com.br) usa o servidor publicado do Lovable
+      var base = /(\.lovable\.app|\.lovableproject\.com|localhost)$/.test(location.hostname) ? '' : 'https://project--db537476-20d3-42a5-90a4-7109290f0111.lovable.app';
+      return fetch(base + '/api/public/ler-cupom', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ imagem: canvas.toDataURL('image/jpeg', 0.85) }) });
     }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || !j.dados) throw new Error({ LOGIN: 'faça login novamente', CREDITOS: 'créditos de IA esgotados', LIMITE: 'muitas leituras seguidas' }[j.erro] || 'sem resposta'); return j.dados; }); })
       .then(function (x) { return interpretarIA(x, canvas); });
   }
@@ -416,9 +426,10 @@
     inp.addEventListener('change', function () {
       var f = inp.files && inp.files[0]; if (!f) return;
       inp.disabled = true; el('cFotoResultado').innerHTML = ''; aviso('Preparando leitura...');
-      lerGeminiDireto(f, aviso).catch(function (e) {
-        if (e && e.message !== 'sem chave do Gemini') console.warn('Leitura Gemini direta indisponível', e);
-        return lerIA(f, aviso).catch(function (e2) { throw (e && e.message !== 'sem chave do Gemini') ? e : e2; });
+      // Ordem: servidor do Lovable -> chave do Gemini -> leitura local
+      lerIA(f, aviso).catch(function (e) {
+        console.warn('Leitura pelo servidor indisponível', e);
+        return lerGeminiDireto(f, aviso).catch(function (e2) { throw (e2 && e2.message !== 'sem chave do Gemini') ? e2 : e; });
       }).catch(function (e) {
         console.warn('Leitura IA indisponível', e);
         aviso('Leitura inteligente indisponível (' + (e && e.message || 'erro') + '). Usando a leitura local...');
