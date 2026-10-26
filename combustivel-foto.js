@@ -1,8 +1,11 @@
-/* Combustível: ler foto do cupom no próprio computador, com melhoria da imagem e várias tentativas,
-   pré-preencher o formulário para conferência e descartar a foto. Nada é salvo antes de clicar em Salvar. */
+/* Combustível: ler foto do cupom. Ordem: 1) Gemini direto com a chave salva no aparelho (funciona em
+   qualquer endereço, inclusive frotamaster.com.br); 2) leitura inteligente do Lovable (usuário logado);
+   3) leitura local no próprio computador. Pré-preenche o formulário para conferência e descarta a foto.
+   Nada é salvo antes de clicar em Salvar. */
 (function () {
   'use strict';
   var BASE = 'vendor/';
+  var CHAVE_LS = 'fmGeminiKey';
   function el(id) { return document.getElementById(id); }
   function N(p) { return String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
   function carregarScript(src, pronto) {
@@ -259,29 +262,79 @@
     }).then(function (res) { if (worker) worker.terminate(); img = null; return res; }, function (e) { if (worker) worker.terminate(); throw e; });
   }
 
-  /* ---------- Leitura inteligente (Gemini), só para usuário logado ---------- */
+  /* ---------- Interpreta a resposta do Gemini (mesmo formato nas duas leituras) ---------- */
+  var PROMPT_IA = 'Você lê cupons fiscais de abastecimento de combustível do Brasil.\n' +
+    'Responda SOMENTE com um JSON, sem texto extra, no formato:\n' +
+    '{"data":"AAAA-MM-DD ou vazio","posto":"razão social do posto ou vazio","cnpj":"CNPJ do posto ou vazio","placa":"placa do veículo sem traço ou vazio","km":número ou null,"tipo":"um de: Diesel S10, Diesel S500, Gasolina, Etanol, Arla32, ou vazio","litros":número ou null,"valorLitro":número ou null,"total":número ou null}\n' +
+    'Use ponto como separador decimal. Não invente: deixe vazio/null o que não estiver legível.';
+  function interpretarIA(x, canvas) {
+    function n(v) { var k = typeof v === 'number' ? v : num(String(v || '')); return k > 0 ? k : 0; }
+    var d = { data: /^\d{4}-\d{2}-\d{2}$/.test(x.data || '') ? x.data : '', posto: String(x.posto || '').trim(), cnpj: String(x.cnpj || '').trim(), placas: x.placa ? [N(x.placa)] : [], km: n(x.km) ? String(Math.round(n(x.km))) : '', tipo: String(x.tipo || '').trim(), litros: n(x.litros), valorLitro: n(x.valorLitro), total: n(x.total) };
+    if (d.litros && d.valorLitro && d.total) { if (Math.abs(d.litros * d.valorLitro - d.total) <= Math.max(0.1, d.total * 0.005)) d.conferido = true; else d.divergente = true; }
+    if (!d.litros && !d.total && !d.data) throw new Error('cupom não reconhecido');
+    return { dados: d, canvas: canvas };
+  }
+  function imagemParaIA(arquivo, aviso) {
+    return carregarImagem(arquivo, aviso).then(function (img) {
+      var k = Math.min(1, 1600 / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.round((img.naturalWidth || img.width) * k); canvas.height = Math.round((img.naturalHeight || img.height) * k);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      return canvas;
+    });
+  }
+
+  /* ---------- Leitura inteligente direta no Gemini, com a chave salva no aparelho ---------- */
+  function chaveGemini() { try { return String(localStorage.getItem(CHAVE_LS) || '').trim(); } catch (e) { return ''; } }
+  function lerGeminiDireto(arquivo, aviso) {
+    var chave = chaveGemini();
+    if (!chave) return Promise.reject(new Error('sem chave do Gemini'));
+    var canvas;
+    return imagemParaIA(arquivo, aviso).then(function (c) {
+      canvas = c;
+      aviso('Lendo o cupom com o Gemini...');
+      var corpo = {
+        contents: [{ parts: [
+          { text: PROMPT_IA },
+          { inline_data: { mime_type: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.85).split(',')[1] } }
+        ] }],
+        generationConfig: { temperature: 0 }
+      };
+      return fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(chave), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo)
+      });
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) {
+          var msg = (j && j.error && j.error.message) || '';
+          if (r.status === 400 && /key|API_KEY/i.test(msg)) throw new Error('chave do Gemini inválida — confira a chave salva');
+          if (r.status === 403) throw new Error('chave do Gemini sem permissão — confira a chave salva');
+          if (r.status === 429) throw new Error('limite de leituras do Gemini atingido — tente de novo em instantes');
+          throw new Error('Gemini não respondeu (' + r.status + ')');
+        }
+        var texto = '';
+        try { texto = String(j.candidates[0].content.parts.map(function (p) { return p.text || ''; }).join('')); } catch (e) { texto = ''; }
+        var m = texto.match(/\{[\s\S]*\}/);
+        if (!m) throw new Error('cupom não reconhecido');
+        return interpretarIA(JSON.parse(m[1]), canvas);
+      });
+    });
+  }
+
+  /* ---------- Leitura inteligente (Gemini via Lovable), só para usuário logado ---------- */
   function lerIA(arquivo, aviso) {
     if (!/^https?:$/.test(location.protocol)) return Promise.reject(new Error('sistema aberto fora da internet'));
     var u = window.firebase && firebase.auth && firebase.auth().currentUser;
     if (!u) return Promise.reject(new Error('faça login'));
     var canvas;
-    return carregarImagem(arquivo, aviso).then(function (img) {
-      var k = Math.min(1, 1600 / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
-      canvas = document.createElement('canvas');
-      canvas.width = Math.round((img.naturalWidth || img.width) * k); canvas.height = Math.round((img.naturalHeight || img.height) * k);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    return imagemParaIA(arquivo, aviso).then(function (c) {
+      canvas = c;
       return u.getIdToken();
     }).then(function (token) {
       aviso('Lendo o cupom com leitura inteligente...');
       return fetch('/api/public/ler-cupom', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ imagem: canvas.toDataURL('image/jpeg', 0.85) }) });
     }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || !j.dados) throw new Error({ LOGIN: 'faça login novamente', CREDITOS: 'créditos de IA esgotados', LIMITE: 'muitas leituras seguidas' }[j.erro] || 'sem resposta'); return j.dados; }); })
-      .then(function (x) {
-        function n(v) { var k = typeof v === 'number' ? v : num(String(v || '')); return k > 0 ? k : 0; }
-        var d = { data: /^\d{4}-\d{2}-\d{2}$/.test(x.data || '') ? x.data : '', posto: String(x.posto || '').trim(), cnpj: String(x.cnpj || '').trim(), placas: x.placa ? [N(x.placa)] : [], km: n(x.km) ? String(Math.round(n(x.km))) : '', tipo: String(x.tipo || '').trim(), litros: n(x.litros), valorLitro: n(x.valorLitro), total: n(x.total) };
-        if (d.litros && d.valorLitro && d.total) { if (Math.abs(d.litros * d.valorLitro - d.total) <= Math.max(0.1, d.total * 0.005)) d.conferido = true; else d.divergente = true; }
-        if (!d.litros && !d.total && !d.data) throw new Error('cupom não reconhecido');
-        return { dados: d, canvas: canvas };
-      });
+      .then(function (x) { return interpretarIA(x, canvas); });
   }
 
   /* ---------- Preencher formulário e mostrar conferência ---------- */
@@ -317,19 +370,55 @@
     el('cFotoFechar').onclick = function () { box.innerHTML = ''; };
   }
 
+  /* ---------- Campo da chave do Gemini (fica salva só neste aparelho) ---------- */
+  function montarChave(w) {
+    var box = document.createElement('div');
+    box.className = 'mt-2 p-2 border rounded';
+    box.innerHTML = '<label class="form-label fw-semibold mb-1" for="cGeminiKey">🔑 Chave do Gemini (leitura inteligente do cupom)</label>' +
+      '<div class="d-flex gap-2 flex-wrap">' +
+      '<input type="password" id="cGeminiKey" class="form-control form-control-sm" style="max-width:340px" placeholder="Cole aqui a chave criada no Google AI Studio" autocomplete="off" data-nao-limpar>' +
+      '<button type="button" class="btn btn-sm btn-primary" id="cGeminiKeySalvar">Salvar chave</button>' +
+      '<button type="button" class="btn btn-sm btn-outline-danger" id="cGeminiKeyApagar">Apagar</button>' +
+      '</div>' +
+      '<div class="small text-muted mt-1" id="cGeminiKeyAviso"></div>' +
+      '<div class="small text-muted">Crie a chave grátis em <b>aistudio.google.com</b> (botão "Get API key") com a sua conta Google. Ela fica salva só neste aparelho. Sem ela, o cupom é lido pelo leitor simples.</div>';
+    w.appendChild(box);
+    var inp = el('cGeminiKey'), aviso = el('cGeminiKeyAviso');
+    function estado() {
+      var tem = !!chaveGemini();
+      aviso.textContent = tem ? 'Chave salva neste aparelho. A leitura inteligente está ativa.' : 'Nenhuma chave salva neste aparelho.';
+      aviso.className = 'small mt-1 ' + (tem ? 'text-success' : 'text-muted');
+    }
+    el('cGeminiKeySalvar').onclick = function () {
+      var v = String(inp.value || '').trim();
+      if (v.length < 20) { aviso.textContent = 'Chave muito curta. Copie a chave inteira do Google AI Studio.'; aviso.className = 'small mt-1 text-danger'; return; }
+      try { localStorage.setItem(CHAVE_LS, v); } catch (e) { aviso.textContent = 'Não foi possível salvar a chave neste aparelho.'; aviso.className = 'small mt-1 text-danger'; return; }
+      inp.value = ''; estado();
+    };
+    el('cGeminiKeyApagar').onclick = function () {
+      try { localStorage.removeItem(CHAVE_LS); } catch (e) {}
+      inp.value = ''; estado();
+    };
+    estado();
+  }
+
   function montar() {
     var form = el('c_idx'); if (!form || el('cFotoCupom')) return;
     var w = document.createElement('div'); w.className = 'mb-3';
     w.innerHTML = '<label class="form-label fw-semibold" for="cFotoCupom">📷 Ler foto do cupom de abastecimento</label>' +
       '<input type="file" id="cFotoCupom" accept="image/*,.heic,.heif,.pdf,application/pdf" class="form-control" data-nao-limpar>' +
-      '<div id="cFotoAviso" class="small text-muted mt-1">Aceita JPG, PNG, WEBP, BMP, HEIC, HEIF e PDF (primeira página), até 20 MB. O arquivo é lido aqui, preenche os campos para conferência e é descartado. Nada é salvo até clicar em Salvar.</div>' +
+      '<div id="cFotoAviso" class="small text-muted mt-1">Aceita JPG, PNG, WEBP, BMP, HEIC, HEIF e PDF (primeira página), até 20 MB. O arquivo é lido, preenche os campos para conferência e é descartado. Nada é salvo até clicar em Salvar.</div>' +
       '<div id="cFotoResultado" data-nao-limpar></div>';
     form.parentNode.insertBefore(w, form.nextSibling);
+    montarChave(w);
     var inp = el('cFotoCupom'), aviso = function (t) { el('cFotoAviso').textContent = t; };
     inp.addEventListener('change', function () {
       var f = inp.files && inp.files[0]; if (!f) return;
       inp.disabled = true; el('cFotoResultado').innerHTML = ''; aviso('Preparando leitura...');
-      lerIA(f, aviso).catch(function (e) {
+      lerGeminiDireto(f, aviso).catch(function (e) {
+        if (e && e.message !== 'sem chave do Gemini') console.warn('Leitura Gemini direta indisponível', e);
+        return lerIA(f, aviso);
+      }).catch(function (e) {
         console.warn('Leitura IA indisponível', e);
         aviso('Leitura inteligente indisponível (' + (e && e.message || 'erro') + '). Usando a leitura local...');
         return ler(f, aviso);
