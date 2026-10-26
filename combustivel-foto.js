@@ -316,7 +316,8 @@
         try { texto = String(j.candidates[0].content.parts.map(function (p) { return p.text || ''; }).join('')); } catch (e) { texto = ''; }
         var m = texto.match(/\{[\s\S]*\}/);
         if (!m) throw new Error('cupom não reconhecido');
-        return interpretarIA(JSON.parse(m[1]), canvas);
+        var obj; try { obj = JSON.parse(m[0]); } catch (e) { throw new Error('resposta do Gemini ilegível'); }
+        return interpretarIA(obj, canvas);
       });
     });
   }
@@ -417,7 +418,7 @@
       inp.disabled = true; el('cFotoResultado').innerHTML = ''; aviso('Preparando leitura...');
       lerGeminiDireto(f, aviso).catch(function (e) {
         if (e && e.message !== 'sem chave do Gemini') console.warn('Leitura Gemini direta indisponível', e);
-        return lerIA(f, aviso);
+        return lerIA(f, aviso).catch(function (e2) { throw (e && e.message !== 'sem chave do Gemini') ? e : e2; });
       }).catch(function (e) {
         console.warn('Leitura IA indisponível', e);
         aviso('Leitura inteligente indisponível (' + (e && e.message || 'erro') + '). Usando a leitura local...');
