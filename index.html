@@ -2446,6 +2446,20 @@ Limpar
             </div>
 
             <div class="col-md-2">
+                <input id="cvalortotalprev" class="form-control" placeholder="Valor total (R$)" title="Litros × Valor por litro (calculado automaticamente)" readonly tabindex="-1">
+            </div>
+            <script>
+            (function(){
+              function n(id){var e=document.getElementById(id);return e?parseFloat(String(e.value||'').replace(/\s|R\$/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'))||0:0;}
+              function calc(){var o=document.getElementById('cvalortotalprev');if(!o)return;var l=n('clitros'),v=n('cvalorlitro');o.value=(l&&v)?(Math.round(l*v*100)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'';}
+              document.addEventListener('input',function(e){if(e.target&&(e.target.id==='clitros'||e.target.id==='cvalorlitro'))calc();});
+              document.addEventListener('change',function(e){if(e.target&&(e.target.id==='clitros'||e.target.id==='cvalorlitro'))calc();});
+              document.addEventListener('click',function(){setTimeout(calc,150);},true);
+              window.fmCalcTotalCombustivel=calc;
+            })();
+            </script>
+
+            <div class="col-md-2">
             <input id="ckm" class="form-control" placeholder="KM Atual">
             </div>
 

@@ -259,6 +259,31 @@
     }).then(function (res) { if (worker) worker.terminate(); img = null; return res; }, function (e) { if (worker) worker.terminate(); throw e; });
   }
 
+  /* ---------- Leitura inteligente (Gemini), só para usuário logado ---------- */
+  function lerIA(arquivo, aviso) {
+    if (!/^https?:$/.test(location.protocol)) return Promise.reject(new Error('sistema aberto fora da internet'));
+    var u = window.firebase && firebase.auth && firebase.auth().currentUser;
+    if (!u) return Promise.reject(new Error('faça login'));
+    var canvas;
+    return carregarImagem(arquivo, aviso).then(function (img) {
+      var k = Math.min(1, 1600 / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+      canvas = document.createElement('canvas');
+      canvas.width = Math.round((img.naturalWidth || img.width) * k); canvas.height = Math.round((img.naturalHeight || img.height) * k);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      return u.getIdToken();
+    }).then(function (token) {
+      aviso('Lendo o cupom com leitura inteligente...');
+      return fetch('/api/public/ler-cupom', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ imagem: canvas.toDataURL('image/jpeg', 0.85) }) });
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || !j.dados) throw new Error({ LOGIN: 'faça login novamente', CREDITOS: 'créditos de IA esgotados', LIMITE: 'muitas leituras seguidas' }[j.erro] || 'sem resposta'); return j.dados; }); })
+      .then(function (x) {
+        function n(v) { var k = typeof v === 'number' ? v : num(String(v || '')); return k > 0 ? k : 0; }
+        var d = { data: /^\d{4}-\d{2}-\d{2}$/.test(x.data || '') ? x.data : '', posto: String(x.posto || '').trim(), cnpj: String(x.cnpj || '').trim(), placas: x.placa ? [N(x.placa)] : [], km: n(x.km) ? String(Math.round(n(x.km))) : '', tipo: String(x.tipo || '').trim(), litros: n(x.litros), valorLitro: n(x.valorLitro), total: n(x.total) };
+        if (d.litros && d.valorLitro && d.total) { if (Math.abs(d.litros * d.valorLitro - d.total) <= Math.max(0.1, d.total * 0.005)) d.conferido = true; else d.divergente = true; }
+        if (!d.litros && !d.total && !d.data) throw new Error('cupom não reconhecido');
+        return { dados: d, canvas: canvas };
+      });
+  }
+
   /* ---------- Preencher formulário e mostrar conferência ---------- */
   function br(v, casas) { return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: casas || 2 }); }
   function preencher(d) {
@@ -304,7 +329,11 @@
     inp.addEventListener('change', function () {
       var f = inp.files && inp.files[0]; if (!f) return;
       inp.disabled = true; el('cFotoResultado').innerHTML = ''; aviso('Preparando leitura...');
-      ler(f, aviso).then(function (res) {
+      lerIA(f, aviso).catch(function (e) {
+        console.warn('Leitura IA indisponível', e);
+        aviso('Leitura inteligente indisponível (' + (e && e.message || 'erro') + '). Usando a leitura local...');
+        return ler(f, aviso);
+      }).then(function (res) {
         if (!res) throw new Error('sem resultado');
         var r = preencher(res.dados); mostrar(r, res.canvas); res.canvas = null;
         aviso(r.faltam.length || r.conferir.length ? 'Pré-lançamento preenchido. Confira os itens marcados, complete o que falta e clique em Salvar.' : 'Pré-lançamento preenchido. Confira os dados e clique em Salvar.');
