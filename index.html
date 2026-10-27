@@ -4438,21 +4438,7 @@ if(mod === 'manutencoes' && obj.mveiculo && obj.mkm){
 
 }
 
-if(mod === 'combustivel' && obj.cveiculo && obj.ckm){
-
-    let vei = db.veiculos.find(
-        v => v.vplaca === obj.cveiculo
-    );
-
-    if(vei && (!importacaoCombustivel || Number(obj.ckm) > Number(vei.vkm || 0))){
-
-        fmRegistrarHistoricoKm(vei, obj.ckm, "Combustível");
-        vei.vkm = Number(obj.ckm);
-        fmAplicarKmTotalVeiculo(vei);
-
-    }
-
-}
+// KM do Combustível fica só no abastecimento: não altera KM do veículo nem outros módulos.
 
 if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno){
 
