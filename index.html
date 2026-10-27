@@ -2467,9 +2467,23 @@ Limpar
                 <input id="cposto" class="form-control" placeholder="Posto">
             </div>
 
+            <div class="col-md-12 small fw-semibold text-muted mt-1" id="cArlaTitulo">ARLA 32 no mesmo cupom (opcional — salva junto)</div>
+            <div class="col-md-2"><input id="carlaLitros" class="form-control" placeholder="ARLA litros" inputmode="decimal"></div>
+            <div class="col-md-2"><input id="carlaValor" class="form-control" placeholder="ARLA valor/L" inputmode="decimal"></div>
+            <div class="col-md-2"><input id="carlaTotal" class="form-control" placeholder="ARLA total (R$)" readonly></div>
+            <script>
+            (function(){
+              function num(v){v=String(v||'').trim();if(v.indexOf(',')>=0)v=v.replace(/\./g,'').replace(',','.');return parseFloat(v)||0;}
+              function calcA(){var l=num((document.getElementById('carlaLitros')||{}).value),v=num((document.getElementById('carlaValor')||{}).value),t=document.getElementById('carlaTotal');if(t)t.value=l&&v?(l*v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'';}
+              document.addEventListener('input',function(e){if(e.target&&(e.target.id==='carlaLitros'||e.target.id==='carlaValor'))calcA();});
+              window.fmNumArla=num; window.fmCalcArla=calcA;
+              window.fmLimparArla=function(){['carlaLitros','carlaValor','carlaTotal'].forEach(function(id){var c=document.getElementById(id);if(c)c.value='';});};
+            })();
+            </script>
+
             <div class="col-md-12 text-end">
                 <button class="btn btn-primary" onclick="salvarCombustivelCustom()">Salvar</button>
-                <button class="btn btn-outline-secondary" onclick="limparForm('combustivel', ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'ckm', 'cposto'], 'c_idx')">Cancelar</button>            </div>
+                <button class="btn btn-outline-secondary" onclick="limparForm('combustivel', ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'ckm', 'cposto'], 'c_idx'); if (window.fmLimparArla) fmLimparArla(); window.fmArlaPendente = null;">Cancelar</button>            </div>
         </div>
     </div>
 
@@ -5141,26 +5155,30 @@ document.getElementById('ckm').value = km;
     document.getElementById('clitros').value = litros;
     document.getElementById('cvalorlitro').value = valor;
 
+    // ARLA 32 do mesmo cupom (campos próprios, salvos junto)
+    const numA = window.fmNumArla || (x => parseFloat(String(x || '').replace(',', '.')) || 0);
+    const arlaL = numA((document.getElementById('carlaLitros') || {}).value);
+    const arlaV = numA((document.getElementById('carlaValor') || {}).value);
+    const tipoSalvo = (document.getElementById('ctipo') || {}).value || '';
+    const comArla = idxAntesDeSalvar === '' && tipoSalvo !== 'Arla32' && (arlaL > 0 || arlaV > 0);
+    if (comArla && !(arlaL > 0 && arlaV > 0)) { alert('Preencha litros e valor por litro do ARLA 32, ou deixe os dois vazios.'); return; }
+
     // Bloqueia cupom repetido (mesmo veículo, data, tipo, litros e valor/L)
+    const ve = document.getElementById('cveiculo').value, dt = document.getElementById('cdata').value;
+    const postoSalvo = (document.getElementById('cposto') || {}).value || '';
+    const n = x => Math.round((parseFloat(String(x == null ? '' : x).replace(',', '.')) || 0) * 1000);
+    const jaLancado = (tp, l, v) => (db.combustivel || []).some(r => String(r.cveiculo) === String(ve) && String(r.cdata) === String(dt) && String(r.ctipo) === String(tp) && n(r.clitros) === n(l) && n(r.cvalorlitro) === n(v) && (!km || !Number(r.ckm) || Number(r.ckm) === km));
     if (idxAntesDeSalvar === '') {
-        const n = x => Math.round((parseFloat(String(x == null ? '' : x).replace(',', '.')) || 0) * 1000);
-        const ve = document.getElementById('cveiculo').value, dt = document.getElementById('cdata').value, tp = document.getElementById('ctipo').value;
-        const dup = (db.combustivel || []).some(r => String(r.cveiculo) === String(ve) && String(r.cdata) === String(dt) && String(r.ctipo) === String(tp) && n(r.clitros) === n(litros) && n(r.cvalorlitro) === n(valor) && (!km || !Number(r.ckm) || Number(r.ckm) === km));
-        if (dup) { alert('Este cupom já foi lançado (mesmo veículo, data, combustível, litros e valor por litro). O lançamento em duplicidade foi bloqueado.'); return; }
+        if (jaLancado(tipoSalvo, litros, valor)) { alert('Este cupom já foi lançado (mesmo veículo, data, combustível, litros e valor por litro). O lançamento em duplicidade foi bloqueado.'); return; }
+        if (comArla && jaLancado('Arla32', arlaL, arlaV)) { alert('O ARLA 32 deste cupom já foi lançado. O lançamento em duplicidade foi bloqueado.'); return; }
     }
 
     // salva normalmente
-    const tipoSalvo = (document.getElementById('ctipo') || {}).value || '';
     const okSalvar = salvar('combustivel', campos, idxCampo);
-    if (okSalvar !== false) {
-        const rf = document.getElementById('cFotoResultado'); if (rf) rf.innerHTML = '';
-        const av = document.getElementById('cFotoAviso'); if (av) av.textContent = 'Cupom lançado. Envie outra foto para ler o próximo cupom.';
-        const fc = document.getElementById('cFotoCupom'); if (fc) fc.value = '';
-        // ARLA 32 do mesmo cupom: preenche o próximo lançamento, igual ao diesel
-        if (idxAntesDeSalvar === '' && tipoSalvo !== 'Arla32' && typeof window.fmPreencherArlaPendente === 'function') setTimeout(window.fmPreencherArlaPendente, 400);
-        else if (window.fmArlaPendente && tipoSalvo === 'Arla32') window.fmArlaPendente = null;
-    }
     if (okSalvar === false) return;
+    window.fmArlaPendente = null;
+    const rf = document.getElementById('cFotoResultado'); if (rf) rf.innerHTML = '';
+    const fc = document.getElementById('cFotoCupom'); if (fc) fc.value = '';
 
     // 🔥 SALVAR TOTAL NO ÚLTIMO REGISTRO
     const indiceSalvo = idxAntesDeSalvar === ''
@@ -5168,8 +5186,25 @@ document.getElementById('ckm').value = km;
         : Number(idxAntesDeSalvar);
     if (db.combustivel[indiceSalvo]) {
         db.combustivel[indiceSalvo].ctotal = total;
-        salvarNuvem();
     }
+
+    // Segundo lançamento: ARLA 32 com os mesmos veículo, data, KM e posto
+    let msg = 'Cupom lançado. Envie outra foto para ler o próximo cupom.';
+    if (comArla) {
+        const set = (id, v) => { const c = document.getElementById(id); if (c) { c.value = v; if (c._flatpickr) c._flatpickr.setDate(v, false); } };
+        set('cveiculo', ve); set('cdata', dt); set('ctipo', 'Arla32'); set('clitros', arlaL); set('cvalorlitro', arlaV); set('ckm', km || ''); set('cposto', postoSalvo); set(idxCampo, '');
+        const okArla = salvar('combustivel', campos, idxCampo);
+        if (okArla !== false) {
+            const ult = db.combustivel[db.combustivel.length - 1];
+            if (ult) ult.ctotal = arlaL * arlaV;
+            msg = 'Cupom lançado: combustível e ARLA 32 salvos juntos.';
+        } else {
+            msg = 'Combustível salvo, mas o ARLA 32 não foi salvo. Confira os dados do ARLA.';
+        }
+    }
+    if (window.fmLimparArla) window.fmLimparArla();
+    salvarNuvem();
+    const av = document.getElementById('cFotoAviso'); if (av) av.textContent = msg;
 
     // atualizar tela
     irParaUltimaPagina('combustivel');
@@ -9496,7 +9531,7 @@ style="width:100%; height:400px; border:none;">
 <script src="./instalar-app.js?v=1"></script>
 <script src="./editar-rolar.js?v=1"></script>
 <script src="./salvar-hd.js?v=2"></script>
-<script src="combustivel-foto.js?v=8"></script>
+<script src="combustivel-foto.js?v=11"></script>
 <link rel="stylesheet" href="combustivel-planilha.css?v=1">
 <script src="combustivel-planilha-dados.js?v=1"></script>
 <script src="combustivel-planilha.js?v=1"></script>

@@ -293,7 +293,7 @@
   }
   function imagemParaIA(arquivo, aviso) {
     return carregarImagem(arquivo, aviso).then(function (img) {
-      var k = Math.min(1, 1280 / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+      var k = Math.min(1, 1600 / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
       var canvas = document.createElement('canvas');
       canvas.width = Math.round((img.naturalWidth || img.width) * k); canvas.height = Math.round((img.naturalHeight || img.height) * k);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -313,9 +313,9 @@
       var corpo = {
         contents: [{ parts: [
           { text: PROMPT_IA },
-          { inline_data: { mime_type: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.8).split(',')[1] } }
+          { inline_data: { mime_type: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.85).split(',')[1] } }
         ] }],
-        generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
+        generationConfig: { temperature: 0 }
       };
       // Tenta vários modelos: o Google retira nomes antigos (erro 404)
       var modelos = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-lite-latest', 'gemini-1.5-flash'];
@@ -382,9 +382,11 @@
     if (d.divergente) conferir.push('litros × valor/L não bate com o total do cupom');
     if (d.km) { set('ckm', d.km); lidos.push('KM: ' + d.km); } else faltam.push('KM atual');
     window.fmArlaPendente = null;
+    if (window.fmLimparArla) window.fmLimparArla();
     if (d.arla && d.tipo !== 'Arla32') {
-      window.fmArlaPendente = { veiculo: v ? v.o.value : '', data: d.data || '', km: d.km || '', posto: d.posto || '', litros: d.arla.litros, valorLitro: d.arla.valorLitro, total: d.arla.total };
-      lidos.push('ARLA 32 no mesmo cupom: ' + br(d.arla.litros, 3) + ' L × R$ ' + br(d.arla.valorLitro, 3) + ' = R$ ' + br(d.arla.total) + ' — após salvar o combustível, o ARLA 32 é preenchido para o segundo lançamento');
+      set('carlaLitros', br(d.arla.litros, 3)); set('carlaValor', br(d.arla.valorLitro, 3));
+      if (window.fmCalcArla) window.fmCalcArla();
+      lidos.push('ARLA 32 no mesmo cupom: ' + br(d.arla.litros, 3) + ' L × R$ ' + br(d.arla.valorLitro, 3) + ' = R$ ' + br(d.arla.total) + ' — preenchido nos campos do ARLA; salva junto com o combustível');
     }
     if (d.posto) { set('cposto', d.posto); lidos.push('Posto: ' + d.posto + (d.cnpj ? ' (CNPJ ' + d.cnpj + ')' : '')); } else faltam.push('posto');
     return { lidos: lidos, faltam: faltam, conferir: conferir };
@@ -464,7 +466,7 @@
       inp.disabled = true; el('cFotoResultado').innerHTML = ''; aviso('Preparando leitura...');
       // Ordem: servidor do Lovable -> chave do Gemini -> leitura local
       // Com chave salva: Gemini direto primeiro (mais rápido, a foto não passa por servidor do sistema)
-      (chaveGemini() ? lerGeminiDireto(f, aviso).catch(function (e) { console.warn('Gemini direto indisponível', e); return lerIA(f, aviso); })
+      (chaveGemini() ? lerGeminiDireto(f, aviso).catch(function (e) { console.warn('Gemini direto indisponível', e); aviso('Gemini: ' + ((e && e.message) || 'falhou') + ' — usando outra leitura...'); return lerIA(f, aviso); })
         : lerIA(f, aviso)).catch(function (e) {
         console.warn('Leitura IA indisponível', e);
         aviso('Leitura inteligente indisponível (' + (e && e.message || 'erro') + '). Usando a leitura local...');
