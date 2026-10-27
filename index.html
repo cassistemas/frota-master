@@ -5150,11 +5150,15 @@ document.getElementById('ckm').value = km;
     }
 
     // salva normalmente
+    const tipoSalvo = (document.getElementById('ctipo') || {}).value || '';
     const okSalvar = salvar('combustivel', campos, idxCampo);
     if (okSalvar !== false) {
         const rf = document.getElementById('cFotoResultado'); if (rf) rf.innerHTML = '';
         const av = document.getElementById('cFotoAviso'); if (av) av.textContent = 'Cupom lançado. Envie outra foto para ler o próximo cupom.';
         const fc = document.getElementById('cFotoCupom'); if (fc) fc.value = '';
+        // ARLA 32 do mesmo cupom: preenche o próximo lançamento, igual ao diesel
+        if (idxAntesDeSalvar === '' && tipoSalvo !== 'Arla32' && typeof window.fmPreencherArlaPendente === 'function') setTimeout(window.fmPreencherArlaPendente, 400);
+        else if (window.fmArlaPendente && tipoSalvo === 'Arla32') window.fmArlaPendente = null;
     }
     if (okSalvar === false) return;
 
@@ -9492,7 +9496,7 @@ style="width:100%; height:400px; border:none;">
 <script src="./instalar-app.js?v=1"></script>
 <script src="./editar-rolar.js?v=1"></script>
 <script src="./salvar-hd.js?v=2"></script>
-<script src="combustivel-foto.js?v=6"></script>
+<script src="combustivel-foto.js?v=8"></script>
 <link rel="stylesheet" href="combustivel-planilha.css?v=1">
 <script src="combustivel-planilha-dados.js?v=1"></script>
 <script src="combustivel-planilha.js?v=1"></script>

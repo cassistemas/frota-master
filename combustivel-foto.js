@@ -178,6 +178,16 @@
       else if (/S\s*500|S500|S5OO/.test(produto.linha)) d.tipo = 'Diesel S500';
       else if (/DIESEL/.test(produto.linha)) d.tipo = 'Diesel S500';
     }
+    // ARLA 32 no mesmo cupom: lido à parte, vira outro lançamento
+    T.split(/\n/).forEach(function (linha) {
+      if (d.arla || !/ARLA|AGENTE\s*RED/.test(linha)) return;
+      var ns = (linha.replace(/ARLA\s*-?\s*32/g, 'ARLA').replace(/(\d)\s*[.,]\s*(\d{2,3})\b/g, '$1,$2').match(/\d{1,4}(?:[.,]\d{1,3})?/g) || []);
+      for (var ai = 0; ai + 2 < ns.length; ai++) {
+        var aq = num(ns[ai]), au = num(ns[ai + 1]), at = num(ns[ai + 2]);
+        if (aq > 0.5 && aq < 2000 && au > 0.5 && au < 20 && at > 1 && Math.abs(aq * au - at) <= Math.max(0.2, at * 0.012)) { d.arla = { litros: aq, valorLitro: au, total: at }; break; }
+      }
+    });
+    if (!d.tipo && /ARLA/.test(T)) d.tipo = 'Arla32';
     // conferência: litros × preço = total
     var melhor = null;
     litros.forEach(function (l) { unit.forEach(function (u) { totais.forEach(function (tt) { var dif = Math.abs(l * u - tt); if (dif <= Math.max(0.1, tt * 0.005) && (!melhor || dif < melhor.dif)) melhor = { l: l, u: u, t: tt, dif: dif }; }); }); });
@@ -206,6 +216,7 @@
     if (novo.conferido && (!destino.conferido || !destino.litros)) {
       destino.litros = novo.litros; destino.valorLitro = novo.valorLitro; destino.total = novo.total; destino.conferido = true; destino.divergente = false;
     }
+    if (!destino.arla && novo.arla) destino.arla = novo.arla;
     if (novo.tipo && novo.tipo !== 'Arla32' && (!destino.tipo || destino.tipo === 'Arla32' || (destino.tipo === 'Diesel S500' && novo.tipo === 'Diesel S10'))) destino.tipo = novo.tipo;
     return destino;
   }
@@ -265,18 +276,24 @@
   /* ---------- Interpreta a resposta do Gemini (mesmo formato nas duas leituras) ---------- */
   var PROMPT_IA = 'Você lê cupons fiscais de abastecimento de combustível do Brasil.\n' +
     'Responda SOMENTE com um JSON, sem texto extra, no formato:\n' +
-    '{"data":"AAAA-MM-DD ou vazio","posto":"razão social do posto ou vazio","cnpj":"CNPJ do posto ou vazio","placa":"placa do veículo sem traço ou vazio","km":número ou null,"tipo":"um de: Diesel S10, Diesel S500, Gasolina, Etanol, Arla32, ou vazio","litros":número ou null,"valorLitro":número ou null,"total":número ou null}\n' +
+    '{"data":"AAAA-MM-DD ou vazio","posto":"razão social do posto ou vazio","cnpj":"CNPJ do posto ou vazio","placa":"placa do veículo sem traço ou vazio","km":número ou null,"tipo":"um de: Diesel S10, Diesel S500, Gasolina, Etanol, Arla32, ou vazio","litros":número ou null,"valorLitro":número ou null,"total":número ou null,"arla":{"litros":número,"valorLitro":número,"total":número} ou null}\n' +
+    'Os campos tipo/litros/valorLitro/total são do combustível. Se o cupom também tiver ARLA 32, coloque o ARLA só em "arla". Se o cupom tiver apenas ARLA 32, use tipo Arla32 e deixe "arla" null.\n' +
+    'BIODIESEL S10 ou DIESEL S10 = Diesel S10. A placa pode vir como "PLACA:" e o KM como "ODOM:" ou "KM:" no rodapé. Litros = QTD (ex.: 203,280 L), valorLitro = VL.UNIT, total = TOTAL da mesma linha; nunca use o Valor Total do cupom.\n' +
     'Use ponto como separador decimal. Não invente: deixe vazio/null o que não estiver legível.';
   function interpretarIA(x, canvas) {
     function n(v) { var k = typeof v === 'number' ? v : num(String(v || '')); return k > 0 ? k : 0; }
     var d = { data: /^\d{4}-\d{2}-\d{2}$/.test(x.data || '') ? x.data : '', posto: String(x.posto || '').trim(), cnpj: String(x.cnpj || '').trim(), placas: x.placa ? [N(x.placa)] : [], km: n(x.km) ? String(Math.round(n(x.km))) : '', tipo: String(x.tipo || '').trim(), litros: n(x.litros), valorLitro: n(x.valorLitro), total: n(x.total) };
     if (d.litros && d.valorLitro && d.total) { if (Math.abs(d.litros * d.valorLitro - d.total) <= Math.max(0.1, d.total * 0.005)) d.conferido = true; else d.divergente = true; }
+    var xa = x.arla || x.ARLA;
+    if (xa && n(xa.litros) && n(xa.total)) d.arla = { litros: n(xa.litros), valorLitro: n(xa.valorLitro) || Math.round(n(xa.total) / n(xa.litros) * 1000) / 1000, total: n(xa.total) };
+    if (d.tipo === 'Arla32') d.arla = null;
+    if (!d.litros && d.arla) { d.tipo = 'Arla32'; d.litros = d.arla.litros; d.valorLitro = d.arla.valorLitro; d.total = d.arla.total; d.arla = null; }
     if (!d.litros && !d.total && !d.data) throw new Error('cupom não reconhecido');
     return { dados: d, canvas: canvas };
   }
   function imagemParaIA(arquivo, aviso) {
     return carregarImagem(arquivo, aviso).then(function (img) {
-      var k = Math.min(1, 1600 / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+      var k = Math.min(1, 1280 / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
       var canvas = document.createElement('canvas');
       canvas.width = Math.round((img.naturalWidth || img.width) * k); canvas.height = Math.round((img.naturalHeight || img.height) * k);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -296,9 +313,9 @@
       var corpo = {
         contents: [{ parts: [
           { text: PROMPT_IA },
-          { inline_data: { mime_type: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.85).split(',')[1] } }
+          { inline_data: { mime_type: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.8).split(',')[1] } }
         ] }],
-        generationConfig: { temperature: 0 }
+        generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
       };
       // Tenta vários modelos: o Google retira nomes antigos (erro 404)
       var modelos = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-lite-latest', 'gemini-1.5-flash'];
@@ -364,9 +381,28 @@
     if (d.conferido) lidos.push('Conta conferida: litros × valor/L = total');
     if (d.divergente) conferir.push('litros × valor/L não bate com o total do cupom');
     if (d.km) { set('ckm', d.km); lidos.push('KM: ' + d.km); } else faltam.push('KM atual');
+    window.fmArlaPendente = null;
+    if (d.arla && d.tipo !== 'Arla32') {
+      window.fmArlaPendente = { veiculo: v ? v.o.value : '', data: d.data || '', km: d.km || '', posto: d.posto || '', litros: d.arla.litros, valorLitro: d.arla.valorLitro, total: d.arla.total };
+      lidos.push('ARLA 32 no mesmo cupom: ' + br(d.arla.litros, 3) + ' L × R$ ' + br(d.arla.valorLitro, 3) + ' = R$ ' + br(d.arla.total) + ' — após salvar o combustível, o ARLA 32 é preenchido para o segundo lançamento');
+    }
     if (d.posto) { set('cposto', d.posto); lidos.push('Posto: ' + d.posto + (d.cnpj ? ' (CNPJ ' + d.cnpj + ')' : '')); } else faltam.push('posto');
     return { lidos: lidos, faltam: faltam, conferir: conferir };
   }
+  // Preenche o lançamento do ARLA 32 com os mesmos dados do cupom (veículo, data, KM, posto)
+  window.fmPreencherArlaPendente = function () {
+    var a = window.fmArlaPendente; if (!a) return;
+    function set(id, v) { var c = el(id); if (!c) return; c.value = v; c.dispatchEvent(new Event('input', { bubbles: true })); c.dispatchEvent(new Event('change', { bubbles: true })); if (c._flatpickr) c._flatpickr.setDate(v, false); }
+    if (a.veiculo) { var s = el('cveiculo'); if (s) { s.value = a.veiculo; s.dispatchEvent(new Event('change', { bubbles: true })); } }
+    if (a.data) set('cdata', a.data);
+    set('ctipo', 'Arla32');
+    set('clitros', String(a.litros));
+    var vl = el('cvalorlitro'); if (vl) { vl.value = br(a.valorLitro, 3); vl.dispatchEvent(new Event('input', { bubbles: true })); }
+    if (a.km) set('ckm', a.km);
+    if (a.posto) set('cposto', a.posto);
+    var av = el('cFotoAviso'); if (av) av.textContent = 'Combustível lançado. O ARLA 32 do mesmo cupom foi preenchido (' + br(a.litros, 3) + ' L, R$ ' + br(a.total) + '). Confira e clique em Salvar.';
+    var c = el('cveiculo'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
   function esc(t) { return String(t).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
   function mostrar(r, canvas) {
     var box = el('cFotoResultado'); if (!box) return;
@@ -427,16 +463,15 @@
       var f = inp.files && inp.files[0]; if (!f) return;
       inp.disabled = true; el('cFotoResultado').innerHTML = ''; aviso('Preparando leitura...');
       // Ordem: servidor do Lovable -> chave do Gemini -> leitura local
-      lerIA(f, aviso).catch(function (e) {
-        console.warn('Leitura pelo servidor indisponível', e);
-        return lerGeminiDireto(f, aviso).catch(function (e2) { throw (e2 && e2.message !== 'sem chave do Gemini') ? e2 : e; });
-      }).catch(function (e) {
+      // Com chave salva: Gemini direto primeiro (mais rápido, a foto não passa por servidor do sistema)
+      (chaveGemini() ? lerGeminiDireto(f, aviso).catch(function (e) { console.warn('Gemini direto indisponível', e); return lerIA(f, aviso); })
+        : lerIA(f, aviso)).catch(function (e) {
         console.warn('Leitura IA indisponível', e);
         aviso('Leitura inteligente indisponível (' + (e && e.message || 'erro') + '). Usando a leitura local...');
         return ler(f, aviso);
       }).then(function (res) {
         if (!res) throw new Error('sem resultado');
-        var r = preencher(res.dados); mostrar(r, res.canvas); res.canvas = null;
+        var r = preencher(res.dados); mostrar(r, null); res.canvas = null;
         aviso(r.faltam.length || r.conferir.length ? 'Pré-lançamento preenchido. Confira os itens marcados, complete o que falta e clique em Salvar.' : 'Pré-lançamento preenchido. Confira os dados e clique em Salvar.');
         var c = el('cveiculo'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }).catch(function (e) {
