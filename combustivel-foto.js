@@ -179,9 +179,12 @@
       else if (/DIESEL/.test(produto.linha)) d.tipo = 'Diesel S500';
     }
     // ARLA 32 no mesmo cupom: lido à parte, vira outro lançamento
-    T.split(/\n/).forEach(function (linha) {
+    var linhasT = T.split(/\n/);
+    linhasT.forEach(function (linha, li) {
       if (d.arla || !/ARLA|AGENTE\s*RED/.test(linha)) return;
-      var ns = (linha.replace(/ARLA\s*-?\s*32/g, 'ARLA').replace(/(\d)\s*[.,]\s*(\d{2,3})\b/g, '$1,$2').match(/\d{1,4}(?:[.,]\d{1,3})?/g) || []);
+      // números do item podem cair na linha de baixo do nome (cupom em duas linhas)
+      if (linhasT[li + 1] && !/DIESEL|GASOLINA|ETANOL|ALCOOL/.test(linhasT[li + 1])) linha = linha + ' ' + linhasT[li + 1];
+      var ns = (linha.replace(/ARLA\s*-?\s*32/g, 'ARLA').replace(/^\s*\d{6,14}\s+/, '').replace(/(\d)\s*[.,]\s*(\d{2,3})\b/g, '$1,$2').match(/\d{1,4}(?:[.,]\d{1,3})?/g) || []);
       for (var ai = 0; ai + 2 < ns.length; ai++) {
         var aq = num(ns[ai]), au = num(ns[ai + 1]), at = num(ns[ai + 2]);
         if (aq > 0.5 && aq < 2000 && au > 0.5 && au < 20 && at > 1 && Math.abs(aq * au - at) <= Math.max(0.2, at * 0.012)) { d.arla = { litros: aq, valorLitro: au, total: at }; break; }
@@ -284,7 +287,7 @@
     function n(v) { var k = typeof v === 'number' ? v : num(String(v || '')); return k > 0 ? k : 0; }
     var d = { data: /^\d{4}-\d{2}-\d{2}$/.test(x.data || '') ? x.data : '', posto: String(x.posto || '').trim(), cnpj: String(x.cnpj || '').trim(), placas: x.placa ? [N(x.placa)] : [], km: n(x.km) ? String(Math.round(n(x.km))) : '', tipo: String(x.tipo || '').trim(), litros: n(x.litros), valorLitro: n(x.valorLitro), total: n(x.total) };
     if (d.litros && d.valorLitro && d.total) { if (Math.abs(d.litros * d.valorLitro - d.total) <= Math.max(0.1, d.total * 0.005)) d.conferido = true; else d.divergente = true; }
-    var xa = x.arla || x.ARLA;
+    var xa = x.arla || x.ARLA || x.arla32 || x.Arla32;
     if (xa && n(xa.litros) && n(xa.total)) d.arla = { litros: n(xa.litros), valorLitro: n(xa.valorLitro) || Math.round(n(xa.total) / n(xa.litros) * 1000) / 1000, total: n(xa.total) };
     if (d.tipo === 'Arla32') d.arla = null;
     if (!d.litros && d.arla) { d.tipo = 'Arla32'; d.litros = d.arla.litros; d.valorLitro = d.arla.valorLitro; d.total = d.arla.total; d.arla = null; }
