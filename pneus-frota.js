@@ -36,7 +36,11 @@
       var v = (b.veiculos || []).find(function (x) { return placa(x.vplaca) === placa(p.pveiculo); });
       if (!v || String(v.vstatus || '').toUpperCase() === 'VENDIDO') return {erro:'Selecione um veículo ativo cadastrado para o pneu Em Uso.'};
       p.pveiculo = v.vplaca;
-      if (numero(p.pvalor) <= 0 || numero(p.pvida) <= 0 || odo <= 0) return {erro:'Para o pneu Em Uso, informe valor de compra, vida útil e KM da instalação maiores que zero.'};
+      var faltam = [];
+      if (numero(p.pvalor) <= 0) faltam.push('Valor Compra');
+      if (numero(p.pvida) <= 0) faltam.push('Vida Útil KM');
+      if (odo <= 0) faltam.push('KM Instalação');
+      if (faltam.length) return {erro:'Para o pneu Em Uso, preencha com valor maior que zero: ' + faltam.join(', ') + '.'};
     } else if (odo <= 0) return {erro:'Informe o KM Atual para registrar a retirada do pneu.'};
     var instalacao = eventos.slice().reverse().find(function (e) { return e.tipo === 'Instalação' || e.tipo === 'Recapagem'; });
     var mesma = ativo && uso && !mudou && placa(ultimo.veiculo) === placa(p.pveiculo);

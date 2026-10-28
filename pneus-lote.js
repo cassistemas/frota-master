@@ -35,7 +35,7 @@
     return Array.prototype.map.call($('plLinhas').querySelectorAll('tr'), function (tr) {
       return { pos: tr.querySelector('.pl-pos').value, num: tr.querySelector('.pl-num').value.trim(),
         dot: tr.querySelector('.pl-dot').value.trim(), marca: tr.querySelector('.pl-marca').value.trim(),
-        valor: tr.querySelector('.pl-valor').value.trim() };
+        valor: (function(v){ return /[1-9]/.test(v) ? v : ''; })(tr.querySelector('.pl-valor').value.trim()) };
     }).filter(function (l) { return l.num; });
   }
 
@@ -44,7 +44,7 @@
     var estoque = ehEstoque();
     if ($('plStatus')) $('pstatus').value = $('plStatus').value;
     if (estoque) { $('pveiculo').value = ''; $('pkminstalacao').value = ''; }
-    else if (!$('pveiculo').value) { alert('Selecione o veículo no formulário acima.'); return; }
+    else if (!$('pveiculo').value) { alert('Selecione a placa do veículo no formulário acima.'); return; }
     var linhas = lerLinhas();
     // Pneu digitado no formulário principal entra no lote, no início.
     var numPrincipal = ($('pnumero') || {}).value ? $('pnumero').value.trim() : '';
@@ -80,7 +80,8 @@
       if (l.valor) $('pvalor').value = l.valor;
       if (typeof window.calcularKMPneu === 'function') window.calcularKMPneu();
       window.alert = function (m) { falhas.push('Pneu ' + l.num + ': ' + m); };
-      try { window.salvarPneu(); } finally { window.alert = alerta; }
+      try { emLote = true; window.salvarPneu(); } finally { emLote = false; }
+      try {} finally { window.alert = alerta; }
     });
     if (falhas.length) alert('Alguns pneus não foram salvos:\n\n' + falhas.join('\n'));
     else alert(linhas.length + ' pneus salvos. Clique no olho de cada um para ver todas as informações.');
@@ -120,7 +121,19 @@
     setInterval(posicaoPrincipal, 700); // cobre edição e limpeza feitas por código
     posicaoPrincipal();
   }
-  function iniciarTudo() { iniciar(); ligarPosicao(); }
+  // Com o painel de vários pneus aberto e preenchido, o Salvar principal grava o lote inteiro.
+  var emLote = false;
+  function ligarSalvar() {
+    var orig = window.salvarPneu;
+    if (typeof orig !== 'function' || orig.fmLote) return;
+    var novo = function () {
+      var painel = $('plPainel');
+      if (!emLote && painel && painel.style.display !== 'none' && $('p_idx').value === '' && lerLinhas().length) return salvarLote();
+      return orig.apply(this, arguments);
+    };
+    novo.fmLote = true; window.salvarPneu = novo;
+  }
+  function iniciarTudo() { iniciar(); ligarPosicao(); ligarSalvar(); setTimeout(ligarSalvar, 1500); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarTudo); else iniciarTudo();
   window.FMPneusLote = { salvar: salvarLote };
 })();

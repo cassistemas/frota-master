@@ -135,6 +135,46 @@
         if (encontrado) return encontrado;
       }
     }
+    return porConteudo(linha, base);
+  }
+
+  // Último recurso: reconhece o lançamento pelo texto da linha (placa, datas, valores, nomes),
+  // procurando primeiro nos cadastros do módulo aberto. Só aceita uma correspondência clara.
+  function valoresDoRegistro(reg) {
+    var out = [];
+    Object.keys(reg).forEach(function (k) {
+      if (k.charAt(0) === "_" || k === "phist") return;
+      var v = reg[k];
+      if (v == null || typeof v === "object") return;
+      v = String(v).trim();
+      if (v.length < 3 || v === "--") return;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { var d = v.split("-"); v = d[2] + "/" + d[1] + "/" + d[0]; }
+      out.push(v.toLowerCase());
+    });
+    return out;
+  }
+  function porConteudo(linha, base) {
+    if (!linha.querySelector("button, [onclick], a")) return null;
+    var texto = (linha.innerText || linha.textContent || "").toLowerCase();
+    if (texto.replace(/\s/g, "").length < 4) return null;
+    var secao = linha.closest(".main > div");
+    var sec = secao && secao.id;
+    var mods = Object.keys(base).filter(function (m) { return Array.isArray(base[m]) && base[m].length; });
+    var preferidos = mods.filter(function (m) { return sec && (m === sec || m.indexOf(sec) === 0 || sec.indexOf(m) === 0); });
+    if (!preferidos.length) return null;
+    var grupos = [preferidos];
+    for (var g = 0; g < grupos.length; g++) {
+      var melhor = null, nota = 0, empate = false;
+      grupos[g].forEach(function (m) {
+        base[m].forEach(function (reg) {
+          if (!reg || typeof reg !== "object") return;
+          var n = 0;
+          valoresDoRegistro(reg).forEach(function (v) { if (texto.indexOf(v) >= 0) n++; });
+          if (n > nota) { nota = n; melhor = reg; empate = false; } else if (n === nota && n > 0) empate = true;
+        });
+      });
+      if (melhor && nota >= 2 && !empate) return melhor;
+    }
     return null;
   }
 
@@ -153,7 +193,7 @@
       if (reg._alteradoPor && reg._alteradoPor !== reg._registradoPor) {
         partes.push("Última alteração: " + reg._alteradoPor + (reg._alteradoEm ? " em " + dataBRCurta(reg._alteradoEm) : ""));
       }
-      if (!partes.length) return;
+      if (!partes.length) partes.push("Registrado por: não informado (lançamento antigo)");
 
       linha.title = partes.join("\n");
       linha.setAttribute("data-autoria", autor || "");
