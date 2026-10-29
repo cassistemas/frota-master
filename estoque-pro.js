@@ -181,7 +181,7 @@
       var dados = {
         mveiculo: s.eplaca,
         mdata: s.edata || new Date().toISOString().slice(0, 10),
-        mkm: (existente && existente.mkm) || kmVeiculo(s.eplaca) || "",
+        mkm: s.epneukm || (existente && existente.mkm) || kmVeiculo(s.eplaca) || "",
         mvalor: moeda(total),
         mnf: s.elote || "",
         mfornecedor: (existente && existente.mfornecedor) || "Estoque interno",
@@ -431,6 +431,7 @@
     var hint = document.getElementById("saldoItemSaida");
     var btn = document.getElementById("btnSalvarSaidaEstoque");
     if (!sel || !hint) return;
+    if (window.FMPneusFrota && window.FMPneusFrota.atualizarSaidaForm) window.FMPneusFrota.atualizarSaidaForm();
     var idx = (document.getElementById("s_idx") || {}).value;
     var nome = sel.value;
     var totEl = document.getElementById("stotalcampo");
@@ -474,6 +475,9 @@
     if (!item || quantidade <= 0) { alert("Informe o item e uma quantidade maior que zero."); return; }
     var idx = document.getElementById("e_idx").value;
     var anterior = idx !== "" ? lista()[Number(idx)] : null;
+    if (anterior && anterior.epneuid) {
+      alert('Esta entrada está vinculada a um pneu. Faça as alterações pelo módulo Pneus para preservar o histórico.'); return;
+    }
     var obj = Object.assign({}, anterior || {}, {
       eitem: item,
       ecategoria: document.getElementById("ecategoria").value,
@@ -534,11 +538,24 @@
       etotal: quantidade * pos.custoMedio,
       eid: (idx !== "" && lista()[Number(idx)] && (lista()[Number(idx)].eid || lista()[Number(idx)]._rid)) || novoId()
     });
+    var ponte = window.FMPneusFrota;
+    if (!ponte || !ponte.prepararSaidaEstoque) {
+      alert('A integração de pneus ainda não está disponível. Recarregue a página antes de registrar a saída.'); return;
+    }
+    var planoPneu = ponte.prepararSaidaEstoque(obj, anterior);
+    if (planoPneu.erro) { alert(planoPneu.erro); return; }
+    if (planoPneu.pneu && !confirm('Confirmar instalação do pneu ' + planoPneu.pneu.pnumero + '?\n\nPlaca: ' + obj.eplaca + '\nData: ' + dataBRx(obj.edata) + '\nPosição: ' + planoPneu.pneu.pposicao + '\nKM instalação: ' + planoPneu.pneu.pkminstalacao + '\nValor: ' + moeda(obj.etotal) + '\n\nSerá registrada uma saída de 1 unidade e o pneu passará de Estoque para Em Uso, com seus históricos.')) return false;
+    if (planoPneu.pneu && !ponte.aplicarSaidaEstoque(planoPneu, obj)) {
+      alert('O cadastro do pneu mudou. Revise a saída antes de confirmar novamente.'); return;
+    }
     if (idx !== "") lista()[Number(idx)] = obj;
     else lista().push(obj);
 
-
     persistir();
+    if (planoPneu.pneu && typeof salvarNuvem === 'function') salvarNuvem(['pneus','eventosPneus']);
+    if (planoPneu.pneu && typeof renderModulo === 'function') renderModulo('pneus');
+    if (planoPneu.pneu && typeof window.renderResultadoFrota === 'function') window.renderResultadoFrota();
+    if (planoPneu.pneu && typeof window.renderCustosFrota === 'function') window.renderCustosFrota();
     limparFormEstoqueSaida();
     renderModulo("estoque");
     if (typeof renderDashboard === "function") renderDashboard();
@@ -561,6 +578,9 @@
   window.editarEstoque = function (i) {
     var m = movimentos()[i];
     if (!m) return;
+    if (m.epneuid) {
+      alert('Esta movimentação pertence ao histórico de um pneu. Use o módulo Pneus para registrar alterações sem perder os vínculos.'); return;
+    }
     if (m.etipo === "Saída") {
       estoqueTab("saida");
       preencherItensSaida();
@@ -593,6 +613,9 @@
   window.excluirEstoque = function (i) {
     var m = movimentos()[i];
     if (!m) return;
+    if (m.epneuid) {
+      alert('Esta movimentação está vinculada a um pneu e não pode ser excluída isoladamente. Registre a retirada ou outra movimentação no módulo Pneus para preservar o estoque e o histórico.'); return;
+    }
     if (m.etipo !== "Saída") {
       var restante = movimentos().filter(function (x, j) { return j !== i; });
       var ent = 0, sai = 0;
@@ -613,6 +636,7 @@
   };
 
   window.novaSaidaDoItem = function (nome) {
+    limparFormEstoqueSaida();
     estoqueTab("saida");
     preencherItensSaida();
     var sel = document.getElementById("sitem");
@@ -661,6 +685,7 @@
   function renderEstoquePro() {
     preencherItensSaida();
     preencherSelectVeiculos("splaca");
+    if (window.FMPneusFrota && window.FMPneusFrota.atualizarSaidaForm) window.FMPneusFrota.atualizarSaidaForm();
 
     var pos = posicaoEstoque();
     var lista = Object.keys(pos).map(function (k) { return pos[k]; })

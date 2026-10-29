@@ -105,7 +105,7 @@
       etipo: "Saída",
       equantidade: 1,
       evalorunitario: valor,
-      edata: (window.fmPneusDataReparo && p.pdatainstalacao) || hoje(),
+      edata: p.pdatainstalacao || hoje(),
       efornecedor: "",
       elote: p.pdot || "",
       eresponsavel: "",
@@ -187,12 +187,38 @@
     if (r === null && t < 120) setTimeout(function () { aguardar(t + 1); }, 2000);
   })(0);
 
+  /* Duplicar apenas prepara um novo cadastro; nunca copia vínculos ou histórico. */
+  window.duplicarPneu = function (i) {
+    var p = (base().pneus || [])[Number(i)];
+    if (!p) { alert('Pneu não encontrado.'); return; }
+    if (!confirm('Preparar uma cópia do pneu ' + p.pnumero + '? O formulário atual será substituído, mas nada será salvo.')) return;
+    var copiar = ['pmarca','pmodelo','pmedida','pdot','pvalor','pdata','pvida','psulco','pfornecedor','pobs'];
+    ['pnumero','pmarca','pmodelo','pmedida','pdot','pvalor','pdata','pdatainstalacao','pvida','psulco','pveiculo','pfornecedor','pposicao','pkminstalacao','pkmatual','pkmrodado','pstatus','pobs','p_idx'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.value = copiar.indexOf(id) >= 0 ? (p[id] || '') : '';
+    });
+    document.getElementById('pstatus').value = 'Estoque';
+    var painel = document.getElementById('plPainel');
+    if (painel) painel.style.display = 'none';
+    var linhas = document.getElementById('plLinhas');
+    if (linhas) linhas.innerHTML = '';
+    if (typeof window.fmSincronizarValoresBuscasCadastro === 'function') window.fmSincronizarValoresBuscasCadastro();
+    document.getElementById('pstatus').dispatchEvent(new Event('change', {bubbles:true}));
+    var numero = document.getElementById('pnumero');
+    numero.placeholder = 'Informe um novo número e revise antes de salvar';
+    numero.scrollIntoView({behavior:'smooth', block:'center'});
+    numero.focus({preventScroll:true});
+  };
+
   /* ---------- salvar pneu (substitui o original) ---------- */
   window.salvarPneu = function () {
     var campos = ["pnumero","pmarca","pmodelo","pmedida","pdot","pvalor","pdata","pdatainstalacao","pvida","psulco",
       "pveiculo","pfornecedor","pposicao","pkminstalacao","pkmatual","pkmrodado","pstatus","pobs"];
 
     var b = base();
+    if (typeof window.fmModuloCarregado === 'function' && ['pneus','eventosPneus','estoque','veiculos','manutencoes'].some(function (mod) { return !window.fmModuloCarregado(mod); })) {
+      alert('Aguarde o carregamento de Pneus, Estoque, veículos e históricos antes de salvar.'); return;
+    }
     if (!Array.isArray(b.pneus)) b.pneus = [];
 
     var obj = {};
@@ -201,7 +227,18 @@
       obj[id] = el ? el.value : "";
     });
 
+    obj.pnumero = String(obj.pnumero || '').trim();
     if (!obj.pnumero) { alert("Informe o número do pneu."); return; }
+    if (obj.pstatus === 'Estoque') {
+      obj.pveiculo = '';
+      obj.pposicao = '';
+      if (document.getElementById('p_idx').value === '') {
+        obj.pkminstalacao = '';
+        obj.pkmatual = '';
+        obj.pkmrodado = '';
+        obj.pdatainstalacao = '';
+      }
+    }
 
     var idx = document.getElementById("p_idx").value;
     var novo = idx === "";
@@ -214,6 +251,7 @@
     }
     var plano = window.FMPneusFrota ? window.FMPneusFrota.preparar(obj, anterior) : {erro:'A integração de Pneus por KM não está disponível.'};
     if (plano.erro) { alert(plano.erro); return; }
+    if (novo && !window.fmPneusLoteAtivo && !confirm('Confirmar cadastro do pneu ' + obj.pnumero + '?\n\nMarca: ' + (obj.pmarca || '--') + '\nMedida: ' + (obj.pmedida || '--') + '\nValor: ' + moeda(obj.pvalor) + '\nStatus: ' + (obj.pstatus || '--') + '\nVeículo: ' + (obj.pveiculo || 'Sem veículo (estoque)') + '\n\nSomente ao confirmar o pneu e seus movimentos serão salvos.')) return false;
     if (typeof window.fmPrepararRegistro === "function") {
       window.fmPrepararRegistro("pneus", obj, anterior);
     }
@@ -335,6 +373,7 @@
         "</div>" +
         '<div class="pneu-acoes">' +
           '<button class="btn btn-sm btn-dark" onclick="editar(\'pneus\',' + realIndex + ')">✎ Editar</button> ' +
+          '<button type="button" class="btn btn-sm btn-outline-primary" onclick="duplicarPneu(' + realIndex + ')">⧉ Duplicar</button> ' +
           '<button class="btn btn-sm btn-outline-danger" onclick="deletar(\'pneus\',' + realIndex + ')">✕ Excluir</button>' +
         "</div>" +
       "</div></td></tr>";
@@ -381,6 +420,7 @@
         '<td><span class="badge ' + badge + '">' + esc(vazio(p.pstatus)) + "</span></td>" +
         '<td class="text-end"><div class="pneu-acoes-linha">' +
           '<button type="button" class="btn-edit" title="Editar" onclick="editar(\'pneus\',' + realIndex + ')">&#9998;</button>' +
+          '<button type="button" class="btn btn-sm btn-outline-primary" title="Duplicar para revisar antes de salvar" onclick="duplicarPneu(' + realIndex + ')">⧉ Duplicar</button>' +
           '<button type="button" class="btn-del" title="Excluir" onclick="deletar(\'pneus\',' + realIndex + ')">&#10005;</button>' +
         "</div></td>" +
       "</tr>" + detalhes(p, realIndex);

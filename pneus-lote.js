@@ -40,6 +40,9 @@
   }
 
   function salvarLote() {
+    if (typeof window.fmModuloCarregado === 'function' && ['pneus','eventosPneus','estoque','veiculos','manutencoes'].some(function (mod) { return !window.fmModuloCarregado(mod); })) {
+      alert('Aguarde o carregamento de Pneus, Estoque, veículos e históricos. Nenhum pneu do lote foi salvo.'); return;
+    }
     if ($('p_idx').value !== '') { alert('Cancele a edição do pneu antes de lançar vários pneus.'); return; }
     var estoque = ehEstoque();
     if ($('plStatus')) $('pstatus').value = $('plStatus').value;

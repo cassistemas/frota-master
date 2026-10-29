@@ -87,5 +87,92 @@
     });
     return true;
   }
-  window.FMPneusFrota = {preparar:preparar, aplicar:aplicar};
+  // Saída de pneu individualizado: vínculo exclusivamente pela entrada epneuid.
+  function resolverItemEstoque(item) {
+    var b = banco(), ids = [];
+    ((b && b.estoque) || []).forEach(function (m) {
+      if (m && m.etipo === 'Entrada' && m.epneuid && chave(m.eitem) === chave(item) && ids.indexOf(m.epneuid) < 0) ids.push(m.epneuid);
+    });
+    if (!ids.length) return {};
+    if (ids.length !== 1) return {erro:'Este item tem mais de um pneu vinculado. Faça a instalação pelo cadastro de Pneus para identificar o pneu correto.'};
+    var p = (b.pneus || []).find(function (x) { return x.pid === ids[0]; });
+    return p ? {pneu:p} : {erro:'O cadastro vinculado a esta entrada não foi encontrado. Confira o módulo Pneus antes de dar saída.'};
+  }
+  function atualizarSaidaForm() {
+    var item = document.getElementById('sitem');
+    if (!item) return;
+    var box = document.getElementById('estoquePneuInstalacao');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'estoquePneuInstalacao'; box.className = 'col-12';
+      box.innerHTML = '<div class="border rounded p-3 my-2"><b>Instalação do pneu no veículo</b><p class="small text-muted mb-2" id="estoquePneuAviso"></p><div class="row g-2">' +
+        '<div class="col-md-3"><label for="spneuPosicao">Posição</label><select id="spneuPosicao" class="form-select"></select></div>' +
+        '<div class="col-md-3"><label for="spneuKm">KM instalação</label><input id="spneuKm" class="form-control" inputmode="decimal"></div>' +
+        '<div class="col-md-3"><label for="spneuVida">Vida útil (KM)</label><input id="spneuVida" class="form-control" inputmode="decimal"></div>' +
+        '<div class="col-md-3"><label for="spneuValor">Valor de compra (R$)</label><input id="spneuValor" class="form-control" inputmode="decimal"></div></div></div>';
+      (item.closest('.row') || item.parentElement).appendChild(box);
+      var pos = document.getElementById('pposicao');
+      var sel = document.getElementById('spneuPosicao');
+      sel.add(new Option('Selecione...', ''));
+      if (pos) Array.prototype.forEach.call(pos.options, function (o) { if (o.value) sel.add(new Option(o.text, o.value)); });
+    }
+    var r = resolverItemEstoque(item.value), p = r.pneu;
+    box.hidden = !p && !r.erro;
+    document.getElementById('estoquePneuAviso').textContent = r.erro || (p ? 'Pneu ' + p.pnumero + ': uma unidade. Informe data da saída, placa e dados da instalação. O cadastro, os históricos e Pneus por KM serão atualizados após confirmação.' : '');
+    if (box.dataset.item !== item.value) {
+      box.dataset.item = item.value;
+      document.getElementById('spneuPosicao').value = '';
+      document.getElementById('spneuKm').value = '';
+      document.getElementById('spneuVida').value = p ? p.pvida || '' : '';
+      document.getElementById('spneuValor').value = p ? p.pvalor || '' : '';
+    }
+  }
+  function prepararSaidaEstoque(m, anterior) {
+    if (typeof window.fmModuloCarregado === 'function' && ['estoque','pneus'].some(function (mod) { return !window.fmModuloCarregado(mod); })) return {erro:'Aguarde o carregamento de Estoque e Pneus antes de registrar a saída.'};
+    var b = banco(), r = resolverItemEstoque(m.eitem);
+    if (r.erro) return r;
+    if (anterior && anterior.epneuid) return {erro:'Esta saída está vinculada ao histórico de um pneu. Registre novas movimentações pelo módulo Pneus; não altere a saída já integrada.'};
+    if (!r.pneu) return {};
+    if (anterior) return {erro:'Para instalar um pneu individualizado, registre uma nova saída. Não converta uma saída antiga.'};
+    if (typeof window.fmModuloCarregado === 'function' && ['pneus','eventosPneus','estoque','veiculos','manutencoes'].some(function (mod) { return !window.fmModuloCarregado(mod); })) return {erro:'Aguarde o carregamento de Pneus, Estoque, veículos e históricos.'};
+    var p = r.pneu;
+    var dataInformada = (document.getElementById('sdata') || {}).value || '';
+    var dataTeste = new Date(dataInformada + 'T12:00:00Z');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dataInformada) || !Number.isFinite(dataTeste.getTime()) || dataTeste.toISOString().slice(0, 10) !== dataInformada) return {erro:'Informe uma data válida para a saída e instalação do pneu.'};
+    m.edata = dataInformada;
+    if (numero(m.equantidade) !== 1) return {erro:'Pneu individualizado permite saída de exatamente uma unidade.'};
+    if (p.pstatus !== 'Estoque') return {erro:'Este pneu não está com status Estoque. Confira o cadastro antes de instalar.'};
+    var saldo = (b.estoque || []).reduce(function (s, x) { return x.epneuid === p.pid ? s + (x.etipo === 'Saída' ? -1 : 1) * numero(x.equantidade) : s; }, 0);
+    if (saldo !== 1) return {erro:'O saldo vinculado deste pneu deve ser uma unidade. Confira as movimentações no módulo Pneus.'};
+    function valor(id) { return (document.getElementById(id) || {}).value || ''; }
+    var novo = Object.assign({}, p, {pstatus:'Em Uso', pveiculo:m.eplaca, pdatainstalacao:m.edata,
+      pposicao:valor('spneuPosicao'), pkminstalacao:valor('spneuKm'), pkmatual:valor('spneuKm'),
+      pkmrodado:0, pvida:valor('spneuVida'), pvalor:valor('spneuValor')});
+    if (!novo.pposicao) return {erro:'Informe a posição de instalação do pneu.'};
+    if (p.pdata && m.edata < p.pdata) return {erro:'A data da instalação não pode ser anterior à compra do pneu.'};
+    var plano = preparar(novo, p);
+    if (plano.erro) return plano;
+    m.epneuid = p.pid;
+    m.epneukm = numero(novo.pkminstalacao);
+    m.eplaca = novo.pveiculo;
+    m.evalorunitario = Math.round(numero(novo.pvalor) * 100) / 100;
+    m.etotal = m.evalorunitario;
+    return {pneu:novo, anterior:p, eventos:plano.eventos};
+  }
+  function aplicarSaidaEstoque(plano, mov) {
+    if (!plano || !plano.pneu || plano.erro) return false;
+    var b = banco(), p = plano.pneu, i = b.pneus.indexOf(plano.anterior);
+    if (i < 0) return false;
+    p.phist = (plano.anterior.phist || []).slice();
+    var texto = 'Saída pelo Estoque para ' + p.pveiculo + ', posição ' + p.pposicao + ', KM ' + p.pkminstalacao;
+    ['Saída do estoque','Status','Veículo','Instalação'].forEach(function (tipo) {
+      p.phist.push({data:mov.edata + 'T12:00:00', tipo:tipo, texto:tipo === 'Status' ? 'De Estoque para Em Uso' : texto, estoqueId:mov.eid});
+    });
+    if (typeof window.fmPrepararRegistro === 'function') window.fmPrepararRegistro('pneus', p, plano.anterior);
+    b.pneus[i] = p;
+    aplicar(plano);
+    return true;
+  }
+  window.FMPneusFrota = {preparar:preparar, aplicar:aplicar, resolverItemEstoque:resolverItemEstoque,
+    atualizarSaidaForm:atualizarSaidaForm, prepararSaidaEstoque:prepararSaidaEstoque, aplicarSaidaEstoque:aplicarSaidaEstoque};
 })();
