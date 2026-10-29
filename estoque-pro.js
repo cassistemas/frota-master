@@ -165,13 +165,14 @@
 
     // remove lançamentos automáticos cuja saída não existe mais
     for (var i = mans.length - 1; i >= 0; i--) {
-      if (mans[i] && mans[i].morigem === "estoque" && !idsAtivos[mans[i].mestoqueid]) {
+      if (mans[i] && mans[i].morigem === "estoque" && !mans[i].fmOrigemExcluida && !idsAtivos[mans[i].mestoqueid]) {
         mans.splice(i, 1);
         alterouManutencoes = true;
       }
     }
 
     saidas.forEach(function (s) {
+      if (s.fmManutencaoExcluida) return;
       var total = (parseFloat(s.equantidade) || 0) * num(s.evalorunitario);
       if (s.etotal != null) total = num(s.etotal) || total;
       var existente = null;
@@ -628,6 +629,7 @@
         return;
       }
     }
+    if (typeof window.fmExcluirVinculado === 'function') return window.fmExcluirVinculado('estoque', i);
     if (!confirm("Excluir esta movimentação?")) return;
     lista().splice(i, 1);
     persistir();
@@ -794,7 +796,7 @@
     try {
       var mans = listaManutencoes();
       return lista().some(function (m) {
-        if (m.etipo !== "Saída" || !String(m.eplaca || "").trim()) return false;
+        if (m.fmManutencaoExcluida || m.etipo !== "Saída" || !String(m.eplaca || "").trim()) return false;
         if (!m.eid) return true;
         return !mans.some(function (x) {
           return x && x.morigem === "estoque" && x.mestoqueid === m.eid;

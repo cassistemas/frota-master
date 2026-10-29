@@ -169,9 +169,9 @@
       if (!p || p.pstatus !== "Em Uso" || !p.pveiculo) return;
       garantirId(p);
       var temSaida = movsPneu(p).some(function (m) { return m.etipo === "Saída"; });
-      if (!temSaida) { window.fmPneusDataReparo = true; try { sincronizar(p); } finally { window.fmPneusDataReparo = false; } mudou = true; }
+      if (!temSaida && !p.fmEstoqueExcluido) { window.fmPneusDataReparo = true; try { sincronizar(p); } finally { window.fmPneusDataReparo = false; } mudou = true; }
       var temEvento = ev.some(function (e) { return e && (e.cadastroPneuId === p.pid || String(e.pneuId || "").trim().toUpperCase() === String(p.pnumero || "").trim().toUpperCase()); });
-      if (!temEvento && window.FMPneusFrota) {
+      if (!temEvento && !p.fmEventosPneusExcluidos && window.FMPneusFrota) {
         var plano = window.FMPneusFrota.preparar(Object.assign({}, p), null);
         if (!plano.erro && window.FMPneusFrota.aplicar(plano)) mudou = true;
         ev = Array.isArray(b.eventosPneus) ? b.eventosPneus : [];
@@ -245,6 +245,11 @@
     var anterior = novo ? null : Object.assign({}, b.pneus[Number(idx)]);
     if (!novo && !b.pneus[Number(idx)]) { alert('Pneu não encontrado.'); return; }
     obj.pid = anterior && anterior.pid;
+    // Mantém a escolha de exclusão ao editar os dados do cadastro.
+    if (anterior) {
+      obj.fmEstoqueExcluido = !!anterior.fmEstoqueExcluido;
+      obj.fmEventosPneusExcluidos = !!anterior.fmEventosPneusExcluidos;
+    }
     garantirId(obj);
     if (b.pneus.some(function(p,i){return i!==Number(novo?-1:idx)&&String(p.pnumero||'').trim().toUpperCase()===String(obj.pnumero).trim().toUpperCase();})) {
       alert('Este número de pneu já está cadastrado. Edite o registro existente.'); return;
@@ -294,13 +299,10 @@
     if (typeof window.renderCustosFrota === 'function') window.renderCustosFrota();
   };
 
-  // A exclusão do cadastro não apaga os eventos nem os movimentos já registrados.
+  // O diálogo central permite escolher quais vínculos do cadastro serão apagados.
   var excluirAnterior = window.deletar;
   window.deletar = function(mod, i) {
-    if (mod === 'pneus') {
-      var p = base().pneus && base().pneus[Number(i)];
-      if (p && p.pstatus === 'Em Uso') { alert('Registre a retirada do pneu antes de excluir seu cadastro. O histórico será preservado.'); return; }
-    }
+    if (mod === 'pneus' && typeof window.fmExcluirVinculado === 'function') return window.fmExcluirVinculado(mod, i);
     return typeof excluirAnterior === 'function' ? excluirAnterior.apply(this, arguments) : undefined;
   };
 
