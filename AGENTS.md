@@ -23,3 +23,4 @@
 - Keep vehicle reservation requests in the reservasVeiculos collection with the standalone reserva.html page and reservas-aprovacao.js panel; approval and driver-reported returns (real times, final KM) fill the existing Saída form and save only through salvarSaidaVeiculo, so current conflict rules and stored records stay unchanged.
 - Requesters never edit or delete reservation requests; only administrators may edit or delete them while status is "Devolução informada", via transactional status/field updates that never delete the document or linked Saída records.
 - Keep multi-tire entry in pneus-lote.js: validate every row via FMPneusFrota.preparar before saving, then save each tire through salvarPneu so stock, history and Pneus por KM stay consistent.
+- Confirm distinct integrated cost origins independently and retain digitalOrigem on confirmed costs; equal date, plate and value do not identify the same tire or stock movement.

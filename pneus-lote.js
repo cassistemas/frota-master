@@ -72,7 +72,8 @@
     if (erros.length) { alert('Nada foi salvo. Corrija:\n\n' + erros.join('\n')); return; }
     if (!confirm(estoque ? 'Salvar ' + linhas.length + ' pneus no estoque?' : 'Salvar ' + linhas.length + ' pneus no veículo ' + comum.pveiculo + '?')) return;
     var alerta = window.alert, falhas = [];
-    linhas.forEach(function (l) {
+    window.fmPneusLoteAtivo = true;
+    try { linhas.forEach(function (l) {
       COMUNS.forEach(function (id) { if ($(id)) $(id).value = comum[id]; });
       $('p_idx').value = ''; $('pnumero').value = l.num; $('pdot').value = l.dot; $('pposicao').value = l.pos;
       if (estoque && $('pposicao').value) { $('pposicao').selectedIndex = -1; }
@@ -82,7 +83,7 @@
       window.alert = function (m) { falhas.push('Pneu ' + l.num + ': ' + m); };
       try { emLote = true; window.salvarPneu(); } finally { emLote = false; }
       try {} finally { window.alert = alerta; }
-    });
+    }); } finally { if (typeof window.fmPneusGravarTudo === 'function') window.fmPneusGravarTudo(); else window.fmPneusLoteAtivo = false; }
     if (falhas.length) alert('Alguns pneus não foram salvos:\n\n' + falhas.join('\n'));
     else alert(linhas.length + ' pneus salvos. Clique no olho de cada um para ver todas as informações.');
     $('plLinhas').innerHTML = ''; montarLinhas();

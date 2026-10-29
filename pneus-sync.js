@@ -21,6 +21,7 @@
       : (Array.isArray(base().estoque) ? base().estoque : (base().estoque = []));
   }
   function gravar() {
+    if (window.fmPneusLoteAtivo) return; // o lote grava tudo de uma vez ao final
     if (typeof window.persistirEstoque === "function") window.persistirEstoque();
     if (typeof salvarNuvem === "function") return salvarNuvem(['pneus','eventosPneus']);
   }
@@ -104,7 +105,7 @@
       etipo: "Saída",
       equantidade: 1,
       evalorunitario: valor,
-      edata: hoje(),
+      edata: (window.fmPneusDataReparo && p.pdatainstalacao) || hoje(),
       efornecedor: "",
       elote: p.pdot || "",
       eresponsavel: "",
@@ -154,6 +155,37 @@
     }
   }
   window.sincronizarPneuEstoque = sincronizar;
+  window.fmPneusGravarTudo = function () { window.fmPneusLoteAtivo = false; return gravar(); };
+
+  /* Completa, uma vez por pneu, a saída do estoque e o evento de Pneus por KM
+     que faltarem para pneus Em Uso já cadastrados. Não duplica o que existe. */
+  function completarFaltantes() {
+    var b = base();
+    if (!b || !Array.isArray(b.pneus)) return false;
+    if (typeof window.fmModuloCarregado === "function" &&
+        ["pneus","estoque","eventosPneus","manutencoes","veiculos"].some(function (m) { return !window.fmModuloCarregado(m); })) return null;
+    var mudou = false, ev = Array.isArray(b.eventosPneus) ? b.eventosPneus : [];
+    b.pneus.forEach(function (p) {
+      if (!p || p.pstatus !== "Em Uso" || !p.pveiculo) return;
+      garantirId(p);
+      var temSaida = movsPneu(p).some(function (m) { return m.etipo === "Saída"; });
+      if (!temSaida) { window.fmPneusDataReparo = true; try { sincronizar(p); } finally { window.fmPneusDataReparo = false; } mudou = true; }
+      var temEvento = ev.some(function (e) { return e && (e.cadastroPneuId === p.pid || String(e.pneuId || "").trim().toUpperCase() === String(p.pnumero || "").trim().toUpperCase()); });
+      if (!temEvento && window.FMPneusFrota) {
+        var plano = window.FMPneusFrota.preparar(Object.assign({}, p), null);
+        if (!plano.erro && window.FMPneusFrota.aplicar(plano)) mudou = true;
+        ev = Array.isArray(b.eventosPneus) ? b.eventosPneus : [];
+      }
+    });
+    if (mudou) gravar();
+    return mudou;
+  }
+  window.fmPneusCompletarFaltantes = completarFaltantes;
+  (function aguardar(t) {
+    var r = null;
+    try { r = (window.auth && auth.currentUser) ? completarFaltantes() : null; } catch (e) { console.error(e); }
+    if (r === null && t < 120) setTimeout(function () { aguardar(t + 1); }, 2000);
+  })(0);
 
   /* ---------- salvar pneu (substitui o original) ---------- */
   window.salvarPneu = function () {
