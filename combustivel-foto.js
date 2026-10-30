@@ -241,9 +241,9 @@
   }
 
   /* ---------- Leitura com várias tentativas ---------- */
-  function ler(arquivo, aviso) {
+  function ler(contexto, aviso) {
     var worker, img;
-    return carregarLib().then(function () { return carregarImagem(arquivo, aviso); }).then(function (i) {
+    return carregarLib().then(function () { return contexto.obterImagem(); }).then(function (i) {
       img = i;
       return Tesseract.createWorker('por', 1, { workerPath: BASE + 'tesseract/worker.min.js', corePath: BASE + 'tesseract/tesseract-core-simd-lstm.wasm.js', langPath: BASE + 'tesseract' });
     }).then(function (w) {
@@ -294,78 +294,110 @@
     if (!d.litros && !d.total && !d.data) throw new Error('cupom não reconhecido');
     return { dados: d, canvas: canvas };
   }
-  function imagemParaIA(arquivo, aviso) {
-    return carregarImagem(arquivo, aviso).then(function (img) {
-      var k = Math.min(1, 1600 / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
-      var canvas = document.createElement('canvas');
-      canvas.width = Math.round((img.naturalWidth || img.width) * k); canvas.height = Math.round((img.naturalHeight || img.height) * k);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      return canvas;
+  // Contexto exclusivo desta leitura: reaproveita conversão, imagem e JPEG sem guardar a foto.
+  function criarContexto(arquivo, aviso) {
+    var imagem, preparada;
+    return {
+      obterImagem: function () {
+        if (!imagem) imagem = carregarImagem(arquivo, aviso);
+        return imagem;
+      },
+      obterIA: function () {
+        if (!preparada) preparada = this.obterImagem().then(function (img) {
+          var k = Math.min(1, 1600 / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.round((img.naturalWidth || img.width) * k); canvas.height = Math.round((img.naturalHeight || img.height) * k);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          return { canvas: canvas, jpeg: canvas.toDataURL('image/jpeg', 0.85) };
+        });
+        return preparada;
+      },
+      liberar: function () { arquivo = null; imagem = null; preparada = null; }
+    };
+  }
+
+  // O limite cobre rede e corpo da resposta. Uma resposta tardia nunca preenche o formulário.
+  function comPrazo(tarefa, ms, mensagem) {
+    return new Promise(function (ok, err) {
+      var encerrada = false, controle = typeof AbortController === 'function' ? new AbortController() : null;
+      var timer = setTimeout(function () {
+        if (encerrada) return;
+        encerrada = true;
+        if (controle) controle.abort();
+        err(new Error(mensagem));
+      }, ms);
+      Promise.resolve().then(function () { return tarefa(controle ? controle.signal : undefined); }).then(function (valor) {
+        if (encerrada) return;
+        encerrada = true; clearTimeout(timer); ok(valor);
+      }, function (e) {
+        if (encerrada) return;
+        encerrada = true; clearTimeout(timer); err(e);
+      });
     });
   }
 
   /* ---------- Leitura inteligente direta no Gemini, com a chave salva no aparelho ---------- */
   function chaveGemini() { try { return String(localStorage.getItem(CHAVE_LS) || '').trim(); } catch (e) { return ''; } }
-  function lerGeminiDireto(arquivo, aviso) {
+  function lerGeminiDireto(contexto, aviso) {
     var chave = chaveGemini();
     if (!chave) return Promise.reject(new Error('sem chave do Gemini'));
-    var canvas;
-    return imagemParaIA(arquivo, aviso).then(function (c) {
-      canvas = c;
-      aviso('Lendo o cupom com o Gemini...');
+    return contexto.obterIA().then(function (foto) {
+      aviso('Lendo o cupom com o Gemini 2.5 Flash (limite de 35 s)...');
       var corpo = {
         contents: [{ parts: [
           { text: PROMPT_IA },
-          { inline_data: { mime_type: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.85).split(',')[1] } }
+          { inline_data: { mime_type: 'image/jpeg', data: foto.jpeg.split(',')[1] } }
         ] }],
-        generationConfig: { temperature: 0 }
-      };
-      // Tenta vários modelos: o Google retira nomes antigos (erro 404)
-      var modelos = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-lite-latest', 'gemini-1.5-flash'];
-      function tentar(i) {
-        return fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelos[i] + ':generateContent?key=' + encodeURIComponent(chave), {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo)
-        }).then(function (r) {
-          if ((r.status === 404 || r.status === 503) && i + 1 < modelos.length) return tentar(i + 1);
-          return r;
-        });
-      }
-      return tentar(0);
-    }).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (j) {
-        if (!r.ok) {
-          var msg = (j && j.error && j.error.message) || '';
-          if (r.status === 400 && /key|API_KEY/i.test(msg)) throw new Error('chave do Gemini inválida — confira a chave salva');
-          if (r.status === 403) throw new Error('chave do Gemini sem permissão — confira a chave salva');
-          if (r.status === 429) throw new Error('limite de leituras do Gemini atingido — tente de novo em instantes');
-          throw new Error('Gemini não respondeu (' + r.status + ')');
+        generationConfig: {
+          temperature: 0,
+          responseMimeType: 'application/json',
+          // Mantém raciocínio para a tabela e o rodapé, sem processamento aberto indefinidamente.
+          thinkingConfig: { thinkingBudget: 1024 }
         }
-        var texto = '';
-        try { texto = String(j.candidates[0].content.parts.map(function (p) { return p.text || ''; }).join('')); } catch (e) { texto = ''; }
-        var m = texto.match(/\{[\s\S]*\}/);
-        if (!m) throw new Error('cupom não reconhecido');
-        var obj; try { obj = JSON.parse(m[0]); } catch (e) { throw new Error('resposta do Gemini ilegível'); }
-        return interpretarIA(obj, canvas);
-      });
+      };
+      // Modelo fixo, sem tentativas em cascata nem troca automática por modelos Lite/antigos.
+      return comPrazo(function (signal) {
+        return fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+          method: 'POST', signal: signal,
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave }, body: JSON.stringify(corpo)
+        }).then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (j) {
+            if (!r.ok) {
+              var msg = (j && j.error && j.error.message) || '';
+              if (r.status === 400 && /key|API_KEY/i.test(msg)) throw new Error('chave do Gemini inválida — confira a chave salva');
+              if (r.status === 403) throw new Error('chave do Gemini sem permissão — confira a chave salva');
+              if (r.status === 429) throw new Error('limite de leituras do Gemini atingido — tente de novo em instantes');
+              throw new Error('Gemini não respondeu (' + r.status + ')');
+            }
+            var texto = '';
+            try { texto = String(j.candidates[0].content.parts.filter(function (p) { return !p.thought; }).map(function (p) { return p.text || ''; }).join('')); } catch (e) { texto = ''; }
+            var m = texto.match(/\{[\s\S]*\}/);
+            if (!m) throw new Error('cupom não reconhecido');
+            var obj; try { obj = JSON.parse(m[0]); } catch (e) { throw new Error('resposta do Gemini ilegível'); }
+            return interpretarIA(obj, foto.canvas);
+          });
+        });
+      }, 35000, 'Gemini excedeu 35 s de espera');
     });
   }
 
   /* ---------- Leitura inteligente (Gemini via Lovable), só para usuário logado ---------- */
-  function lerIA(arquivo, aviso) {
+  function lerIA(contexto, aviso) {
     if (!/^https?:$/.test(location.protocol)) return Promise.reject(new Error('sistema aberto fora da internet'));
     var u = window.firebase && firebase.auth && firebase.auth().currentUser;
     if (!u) return Promise.reject(new Error('faça login'));
-    var canvas;
-    return imagemParaIA(arquivo, aviso).then(function (c) {
-      canvas = c;
-      return u.getIdToken();
-    }).then(function (token) {
-      aviso('Lendo o cupom com leitura inteligente...');
-      // Fora do Lovable (ex.: frotamaster.com.br) usa o servidor publicado do Lovable
-      var base = /(\.lovable\.app|\.lovableproject\.com|localhost)$/.test(location.hostname) ? '' : 'https://project--db537476-20d3-42a5-90a4-7109290f0111.lovable.app';
-      return fetch(base + '/api/public/ler-cupom', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ imagem: canvas.toDataURL('image/jpeg', 0.85) }) });
-    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || !j.dados) throw new Error({ LOGIN: 'faça login novamente', CREDITOS: 'créditos de IA esgotados', LIMITE: 'muitas leituras seguidas' }[j.erro] || 'sem resposta'); return j.dados; }); })
-      .then(function (x) { return interpretarIA(x, canvas); });
+    return contexto.obterIA().then(function (foto) {
+      aviso('Lendo pela alternativa inteligente do Lovable (limite de 25 s)...');
+      return comPrazo(function (signal) {
+        return u.getIdToken().then(function (token) {
+          if (signal && signal.aborted) throw new Error('leitura alternativa cancelada');
+          // Fora do Lovable (ex.: frotamaster.com.br) usa o servidor publicado do Lovable.
+          var base = /(\.lovable\.app|\.lovableproject\.com|localhost)$/.test(location.hostname) ? '' : 'https://project--db537476-20d3-42a5-90a4-7109290f0111.lovable.app';
+          return fetch(base + '/api/public/ler-cupom', { method: 'POST', signal: signal, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ imagem: foto.jpeg }) });
+        }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || !j.dados) throw new Error({ LOGIN: 'faça login novamente', CREDITOS: 'créditos de IA esgotados', LIMITE: 'muitas leituras seguidas' }[j.erro] || 'sem resposta'); return j.dados; }); })
+          .then(function (x) { return interpretarIA(x, foto.canvas); });
+      }, 25000, 'leitura alternativa excedeu 25 s de espera');
+    });
   }
 
   /* ---------- Preencher formulário e mostrar conferência ---------- */
@@ -466,20 +498,31 @@
     var inp = el('cFotoCupom'), aviso = function (t) { el('cFotoAviso').textContent = t; };
     inp.addEventListener('change', function () {
       var f = inp.files && inp.files[0]; if (!f) return;
-      inp.disabled = true; el('cFotoResultado').innerHTML = ''; aviso('Preparando leitura...');
-      // Ordem: servidor do Lovable -> chave do Gemini -> leitura local
-      // Com chave salva: Gemini direto primeiro (mais rápido, a foto não passa por servidor do sistema)
-      (chaveGemini() ? lerGeminiDireto(f, aviso).catch(function (e) { console.warn('Gemini direto indisponível', e); aviso('Gemini: ' + ((e && e.message) || 'falhou') + ' — usando outra leitura...'); return lerIA(f, aviso); })
-        : lerIA(f, aviso)).catch(function (e) {
-        console.warn('Leitura IA indisponível', e);
-        aviso('Leitura inteligente indisponível (' + (e && e.message || 'erro') + '). Usando a leitura local...');
-        return ler(f, aviso);
+      inp.disabled = true; el('cFotoResultado').innerHTML = '';
+      var inicio = Date.now(), etapa = 'Preparando leitura...', contexto = criarContexto(f, progresso);
+      function progresso(t) { etapa = t; atualizarProgresso(); }
+      function atualizarProgresso() { aviso(etapa + ' • ' + Math.floor((Date.now() - inicio) / 1000) + ' s decorridos'); }
+      atualizarProgresso();
+      var relogio = setInterval(atualizarProgresso, 1000);
+      // Valida/converte uma vez antes das alternativas. Erros de arquivo não iniciam novos leitores.
+      contexto.obterImagem().then(function () {
+        return (chaveGemini() ? lerGeminiDireto(contexto, progresso).catch(function (e) {
+          console.warn('Gemini direto indisponível', e);
+          progresso('Gemini: ' + ((e && e.message) || 'falhou') + ' — usando outra leitura...');
+          return lerIA(contexto, progresso);
+        }) : lerIA(contexto, progresso)).catch(function (e) {
+          console.warn('Leitura IA indisponível', e);
+          progresso('Leitura inteligente indisponível (' + (e && e.message || 'erro') + '). Usando a leitura local...');
+          return ler(contexto, progresso);
+        });
       }).then(function (res) {
+        clearInterval(relogio);
         if (!res) throw new Error('sem resultado');
         var r = preencher(res.dados); mostrar(r, null); res.canvas = null;
-        aviso(r.faltam.length || r.conferir.length ? 'Pré-lançamento preenchido. Confira os itens marcados, complete o que falta e clique em Salvar.' : 'Pré-lançamento preenchido. Confira os dados e clique em Salvar.');
+        aviso((r.faltam.length || r.conferir.length ? 'Pré-lançamento preenchido. Confira os itens marcados, complete o que falta e clique em Salvar.' : 'Pré-lançamento preenchido. Confira os dados e clique em Salvar.') + ' Tempo de leitura: ' + ((Date.now() - inicio) / 1000).toFixed(1).replace('.', ',') + ' s.');
         var c = el('cveiculo'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }).catch(function (e) {
+        clearInterval(relogio);
         console.warn('Foto combustível', e);
         var mensagens = {
           ARQUIVO_GRANDE:'O arquivo ultrapassa 20 MB. Reduza o tamanho e tente novamente.',
@@ -491,7 +534,7 @@
         };
         aviso(mensagens[e && e.message] || 'O arquivo foi aberto, mas os dados do cupom não puderam ser reconhecidos. Fotografe somente o cupom, reto, próximo e com o rodapé legível, ou complete à mão.');
       })
-        .then(function () { inp.value = ''; f = null; inp.disabled = false; });
+        .then(function () { clearInterval(relogio); contexto.liberar(); inp.value = ''; f = null; inp.disabled = false; });
     });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montar); else montar();
