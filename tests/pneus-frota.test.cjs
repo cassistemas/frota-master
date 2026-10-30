@@ -17,7 +17,7 @@ function ambiente(dados = {}, opcoes = {}) {
   ctx.window = ctx;
   vm.createContext(ctx);
   vm.runInContext(ler('pneus-frota.js'), ctx);
-  const fonte = ler('resultado-frota.js').replace('function eventosDoPneu(pid)', 'window.calculoTeste={kmSegmento:kmSegmento,kmCicloPeriodo:kmCicloPeriodo,kmCicloTotal:kmCicloTotal,ciclos:ciclosPneus};function eventosDoPneu(pid)');
+  const fonte = ler('resultado-frota.js').replace('function eventosDoPneu(pid)', 'window.calculoTeste={kmSegmento:kmSegmento,kmCicloPeriodo:kmCicloPeriodo,kmCicloTotal:kmCicloTotal,ciclos:ciclosPneus,renderMemoria:renderMemoriaPneus,selecionarPlaca:function(pl){estado.veiculoPneus=pl}};function eventosDoPneu(pid)');
   vm.runInContext(fonte, ctx);
   return { ctx, db, api: ctx.FMPneusFrota, calculo: ctx.calculoTeste, salvos };
 }
@@ -122,4 +122,67 @@ test('vida consumida em mês anterior reduz somente o saldo disponível no segui
   const c = amb.calculo.ciclos()[0];
   assert.equal(amb.calculo.kmCicloPeriodo(c, janeiro, 'ABC1234'), 6000);
   assert.equal(amb.calculo.kmCicloPeriodo(c, { ini: '2026-02-01', fim: '2026-02-28' }, 'ABC1234'), 2000);
+});
+
+function memoria(amb, f = janeiro) {
+  const box = { innerHTML: '', textContent: '' };
+  amb.ctx.document.getElementById = id => id === 'resPneuAviso' ? {} : id === 'resPneuMemoria' ? box : null;
+  amb.calculo.renderMemoria('ABC-1234', f, amb.calculo.ciclos());
+  return box;
+}
+test('memória mostra fechamento, taxa precisa e custo mensal sem alterar registros', () => {
+  const amb = ambiente({ eventosPneus: [instalacao()], quilometragens: [fechamento()] });
+  amb.ctx.FMCustosAPI = { kmPeriodo: () => 6000 };
+  const antes = JSON.stringify(amb.db);
+  const box = memoria(amb);
+  for (const texto of ['999.999 km', '204.000 km', '210.000 km', '6.000 km', '300,00', '0,0500', 'Conferir quilometragem']) assert.ok(box.innerHTML.includes(texto), texto);
+  assert.equal(JSON.stringify(amb.db), antes);
+  assert.equal(amb.salvos.length, 0);
+});
+test('memória distingue KM geral de fechamentos sem odômetros e sinaliza sobreposições', () => {
+  const amb = ambiente({ eventosPneus: [instalacao()], quilometragens: [fechamento(), fechamento(), fechamento({ odometroInicial: '', odometroFinal: '', kmRodado: 9000 })] });
+  amb.ctx.FMCustosAPI = { kmPeriodo: () => 21000 };
+  const html = memoria(amb).innerHTML;
+  assert.match(html, /1 fechamento\(s\) sem odômetros válidos/);
+  assert.match(html, /faixas de odômetro sobrepostas/);
+  assert.match(html, /Há diferença entre o KM geral/);
+  assert.equal(amb.calculo.kmCicloPeriodo(amb.calculo.ciclos()[0], janeiro, 'ABC1234'), 6000);
+});
+test('memória não inventa fechamento e aguarda dados ainda não carregados', () => {
+  const vazio = ambiente({ eventosPneus: [instalacao()] });
+  const html = memoria(vazio).innerHTML;
+  assert.match(html, /nenhum fechamento com odômetros válidos/);
+  assert.match(html, /Nenhum fechamento salvo/);
+  const carregando = ambiente({}, { carregado: false });
+  assert.match(memoria(carregando).textContent, /Aguarde o carregamento/);
+});
+test('atalho abre Quilometragem com placa e período sem salvar ou preencher fechamento', () => {
+  const amb = ambiente();
+  amb.calculo.selecionarPlaca('ABC1234');
+  const valores = {
+    cusFiltroVeiculo: { value: '', options: [{ value: 'ABC-1234' }] },
+    cusFiltroInicio: { value: janeiro.ini }, cusFiltroFim: { value: janeiro.fim }
+  };
+  const eventos = [];
+  Object.keys(valores).forEach(id => { valores[id].dispatchEvent = ev => eventos.push([id, ev.type]); });
+  amb.ctx.Event = function(type) { this.type = type; };
+  amb.ctx.FMCustosAPI = { filtros: () => ({ ...janeiro }) };
+  let abriu = false, rolou = false;
+  amb.ctx.trocarAbaCustos = () => {};
+  amb.ctx.document.querySelector = () => ({ click: () => {
+    abriu = true;
+    valores.cusFiltroInicio.value = '2025-01-01';
+    valores.cusFiltroFim.value = '2025-01-31';
+  } });
+  amb.ctx.document.getElementById = id => valores[id] || (id === 'cusPane-quilometragem' ? { scrollIntoView: () => { rolou = true; } } : null);
+  const antes = JSON.stringify(amb.db);
+  amb.ctx.conferirQuilometragemPneus();
+  assert.equal(abriu, true);
+  assert.equal(rolou, true);
+  assert.equal(valores.cusFiltroVeiculo.value, 'ABC-1234');
+  assert.equal(valores.cusFiltroInicio.value, janeiro.ini);
+  assert.equal(valores.cusFiltroFim.value, janeiro.fim);
+  assert.equal(eventos.length, 3);
+  assert.equal(JSON.stringify(amb.db), antes);
+  assert.equal(amb.salvos.length, 0);
 });
