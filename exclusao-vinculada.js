@@ -26,7 +26,13 @@
     exclusoes = proximo;
   }
   function lista(mod) { return typeof db !== 'undefined' && Array.isArray(db[mod]) ? db[mod] : []; }
-  function ids(x) { return ['id','_id','_rid','_fid','uid','_origemUid'].map(function (k) { return x[k]; }).filter(function (v) { return v !== undefined && v !== null && v !== ''; }).map(String); }
+  function ids(x) { return ['id','_id','_rid','_fid','uid','_origemUid','eid','pid'].map(function (k) { return x[k]; }).filter(function (v) { return v !== undefined && v !== null && v !== ''; }).map(String); }
+  function mesmoId(a, b) { return a !== undefined && a !== null && a !== '' && b !== undefined && b !== null && b !== '' && String(a) === String(b); }
+  function origemEstoque(x, eid) {
+    if (!eid) return false;
+    var digital = String(x.digitalOrigem || ''), sufixo = '|est:' + String(eid);
+    return x.origemModulo === 'manutencoes' && digital.slice(-sufixo.length) === sufixo;
+  }
   function nome(mod) { return nomes[mod] || mod; }
   function destinos(mod) {
     var r = integrados.indexOf(mod) >= 0 ? ['preLancamentos','custos'] : [];
@@ -39,10 +45,15 @@
     var chaves = ids(x).map(function (id) { return mod + ':' + id; });
     if ((destino === 'preLancamentos' || destino === 'custos') &&
         (chaves.indexOf(y.origemChave) >= 0 || (y.origemModulo === mod && ids(x).indexOf(String(y.origemRegistroId)) >= 0))) return true;
-    if (mod === 'preLancamentos' && destino === 'custos') return !!x.origemChave && x.origemChave === y.origemChave;
-    if (mod === 'estoque' && destino === 'manutencoes') return !!x.eid && y.morigem === 'estoque' && y.mestoqueid === x.eid;
-    if (mod === 'pneus' && destino === 'estoque') return !!x.pid && y.epneuid === x.pid;
-    if (mod === 'pneus' && destino === 'eventosPneus') return !!x.pid && y.origem === 'cadastro_pneus' && y.cadastroPneuId === x.pid;
+    if (mod === 'estoque' && (destino === 'preLancamentos' || destino === 'custos') && origemEstoque(y, x.eid)) return true;
+    if (mod === 'manutencoes' && x.morigem === 'estoque' && (destino === 'preLancamentos' || destino === 'custos') && origemEstoque(y, x.mestoqueid)) return true;
+    if (mod === 'preLancamentos' && destino === 'custos') return (!!x.origemChave && x.origemChave === y.origemChave) ||
+      (!!x.origemModulo && x.origemModulo === y.origemModulo && mesmoId(x.origemRegistroId, y.origemRegistroId)) ||
+      (String(x.digitalOrigem || '').indexOf('|est:') >= 0 && x.digitalOrigem === y.digitalOrigem);
+    if (mod === 'estoque' && destino === 'manutencoes') return y.morigem === 'estoque' && mesmoId(x.eid, y.mestoqueid);
+    if (mod === 'pneus' && destino === 'estoque') return mesmoId(x.pid, y.epneuid);
+    if (mod === 'pneus' && destino === 'manutencoes') return y.morigem === 'estoque' && mesmoId(x.pid, y.mpneuid);
+    if (mod === 'pneus' && destino === 'eventosPneus') return y.origem === 'cadastro_pneus' && mesmoId(x.pid, y.cadastroPneuId);
     return false;
   }
   function plano(mod, registro) {
@@ -71,31 +82,26 @@
       var anterior = document.activeElement, dialog = document.createElement('dialog');
       dialog.setAttribute('aria-labelledby','fmExcluirTitulo');
       dialog.style.cssText = 'width:min(640px,94vw);max-height:90vh;overflow:auto;border:1px solid #cbd5e1;border-radius:14px;padding:24px;background:#fff;color:#0f172a;box-shadow:0 24px 80px #0006';
-      var titulo = document.createElement('h4'); titulo.id = 'fmExcluirTitulo'; titulo.textContent = 'Excluir registro e vínculos'; dialog.appendChild(titulo);
-      var aviso = document.createElement('p'); aviso.textContent = 'A origem será excluída: ' + nome(p.nos[0].mod) + '. Marque os outros módulos que também deseja excluir. Somente vínculos identificados serão atingidos.'; dialog.appendChild(aviso);
+      var titulo = document.createElement('h4'); titulo.id = 'fmExcluirTitulo'; titulo.textContent = 'Excluir origem e todos os vínculos'; dialog.appendChild(titulo);
+      var aviso = document.createElement('p'); aviso.textContent = 'Ao excluir a origem em ' + nome(p.nos[0].mod) + ', todos os registros vinculados abaixo também serão excluídos, incluindo pré-lançamentos e lançamentos financeiros confirmados. Não é necessário selecionar módulos.'; dialog.appendChild(aviso);
       var detalhe = document.createElement('p'); detalhe.className = 'small text-muted'; detalhe.textContent = resumo(p.nos[0].registro); dialog.appendChild(detalhe);
-      var grupos = {}, checks = [];
-      p.nos.slice(1).forEach(function (n) { (grupos[n.mod] || (grupos[n.mod] = [])).push(n); });
+      var grupos = {};
+      p.nos.forEach(function (n) { (grupos[n.mod] || (grupos[n.mod] = [])).push(n); });
       Object.keys(grupos).forEach(function (mod) {
-        var label = document.createElement('label'); label.style.cssText = 'display:block;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin:8px 0';
-        var c = document.createElement('input'); c.type = 'checkbox'; c.dataset.mod = mod; c.className = 'form-check-input me-2'; checks.push(c); label.appendChild(c);
-        label.appendChild(document.createTextNode(nome(mod) + ' — ' + grupos[mod].length + ' registro(s)'));
+        var bloco = document.createElement('div'); bloco.style.cssText = 'padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin:8px 0';
+        var rotulo = document.createElement('strong'); rotulo.textContent = nome(mod) + ' — ' + grupos[mod].length + ' registro(s)'; bloco.appendChild(rotulo);
         var ul = document.createElement('ul'); ul.className = 'small mb-0 mt-2';
         grupos[mod].forEach(function (n) { var li = document.createElement('li'); li.textContent = resumo(n.registro) || 'Registro vinculado'; ul.appendChild(li); });
-        label.appendChild(ul); dialog.appendChild(label);
+        bloco.appendChild(ul); dialog.appendChild(bloco);
       });
-      var nota = document.createElement('p'); nota.className = 'small'; nota.textContent = 'Módulos desmarcados mantêm seus registros salvos. Relatórios e cálculos sem registro próprio refletem os dados restantes e não podem ser preservados separadamente. Dados antigos sem ID de vínculo não serão apagados em cascata.'; dialog.appendChild(nota);
+      var nota = document.createElement('p'); nota.className = 'small'; nota.textContent = 'Relatórios e totais serão recalculados com os dados restantes. Somente vínculos identificados pela origem serão excluídos; registros antigos sem vínculo comprovado não serão apagados por coincidência de placa, data ou valor.'; dialog.appendChild(nota);
       var acoes = document.createElement('div'); acoes.className = 'd-flex flex-wrap gap-2 mt-3';
       function fechar(valor) { dialog.close(); dialog.remove(); if (anterior && anterior.isConnected) anterior.focus(); resolve(valor); }
-      acoes.appendChild(botao('Somente origem','btn-outline-secondary',function () { checks.forEach(function (c) { c.checked = false; }); }));
-      if (checks.length) acoes.appendChild(botao('Todos os vinculados','btn-outline-primary',function () { checks.forEach(function (c) { c.checked = true; }); }));
       acoes.appendChild(botao('Cancelar','btn-secondary',function () { fechar(null); }));
-      acoes.appendChild(botao('Revisar e excluir','btn-danger',function () {
-        var mods = checks.filter(function (c) { return c.checked; }).map(function (c) { return c.dataset.mod; });
-        var selecionados = p.nos.filter(function (n, i) { return i === 0 || mods.indexOf(n.mod) >= 0; });
-        var contagem = {}; selecionados.forEach(function (n) { contagem[n.mod] = (contagem[n.mod] || 0) + 1; });
+      acoes.appendChild(botao('Excluir origem e todos os vínculos','btn-danger',function () {
+        var contagem = {}; p.nos.forEach(function (n) { contagem[n.mod] = (contagem[n.mod] || 0) + 1; });
         var mensagem = Object.keys(contagem).map(function (m) { return nome(m) + ': ' + contagem[m]; }).join('\n');
-        if (window.confirm('Confirmar exclusão definitiva?\n\n' + mensagem + '\n\nEsta ação não pode ser desfeita.')) fechar(selecionados);
+        if (window.confirm('Confirmar exclusão definitiva da origem e de todos os vínculos?\n\n' + mensagem + '\n\nEsta ação não pode ser desfeita.')) fechar(p.nos);
       }));
       dialog.appendChild(acoes); dialog.addEventListener('cancel',function (e) { e.preventDefault(); fechar(null); }); document.body.appendChild(dialog); dialog.showModal();
     });
@@ -142,13 +148,7 @@
       registrarExclusoes(selecionados);
       var alterados = [];
       function marcar(m) { if (alterados.indexOf(m) < 0) alterados.push(m); }
-      p.arestas.forEach(function (a) {
-        if (selecionados.indexOf(a.pai) >= 0 && selecionados.indexOf(a.filho) < 0 &&
-            (a.filho.mod === 'manutencoes' || a.filho.mod === 'preLancamentos')) {
-          a.filho.registro.fmOrigemExcluida = true;
-          marcar(a.filho.mod);
-        }
-      });
+      // Todos os descendentes são obrigatórios; nunca mantém um custo da origem apagada.
       // Impede que uma prévia excluída reapareça a partir de uma origem mantida.
       selecionados.forEach(function (n) {
         if (n.mod !== 'preLancamentos') return;
@@ -187,7 +187,7 @@
       var ok = await salvarNuvem(alterados);
       atualizar(alterados);
       if (ok === true) {
-        if (typeof statusNuvem === 'function') statusNuvem('Exclusão confirmada no banco nos módulos escolhidos','#198754');
+        if (typeof statusNuvem === 'function') statusNuvem('Exclusão da origem e de todos os vínculos confirmada no banco','#198754');
       } else {
         alert('A exclusão foi aplicada neste dispositivo, mas a gravação de todos os módulos ainda não foi confirmada. Confira o aviso de sincronização antes de fechar o sistema.');
       }
