@@ -159,31 +159,32 @@
 
   /* Completa, uma vez por pneu, a saída do estoque e o evento de Pneus por KM
      que faltarem para pneus Em Uso já cadastrados. Não duplica o que existe. */
-  function completarFaltantes() {
+  async function completarFaltantes() {
     var b = base();
     if (!b || !Array.isArray(b.pneus)) return false;
     if (typeof window.fmModuloCarregado === "function" &&
         ["pneus","estoque","eventosPneus","manutencoes","veiculos"].some(function (m) { return !window.fmModuloCarregado(m); })) return null;
-    var mudou = false, ev = Array.isArray(b.eventosPneus) ? b.eventosPneus : [];
+    if (!window.FMPneusFrota) return null;
+    var resultado = await window.FMPneusFrota.sincronizarCadastros();
+    if (resultado.aguardando) return null;
+    window.FMPneusFrota.mostrarResultado(resultado);
+    var mudou = false;
     b.pneus.forEach(function (p) {
       if (!p || p.pstatus !== "Em Uso" || !p.pveiculo) return;
+      // Não inventa datas nem baixas para cadastros com instalação inválida.
+      if (window.FMPneusFrota.diagnosticar(p).erro) return;
       garantirId(p);
       var temSaida = movsPneu(p).some(function (m) { return m.etipo === "Saída"; });
       if (!temSaida && !p.fmEstoqueExcluido) { window.fmPneusDataReparo = true; try { sincronizar(p); } finally { window.fmPneusDataReparo = false; } mudou = true; }
-      var temEvento = ev.some(function (e) { return e && (e.cadastroPneuId === p.pid || String(e.pneuId || "").trim().toUpperCase() === String(p.pnumero || "").trim().toUpperCase()); });
-      if (!temEvento && !p.fmEventosPneusExcluidos && window.FMPneusFrota) {
-        var plano = window.FMPneusFrota.preparar(Object.assign({}, p), null);
-        if (!plano.erro && window.FMPneusFrota.aplicar(plano)) mudou = true;
-        ev = Array.isArray(b.eventosPneus) ? b.eventosPneus : [];
-      }
     });
-    if (mudou) gravar();
-    return mudou;
+    if (mudou) await gravar();
+    if (typeof window.renderResultadoFrota === 'function') window.renderResultadoFrota();
+    return mudou || resultado.integrados > 0;
   }
   window.fmPneusCompletarFaltantes = completarFaltantes;
-  (function aguardar(t) {
+  (async function aguardar(t) {
     var r = null;
-    try { r = (window.auth && auth.currentUser) ? completarFaltantes() : null; } catch (e) { console.error(e); }
+    try { r = (window.auth && auth.currentUser) ? await completarFaltantes() : null; } catch (e) { console.error(e); }
     if (r === null && t < 120) setTimeout(function () { aguardar(t + 1); }, 2000);
   })(0);
 

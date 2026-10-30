@@ -29,7 +29,8 @@
     var mudou = anterior && (anterior.pstatus !== p.pstatus || placa(anterior.pveiculo) !== placa(p.pveiculo) || anterior.pposicao !== p.pposicao);
     if (!uso && !ativo) return {eventos:[]};
     var dt = p.pdatainstalacao, odo = numero(uso ? p.pkminstalacao : p.pkmatual);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dt || '') || !Number.isFinite(Date.parse(dt+'T12:00:00'))) {
+    var dataTeste = new Date(dt + 'T12:00:00Z');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dt || '') || !Number.isFinite(dataTeste.getTime()) || dataTeste.toISOString().slice(0,10) !== dt) {
       return {erro:'Informe a data da instalação ou movimentação do pneu.'};
     }
     if (uso) {
@@ -65,8 +66,10 @@
     });
     if (e.tipo === 'Rodízio') {
       // O odômetro de origem e o de destino são independentes numa transferência.
-      e.odometroOrigem = mesma ? numero(anteriorEvento.odometroOrigem) : numero(p.pkmatual);
-      if (placa(ultimo.veiculo) !== placa(p.pveiculo) && e.odometroOrigem <= 0) return {erro:'Informe o KM Atual do veículo de origem e o KM Instalação do destino antes de transferir o pneu.'};
+      var transferencia = placa(ultimo.veiculo) !== placa(p.pveiculo);
+      e.odometroOrigem = mesma ? numero(anteriorEvento.odometroOrigem) : transferencia ? numero(p.pkmatual) : odo;
+      if (transferencia && e.odometroOrigem <= 0) return {erro:'Informe o KM Atual do veículo de origem e o KM Instalação do destino antes de transferir o pneu.'};
+      if (transferencia && e.odometroOrigem < numero(ultimo.odometro)) return {erro:'O odômetro de saída da origem não pode ser menor que a última leitura do pneu nesse veículo.'};
       e.valor = 0;
     }
     if (mesma && instalacao && instalacao.id !== e.id && (numero(instalacao.valor) !== numero(p.pvalor) || numero(instalacao.vidaUtilKm) !== numero(p.pvida))) {
@@ -76,6 +79,119 @@
     if (!mesma && placa(e.veiculo) === placa(ultimo && ultimo.veiculo) && ultimo && odo < numero(ultimo.odometro)) return {erro:'O odômetro da movimentação não pode ser menor que o último odômetro registrado.'};
     return {eventos:[e]};
   }
+  // Repara apenas instalações ausentes e inequívocas; nunca reescreve ciclos existentes.
+  function diagnosticar(p) {
+    var b = banco(), nome = chave(p && p.pnumero);
+    if (!b) return {erro:'Aguarde o carregamento dos cadastros.'};
+    if (!p || p.pstatus !== 'Em Uso') return {eventos:[]};
+    if (p.fmEventosPneusExcluidos) return {erro:'Integração excluída anteriormente. Revise o cadastro antes de reintegrar.'};
+    if (!nome) return {erro:'Informe o número do pneu no cadastro.'};
+    if ((b.pneus || []).some(function (x) { return x !== p && (chave(x.pnumero) === nome || (p.pid && x.pid === p.pid)); })) return {erro:'Identificação duplicada no cadastro de Pneus.'};
+    var eventos = (b.eventosPneus || []).filter(function (e) {
+      return e && ((p.pid && e.cadastroPneuId === p.pid) || chave(e.pneuId) === nome);
+    }).sort(function (a, c) { return String(a.data).localeCompare(String(c.data)) || numero(a.odometro)-numero(c.odometro); });
+    if (eventos.some(function (e) { return (e.cadastroPneuId && e.cadastroPneuId !== p.pid) || chave(e.pneuId) !== nome; })) return {erro:'Vínculo de identificação divergente no histórico. Confira Pneus por KM.'};
+    var ultimo = eventos[eventos.length - 1];
+    var ativo = ultimo && ultimo.tipo !== 'Retirada' && ultimo.tipo !== 'Descarte';
+    if (ativo) {
+      if (placa(ultimo.veiculo) !== placa(p.pveiculo)) return {erro:'O histórico está ativo em outra placa. Registre a transferência com data e odômetros de origem e destino; nada foi transferido automaticamente.'};
+      var inicio = eventos.slice().reverse().find(function (e) { return e.tipo === 'Instalação' || e.tipo === 'Recapagem'; });
+      if (!inicio || numero(inicio.valor) <= 0 || numero(inicio.vidaUtilKm) <= 0 || numero(inicio.odometro) <= 0) return {erro:'Ciclo existente incompleto. Revise o evento original em Pneus por KM; nenhum custo adicional foi criado.'};
+      var inicioIndice = eventos.indexOf(inicio), origem = inicio;
+      for (var i = inicioIndice + 1; i < eventos.length; i++) {
+        var movimento = eventos[i];
+        if (movimento.tipo === 'Rodízio') {
+          if (placa(origem.veiculo) !== placa(movimento.veiculo) && numero(movimento.odometroOrigem) <= 0) return {erro:'Transferência existente sem odômetro de origem. Confira o histórico; o consumo pode estar parcial.'};
+          origem = movimento;
+        }
+      }
+      return {eventos:[], integrado:true};
+    }
+    var copia = Object.assign({}, p);
+    if (!copia.pid) copia.pid = 'PNEU-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,9);
+    var plano = preparar(copia, null);
+    if (!plano.erro && plano.eventos.length) plano.cadastro = copia;
+    return plano;
+  }
+  var sincronizando = null;
+  function sincronizarCadastros() {
+    if (sincronizando) return sincronizando;
+    sincronizando = (async function () {
+      var b = banco(), resultado = {integrados:0, existentes:0, pendencias:[]};
+      if (!b || (typeof window.fmModuloCarregado === 'function' && ['pneus','eventosPneus','veiculos'].some(function (m) { return !window.fmModuloCarregado(m); }))) return {aguardando:true, integrados:0, existentes:0, pendencias:[]};
+      if (typeof salvarNuvem !== 'function') throw new Error('Salvamento indisponível.');
+      var planos = [];
+      (b.pneus || []).forEach(function (p) {
+        if (!p || p.pstatus !== 'Em Uso') return;
+        var plano = diagnosticar(p);
+        if (plano.erro) resultado.pendencias.push({pneu:p.pnumero || 'Sem número', placa:p.pveiculo || 'Sem placa', motivo:plano.erro});
+        else if (plano.integrado) resultado.existentes++;
+        else if (plano.eventos.length) planos.push({pneu:p, plano:plano});
+      });
+      if (!planos.length) return resultado;
+      var antesEventos = (b.eventosPneus || []).slice(), alterados = [];
+      try {
+        planos.forEach(function (item) {
+          var p = item.pneu, plano = item.plano;
+          alterados.push({pneu:p, antes:Object.assign({}, p)});
+          if (!p.pid) {
+            p.pid = plano.cadastro.pid;
+            if (typeof window.fmPrepararRegistro === 'function') window.fmPrepararRegistro('pneus', p, alterados[alterados.length-1].antes);
+          }
+          aplicar(plano);
+        });
+        var ok = await salvarNuvem(['pneus','eventosPneus']);
+        if (ok === false) throw new Error('Não foi possível salvar a integração.');
+        resultado.integrados = planos.length;
+      } catch (erro) {
+        // Remove só eventos deste reparo, sem desfazer movimentações concorrentes.
+        var ids = planos.reduce(function (out, item) { return out.concat(item.plano.eventos.map(function (e) { return e.id; })); }, []);
+        b.eventosPneus = (b.eventosPneus || []).filter(function (e) { return ids.indexOf(e.id) < 0 || antesEventos.some(function (x) { return x.id === e.id; }); });
+        alterados.forEach(function (item) { if (!item.antes.pid) delete item.pneu.pid; });
+        throw erro;
+      }
+      return resultado;
+    })();
+    sincronizando.then(function () { sincronizando = null; }, function () { sincronizando = null; });
+    return sincronizando;
+  }
+  var ultimoResultado = null;
+  function mostrarResultado(resultado) {
+    ultimoResultado = resultado;
+    renderPainel();
+  }
+  function renderPainel() {
+    var el = document.getElementById('resPneuIntegracao');
+    if (!el) return;
+    function esc(v) { return String(v || '').replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    var b = banco(), pendencias = [];
+    if (!b || (typeof window.fmModuloCarregado === 'function' && ['pneus','eventosPneus','veiculos'].some(function (m) { return !window.fmModuloCarregado(m); }))) {
+      el.textContent = 'Aguarde o carregamento dos cadastros para conferir a integração.'; return;
+    }
+    (b.pneus || []).forEach(function (p) {
+      if (!p || p.pstatus !== 'Em Uso') return;
+      var plano = diagnosticar(p);
+      if (plano.erro || plano.eventos.length) pendencias.push({pneu:p.pnumero, placa:p.pveiculo, motivo:plano.erro || 'Instalação válida ainda não integrada. Clique em Sincronizar.'});
+    });
+    var semOdometros = (b.quilometragens || []).filter(function (q) { return q.odometroInicial == null || q.odometroInicial === '' || q.odometroFinal == null || q.odometroFinal === '' || numero(q.odometroFinal) <= numero(q.odometroInicial); });
+    el.innerHTML = '<p class="cus-note mb-2">KM mensal: fechamentos salvos em Gestão da Frota → Quilometragem. O KM Atual de Veículos apenas sugere a leitura; sincronizar pneus não altera fechamentos nem lança despesas financeiras.</p>' +
+      (semOdometros.length ? '<p role="status">Atenção: ' + semOdometros.length + ' fechamento(s) sem odômetros válidos. Esses registros não calculam consumo de pneus; revise os odômetros em Quilometragem. Os valores podem estar parciais.</p>' : '') +
+      (ultimoResultado ? '<p role="status">Última sincronização: ' + ultimoResultado.integrados + ' instalação(ões) integrada(s); ' + ultimoResultado.existentes + ' já existente(s).</p>' : '') +
+      (pendencias.length ? '<details open><summary>' + pendencias.length + ' pendência(s) de integração</summary><ul>' + pendencias.map(function (p) { return '<li><b>' + esc(p.pneu || 'Sem número') + ' · ' + esc(p.placa || 'Sem placa') + '</b>: ' + esc(p.motivo) + '</li>'; }).join('') + '</ul></details>' : '<p class="cus-note">Nenhuma integração pendente nos cadastros Em Uso.</p>');
+  }
+  window.fmSincronizarPneusFrota = async function (botao) {
+    if (botao) botao.disabled = true;
+    try {
+      var resultado = await sincronizarCadastros();
+      if (resultado.aguardando) { alert('Aguarde o carregamento de Pneus, veículos e eventos.'); return; }
+      mostrarResultado(resultado);
+      if (typeof window.renderResultadoFrota === 'function') window.renderResultadoFrota();
+      if (typeof window.renderCustosFrota === 'function') window.renderCustosFrota();
+    } catch (erro) {
+      alert('Não foi possível concluir a sincronização dos pneus. Confira a conexão e tente novamente.');
+      console.error(erro);
+    } finally { if (botao) botao.disabled = false; }
+  };
   function aplicar(plano) {
     var b = banco();
     if (!b || !plano || plano.erro || !plano.eventos.length) return false;
@@ -173,6 +289,6 @@
     aplicar(plano);
     return true;
   }
-  window.FMPneusFrota = {preparar:preparar, aplicar:aplicar, resolverItemEstoque:resolverItemEstoque,
+  window.FMPneusFrota = {preparar:preparar, aplicar:aplicar, diagnosticar:diagnosticar, sincronizarCadastros:sincronizarCadastros, mostrarResultado:mostrarResultado, renderPainel:renderPainel, resolverItemEstoque:resolverItemEstoque,
     atualizarSaidaForm:atualizarSaidaForm, prepararSaidaEstoque:prepararSaidaEstoque, aplicarSaidaEstoque:aplicarSaidaEstoque};
 })();
