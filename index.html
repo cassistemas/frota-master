@@ -4346,6 +4346,8 @@ function salvar(mod, campos, idCampo, contexto){
     if(idx !== "" && db[mod] && db[mod][Number(idx)]){
         obj = Object.assign({}, db[mod][Number(idx)], obj);
     }
+    if(mod === 'combustivel' && !(contexto && contexto.combustivelKmConfirmado) &&
+       !confirmarKmCombustivel(obj, idx)) return false;
     var modulosVinculadosAlterados = [];
 
     if(mod === 'manutencoes'){
@@ -5117,6 +5119,41 @@ function carregarFiltroVeiculosComb(){
         ).join('');
 }
 
+function confirmarKmCombustivel(obj, idx) {
+    if (!obj.cveiculo || !/^\d{4}-\d{2}-\d{2}$/.test(obj.cdata || '')) {
+        alert('Selecione o veículo e informe a data do abastecimento.');
+        return false;
+    }
+    const km = Number(obj.ckm) || 0;
+    if (km < 0) {
+        alert('O KM não pode ser negativo. Confira o odômetro.');
+        return false;
+    }
+    const placa = fmNormalizarPlacaVinculo(obj.cveiculo);
+    const historico = (db.combustivel || []).filter((c, i) =>
+        (idx === '' || i !== Number(idx)) &&
+        fmNormalizarPlacaVinculo(c.cveiculo) === placa &&
+        !/arla/i.test(c.ctipo || '') && Number(c.ckm) > 0 &&
+        /^\d{4}-\d{2}-\d{2}$/.test(c.cdata || '')
+    ).sort(compararDataCombustivel);
+    const anteriores = historico.filter(c => c.cdata <= obj.cdata);
+    const anterior = anteriores[anteriores.length - 1];
+    const posterior = historico.find(c => c.cdata > obj.cdata);
+    const avisos = [];
+    if (km === 0) avisos.push('O KM informado está zerado ou vazio.');
+    if (anterior && km < Number(anterior.ckm)) {
+        avisos.push('O KM informado (' + km.toLocaleString('pt-BR') + ') é inferior ao abastecimento anterior por data: ' +
+            Number(anterior.ckm).toLocaleString('pt-BR') + ' km em ' + formatarDataBR(anterior.cdata) + '.');
+    }
+    if (km > 0 && posterior && km > Number(posterior.ckm)) {
+        avisos.push('Já existe um abastecimento posterior, em ' + formatarDataBR(posterior.cdata) +
+            ', com KM menor (' + Number(posterior.ckm).toLocaleString('pt-BR') + ').');
+    }
+    if (!avisos.length) return true;
+    return confirm('Atenção ao KM do veículo ' + obj.cveiculo + ':\n\n' + avisos.join('\n') +
+        '\n\nConfira a data e o odômetro. KM zerado ou regressivo não será usado para criar uma média artificial.\n\nDeseja salvar mesmo assim? Clique em Cancelar para corrigir.');
+}
+
 function salvarCombustivelCustom() {
     const campos = ['cveiculo', 'cdata', 'ctipo', 'clitros', 'cvalorlitro', 'ckm', 'cposto'];
     const idxCampo = 'c_idx';
@@ -5167,12 +5204,13 @@ document.getElementById('ckm').value = km;
     const rf = document.getElementById('cFotoResultado'); if (rf) rf.innerHTML = '';
     const fc = document.getElementById('cFotoCupom'); if (fc) fc.value = '';
 
-    // 🔥 SALVAR TOTAL NO ÚLTIMO REGISTRO
+    // Mantém a referência do registro, sem reordenar os índices do banco.
     const indiceSalvo = idxAntesDeSalvar === ''
         ? db.combustivel.length - 1
         : Number(idxAntesDeSalvar);
-    if (db.combustivel[indiceSalvo]) {
-        db.combustivel[indiceSalvo].ctotal = total;
+    const registroSalvo = db.combustivel[indiceSalvo];
+    if (registroSalvo) {
+        registroSalvo.ctotal = total;
     }
 
     // Segundo lançamento: ARLA 32 com os mesmos veículo, data, KM e posto
@@ -5180,7 +5218,8 @@ document.getElementById('ckm').value = km;
     if (comArla) {
         const set = (id, v) => { const c = document.getElementById(id); if (c) { c.value = v; if (c._flatpickr) c._flatpickr.setDate(v, false); } };
         set('cveiculo', ve); set('cdata', dt); set('ctipo', 'Arla32'); set('clitros', arlaL); set('cvalorlitro', arlaV); set('ckm', km || ''); set('cposto', postoSalvo); set(idxCampo, '');
-        const okArla = salvar('combustivel', campos, idxCampo);
+        // O KM e a data deste mesmo cupom já foram confirmados no primeiro produto.
+        const okArla = salvar('combustivel', campos, idxCampo, { combustivelKmConfirmado: true });
         if (okArla !== false) {
             const ult = db.combustivel[db.combustivel.length - 1];
             if (ult) ult.ctotal = arlaL * arlaV;
@@ -5193,15 +5232,14 @@ document.getElementById('ckm').value = km;
     salvarNuvem();
     const av = document.getElementById('cFotoAviso'); if (av) av.textContent = msg;
 
-    // atualizar tela
-    irParaUltimaPagina('combustivel');
-    renderModulo('combustivel');
-    if (typeof aplicarFiltrosModulo === 'function' &&
-        ['fcVeiculo','fcTipo','fcIni','fcFim','fcPosto'].some(id => document.getElementById(id)?.value)) {
-        aplicarFiltrosModulo('combustivel');
-    } else {
-        atualizarResumoCombustivel();
+    // Abre a página da data lançada, inclusive para abastecimentos históricos.
+    const ordenados = obterCombustiveisFiltrados();
+    const posicao = ordenados.indexOf(registroSalvo);
+    if (typeof PAGINACAO !== 'undefined' && posicao >= 0) {
+        PAGINACAO.paginas.combustivel = Math.floor(posicao / PAGINACAO.itensPorPagina) + 1;
     }
+    renderModulo('combustivel');
+    atualizarResumoCombustivel();
 
 }
 
@@ -5228,30 +5266,48 @@ function obterCombustiveisFiltrados() {
             (!inicio || data >= inicio) &&
             (!fim || data <= fim) &&
             (!posto || String(c.cposto || '').toLowerCase().includes(posto));
-    });
+    }).sort(compararDataCombustivel);
+}
+
+// Ordena cópias: os índices de edição e exclusão do banco permanecem intactos.
+function compararDataCombustivel(a, b) {
+    return String(a.cdata || '9999-12-31').localeCompare(String(b.cdata || '9999-12-31')) ||
+        (Number(a.ckm) || 0) - (Number(b.ckm) || 0);
 }
 
 function calcularMediaCombustivel(dados) {
-    const porVeiculo = {};
+    const porVeiculo = new Map();
     (dados || []).forEach(c => {
-        const placa = c.cveiculo || 'sem-veiculo';
-        if (!porVeiculo[placa]) porVeiculo[placa] = [];
-        porVeiculo[placa].push(c);
+        // ARLA é um aditivo e não compõe os litros de combustível consumido.
+        if (!c.cveiculo || /arla/i.test(c.ctipo || '') || !/^\d{4}-\d{2}-\d{2}$/.test(c.cdata || '')) return;
+        const placa = fmNormalizarPlacaVinculo(c.cveiculo);
+        if (!porVeiculo.has(placa)) porVeiculo.set(placa, []);
+        porVeiculo.get(placa).push(c);
     });
 
     let totalKm = 0;
     let totalLitros = 0;
-    Object.values(porVeiculo).forEach(lista => {
-        lista.sort((a, b) => (parseFloat(a.ckm) || 0) - (parseFloat(b.ckm) || 0));
-        for (let i = 1; i < lista.length; i++) {
-            const atual = parseFloat(lista[i].ckm) || 0;
-            const anterior = parseFloat(lista[i - 1].ckm) || 0;
-            const litros = parseFloat(String(lista[i].clitros || '').replace(',', '.')) || 0;
-            if (atual > anterior && litros > 0) {
-                totalKm += atual - anterior;
-                totalLitros += litros;
+    porVeiculo.forEach(lista => {
+        const grupos = [];
+        lista.sort(compararDataCombustivel).forEach(c => {
+            const km = Number(c.ckm) || 0;
+            const litros = parseFloat(String(c.clitros || '').replace(',', '.')) || 0;
+            const ultimo = grupos[grupos.length - 1];
+            if (ultimo && ultimo.data === c.cdata && ultimo.km === km) ultimo.litros += litros;
+            else grupos.push({ data: c.cdata, km, litros });
+        });
+        let maiorKm = 0;
+        let anteriorValido = false;
+        grupos.forEach(g => {
+            // Não transforma KM zerado/regressivo em distância positiva por reordenação.
+            const valido = g.km > maiorKm && g.litros > 0;
+            if (valido && anteriorValido) {
+                totalKm += g.km - maiorKm;
+                totalLitros += g.litros;
             }
-        }
+            maiorKm = Math.max(maiorKm, g.km);
+            anteriorValido = valido;
+        });
     });
 
     return totalKm > 0 && totalLitros > 0
@@ -5277,33 +5333,9 @@ function atualizarResumoCombustivel() {
 }
 
 function mediaPorVeiculo(placa, dadosBase = db.combustivel){
-
-    const dados = (dadosBase || [])
-        .filter(c => c.cveiculo === placa)
-        .sort((a,b) => (parseFloat(a.ckm) || 0) - (parseFloat(b.ckm) || 0));
-
-    if (dados.length < 2) return '--';
-
-    let totalKm = 0;
-    let totalLitros = 0;
-
-    for (let i = 1; i < dados.length; i++) {
-
-        const kmAtual = parseFloat(dados[i].ckm) || 0;
-        const kmAnterior = parseFloat(dados[i-1].ckm) || 0;
-        const litros = parseFloat(dados[i].clitros) || 0;
-
-        const distancia = kmAtual - kmAnterior;
-
-        if (distancia > 0 && litros > 0) {
-            totalKm += distancia;
-            totalLitros += litros;
-        }
-    }
-
-    if (totalLitros === 0) return '--';
-
-    return (totalKm / totalLitros).toFixed(2) + ' km/L';
+    const chave = fmNormalizarPlacaVinculo(placa);
+    return calcularMediaCombustivel((dadosBase || [])
+        .filter(c => fmNormalizarPlacaVinculo(c.cveiculo) === chave));
 }
 
 function iniciarSistema(){
