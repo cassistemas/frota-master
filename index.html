@@ -1471,7 +1471,7 @@ onclick="exportarExcel('saidaVeiculos')">
 
     <div class="glass-container">
 
-        <h6>Alertas de Vencimento</h6>
+        <h6>Alertas da Frota</h6>
 
         <div id="listaAlertasRapidos"
              style="max-height:420px;overflow-y:auto">
@@ -6516,68 +6516,55 @@ if((veiculo.vstatus || "").toUpperCase()=="VENDIDO")
 // 🚚 ALERTAS DE SAÍDA DE VEÍCULOS
 // ===============================
 
-const hojeSaida = new Date();
+const agoraSaida = new Date();
+const hojeSaida = new Date(agoraSaida.getTime());
 hojeSaida.setHours(0,0,0,0);
+const escaparSaida = valor => String(valor == null ? "" : valor).replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-db.saidaVeiculos.forEach(s => {
+// A aprovação já grava uma Saída como Reservado, assim como o cadastro manual.
+// Lemos somente essas saídas para não duplicar o alerta da solicitação aprovada.
+(db.saidaVeiculos || []).forEach(s => {
+    if(!s) return;
+    const status = String(s.svstatus || "").trim().toLowerCase();
+    if(["finalizado", "cancelado", "cancelada"].includes(status)) return;
+    const reservada = String(s.svreserva || "").trim().toLowerCase() === "reservado";
+    const semChegada = !s.svdataChegada || !s.svhoraChegada;
+    if(!reservada && !(status === "em viagem" && semChegada)) return;
 
-    // ==========================
-    // ALERTA 1 DIA ANTES DA SAÍDA
-    // ==========================
-    if (s.svdataSaida) {
+    let titulo = reservada ? "Reserva confirmada" : "Em viagem — sem chegada registrada";
+    let classe = reservada ? "alerta-atencao" : "alerta-vencido";
+    const dataSaida = new Date(s.svdataSaida + "T00:00:00");
+    const dias = Math.round((dataSaida.getTime() - hojeSaida.getTime()) / 86400000);
+    const chegada = s.svdataChegada
+        ? new Date(s.svdataChegada + "T" + (s.svhoraChegada || "23:59") + ":00")
+        : null;
 
-        const dataSaida = new Date(s.svdataSaida + "T00:00:00");
-
-        const diferencaDias = Math.round(
-    (dataSaida.getTime() - hojeSaida.getTime()) / 86400000
-);
-
-        if (
-            diferencaDias === 1 &&
-            String(s.svreserva).toLowerCase() === "reservado"
-        ) {
-
-            alertas.push(`
-                <div class="alerta-item alerta-atencao">
-                    🚚 <b>${s.svveiculo}</b> possui saída amanhã
-                    <br>
-                    <small>
-                        Reserva Nº ${s.svnumeroreserva || "--"}<br>
-                        Motorista: ${s.svmotorista || "--"}<br>
-                        Destino: ${s.svdestino || "--"}<br>
-                        Data: ${formatarDataBR(s.svdataSaida)}
-                        às ${s.svhoraSaida || "--"}
-                    </small>
-                </div>
-            `);
-
+    if(reservada){
+        if(dias === 1) titulo = "Reserva confirmada — saída amanhã";
+        else if(dias === 0) titulo = "Reserva confirmada — saída hoje";
+        else if(dias < 0) titulo = "Reserva aguardando finalização";
+        if(chegada && chegada.getTime() < agoraSaida.getTime()){
+            titulo = "Reserva não finalizada — devolução prevista em atraso";
+            classe = "alerta-vencido";
         }
-
     }
 
-    // ==========================
-    // VEÍCULO EM VIAGEM
-    // ==========================
-    if (
-        s.svstatus === "Em Viagem" &&
-        (!s.svdataChegada || !s.svhoraChegada)
-    ) {
-
-        alertas.push(`
-            <div class="alerta-item alerta-vencido">
-                🚚 <b>${s.svveiculo}</b> em viagem
-                <br>
-                <small>
-                    Motorista: ${s.svmotorista || "--"}<br>
-                    Destino: ${s.svdestino || "--"}<br>
-                    Saída: ${formatarDataBR(s.svdataSaida)}
-                    às ${s.svhoraSaida || "--"}
-                </small>
-            </div>
-        `);
-
-    }
-
+    alertas.push(`
+        <div class="alerta-item ${classe}">
+            🚚 <b>${escaparSaida(s.svveiculo || "--")}</b>: ${titulo}
+            <br>
+            <small>
+                Reserva Nº ${escaparSaida(s.svnumeroreserva || "--")}<br>
+                Motorista: ${escaparSaida(s.svmotorista || "--")}<br>
+                Destino: ${escaparSaida(s.svdestino || "--")}<br>
+                Saída prevista: ${s.svdataSaida ? escaparSaida(formatarDataBR(s.svdataSaida)) : "--"}
+                às ${escaparSaida(s.svhoraSaida || "--")}<br>
+                Devolução prevista: ${s.svdataChegada ? escaparSaida(formatarDataBR(s.svdataChegada)) : "--"}
+                às ${escaparSaida(s.svhoraChegada || "--")}
+            </small>
+        </div>
+    `);
 });
 
     document.getElementById('listaAlertasRapidos').innerHTML = alertas.join('');
