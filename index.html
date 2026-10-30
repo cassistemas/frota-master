@@ -5133,21 +5133,26 @@ function confirmarKmCombustivel(obj, idx) {
     const historico = (db.combustivel || []).filter((c, i) =>
         (idx === '' || i !== Number(idx)) &&
         fmNormalizarPlacaVinculo(c.cveiculo) === placa &&
-        !/arla/i.test(c.ctipo || '') && Number(c.ckm) > 0 &&
+        Number(c.ckm) > 0 &&
         /^\d{4}-\d{2}-\d{2}$/.test(c.cdata || '')
     ).sort(compararDataCombustivel);
-    const anteriores = historico.filter(c => c.cdata <= obj.cdata);
+    // Procura conflitos nos dois sentidos, mesmo que já exista uma exceção
+    // confirmada entre as datas. ARLA também informa o odômetro do veículo,
+    // mas continua fora do cálculo da média de consumo.
+    const anteriores = historico.filter(c => c.cdata <= obj.cdata && Number(c.ckm) > km);
     const anterior = anteriores[anteriores.length - 1];
-    const posterior = historico.find(c => c.cdata > obj.cdata);
+    const posterior = historico.find(c => c.cdata > obj.cdata && Number(c.ckm) < km);
     const avisos = [];
     if (km === 0) avisos.push('O KM informado está zerado ou vazio.');
-    if (anterior && km < Number(anterior.ckm)) {
-        avisos.push('O KM informado (' + km.toLocaleString('pt-BR') + ') é inferior ao abastecimento anterior por data: ' +
+    if (anterior) {
+        avisos.push('O KM informado (' + km.toLocaleString('pt-BR') + ' km em ' + formatarDataBR(obj.cdata) +
+            ') é inferior ao abastecimento anterior por data: ' +
             Number(anterior.ckm).toLocaleString('pt-BR') + ' km em ' + formatarDataBR(anterior.cdata) + '.');
     }
-    if (km > 0 && posterior && km > Number(posterior.ckm)) {
-        avisos.push('Já existe um abastecimento posterior, em ' + formatarDataBR(posterior.cdata) +
-            ', com KM menor (' + Number(posterior.ckm).toLocaleString('pt-BR') + ').');
+    if (km > 0 && posterior) {
+        avisos.push('O KM informado (' + km.toLocaleString('pt-BR') + ' km em ' + formatarDataBR(obj.cdata) +
+            ') é superior ao abastecimento posterior: ' + Number(posterior.ckm).toLocaleString('pt-BR') +
+            ' km em ' + formatarDataBR(posterior.cdata) + '.');
     }
     if (!avisos.length) return true;
     return confirm('Atenção ao KM do veículo ' + obj.cveiculo + ':\n\n' + avisos.join('\n') +

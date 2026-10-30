@@ -94,6 +94,47 @@ test('confirmação aceita exceção, ignora o próprio registro na edição e a
   assert.match(avisos[1], /inferior/);
 });
 
+test('data anterior com KM superior ao posterior permite cancelar sem alterar dados', () => {
+  const dados = [registro(15, 50000)], antes = JSON.stringify(dados);
+  const { ctx, avisos } = ambiente(dados, false);
+  assert.equal(ctx.confirmarKmCombustivel(registro(10, 51000), ''), false);
+  assert.equal(avisos.length, 1);
+  assert.match(avisos[0], /superior ao abastecimento posterior/);
+  assert.match(avisos[0], /10\/01\/2026/);
+  assert.match(avisos[0], /15\/01\/2026/);
+  assert.equal(JSON.stringify(dados), antes);
+});
+
+test('exceções existentes não escondem conflitos de KM em nenhuma direção', () => {
+  const { ctx, avisos } = ambiente([
+    registro(1, 50000), registro(5, 48000), registro(15, 52000), registro(20, 49000)
+  ], false);
+  assert.equal(ctx.confirmarKmCombustivel(registro(10, 49500), ''), false);
+  assert.equal(avisos.length, 1);
+  assert.match(avisos[0], /inferior ao abastecimento anterior por data/);
+  assert.match(avisos[0], /superior ao abastecimento posterior/);
+  assert.match(avisos[0], /01\/01\/2026/);
+  assert.match(avisos[0], /20\/01\/2026/);
+});
+
+test('ARLA participa da conferência do odômetro, sem misturar placas', () => {
+  const { ctx, avisos } = ambiente([
+    registro(1, 50000, 15, 'ABC-1234', 'Arla32'),
+    registro(20, 1000, 50, 'DEF5678')
+  ], false);
+  assert.equal(ctx.confirmarKmCombustivel(registro(10, 49000), ''), false);
+  assert.equal(ctx.confirmarKmCombustivel(registro(10, 51000), ''), true);
+  assert.equal(avisos.length, 1);
+});
+
+test('KM igual é permitido e edição não compara o registro consigo mesmo', () => {
+  const { ctx, avisos } = ambiente([registro(1, 50000), registro(15, 51000)]);
+  assert.equal(ctx.confirmarKmCombustivel(registro(10, 50000), ''), true);
+  assert.equal(ctx.confirmarKmCombustivel(registro(10, 51000), ''), true);
+  assert.equal(ctx.confirmarKmCombustivel(registro(5, 50500), '1'), true);
+  assert.equal(avisos.length, 0);
+});
+
 test('escritor compartilhado cancela antes de persistir ou limpar o formulário', () => {
   const dados = [registro(1, 1000)], antes = JSON.stringify(dados);
   const { ctx, avisos } = ambiente(dados, false);
