@@ -62,10 +62,20 @@
 
   function dataBR(iso) { var p = String(iso || "").split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : String(iso || ""); }
 
+  // Pedidos em análise bloqueiam a saída, sem alterar a reserva original.
+  function aguardandoAutorizacao(sol) {
+    return !!sol && /^(Pendente|Aguardando confirmação|Processando)$/.test((sol.pedidoEdicao || {}).situacao || "") ||
+      !!sol && /^(Pendente|Processando)$/.test((sol.pedidoCancelamento || {}).situacao || "");
+  }
+
   // A edição é individual, autorizada pelo administrador e consumida no envio.
   function validarAcao(sol, uid, acao) {
     if (!sol) return "Solicitação não encontrada.";
     if (!uid || sol.uid !== uid) return "Esta solicitação pertence a outro usuário.";
+    if (acao === "iniciar") {
+      if (aguardandoAutorizacao(sol)) return "Aguardando autorização do administrador — saída bloqueada.";
+      return sol.status === "Aprovada" && podeCancelar(sol) ? "" : "Esta reserva não está disponível para iniciar a saída.";
+    }
     if (acao === "excluir") return "O histórico não pode ser excluído pelo solicitante.";
     if (!podeCancelar(sol)) return "A viagem já foi iniciada ou a solicitação foi encerrada.";
     if (sol.pedidoCancelamento && /^(Pendente|Processando)$/.test(sol.pedidoCancelamento.situacao)) return "Há um cancelamento aguardando análise.";
@@ -122,7 +132,7 @@
     return "https://wa.me/" + dig + "?text=" + encodeURIComponent(txt);
   }
 
-  var api = { podeCancelar: podeCancelar, validarAcao: validarAcao, validarAcaoAdmin: validarAcaoAdmin, validarSolicitacao: validarSolicitacao, validarDevolucao: validarDevolucao, veiculoDisponivel: veiculoDisponivel, linkWhatsApp: linkWhatsApp, placaNorm: placaNorm, dataBR: dataBR };
+  var api = { aguardandoAutorizacao: aguardandoAutorizacao, podeCancelar: podeCancelar, validarAcao: validarAcao, validarAcaoAdmin: validarAcaoAdmin, validarSolicitacao: validarSolicitacao, validarDevolucao: validarDevolucao, veiculoDisponivel: veiculoDisponivel, linkWhatsApp: linkWhatsApp, placaNorm: placaNorm, dataBR: dataBR };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (raiz) raiz.FMReservasRegras = api;
 })(typeof window !== "undefined" ? window : (typeof globalThis !== "undefined" ? globalThis : null));

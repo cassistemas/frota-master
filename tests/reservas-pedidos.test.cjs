@@ -36,6 +36,47 @@ test('cancelamento pendente bloqueia edição sem liberar a agenda', () => {
   assert.equal(montarEventos({solicitacoes:[s], saidas:[saida()]}).eventos.length, 1);
   assert.equal(montarEventos({solicitacoes:[Object.assign({},s,{status:'Cancelada'})], saidas:[saida({svreserva:'Liberado',svstatus:'Cancelado'})]}).eventos.length, 0);
 });
+test('pedidos em análise bloqueiam a saída e mantêm o período reservado', () => {
+  for (const [campo, situacoes] of [
+    ['pedidoEdicao', ['Pendente', 'Aguardando confirmação', 'Processando']],
+    ['pedidoCancelamento', ['Pendente', 'Processando']]
+  ]) {
+    for (const situacao of situacoes) {
+      const s = reserva({[campo]:{situacao}});
+      assert.equal(R.aguardandoAutorizacao(s), true);
+      assert.match(R.validarAcao(s, 'u1', 'iniciar'), /Aguardando autorização.*saída bloqueada/);
+      assert.equal(montarEventos({solicitacoes:[s], saidas:[saida()]}).eventos.length, 1);
+    }
+  }
+});
+test('a decisão libera a saída somente quando a reserva continua aprovada', () => {
+  assert.equal(R.aguardandoAutorizacao(null), false);
+  assert.equal(R.validarAcao(reserva(), 'u1', 'iniciar'), '');
+  for (const situacao of ['Autorizada', 'Aplicada', 'Recusado', 'Encerrada']) {
+    assert.equal(R.validarAcao(reserva({pedidoEdicao:{situacao}}), 'u1', 'iniciar'), '');
+  }
+  assert.equal(R.validarAcao(reserva({pedidoCancelamento:{situacao:'Recusado'}}), 'u1', 'iniciar'), '');
+  assert.ok(R.validarAcao(reserva({status:'Cancelada',pedidoCancelamento:{situacao:'Aprovado'}}), 'u1', 'iniciar'));
+  assert.ok(R.validarAcao(reserva(), 'outro', 'iniciar'));
+  for (const extra of [{status:'Pendente'}, {status:'Em uso'}, {dataSaidaReal:'2099-08-20'}, {saidaRealEm:{seconds:1}}]) {
+    assert.ok(R.validarAcao(reserva(extra), 'u1', 'iniciar'));
+  }
+  assert.ok(R.validarAcao(reserva({pedidoEdicao:{situacao:'Autorizada'},pedidoCancelamento:{situacao:'Pendente'}}), 'u1', 'iniciar'));
+});
+test('cartão desativa iniciar saída e exibe aviso até a decisão do administrador', () => {
+  const html = ler('reserva.html');
+  const trecho = html.slice(html.indexOf('  function cls(s)'), html.indexOf('  var POR_PAGINA=12'));
+  const contexto = {R, auth:{currentUser:{uid:'u1'}}, estado:{admin:false}, esc:String};
+  vm.createContext(contexto); vm.runInContext(trecho, contexto);
+  for (const campo of ['pedidoEdicao', 'pedidoCancelamento']) {
+    const s = reserva({[campo]:{situacao:'Pendente'}});
+    assert.match(contexto.itemHtml(s, true), /data-iniciar="r1" disabled/);
+    assert.match(contexto.itemHtml(s, true), /Aguardando autorização do administrador — saída bloqueada/);
+    assert.match(contexto.itemHtml(s, false), /Aguardando autorização do administrador — saída bloqueada/);
+    s[campo].situacao = 'Recusado';
+    assert.doesNotMatch(contexto.itemHtml(s, true), /data-iniciar="r1" disabled|saída bloqueada/);
+  }
+});
 test('histórico e viagens iniciadas não podem ser alterados pelo solicitante', () => {
   for (const extra of [{status:'Em uso'}, {status:'Concluída'}, {status:'Devolução informada'}, {status:'Cancelada'},
     {status:'Recusada'}, {dataSaidaReal:'2099-08-20'}, {saidaRealEm:{seconds:1}}]) {
@@ -52,6 +93,45 @@ test('edição não conflita consigo mesma, mas confere as demais reservas', () 
   assert.match(R.validarSolicitacao(candidato,ctx), /já possui/);
   ctx.saidas.pop(); ctx.solicitacoes.push(reserva({id:'r2'}));
   assert.match(R.validarSolicitacao(candidato,ctx), /outra solicitação/);
+});
+test('registro da saída revalida o documento atual mesmo com a tela desatualizada', async () => {
+  const html = ler('reserva.html');
+  const trecho = html.slice(html.indexOf('  function gravarComHoraServidor('), html.indexOf('  function localizar('));
+  let atual = reserva(), gravacoes = [];
+  const doc = () => ({exists:true, data:() => atual});
+  const ref = {
+    get:async () => doc(),
+    update:async up => { gravacoes.push(up); atual = Object.assign({}, atual, up); }
+  };
+  const contexto = {
+    R, auth:{currentUser:{uid:'u1'}},
+    firebase:{firestore:{FieldValue:{serverTimestamp:() => 'hora-servidor'}}},
+    fs:{runTransaction:async callback => callback({
+      get:async () => doc(),
+      update:(_ref, up) => { gravacoes.push(up); atual = Object.assign({}, atual, up); }
+    })},
+    partesData:() => ({data:'2099-08-20', hora:'08:00'})
+  };
+  vm.createContext(contexto); vm.runInContext(trecho, contexto);
+  const iniciar = () => contexto.gravarComHoraServidor(ref, 'Aprovada', {status:'Em uso'}, 'saidaRealEm', 'SaidaReal');
+  for (const [campo, situacoes] of [
+    ['pedidoEdicao', ['Pendente', 'Aguardando confirmação', 'Processando']],
+    ['pedidoCancelamento', ['Pendente', 'Processando']]
+  ]) {
+    for (const situacao of situacoes) {
+      atual = reserva({[campo]:{situacao}}); gravacoes = [];
+      await assert.rejects(iniciar(), /Aguardando autorização/);
+      assert.equal(gravacoes.length, 0);
+      assert.equal(atual.status, 'Aprovada');
+      assert.equal(atual.saidaRealEm, undefined);
+    }
+  }
+  atual = reserva({pedidoEdicao:{situacao:'Recusado'}}); gravacoes = [];
+  await iniciar();
+  assert.equal(gravacoes.length, 2);
+  assert.equal(atual.status, 'Em uso');
+  assert.equal(atual.saidaRealEm, 'hora-servidor');
+  assert.equal(atual.dataSaidaReal, '2099-08-20');
 });
 test('histórico mostra 12 itens por página e reajusta ao filtrar', () => {
   const html = ler('reserva.html');

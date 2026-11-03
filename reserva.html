@@ -34,6 +34,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--azul2);b
 .btn{display:block;width:100%;margin-top:16px;padding:13px;border:0;border-radius:10px;background:var(--azul2);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
 .btn:disabled{opacity:.6}.btn.zap{background:#1f9d55}.btn.sec{background:var(--azul)}
 .msg{margin-top:10px;font-size:14px;padding:10px 12px;border-radius:10px;display:none}.msg.err{display:block;background:#fde8e8;color:#9b1c1c}.msg.ok{display:block;background:#e6f6ec;color:#14532d}
+.msg.espera{display:block;background:#fff4cc;color:#754f00;border:1px solid #e8c96e;font-weight:600}.btn:disabled{cursor:not-allowed}
 .item{border:1px solid #e5e7eb;border-left:4px solid var(--azul2);border-radius:10px;padding:12px;margin-bottom:10px;font-size:14px}
 .item small{color:var(--mut);display:block;margin-top:4px}
 .st{float:right;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px}
@@ -132,7 +133,7 @@ main.historico-aberto{max-width:1180px}
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="./reservas-regras.js?v=7-pedidos"></script>
+<script src="./reservas-regras.js?v=8-bloqueio-saida"></script>
 <script src="./reservas-calendario.js?v=1"></script>
 <script>
 (function(){
@@ -190,7 +191,7 @@ main.historico-aberto{max-width:1180px}
   function cls(s){ return String(s||"").replace(/\s+/g,"-"); }
   function itemHtml(s, acoes){
       var dev = "";
-      if(acoes && s.status==="Aprovada") dev='<button class="btn sec" data-iniciar="'+esc(s.id)+'">▶ Iniciar saída</button><div class="msg" id="msgdev_'+esc(s.id)+'"></div>';
+      if(acoes && s.status==="Aprovada") dev='<button class="btn sec" data-iniciar="'+esc(s.id)+'"'+(R.aguardandoAutorizacao(s)?' disabled':'')+'>▶ Iniciar saída</button><div class="msg" id="msgdev_'+esc(s.id)+'"></div>';
       if(acoes && s.status==="Em uso") dev='<div class="dev"><small>A data, a hora e o endereço da devolução são registrados automaticamente.</small>'+
         '<button class="btn" data-devolver="'+esc(s.id)+'">⏹ Devolver veículo</button><div class="msg" id="msgdev_'+esc(s.id)+'"></div></div>';
       if(!acoes){
@@ -215,6 +216,7 @@ main.historico-aberto{max-width:1180px}
   }
   function botoesRegistro(s){
     var uid=auth.currentUser&&auth.currentUser.uid, html="";
+    if(R.podeCancelar(s) && R.aguardandoAutorizacao(s)) html+='<div class="msg espera" role="status">Aguardando autorização do administrador — saída bloqueada.</div>';
     [["pedidoEdicao","Edição"],["pedidoCancelamento","Cancelamento"]].forEach(function(c){
       var p=s[c[0]]; if(!p) return;
       html+='<small>'+c[1]+': '+esc(p.situacao)+(p.resposta?' — '+esc(p.resposta):'')+'</small>';
@@ -280,7 +282,10 @@ main.historico-aberto{max-width:1180px}
       if(!d.exists||d.data().status!==statusExigido) throw new Error("Esta reserva não está mais em \""+statusExigido+"\".");
       if(!auth.currentUser || d.data().uid!==auth.currentUser.uid) throw new Error("Esta solicitação pertence a outro usuário.");
       var atual=d.data();
-      if(statusExigido==="Aprovada" && ((atual.pedidoCancelamento||{}).situacao==="Pendente" || (atual.pedidoEdicao||{}).situacao==="Aguardando confirmação")) throw new Error("Aguarde a decisão do administrador sobre o pedido antes de iniciar a saída.");
+      if(statusExigido==="Aprovada"){
+        var erro=R.validarAcao(atual,auth.currentUser.uid,"iniciar");
+        if(erro) throw new Error(erro);
+      }
       var up=Object.assign({},campos); up[campoTs]=FV.serverTimestamp(); t.update(ref,up);
     });}).then(function(){ return ref.get(); }).then(function(d){
       var pd=partesData(d.data()[campoTs]); var up={}; up["data"+prefixo]=pd.data; up["hora"+prefixo]=pd.hora;
@@ -306,6 +311,9 @@ main.historico-aberto{max-width:1180px}
     var alvo=ev.target; if(!alvo||!alvo.getAttribute) return;
     var ini=alvo.getAttribute("data-iniciar"), dv=alvo.getAttribute("data-devolver");
     if(ini){
+      var atual=estado.solicitacoes.find(function(s){return s.id===ini;});
+      var erro=R.validarAcao(atual,auth.currentUser&&auth.currentUser.uid,"iniciar");
+      if(erro){ msg("msgdev_"+ini,erro); alvo.disabled=true; return; }
       if(!confirm("Iniciar a saída agora? A data e a hora serão registradas automaticamente.")) return;
       alvo.disabled=true;
       gravarComHoraServidor(fs.collection(COL).doc(ini),"Aprovada",{status:"Em uso"},"saidaRealEm","SaidaReal")
