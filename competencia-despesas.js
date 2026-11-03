@@ -53,9 +53,17 @@
       var cfg = campos[mod], data = root.document.getElementById(cfg[1]);
       if (!data || root.document.getElementById(cfg[0])) return;
       var coluna = root.document.createElement('div');
-      coluna.className = 'col-md-3 fm-competencia-despesa';
+      var ancora = data.parentElement;
+      // Respeita a coluna e o estilo da data no formulário de cada módulo.
+      var classes = String(ancora.className || '').split(/\s+/).filter(function (nome) {
+        return /^col(?:-(?:sm|md|lg|xl|xxl))?(?:-\d+|-auto)?$/.test(nome);
+      });
+      coluna.className = (classes.length ? classes.join(' ') + ' ' : '') + 'fm-competencia-despesa';
+      var cabecalho = root.document.createElement('div');
+      cabecalho.className = 'fm-competencia-cabecalho';
       var label = root.document.createElement('label');
-      label.className = 'form-label fw-bold';
+      var labelData = ancora.querySelector('label');
+      label.className = labelData ? labelData.className : 'form-label';
       label.htmlFor = cfg[0];
       label.textContent = 'Competência (opcional)';
       var input = root.document.createElement('input');
@@ -65,12 +73,36 @@
       input.setAttribute('aria-describedby', cfg[0] + '-ajuda');
       var ajuda = root.document.createElement('small');
       ajuda.id = cfg[0] + '-ajuda';
-      ajuda.className = 'text-muted d-block mt-1';
+      ajuda.className = 'fm-competencia-ajuda';
+      ajuda.hidden = true;
       ajuda.textContent = 'Pode ser anterior ou posterior à data. Em branco: mantém a regra atual.';
-      coluna.appendChild(label);
+      var botao = root.document.createElement('button');
+      botao.type = 'button';
+      botao.className = 'fm-competencia-info';
+      botao.textContent = '?';
+      botao.setAttribute('aria-label', 'Ajuda sobre competência opcional');
+      botao.setAttribute('aria-controls', ajuda.id);
+      botao.setAttribute('aria-expanded', 'false');
+      function fecharAjuda() {
+        ajuda.hidden = true;
+        botao.setAttribute('aria-expanded', 'false');
+      }
+      botao.addEventListener('click', function () {
+        ajuda.hidden = !ajuda.hidden;
+        botao.setAttribute('aria-expanded', String(!ajuda.hidden));
+      });
+      coluna.addEventListener('keydown', function (evento) {
+        if (evento.key === 'Escape') { fecharAjuda(); botao.focus(); }
+      });
+      coluna.addEventListener('focusout', function (evento) {
+        if (!coluna.contains(evento.relatedTarget)) fecharAjuda();
+      });
+      if (!labelData) coluna.classList.add('fm-competencia-sem-rotulo');
+      cabecalho.appendChild(label);
+      cabecalho.appendChild(botao);
+      coluna.appendChild(cabecalho);
       coluna.appendChild(input);
       coluna.appendChild(ajuda);
-      var ancora = data.closest('[class*="col-"]') || data.parentElement;
       ancora.insertAdjacentElement('afterend', coluna);
     });
   }

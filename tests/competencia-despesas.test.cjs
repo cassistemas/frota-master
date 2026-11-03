@@ -190,3 +190,98 @@ test('escritores próprios de tacógrafo e multas preservam competência, IDs e 
   assert.equal(a.db.multas[0]._rid, 'mu1');
   assert.equal(a.db.multas[0].extra, 'preservar');
 });
+
+// DOM mínimo para verificar a montagem visual sem dependências de navegador.
+function ambienteVisual() {
+  const ids = {}, datas = {};
+  function elemento(tag) {
+    const el = { tagName: tag, className: '', children: [], attrs: {}, eventos: {},
+      appendChild(filho) { this.children.push(filho); filho.parentElement = this; if (filho.id) ids[filho.id] = filho; },
+      setAttribute(nome, valor) { this.attrs[nome] = valor; },
+      addEventListener(nome, fn) { this.eventos[nome] = fn; },
+      querySelector(tag) { return this.children.find(x => x.tagName === tag) || null; },
+      contains(alvo) { return this === alvo || this.children.some(x => x.contains(alvo)); },
+      focus() { this.focado = true; }
+    };
+    el.classList = { add(nome) { el.className += ' ' + nome; } };
+    return el;
+  }
+  const pares = {
+    cdata: 'ccompetencia', mdata: 'mcompetencia', mudata: 'mucompetencia',
+    lvencimento: 'lcompetencia', tdataafericao: 'tcompetencia', venciv: 'lecompetencia',
+    didata: 'dicompetencia', rdata: 'rcompetencia', pdata: 'pcompetencia',
+    edata: 'ecompetencia', sdata: 'scompetencia', resPneuData: 'resPneuCompetencia', fredata: 'frecompetencia'
+  };
+  Object.entries(pares).forEach(([id, competencia], i) => {
+    const coluna = elemento('div');
+    coluna.className = id === 'resPneuData' ? '' : i % 2 ? 'col-12 col-md-2 mb-2' : 'col-md-3';
+    if (i % 2) {
+      const label = elemento('label'); label.className = 'form-label-mini'; coluna.appendChild(label);
+    }
+    const data = elemento('input'); data.id = id; data.value = '2026-10-10';
+    data.closest = () => coluna;
+    coluna.appendChild(data);
+    coluna.insertAdjacentElement = (posicao, novo) => {
+      assert.equal(posicao, 'afterend');
+      coluna.insercoes = (coluna.insercoes || 0) + 1;
+      datas[id] = { coluna, novo, competencia, data };
+    };
+  });
+  const ctx = { document: { readyState: 'loading', addEventListener() {},
+    getElementById: id => ids[id] || null, createElement: elemento } };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(helper, ctx);
+  return { ctx, ids, datas };
+}
+test('os 13 formulários herdam as colunas da data, sem explicação permanente ou montagem duplicada', () => {
+  const a = ambienteVisual();
+  assert.equal(Object.keys(a.datas).length, 13);
+  Object.values(a.datas).forEach(({ coluna, novo, competencia, data }) => {
+    const entrada = a.ids[competencia], cabecalho = novo.children[0];
+    assert.equal(entrada.type, 'month');
+    assert.equal(entrada.className, 'form-control');
+    assert.equal(cabecalho.children[0].textContent, 'Competência (opcional)');
+    assert.equal(cabecalho.children[0].htmlFor, competencia);
+    assert.equal(entrada.attrs['aria-describedby'], competencia + '-ajuda');
+    assert.equal(a.ids[competencia + '-ajuda'].hidden, true);
+    assert.equal(novo.className.includes('mb-2'), false);
+    if (!coluna.className) {
+      assert.equal(novo.className, 'fm-competencia-despesa');
+      assert.equal(cabecalho.children[0].className, 'form-label-mini');
+    } else if (coluna.className.includes('col-12')) {
+      assert.match(novo.className, /col-12 col-md-2/);
+      assert.equal(cabecalho.children[0].className, 'form-label-mini');
+      assert.equal(novo.className.includes('fm-competencia-sem-rotulo'), false);
+    } else {
+      assert.match(novo.className, /col-md-3/);
+      assert.match(novo.className, /fm-competencia-sem-rotulo/);
+    }
+    assert.equal(data.value, '2026-10-10');
+  });
+  a.ctx.FMCompetenciaDespesas.montar();
+  Object.values(a.datas).forEach(({ coluna }) => assert.equal(coluna.insercoes, 1));
+});
+test('ajuda abre por clique/toque, fecha por Escape e não envia o formulário', () => {
+  const a = ambienteVisual();
+  Object.values(a.datas).forEach(({ novo, competencia }) => {
+    const botao = novo.children[0].children[1], ajuda = a.ids[competencia + '-ajuda'];
+    assert.equal(botao.type, 'button');
+    assert.equal(botao.attrs['aria-controls'], ajuda.id);
+    botao.eventos.click();
+    assert.equal(ajuda.hidden, false);
+    assert.equal(botao.attrs['aria-expanded'], 'true');
+    botao.eventos.click();
+    assert.equal(ajuda.hidden, true);
+    botao.eventos.click();
+    novo.eventos.keydown({ key: 'Escape' });
+    assert.equal(ajuda.hidden, true);
+    assert.equal(botao.focado, true);
+    assert.equal(botao.attrs['aria-expanded'], 'false');
+    botao.eventos.click();
+    novo.eventos.focusout({ relatedTarget: a.ids[competencia] });
+    assert.equal(ajuda.hidden, false);
+    novo.eventos.focusout({ relatedTarget: null });
+    assert.equal(ajuda.hidden, true);
+  });
+});

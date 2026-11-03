@@ -185,6 +185,105 @@ body {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, .14);
 }
 
+/* Competência opcional: somente os campos montados pelo helper de despesas. */
+.fm-competencia-despesa {
+  position: relative;
+  min-width: 0;
+}
+.fm-competencia-cabecalho {
+  display: flex;
+  align-items: baseline;
+  gap: .3rem;
+}
+.fm-competencia-cabecalho > label {
+  min-width: 0;
+  font-size: .68rem;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+.fm-competencia-info {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: 1px solid var(--pro-mute);
+  border-radius: 50%;
+  background: var(--pro-surface);
+  color: var(--pro-mute);
+  font: 700 .65rem/1 sans-serif;
+  cursor: pointer;
+}
+.fm-competencia-info:focus-visible {
+  outline: 2px solid var(--pro-accent);
+  outline-offset: 2px;
+}
+.fm-competencia-despesa > input[type="month"] {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.fm-competencia-ajuda:not([hidden]) {
+  display: block;
+  position: absolute;
+  top: 100%;
+  right: .75rem;
+  z-index: 20;
+  width: 17rem;
+  max-width: calc(100vw - 3rem);
+  padding: .65rem .8rem;
+  border: 1px solid var(--pro-line);
+  border-radius: 8px;
+  background: var(--pro-surface);
+  color: var(--pro-ink-2);
+  box-shadow: var(--pro-shadow);
+  font-size: .75rem;
+  line-height: 1.5;
+}
+/* Formulários sem rótulos: o título fica na borda, sem aumentar a linha. */
+.fm-competencia-sem-rotulo > .fm-competencia-cabecalho {
+  position: absolute;
+  top: -.55rem;
+  left: 1.25rem;
+  right: 1.25rem;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.fm-competencia-sem-rotulo .fm-competencia-cabecalho > label {
+  margin: 0;
+  padding: 0 .2rem;
+  background: var(--pro-surface);
+  line-height: 1rem;
+}
+.fm-competencia-sem-rotulo .fm-competencia-info { pointer-events: auto; }
+@media (min-width: 768px) {
+  .row > .fm-competencia-despesa {
+    min-width: 11.5rem;
+    max-width: 100%;
+  }
+}
+/* Grades próprias não usam a largura percentual das colunas do Bootstrap. */
+.cus-form-grid > .fm-competencia-despesa { width: auto; }
+.cus-form-grid .fm-competencia-cabecalho > label {
+  font-size: .68rem;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: normal;
+  line-height: 1.2;
+}
+#licencas .licencas-form-grid > .fm-competencia-despesa {
+  width: auto;
+  max-width: 100%;
+}
+#licencas .licencas-form-grid .fm-competencia-cabecalho > label {
+  font-size: .68rem;
+  white-space: normal;
+  line-height: 1.2;
+}
+@media (max-width: 767.98px) {
+  .row > .fm-competencia-despesa { flex: 0 0 100%; width: 100%; }
+}
+
 /* Campo único pesquisável; o select original permanece apenas para salvar o ID. */
 .fm-busca-cadastro {
   width: 100%;
