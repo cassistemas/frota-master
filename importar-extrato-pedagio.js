@@ -4,6 +4,11 @@
   var grupos = [], divergencias = [], arquivo = '', salvando = false, competencias = {}, datasResumo = {}, competenciasResumo = {}, cancelados = new Set(), resumosCancelados = new Set();
   function el(id) { return document.getElementById(id); }
   function texto(v) { return String(v == null ? '' : v).trim(); }
+  function normalizar(v) { return texto(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, ''); }
+  function campo(row, cab, nomes) { for (var i = 0; i < nomes.length; i++) { var ix = cab.indexOf(nomes[i]); if (ix >= 0 && texto(row[ix])) return row[ix]; } return ''; }
+  var datasDevolucao = {};
+  function diaInformado(v) { return /^\d{4}-\d{2}-\d{2}$/.test(v || '') && data(v.split('-').reverse().join('/')) === v; }
+  function mesDetalhe(d, g) { return (d.data || datasDevolucao[g.id] || '').slice(0,7); }
   function placa(v) { return texto(v).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
   function esc(v) { return texto(v).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function reais(c) { return (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
@@ -15,6 +20,35 @@
     return d.getFullYear() === Number(m[3]) && d.getMonth() + 1 === Number(m[2]) && d.getDate() === Number(m[1]) ? m[3] + '-' + m[2] + '-' + m[1] : '';
   }
   function coluna(row, cab, nome) { return row[cab.indexOf(nome)]; }
+  function lerDevolucoes(wb, agrupados) {
+    if (!wb.Sheets.OUTROS_SERVICOS) return [];
+    var aba = linhas(wb, 'OUTROS_SERVICOS', []), cab = aba.cab.map(normalizar), ignoradas = 0;
+    var camposValor = ['VALOR','VALOR_TOTAL','VALOR_SERVICO','VALOR_CREDITO'], camposPlaca = ['PLACA','PLACA_VEICULO'];
+    if (!camposValor.some(function (c) { return cab.indexOf(c) >= 0; }) || !camposPlaca.some(function (c) { return cab.indexOf(c) >= 0; })) throw new Error('Confira as colunas PLACA e VALOR da aba OUTROS_SERVICOS. Nenhum lançamento foi salvo.');
+    var vistos = new Set();
+    aba.rows.forEach(function (row, i) {
+      var valor = centavos(campo(row, cab, camposValor));
+      if (!Number.isSafeInteger(valor)) throw new Error('Valor inválido em OUTROS_SERVICOS, linha ' + (i + 2) + '.');
+      if (valor <= 0) { ignoradas++; return; }
+      var p = placa(campo(row, cab, camposPlaca));
+      if (!/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(p)) throw new Error('Devolução sem placa válida em OUTROS_SERVICOS, linha ' + (i + 2) + '. Confira antes de importar.');
+      var raw = campo(row, cab, ['DATA','DATA_HORA','DATA_SERVICO','DATA_CREDITO','DATA_OCORRENCIA']), dia = data(raw);
+      if (texto(raw) && !dia) throw new Error('Data inválida em OUTROS_SERVICOS, linha ' + (i + 2) + '.');
+      var servico = texto(campo(row, cab, ['DESCRICAO','SERVICO','TIPO_SERVICO','DESCRICAO_SERVICO','MOTIVO','HISTORICO','TIPO']));
+      var tag = texto(campo(row, cab, ['TAG','NUMERO_TAG'])), ref = texto(campo(row, cab, ['ID','REFERENCIA','PROTOCOLO','DOCUMENTO','TRANSACAO','CODIGO','NUMERO']));
+      var original = {}; aba.cab.forEach(function (h, n) { original[h] = texto(row[n]); });
+      var d = { placa:p, data:dia, dataHora:texto(raw), tag:tag, rodovia:'', praca:servico || 'Devolução da operadora', categoria:'Devolução de pedágio', natureza:'devolucao', servico:servico, referencia:ref, aba:'OUTROS_SERVICOS', linha:i + 2, original:original, centavos:-valor, valor:-valor / 100 };
+      // Não usa nome do arquivo, número da linha ou data informada na prévia: reimportar não repete o crédito.
+      d.chave = ['devolucao', p, d.dataHora, tag, normalizar(servico), ref, valor].join('|');
+      if (vistos.has(d.chave)) throw new Error('Devoluções indistinguíveis em OUTROS_SERVICOS (linha ' + (i + 2) + '). Confira a referência para não duplicar abatimentos.');
+      vistos.add(d.chave);
+      var grupo = agrupados.get(p);
+      if (!grupo) { grupo = { id:p, placa:p, meses:[], detalhes:[], cents:0 }; agrupados.set(p, grupo); }
+      if (dia && grupo.meses.indexOf(dia.slice(0,7)) < 0) grupo.meses.push(dia.slice(0,7));
+      grupo.detalhes.push(d); grupo.cents -= valor;
+    });
+    return ignoradas ? [ignoradas + ' linha(s) de OUTROS_SERVICOS com valor zero ou negativo não foram abatidas. Confira separadamente.'] : [];
+  }
   function linhas(wb, nome, cabecalhos) {
     var sh = wb.Sheets[nome]; if (!sh) throw new Error('A aba ' + nome + ' não foi encontrada.');
     // Alguns extratos declaram !ref=A1 mesmo com milhares de células: expandir a área real.
@@ -82,25 +116,34 @@
      for (var j = 0; j < assinatura.length; j++) { hash ^= assinatura.charCodeAt(j); hash = Math.imul(hash, 16777619); }
      var numeroExtrato = texto(nomeArquivo).match(/^Extrato[_ -](\d+)(?:-\d+)?\.xlsx?$/i);
      alertas.forEach(function (d) { d.extrato = numeroExtrato ? 'extrato-' + numeroExtrato[1] : (hash >>> 0).toString(36); });
-     return { grupos:Array.from(agrupados.values()).sort(function (a,b) { return a.placa.localeCompare(b.placa); }), divergencias:alertas };
+     var avisos = lerDevolucoes(wb, agrupados);
+     return { grupos:Array.from(agrupados.values()).sort(function (a,b) { return a.placa.localeCompare(b.placa); }), divergencias:alertas, avisos:avisos };
   }
   function cadastro(p) {
     if (typeof db === 'undefined' || !Array.isArray(db.veiculos)) return null;
     return db.veiculos.find(function (v) { return placa(v.vplaca) === p; }) || null;
   }
   function pendentes(g) { var vistos = existentes(); return g.detalhes.filter(function (d) { return !vistos.has(d.chave); }); }
+  function previa(g) {
+    var detalhes = cancelados.has(g.id) ? [] : pendentes(g), bruto = 0, devolucoes = 0;
+    detalhes.forEach(function (d) { if (d.natureza === 'devolucao') devolucoes -= d.centavos; else bruto += d.centavos; });
+    var semData = detalhes.some(function (d) { return !d.data; }), dataOk = !semData || diaInformado(datasDevolucao[g.id]);
+    var meses = Array.from(new Set(detalhes.map(function (d) { return mesDetalhe(d, g); }).filter(Boolean))).sort();
+    return { detalhes:detalhes, bruto:bruto, devolucoes:devolucoes, liquido:bruto - devolucoes, semData:semData, dataOk:dataOk, meses:meses, mes:competencias[g.id] || (meses.length === 1 ? meses[0] : '') };
+  }
   function desenhar() {
     var box = el('cusPedPrevia'); if (!box) return;
-    var pend = grupos.filter(function (g) { return !cancelados.has(g.id); }).map(function (g) { return { grupo:g, detalhes:pendentes(g) }; }).filter(function (x) { return x.detalhes.length; });
-    var cents = pend.reduce(function (s,x) { return s + x.detalhes.reduce(function (a,d) { return a + d.centavos; },0); },0);
-     el('cusPedResumo').textContent = arquivo + ' · ' + pend.length + ' pré-lançamento(s) por placa · ' + pend.reduce(function (n,x) { return n+x.detalhes.length; },0) + ' passagens pendentes · ' + reais(cents);
+    var pend = grupos.map(previa).filter(function (x) { return x.detalhes.length; });
+    var bruto = pend.reduce(function (s,x) { return s + x.bruto; },0), devolucoes = pend.reduce(function (s,x) { return s + x.devolucoes; },0);
+    el('cusPedResumo').textContent = arquivo + ' · ' + pend.length + ' pré-lançamento(s) por placa · Passagens: ' + reais(bruto) + ' · Devoluções: ' + reais(devolucoes) + ' · Líquido: ' + reais(bruto - devolucoes);
     var prontoBanco = typeof window.fmModuloCarregado === 'function' && window.fmModuloCarregado('custos') && window.fmModuloCarregado('veiculos');
-     el('cusPedLinhas').innerHTML = grupos.map(function (g, i) {
-       var falta = cancelados.has(g.id) ? [] : pendentes(g); if (!falta.length) return '';
-       var valor = falta.reduce(function (n,d) { return n+d.centavos; },0), v = cadastro(g.placa), pronto = !!v && texto(v.vstatus).toUpperCase() !== 'VENDIDO';
-       var meses = Array.from(new Set(falta.map(function (d) { return d.data.slice(0,7); }))).sort(), selecionado = competencias[g.id] || (meses.length === 1 ? meses[0] : '');
-       var celulaMes = meses.length === 1 ? esc(meses[0].slice(5) + '/' + meses[0].slice(0,4)) : '<select class="form-select form-select-sm" data-ped-competencia="' + i + '" aria-label="Competência de ' + esc(g.placa) + '"><option value="">Escolha o mês</option>' + meses.map(function (m) { return '<option value="' + m + '"' + (m === selecionado ? ' selected' : '') + '>' + m.slice(5) + '/' + m.slice(0,4) + '</option>'; }).join('') + '</select>';
-       return '<tr><td><b>' + esc(g.placa) + '</b></td><td>' + celulaMes + '</td><td>' + falta.length + (falta.length !== g.detalhes.length ? ' de ' + g.detalhes.length : '') + '</td><td><b>' + reais(valor) + '</b></td><td>' + (!prontoBanco ? 'Aguardando dados' : !v ? 'Veículo não cadastrado' : !pronto ? 'Veículo vendido' : !selecionado ? 'Escolha a competência' : 'Aguardando confirmação') + '</td><td class="cus-history-actions">' + (prontoBanco && pronto && selecionado ? '<button type="button" class="btn btn-primary btn-sm" data-ped-confirmar="' + i + '">Confirmar lançamento</button>' : '') + '<button type="button" class="btn btn-outline-secondary btn-sm" data-ped-cancelar="' + i + '">Cancelar</button></td></tr>';
+    el('cusPedLinhas').innerHTML = grupos.map(function (g, i) {
+      var x = previa(g); if (!x.detalhes.length) return '';
+      var v = cadastro(g.placa), pronto = !!v && texto(v.vstatus).toUpperCase() !== 'VENDIDO', meses = x.meses, selecionado = x.mes;
+      var celulaMes = meses.length === 1 ? esc(meses[0].slice(5) + '/' + meses[0].slice(0,4)) : '<select class="form-select form-select-sm" data-ped-competencia="' + i + '" aria-label="Competência de ' + esc(g.placa) + '"><option value="">Escolha o mês</option>' + meses.map(function (m) { return '<option value="' + m + '"' + (m === selecionado ? ' selected' : '') + '>' + m.slice(5) + '/' + m.slice(0,4) + '</option>'; }).join('') + '</select>';
+      if (x.semData) celulaMes += '<label class="cus-mini">Data conferida das devoluções sem data<input type="date" class="form-control form-control-sm" data-ped-data-devolucao="' + i + '" value="' + esc(datasDevolucao[g.id] || '') + '"></label>';
+      var passagens = x.detalhes.filter(function (d) { return d.natureza !== 'devolucao'; }).length, creditos = x.detalhes.length - passagens;
+      return '<tr><td><b>' + esc(g.placa) + '</b></td><td>' + celulaMes + '</td><td>' + passagens + ' passagem(ns) · ' + creditos + ' devolução(ões)</td><td>' + reais(x.bruto) + '</td><td>' + reais(x.devolucoes) + '</td><td><b>' + reais(x.liquido) + '</b></td><td>' + (!prontoBanco ? 'Aguardando dados' : !v ? 'Veículo não cadastrado' : !pronto ? 'Veículo vendido' : !x.dataOk ? 'Informe a data das devoluções' : !selecionado ? 'Escolha a competência' : x.liquido < 0 ? 'Crédito líquido: reduzirá a despesa de pedágio' : 'Aguardando confirmação') + '</td><td class="cus-history-actions">' + (prontoBanco && pronto && selecionado && x.dataOk ? '<button type="button" class="btn btn-primary btn-sm" data-ped-confirmar="' + i + '">Confirmar lançamento</button>' : '') + '<button type="button" class="btn btn-outline-secondary btn-sm" data-ped-cancelar="' + i + '">Cancelar</button></td></tr>';
     }).join('');
      var vistosResumo = resumosExistentes();
       var avisos = divergencias.filter(function (d, i) { return !resumosCancelados.has(i); });
@@ -139,12 +182,12 @@
   async function confirmar(i) {
     if (salvando || typeof window.fmModuloCarregado !== 'function' || !window.fmModuloCarregado('custos') || !window.fmModuloCarregado('veiculos')) return;
     var g = grupos[i]; if (!g || cancelados.has(g.id) || typeof db === 'undefined' || !Array.isArray(db.custos)) return;
-     var v = cadastro(g.placa), detalhes = pendentes(g), meses = Array.from(new Set(detalhes.map(function (d) { return d.data.slice(0,7); }))), mes = competencias[g.id] || (meses.length === 1 ? meses[0] : '');
-     if (!v || texto(v.vstatus).toUpperCase() === 'VENDIDO' || !detalhes.length || !mes || meses.indexOf(mes) < 0) { desenhar(); return; }
-    var soma = detalhes.reduce(function (s,d) { return s + d.centavos; },0);
-     if (!confirm('Confirmar ' + detalhes.length + ' passagem(ns) de ' + v.vplaca + ' na competência ' + mes.slice(5) + '/' + mes.slice(0,4) + ', total ' + reais(soma) + '?')) return;
+    var v = cadastro(g.placa), x = previa(g), detalhes = x.detalhes, mes = x.mes;
+    if (!v || texto(v.vstatus).toUpperCase() === 'VENDIDO' || !detalhes.length || !x.dataOk || !mes || x.meses.indexOf(mes) < 0) { desenhar(); return; }
+    var passagens = detalhes.filter(function (d) { return d.natureza !== 'devolucao'; }).length, creditos = detalhes.length - passagens;
+    if (!confirm('Confirmar ' + v.vplaca + ' na competência ' + mes.slice(5) + '/' + mes.slice(0,4) + '?\nPassagens (' + passagens + '): ' + reais(x.bruto) + '\nDevoluções (' + creditos + '): -' + reais(x.devolucoes) + '\nCusto líquido: ' + reais(x.liquido) + (x.liquido < 0 ? '\nEste crédito reduzirá a despesa de pedágio já registrada; nenhum lançamento anterior será alterado.' : ''))) return;
     salvando = true;
-     var registro = { id:'cus-ped-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,9), data:mes + '-01', competencia:mes, veiculo:v.vplaca, motorista:v.vmotorista || '', categoria:'Pedágio', tipo:'variavel', descricao:'Pedágios ' + mes.slice(5) + '/' + mes.slice(0,4) + ' · ' + detalhes.length + ' passagens', valor:soma / 100, parcelas:1, status:'Realizado', rateio:'nao', observacao:'Extrato ' + arquivo + ' · conferido por placa', origem:'pedagio_importado', detalhesPedagio:detalhes.map(function (d) { return { chave:d.chave, data:d.data, dataHora:d.dataHora, tag:d.tag, rodovia:d.rodovia, praca:d.praca, categoria:d.categoria, valor:d.valor }; }), atualizadoEm:new Date().toISOString() };
+    var registro = { id:'cus-ped-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,9), data:mes + '-01', competencia:mes, veiculo:v.vplaca, motorista:v.vmotorista || '', categoria:'Pedágio', tipo:'variavel', descricao:'Pedágios ' + mes.slice(5) + '/' + mes.slice(0,4) + ' · ' + passagens + ' passagens · ' + creditos + ' devoluções', valor:x.liquido / 100, valorBrutoPedagio:x.bruto / 100, valorDevolucoesPedagio:x.devolucoes / 100, parcelas:1, status:'Realizado', rateio:'nao', observacao:'Extrato ' + arquivo + ' · conferido por placa · passagens ' + reais(x.bruto) + ' menos devoluções ' + reais(x.devolucoes), origem:'pedagio_importado', detalhesPedagio:detalhes.map(function (d) { var item = Object.assign({}, d); if (!item.data) { item.data = datasDevolucao[g.id]; item.dataInformada = true; } return item; }), atualizadoEm:new Date().toISOString() };
     db.custos.push(registro);
     try {
       if (typeof salvarNuvem !== 'function') throw new Error('Gravação indisponível.');
@@ -159,17 +202,18 @@
   }
   function iniciar() {
     var pane = el('cusPane-lancamentos'); if (!pane || el('cusPedArquivo')) return;
-     var box = document.createElement('section'); box.className = 'cus-panel'; box.innerHTML = '<h5>Importar extrato de pedágios</h5><label for="cusPedArquivo">Planilha de extrato (.xlsx)</label><input id="cusPedArquivo" type="file" accept=".xlsx,.xls" class="form-control" data-nao-limpar="1"><div id="cusPedPrevia" hidden><p id="cusPedResumo" class="cus-note" aria-live="polite"></p><button id="cusPedCancelarTodos" type="button" class="btn btn-outline-secondary btn-sm">Cancelar todos</button><div class="cus-table-wrap"><table class="table cus-table" data-sem-relatorio="1"><thead><tr><th>Placa</th><th>Competência</th><th>Passagens</th><th>Total</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="cusPedLinhas"></tbody></table></div><p id="cusPedDivergencias" class="cus-note"></p><div id="cusPedResumoConferencia" hidden><div class="cus-table-wrap"><table class="table cus-table" data-sem-relatorio="1"><thead><tr><th>Placa</th><th>Resumo</th><th>Total</th><th>Data conferida</th><th>Competência</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="cusPedResumoLinhas"></tbody></table></div></div></div>';
+     var box = document.createElement('section'); box.className = 'cus-panel'; box.innerHTML = '<h5>Importar extrato de pedágios</h5><p class="cus-note">As devoluções positivas de OUTROS_SERVICOS (incluindo EIXO SUSPENSO) abatem o pedágio da mesma placa. Confira passagens, devoluções e custo líquido antes de confirmar. Recargas e saldos de outras abas não são importados.</p><label for="cusPedArquivo">Planilha de extrato (.xlsx)</label><input id="cusPedArquivo" type="file" accept=".xlsx,.xls" class="form-control" data-nao-limpar="1"><div id="cusPedPrevia" hidden><p id="cusPedResumo" class="cus-note" aria-live="polite"></p><p id="cusPedAvisos" class="cus-note" aria-live="polite"></p><button id="cusPedCancelarTodos" type="button" class="btn btn-outline-secondary btn-sm">Cancelar todos</button><div class="cus-table-wrap"><table class="table cus-table" data-sem-relatorio="1"><thead><tr><th>Placa</th><th>Competência</th><th>Itens pendentes</th><th>Passagens (bruto)</th><th>Devoluções (abatimento)</th><th>Custo líquido</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="cusPedLinhas"></tbody></table></div><p id="cusPedDivergencias" class="cus-note"></p><div id="cusPedResumoConferencia" hidden><div class="cus-table-wrap"><table class="table cus-table" data-sem-relatorio="1"><thead><tr><th>Placa</th><th>Resumo</th><th>Total</th><th>Data conferida</th><th>Competência</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="cusPedResumoLinhas"></tbody></table></div></div></div>';
     pane.insertBefore(box, pane.firstChild);
     el('cusPedArquivo').addEventListener('change', function (ev) {
       var file = ev.target.files && ev.target.files[0]; if (!file) return;
-       grupos = []; divergencias = []; competencias = {}; datasResumo = {}; competenciasResumo = {}; cancelados = new Set(); resumosCancelados = new Set(); el('cusPedPrevia').hidden = true;
+       if (salvando) { ev.target.value = ''; return; }
+       grupos = []; divergencias = []; competencias = {}; datasResumo = {}; competenciasResumo = {}; datasDevolucao = {}; cancelados = new Set(); resumosCancelados = new Set(); el('cusPedPrevia').hidden = true;
       if (!/\.xlsx?$/i.test(file.name) || file.size > 10 * 1024 * 1024) { alert('Selecione uma planilha Excel de até 10 MB.'); ev.target.value = ''; return; }
       file.arrayBuffer().then(function (buffer) {
         if (!window.XLSX) throw new Error('Leitor de Excel indisponível.');
          var result = ler(XLSX.read(buffer, { type:'array', cellDates:true }), file.name);
-        if (!result.grupos.length) throw new Error('Nenhuma passagem detalhada encontrada.');
-        arquivo = file.name; grupos = result.grupos; divergencias = result.divergencias; desenhar();
+        if (!result.grupos.length) throw new Error('Nenhuma passagem ou devolução encontrada.');
+        arquivo = file.name; grupos = result.grupos; divergencias = result.divergencias; el('cusPedAvisos').textContent = result.avisos.join(' '); desenhar();
       }).catch(function (err) { alert('Não foi possível ler o extrato: ' + err.message); }).finally(function () { ev.target.value = ''; });
     });
      box.addEventListener('click', function (ev) {
@@ -187,7 +231,7 @@
        var btn = ev.target.closest('[data-ped-confirmar]'); if (btn) confirmar(Number(btn.dataset.pedConfirmar));
        var resumo = ev.target.closest('[data-ped-resumo-confirmar]'); if (resumo) confirmarResumo(Number(resumo.dataset.pedResumoConfirmar));
      });
-     box.addEventListener('change', function (ev) { if (ev.target.matches('[data-ped-competencia]')) { var g = grupos[Number(ev.target.dataset.pedCompetencia)]; if (g) competencias[g.id] = ev.target.value; } else if (ev.target.matches('[data-ped-resumo-data]')) { var i = Number(ev.target.dataset.pedResumoData); datasResumo[i] = ev.target.value; if (!competenciasResumo[i]) competenciasResumo[i] = ev.target.value.slice(0,7); } else if (ev.target.matches('[data-ped-resumo-mes]')) competenciasResumo[Number(ev.target.dataset.pedResumoMes)] = ev.target.value; else return; desenhar(); });
+     box.addEventListener('change', function (ev) { if (salvando) return; if (ev.target.matches('[data-ped-data-devolucao]')) { var grupo = grupos[Number(ev.target.dataset.pedDataDevolucao)]; if (grupo) { datasDevolucao[grupo.id] = ev.target.value; delete competencias[grupo.id]; } } else if (ev.target.matches('[data-ped-competencia]')) { var g = grupos[Number(ev.target.dataset.pedCompetencia)]; if (g) competencias[g.id] = ev.target.value; } else if (ev.target.matches('[data-ped-resumo-data]')) { var i = Number(ev.target.dataset.pedResumoData); datasResumo[i] = ev.target.value; if (!competenciasResumo[i]) competenciasResumo[i] = ev.target.value.slice(0,7); } else if (ev.target.matches('[data-ped-resumo-mes]')) competenciasResumo[Number(ev.target.dataset.pedResumoMes)] = ev.target.value; else return; desenhar(); });
     window.addEventListener('fmModulosCarregados', function () { if (grupos.length) desenhar(); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
