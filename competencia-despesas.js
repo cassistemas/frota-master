@@ -9,7 +9,12 @@
     tacografo: ['tcompetencia', 'tdataafericao'],
     licencas: ['lecompetencia', 'venciv'],
     diarias: ['dicompetencia', 'didata'],
-    revisoes: ['rcompetencia', 'rdata']
+    revisoes: ['rcompetencia', 'rdata'],
+    pneus: ['pcompetencia', 'pdata'],
+    estoque: ['ecompetencia', 'edata'],
+    estoqueSaida: ['scompetencia', 'sdata', 'ecompetencia'],
+    eventosPneus: ['resPneuCompetencia', 'resPneuData', 'competencia'],
+    fretes: ['frecompetencia', 'fredata']
   };
   function normalizar(valor) {
     var s = String(valor || '').trim();
@@ -17,7 +22,7 @@
   }
   function manual(mod, registro) {
     var cfg = campos[mod];
-    var valor = cfg && registro && registro[cfg[0]];
+    var valor = cfg && registro && registro[cfg[2] || cfg[0]];
     if (mod === 'licencas' && typeof root.fmNormalizarCompetenciaCiv === 'function') {
       return root.fmNormalizarCompetenciaCiv(valor);
     }
@@ -74,6 +79,52 @@
     camposFormulario: camposFormulario, preencher: preencher, validar: validar,
     montar: montar
   };
+  // Escritores próprios: instale os campos antes de ler o formulário e nunca
+  // deixe a competência do registro anterior em edições de cadastros antigos.
+  function ligarFormularios() {
+    function ligar(nome, antes) {
+      var original = root[nome];
+      if (typeof original !== 'function' || original.fmCompetencia) return;
+      var fn = function () {
+        montar();
+        antes.apply(this, arguments);
+        return original.apply(this, arguments);
+      };
+      fn.fmCompetencia = true;
+      root[nome] = fn;
+    }
+    ['salvarEstoque', 'salvarSaidaEstoque', 'salvarFrete', 'salvarPneu'].forEach(function (nome, i) {
+      var mod = ['estoque', 'estoqueSaida', 'fretes', 'pneus', 'eventosPneus'][i];
+      var original = root[nome];
+      if (typeof original !== 'function') return;
+      root[nome] = function () {
+        montar();
+        var cfg = campos[mod], el = root.document.getElementById(cfg[0]);
+        if (el && el.value && !normalizar(el.value)) {
+          root.alert('Informe uma competência válida (mês e ano) ou deixe em branco para manter a regra atual.');
+          return false;
+        }
+        return original.apply(this, arguments);
+      };
+    });
+    ['limparFormEstoqueEntrada', 'limparFormEstoqueSaida', 'limparFormFrete'].forEach(function (nome, i) {
+      ligar(nome, function () { preencher(['estoque', 'estoqueSaida', 'fretes'][i], {}); });
+    });
+    ligar('editarEstoque', function (i) {
+      var b = typeof db !== 'undefined' ? db : root.db;
+      var r = b && b.estoque && b.estoque[i] || {};
+      preencher(r.etipo === 'Saída' ? 'estoqueSaida' : 'estoque', r);
+    });
+    ligar('editarFrete', function () { preencher('fretes', {}); });
+    ligar('duplicarPneu', function () { preencher('pneus', {}); });
+  }
+  ligarFormularios();
+  // Os módulos constroem alguns formulários somente ao abrir a tela.
+  if (root.document && typeof root.MutationObserver === 'function') {
+    new root.MutationObserver(function (mudancas) {
+      if (mudancas.some(function (m) { return m.addedNodes.length; })) montar();
+    }).observe(root.document.documentElement, { childList: true, subtree: true });
+  }
   if (typeof module !== 'undefined' && module.exports) module.exports = root.FMCompetenciaDespesas;
   if (root.document) {
     montar();

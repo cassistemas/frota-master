@@ -82,6 +82,7 @@
       equantidade: 1,
       evalorunitario: valor,
       edata: p.pdata || hoje(),
+      ecompetencia: p.pcompetencia || "",
       efornecedor: p.pfornecedor || "",
       elote: p.pdot || "",
       eestoqueminimo: 0,
@@ -106,6 +107,7 @@
       equantidade: 1,
       evalorunitario: valor,
       edata: p.pdatainstalacao || hoje(),
+      ecompetencia: p.pcompetencia || "",
       efornecedor: "",
       elote: p.pdot || "",
       eresponsavel: "",
@@ -213,7 +215,7 @@
 
   /* ---------- salvar pneu (substitui o original) ---------- */
   window.salvarPneu = function () {
-    var campos = ["pnumero","pmarca","pmodelo","pmedida","pdot","pvalor","pdata","pdatainstalacao","pvida","psulco",
+    var campos = ["pnumero","pmarca","pmodelo","pmedida","pdot","pvalor","pdata","pcompetencia","pdatainstalacao","pvida","psulco",
       "pveiculo","pfornecedor","pposicao","pkminstalacao","pkmatual","pkmrodado","pstatus","pobs"];
 
     var b = base();
@@ -289,6 +291,16 @@
       anterior.pstatus !== obj.pstatus ||
       anterior.pveiculo !== obj.pveiculo;
     if (mudouEstado) sincronizar(obj);
+    // Alterar o mês não cria outra movimentação nem reescreve ciclos anteriores.
+    if (anterior && anterior.pcompetencia !== obj.pcompetencia) {
+      movsPneu(obj).forEach(function (m) {
+        if (m.eorigem !== 'pneus') return;
+        var dataOrigem = m.etipo === 'Entrada' ? anterior.pdata : anterior.pdatainstalacao;
+        if (m.edata === dataOrigem && (m.ecompetencia || '') === (anterior.pcompetencia || '')) {
+          m.ecompetencia = obj.pcompetencia || '';
+        }
+      });
+    }
     window.FMPneusFrota.aplicar(plano);
 
     gravar();

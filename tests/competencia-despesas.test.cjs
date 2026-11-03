@@ -37,7 +37,7 @@ function ambiente(dados = {}) {
   return { ctx, db, campos, avisos, api: ctx.teste, helper: ctx.FMCompetenciaDespesas };
 }
 test('scripts alterados mantêm sintaxe válida', () => {
-  for (const arquivo of ['competencia-despesas.js', 'custos-frota.js', 'revisoes.js']) new vm.Script(ler(arquivo));
+  for (const arquivo of ['competencia-despesas.js', 'custos-frota.js', 'revisoes.js', 'estoque-pro.js', 'fretes-terceiros.js', 'pneus-sync.js', 'pneus-lote.js', 'pneus-frota.js', 'resultado-frota.js']) new vm.Script(ler(arquivo));
   for (const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
     if (m[1].trim()) new vm.Script(m[1]);
   }
@@ -130,6 +130,44 @@ test('edição de registro antigo limpa competência residual e valida mês sem 
     assert.equal(a.helper.validar(mod, { [id]: '2027-12' }), true);
   }
   assert.match(a.api.validar({ data: '2026-10-10', competencia: '2026-13', categoria: 'Multas', valor: 100 }), /Competência inválida/);
+});
+test('pneus, estoque, saídas e fretes preservam a competência opcional', () => {
+  const a = ambiente();
+  for (const [mod, campo] of Object.entries({ pneus: 'pcompetencia', estoque: 'ecompetencia', estoqueSaida: 'ecompetencia', eventosPneus: 'competencia', fretes: 'frecompetencia' })) {
+    for (const comp of ['2026-09', '2026-11']) {
+      const registro = { [campo]: comp, data: '2026-10-10' };
+      assert.equal(a.helper.competencia(mod, registro, registro.data), comp);
+      assert.equal(registro.data, '2026-10-10');
+    }
+    assert.equal(a.helper.competencia(mod, {}, '2026-10-10'), '2026-10');
+  }
+});
+test('pneus contabilizam valor uma vez no mês manual e mantêm caixa na data do evento', () => {
+  const a = ambiente();
+  const eventos = [{ veiculo: 'ABC1234', tipo: 'Instalação', data: '2026-10-10', competencia: '2026-11', valor: 100 }];
+  Object.assign(a.ctx, { a: () => eventos, placaNormalizada: x => x, n: Number, mes: x => x.slice(0, 7),
+    noPeriodo: (d, f) => d >= f.ini && d <= f.fim,
+    ciclosPneus: () => [{ eventos, vida: 10000, valor: 100 }], kmCicloPeriodo: () => 1000 });
+  const fonte = ler('resultado-frota.js');
+  vm.runInContext(fonte.slice(fonte.indexOf('function custoPneusPeriodo('), fonte.indexOf('function aceitaCustoCalculado(')), a.ctx);
+  const outubro = { ini: '2026-10-01', fim: '2026-10-31' }, novembro = { ini: '2026-11-01', fim: '2026-11-30' };
+  assert.equal(a.ctx.custoPneusPeriodo('ABC1234', outubro, 'competencia'), 0);
+  assert.equal(a.ctx.custoPneusPeriodo('ABC1234', novembro, 'competencia'), 100);
+  assert.equal(a.ctx.custoPneusPeriodo('ABC1234', outubro, 'caixa'), 100);
+  assert.equal(a.ctx.custoPneusPeriodo('ABC1234', novembro, 'caixa'), 0);
+  eventos[0].competencia = '';
+  assert.equal(a.ctx.custoPneusPeriodo('ABC1234', outubro, 'competencia'), 10);
+});
+test('comparativo de Terceiros usa competência manual e mantém data no caixa', () => {
+  const a = ambiente();
+  const fretes = [{ fredata: '2026-10-10', frecompetencia: '2026-11', freexecucao: 'terceiro' }];
+  Object.assign(a.ctx, { arr: () => fretes, data: x => x, normalizarPlaca: x => x });
+  const inicio = custos.indexOf('function fretesPeriodo(');
+  vm.runInContext(custos.slice(inicio, custos.indexOf('function vazioComparativo(', inicio)), a.ctx);
+  const f = { ini: '2026-11-01', fim: '2026-11-30', modo: 'competencia' };
+  assert.equal(a.ctx.fretesPeriodo(f).length, 1);
+  assert.equal(a.ctx.fretesPeriodo(Object.assign({}, f, { modo: 'caixa' })).length, 0);
+  assert.equal(fretes[0].fredata, '2026-10-10');
 });
 test('escritores próprios de tacógrafo e multas preservam competência, IDs e metadados ao editar', () => {
   const a = ambiente({ tacografo: [{ _rid: 't1', extra: 'preservar' }], multas: [{ _rid: 'mu1', extra: 'preservar' }] });

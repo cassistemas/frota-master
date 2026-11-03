@@ -3,7 +3,7 @@
    mantendo estoque, histórico e Pneus por KM. Valida tudo antes de gravar qualquer pneu. */
 (function () {
   'use strict';
-  var COMUNS = ['pmarca','pmodelo','pmedida','pvalor','pdata','pdatainstalacao','pvida','psulco','pveiculo','pfornecedor','pkminstalacao','pkmatual','pstatus','pobs'];
+  var COMUNS = ['pmarca','pmodelo','pmedida','pvalor','pdata','pcompetencia','pdatainstalacao','pvida','psulco','pveiculo','pfornecedor','pkminstalacao','pkmatual','pstatus','pobs'];
   function $(id) { return document.getElementById(id); }
   function esc(v) { return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function chave(v) { return String(v || '').trim().toUpperCase(); }

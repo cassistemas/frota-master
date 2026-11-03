@@ -12,6 +12,7 @@
   function banco() { return typeof db !== 'undefined' ? db : window.db; }
   function preparar(p, anterior) {
     var b = banco(), uso = p.pstatus === 'Em Uso';
+    if (p.pcompetencia && !/^\d{4}-(0[1-9]|1[0-2])$/.test(p.pcompetencia)) return {erro:'Informe uma competência válida ou deixe o campo em branco.'};
     if (!b) return {erro:'Os cadastros ainda não estão disponíveis.'};
     if (typeof window.fmModuloCarregado === 'function' &&
         (!window.fmModuloCarregado('pneus') || !window.fmModuloCarregado('eventosPneus'))) {
@@ -60,7 +61,7 @@
     var e = Object.assign({}, anteriorEvento || {}, {
       id:anteriorEvento ? anteriorEvento.id : 'pneu-auto-'+p.pid+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),
       pneuId:chave(p.pnumero), cadastroPneuId:p.pid, origem:'cadastro_pneus', tipo:anteriorEvento ? anteriorEvento.tipo : tipo,
-      data:dt, veiculo:uso ? p.pveiculo : ultimo.veiculo, posicao:p.pposicao || '', odometro:odo,
+      data:dt, competencia:(tipo === 'Instalação' ? p.pcompetencia || '' : anteriorEvento && anteriorEvento.competencia || ''), veiculo:uso ? p.pveiculo : ultimo.veiculo, posicao:p.pposicao || '', odometro:odo,
       valor:tipo === 'Instalação' ? Math.round(numero(p.pvalor)*100)/100 : 0,
       vidaUtilKm:numero(p.pvida), kmRodado:0, observacao:p.pobs || '', atualizadoEm:new Date().toISOString()
     });
@@ -261,7 +262,7 @@
     var saldo = (b.estoque || []).reduce(function (s, x) { return x.epneuid === p.pid ? s + (x.etipo === 'Saída' ? -1 : 1) * numero(x.equantidade) : s; }, 0);
     if (saldo !== 1) return {erro:'O saldo vinculado deste pneu deve ser uma unidade. Confira as movimentações no módulo Pneus.'};
     function valor(id) { return (document.getElementById(id) || {}).value || ''; }
-    var novo = Object.assign({}, p, {pstatus:'Em Uso', pveiculo:m.eplaca, pdatainstalacao:m.edata,
+    var novo = Object.assign({}, p, {pstatus:'Em Uso', pveiculo:m.eplaca, pdatainstalacao:m.edata, pcompetencia:m.ecompetencia || '',
       pposicao:valor('spneuPosicao'), pkminstalacao:valor('spneuKm'), pkmatual:valor('spneuKm'),
       pkmrodado:0, pvida:valor('spneuVida'), pvalor:valor('spneuValor')});
     if (!novo.pposicao) return {erro:'Informe a posição de instalação do pneu.'};

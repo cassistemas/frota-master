@@ -873,6 +873,7 @@
 
     return {
       fredata: val('fredata'),
+      frecompetencia: val('frecompetencia'),
       freorigem: val('freorigem'),
       fredestino: val('fredestino'),
       fredistancia: val('fredistancia'),
@@ -927,7 +928,7 @@
   };
 
   window.limparFormFrete = function () {
-    ['fredata', 'freorigem', 'fredestino', 'fredistancia', 'frepeso', 'fretipocarga', 'frecarregamento',
+    ['fredata', 'frecompetencia', 'freorigem', 'fredestino', 'fredistancia', 'frepeso', 'fretipocarga', 'frecarregamento',
       'freentrega', 'frevalor', 'fretipoveiculo', 'frecontato', 'frerodape', 'freobs', 'fre_idx',
       'frevolume', 'freveiculo', 'freterceiro', 'frecustoterceiro']
       .forEach(function (id) { setVal(id, ''); });

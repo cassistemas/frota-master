@@ -182,6 +182,7 @@
       var dados = {
         mveiculo: s.eplaca,
         mdata: s.edata || new Date().toISOString().slice(0, 10),
+        mcompetencia: s.ecompetencia || "",
         mkm: s.epneukm || (existente && existente.mkm) || kmVeiculo(s.eplaca) || "",
         mvalor: moeda(total),
         mnf: s.elote || "",
@@ -486,6 +487,7 @@
       equantidade: quantidade,
       evalorunitario: valorUnitario,
       edata: document.getElementById("edata").value || new Date().toISOString().slice(0, 10),
+      ecompetencia: document.getElementById("ecompetencia").value,
       efornecedor: document.getElementById("efornecedor").value.trim(),
       elote: document.getElementById("elote").value.trim(),
       eestoqueminimo: num(document.getElementById("eestoqueminimo").value),
@@ -531,6 +533,7 @@
       equantidade: quantidade,
       evalorunitario: pos.custoMedio,
       edata: document.getElementById("sdata").value || new Date().toISOString().slice(0, 10),
+      ecompetencia: document.getElementById("scompetencia").value,
       efornecedor: "",
       elote: document.getElementById("slote").value.trim(),
       eresponsavel: document.getElementById("sresponsavel").value.trim(),
@@ -564,12 +567,12 @@
 
   /* ---- limpar formulários ---- */
   window.limparFormEstoqueEntrada = function () {
-    ["eitem", "ecategoria", "equantidade", "evalorunitario", "edata", "efornecedor", "elote", "eestoqueminimo", "eobservacoes", "e_idx"]
+    ["eitem", "ecategoria", "equantidade", "evalorunitario", "edata", "ecompetencia", "efornecedor", "elote", "eestoqueminimo", "eobservacoes", "e_idx"]
       .forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ""; });
     if (typeof window.fmSincronizarValoresBuscasCadastro === "function") window.fmSincronizarValoresBuscasCadastro();
   };
   window.limparFormEstoqueSaida = function () {
-    ["sitem", "squantidade", "sdata", "splaca", "sresponsavel", "slote", "sobservacoes", "s_idx"]
+    ["sitem", "squantidade", "sdata", "scompetencia", "splaca", "sresponsavel", "slote", "sobservacoes", "s_idx"]
       .forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ""; });
     if (typeof window.fmSincronizarValoresBuscasCadastro === "function") window.fmSincronizarValoresBuscasCadastro();
     atualizarSaldoItemSaida();
@@ -589,6 +592,7 @@
       document.getElementById("sitem").value = m.eitem || "";
       document.getElementById("squantidade").value = m.equantidade == null ? "" : m.equantidade;
       document.getElementById("sdata").value = m.edata || "";
+      document.getElementById("scompetencia").value = m.ecompetencia || "";
       document.getElementById("splaca").value = m.eplaca || "";
       document.getElementById("sresponsavel").value = m.eresponsavel || "";
       document.getElementById("slote").value = m.elote || "";
@@ -602,6 +606,7 @@
       document.getElementById("equantidade").value = m.equantidade == null ? "" : m.equantidade;
       document.getElementById("evalorunitario").value = moeda(num(m.evalorunitario));
       document.getElementById("edata").value = m.edata || "";
+      document.getElementById("ecompetencia").value = m.ecompetencia || "";
       document.getElementById("efornecedor").value = m.efornecedor || "";
       document.getElementById("elote").value = m.elote || "";
       document.getElementById("eestoqueminimo").value = m.eestoqueminimo == null ? "" : m.eestoqueminimo;
