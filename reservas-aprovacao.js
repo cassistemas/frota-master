@@ -47,6 +47,7 @@
           return '<tr data-reserva-pendente="' + esc(s.id) + '"><td>' + esc(s.solicitante) + '</td><td><b>' + esc(s.placa) + '</b></td><td>' + r.dataBR(s.dataSaida) + ' ' + esc(s.horaSaida) + '</td><td>' + r.dataBR(s.dataChegada) + ' ' + esc(s.horaChegada) + '</td><td>' + esc(s.destino) + (s.motivo ? '<br><small class="text-muted">' + esc(s.motivo) + '</small>' : '') + '</td>' +
             '<td style="white-space:nowrap"><button type="button" class="btn btn-sm btn-success" data-acao="aprovar" data-id="' + esc(s.id) + '">Aprovar</button> <button type="button" class="btn btn-sm btn-outline-danger" data-acao="recusar" data-id="' + esc(s.id) + '">Recusar</button></td></tr>';
         }).join("") + '</tbody></table></div>' : '<div class="text-muted" style="font-size:13px">Nenhuma solicitação pendente.</div>') +
+      pedidosHtml() +
       (devs.length ? '<h6 style="margin:12px 0 6px">🔁 Devoluções a confirmar <span class="badge bg-info text-dark">' + devs.length + '</span></h6><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Nº</th><th>Motorista</th><th>Veículo</th><th>Saída real</th><th>Devolução</th><th>KM final</th><th>Endereço da devolução</th><th></th></tr></thead><tbody>' +
         devs.map(function (s) {
           return '<tr><td>' + esc(s.numeroReserva) + '</td><td>' + esc(s.solicitante) + '</td><td><b>' + esc(s.placa) + '</b></td><td>' + r.dataBR(s.dataSaidaReal) + ' ' + esc(s.horaSaidaReal) + '</td><td>' + r.dataBR(s.dataDevolucao) + ' ' + esc(s.horaDevolucao) + '</td><td>' + esc(s.kmFinal || '--') + '</td><td>' + esc(s.enderecoDevolucao || '--') + (s.latitude ? ' <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=' + esc(s.latitude) + ',' + esc(s.longitude) + '">mapa</a>' : '') + '</td>' +
@@ -77,6 +78,10 @@
     }).then(function () { editandoDev = ""; render(); }).catch(function (e) { alert(e && e.message ? e.message : "Não foi possível concluir agora."); });
   }
 
+  function pedidosHtml() {
+    return window.FMReservasPedidos ? window.FMReservasPedidos.html(lista, ehAdmin()) : "";
+  }
+
   function definir(id, v) { var el = document.getElementById(id); if (el) el.value = v; }
 
   function aprovar(id) {
@@ -93,6 +98,12 @@
     fs.runTransaction(function (t) {
       return t.get(ref).then(function (d) {
         if (!d.exists || d.data().status !== "Pendente") throw new Error("Esta solicitação já foi analisada ou cancelada.");
+        var atual = d.data();
+        if (atual.pedidoCancelamento && atual.pedidoCancelamento.situacao === "Pendente") throw new Error("Analise o pedido de cancelamento antes de aprovar a reserva.");
+        if (atual.pedidoEdicao && ["Pendente", "Autorizada", "Aguardando confirmação"].includes(atual.pedidoEdicao.situacao)) throw new Error("Conclua o pedido de edição antes de aprovar a reserva.");
+        var conflito = R().validarSolicitacao(Object.assign({}, atual, {id:id}), {veiculos:base.veiculos, saidas:base.saidaVeiculos, solicitacoes:lista, ignorarPassado:true});
+        if (conflito) throw new Error(conflito);
+        s = Object.assign({}, atual, {id:id});
         t.update(ref, { status: "Em aprovação", atualizadoEm: new Date().toISOString() });
       });
     }).then(function () {

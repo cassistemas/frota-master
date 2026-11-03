@@ -152,6 +152,12 @@
     if (typeof original !== "function" || original.__limpezaPosSalvar) return;
 
     var wrapper = function () {
+      // A preparação transacional restaura o formulário aberto e só grava
+      // quando a decisão inteira for confirmada; não agenda limpeza aqui.
+      if ((nome === "salvarSaidaVeiculo" && arguments[0] && arguments[0].reservaTransacao === true) ||
+          (nome === "salvar" && arguments[3] && arguments[3].reservaTransacao === true)) {
+        return original.apply(this, arguments);
+      }
       var container = containerDoGatilho();
       var ids = idsDaChamada(nome, arguments, container);
       var alertaOriginal = window.alert;

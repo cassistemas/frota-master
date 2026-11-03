@@ -47,7 +47,17 @@
     } catch (e) {}
     try { var t0 = document.title; document.title = "🔔 " + titulo; setTimeout(function () { document.title = t0; }, 8000); } catch (e) {}
   }
-  function mapa(l) { var m = {}; l.forEach(function (s) { m[s.id] = s.status; }); return m; }
+  function situacao(s, campo) { var p = s[campo] || {}; return [p.situacao || "", p.solicitadoEm || "", p.enviadoEm || "", p.analisadoEm || ""].join("|"); }
+  function mapa(l) { var m = {}; l.forEach(function (s) { m[s.id] = {status:s.status, edicao:situacao(s,"pedidoEdicao"), cancelamento:situacao(s,"pedidoCancelamento")}; }); return m; }
+  function avisarPedidos(s, anterior, administrador) {
+    [["pedidoEdicao","edicao","Edição"],["pedidoCancelamento","cancelamento","Cancelamento"]].forEach(function (c) {
+      var p = s[c[0]];
+      if (!p || (anterior && anterior[c[1]] === situacao(s,c[0]))) return;
+      var pendente = p.situacao === "Pendente" || p.situacao === "Aguardando confirmação";
+      if (administrador !== pendente) return;
+      avisar(c[2] + (administrador ? " aguardando análise" : ": " + p.situacao), (s.solicitante || "") + " · " + s.placa + (p.resposta ? " · " + p.resposta : ""), administrador ? "#0d6efd" : "#198754");
+    });
+  }
 
   window.FMAvisos = {
     // Lista das solicitações do próprio usuário.
@@ -55,7 +65,8 @@
       var antes = visto.reserva; visto.reserva = mapa(minhas);
       if (!antes) return;
       minhas.forEach(function (s) {
-        if (antes[s.id] === s.status) return;
+        avisarPedidos(s, antes[s.id], false);
+        if (antes[s.id] && antes[s.id].status === s.status) return;
         if (s.status === "Aprovada") avisar("Reserva aprovada ✅", s.placa + " · " + (s.destino || "") + (s.numeroReserva ? " · Nº " + s.numeroReserva : ""), "#198754");
         else if (s.status === "Recusada") avisar("Reserva recusada", s.placa + (s.motivoRecusa ? " · Motivo: " + s.motivoRecusa : ""), "#dc3545");
       });
@@ -65,9 +76,10 @@
       var antes = visto.admin; visto.admin = mapa(lista);
       if (!antes) return;
       lista.forEach(function (s) {
-        if (antes[s.id] === s.status) return;
+        avisarPedidos(s, antes[s.id], true);
+        if (antes[s.id] && antes[s.id].status === s.status) return;
         if (s.status === "Pendente") avisar("Nova solicitação de reserva", (s.solicitante || "") + " · " + s.placa + " · " + (s.destino || ""), "#0d6efd");
-        else if (s.status === "Cancelada" && antes[s.id] === "Aprovada") avisar("Reserva aprovada foi cancelada", (s.solicitante || "") + " · " + s.placa + (s.numeroReserva ? " · Nº " + s.numeroReserva + " — libere em Saída de Veículos" : ""), "#6c757d");
+        else if (s.status === "Cancelada" && antes[s.id] && antes[s.id].status === "Aprovada") avisar("Cancelamento aprovado", (s.solicitante || "") + " · " + s.placa + (s.numeroReserva ? " · Nº " + s.numeroReserva : ""), "#6c757d");
         else if (s.status === "Devolução informada") avisar("Devolução informada", (s.solicitante || "") + " · " + s.placa, "#0dcaf0");
       });
     },

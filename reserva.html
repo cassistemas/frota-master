@@ -132,7 +132,7 @@ main.historico-aberto{max-width:1180px}
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="./reservas-regras.js?v=6"></script>
+<script src="./reservas-regras.js?v=7-pedidos"></script>
 <script src="./reservas-calendario.js?v=1"></script>
 <script>
 (function(){
@@ -211,14 +211,21 @@ main.historico-aberto{max-width:1180px}
         (s.enderecoDevolucao?'<small>Endereço da devolução: '+esc(s.enderecoDevolucao)+(s.latitude?' · <a target="_blank" rel="noopener" href="https://www.google.com/maps?q='+esc(s.latitude)+','+esc(s.longitude)+'">ver no mapa</a>':'')+'</small>':'')+
         (s.numeroReserva?'<small>Nº da reserva: '+esc(s.numeroReserva)+'</small>':'')+
         (s.motivoRecusa?'<small>Motivo da recusa: '+esc(s.motivoRecusa)+'</small>':'')+
-        (acoes&&R.podeCancelar&&R.podeCancelar(s)?'<button class="link" data-cancelar="'+esc(s.id)+'">Cancelar solicitação</button>':'')+dev+(s.status==="Pendente"?botoesRegistro(s):'')+'</div>';
+        botoesRegistro(s)+dev+'</div>';
   }
   function botoesRegistro(s){
-    return ""; // Solicitante nunca edita nem exclui.
-    return '<div class="item-acoes">'+(s.status==="Pendente"?'<button type="button" class="acao-icone" title="Editar solicitação" aria-label="Editar solicitação" data-editar="'+esc(s.id)+'"><svg viewBox="0 0 24 24"><path d="m16 3 5 5-12 12-6 1 1-6Z M14 5l5 5"/></svg></button>':'')+
-      '<button type="button" class="acao-icone excluir" title="Excluir da minha lista" aria-label="Excluir da minha lista" data-excluir="'+esc(s.id)+'"><svg viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></div>';
+    var uid=auth.currentUser&&auth.currentUser.uid, html="";
+    [["pedidoEdicao","Edição"],["pedidoCancelamento","Cancelamento"]].forEach(function(c){
+      var p=s[c[0]]; if(!p) return;
+      html+='<small>'+c[1]+': '+esc(p.situacao)+(p.resposta?' — '+esc(p.resposta):'')+'</small>';
+    });
+    if(s.uid!==uid) return html;
+    if(!R.validarAcao(s,uid,"editar")) html+='<button type="button" class="link" data-editar="'+esc(s.id)+'">Editar solicitação</button> ';
+    else if(!R.validarAcao(s,uid,"solicitar-edicao")) html+='<button type="button" class="link" data-pedir="edicao" data-id="'+esc(s.id)+'">Solicitar edição</button> ';
+    if(!R.validarAcao(s,uid,"cancelar")) html+='<button type="button" class="link" data-pedir="cancelamento" data-id="'+esc(s.id)+'">Solicitar cancelamento</button>';
+    return html;
   }
-  var POR_PAGINA=10, hPagina=1;
+  var POR_PAGINA=12, hPagina=1;
   function montarHistorico(){
     var uid=auth.currentUser&&auth.currentUser.uid;
     var base=estado.solicitacoes.filter(function(s){ return (estado.admin || s.uid===uid) && !(s.ocultadoPor||[]).includes(uid); });
@@ -239,7 +246,7 @@ main.historico-aberto{max-width:1180px}
     var paginas=Math.max(1,Math.ceil(l.length/POR_PAGINA)); if(hPagina>paginas) hPagina=paginas;
     var parte=l.slice((hPagina-1)*POR_PAGINA,hPagina*POR_PAGINA);
     $("listaHistorico").innerHTML = parte.length ? parte.map(function(s){ return itemHtml(s,false); }).join("") : "Nenhum registro encontrado.";
-    $("hResumo").textContent = l.length + " registro(s)";
+    $("hResumo").textContent = l.length ? "Exibindo " + ((hPagina-1)*POR_PAGINA+1) + " a " + Math.min(hPagina*POR_PAGINA,l.length) + " de " + l.length + " registro(s) · 12 por página" : "Nenhum registro encontrado · 12 por página";
     $("hPag").textContent = "Página " + hPagina + " de " + paginas;
     $("hAnt").disabled = hPagina<=1; $("hProx").disabled = hPagina>=paginas;
   }
@@ -271,6 +278,9 @@ main.historico-aberto{max-width:1180px}
     var FV=firebase.firestore.FieldValue;
     return fs.runTransaction(function(t){ return t.get(ref).then(function(d){
       if(!d.exists||d.data().status!==statusExigido) throw new Error("Esta reserva não está mais em \""+statusExigido+"\".");
+      if(!auth.currentUser || d.data().uid!==auth.currentUser.uid) throw new Error("Esta solicitação pertence a outro usuário.");
+      var atual=d.data();
+      if(statusExigido==="Aprovada" && ((atual.pedidoCancelamento||{}).situacao==="Pendente" || (atual.pedidoEdicao||{}).situacao==="Aguardando confirmação")) throw new Error("Aguarde a decisão do administrador sobre o pedido antes de iniciar a saída.");
       var up=Object.assign({},campos); up[campoTs]=FV.serverTimestamp(); t.update(ref,up);
     });}).then(function(){ return ref.get(); }).then(function(d){
       var pd=partesData(d.data()[campoTs]); var up={}; up["data"+prefixo]=pd.data; up["hora"+prefixo]=pd.hora;
@@ -318,8 +328,8 @@ main.historico-aberto{max-width:1180px}
   });
   function avisoSemZap(){ msg("msgReserva",$("msgReserva").textContent+" (O administrador ainda não cadastrou o WhatsApp para receber avisos.)",true); }
   $("telaReserva").addEventListener("click",function(ev){
-    var botao=ev.target&&ev.target.closest("[data-editar],[data-excluir]"); if(!botao) return;
-    var acao=botao.hasAttribute("data-editar")?"editar":"excluir", id=botao.getAttribute("data-"+acao);
+    var botao=ev.target&&ev.target.closest("[data-editar]"); if(!botao) return;
+    var acao="editar", id=botao.getAttribute("data-editar");
     var u=auth.currentUser, sol=estado.solicitacoes.find(function(s){return s.id===id;}); if(!u) return;
     var erro=R.validarAcao(sol,u.uid,acao); if(erro){ alert(erro); return; }
     if(acao==="editar"){
@@ -328,25 +338,24 @@ main.historico-aberto{max-width:1180px}
       $("tituloSolicitacao").textContent="Editar solicitação"; $("btnSolicitar").textContent="Salvar alterações"; $("btnCancelarEdicao").classList.remove("hidden");
       msg("msgReserva",""); $("btnZap").style.display="none"; $("tituloSolicitacao").scrollIntoView({behavior:"smooth",block:"start"}); return;
     }
-    if(!confirm(sol.status==="Pendente"?"Excluir esta solicitação? O pedido pendente será cancelado e retirado da sua lista.":"Excluir este registro da sua lista? A viagem, os horários e a confirmação do administrador serão preservados no sistema.")) return;
-    botao.disabled=true;
-    var ref=fs.collection(COL).doc(id);
-    fs.runTransaction(function(t){return t.get(ref).then(function(d){
-      var atual=d.exists?d.data():null, erro=R.validarAcao(atual,u.uid,"excluir"); if(erro) throw new Error(erro);
-      var up={ocultadoPor:firebase.firestore.FieldValue.arrayUnion(u.uid)};
-      if(atual.status==="Pendente") up.status="Cancelada";
-      t.update(ref,up);
-    });}).then(function(){ if(editandoId===id) limparSolicitacao(); }).catch(function(e){alert(e.message||"Não foi possível excluir.");botao.disabled=false;});
   });
-  $("listaMinhas").addEventListener("click",function(ev){
-    var id=ev.target&&ev.target.getAttribute("data-cancelar"); if(!id) return;
-    if(!confirm("Cancelar esta solicitação?\nDepois de iniciada a viagem não é mais possível cancelar.")) return;
-    var ref=fs.collection(COL).doc(id);
+  $("telaReserva").addEventListener("click",function(ev){
+    var b=ev.target&&ev.target.closest("[data-pedir]"); if(!b) return;
+    var u=auth.currentUser; if(!u) return;
+    var tipo=b.getAttribute("data-pedir"), id=b.getAttribute("data-id");
+    var motivo=prompt(tipo==="edicao"?"Por que deseja editar esta solicitação?":"Motivo do pedido de cancelamento (a reserva permanece válida até a aprovação):", "");
+    if(motivo===null) return;
+    if(!motivo.trim()){ alert("Informe o motivo do pedido."); return; }
+    b.disabled=true;
+    var ref=fs.collection(COL).doc(id), campo=tipo==="edicao"?"pedidoEdicao":"pedidoCancelamento";
     fs.runTransaction(function(t){ return t.get(ref).then(function(d){
-      if(!d.exists) throw new Error("Solicitação não encontrada.");
-      var dd=d.data(); if(!R.podeCancelar(dd)) throw new Error(dd.status==="Em aprovação"?"O administrador está analisando agora. Tente de novo em instantes.":"Não é possível cancelar: a viagem já foi iniciada ou a solicitação já foi encerrada.");
-      t.update(ref,{status:"Cancelada",canceladaApos:dd.status,canceladoEm:new Date().toISOString(),atualizadoEm:new Date().toISOString()});
-    });}).catch(function(e){ alert(e.message||"Não foi possível cancelar."); });
+      var sol=d.exists?d.data():null, erro=R.validarAcao(sol,u.uid,tipo==="edicao"?"solicitar-edicao":"cancelar");
+      if(erro) throw new Error(erro);
+      var up={atualizadoEm:new Date().toISOString()};
+      up[campo]={situacao:"Pendente",motivo:motivo.trim().slice(0,500),solicitadoEm:up.atualizadoEm,uid:u.uid};
+      t.update(ref,up);
+    });}).then(function(){ alert("Pedido enviado para aprovação do administrador. A reserva original foi mantida."); })
+      .catch(function(e){ alert(e.message||"Não foi possível enviar o pedido."); b.disabled=false; });
   });
 
   function escutar(){
@@ -371,7 +380,8 @@ main.historico-aberto{max-width:1180px}
       destino:$("rDestino").value.trim(), motivo:$("rMotivo").value.trim(), status:"Pendente", criadoEm:new Date().toISOString() };
     var idEdicao=editandoId;
     if(idEdicao) sol.id=idEdicao;
-    var erro=R.validarSolicitacao(sol,{veiculos:estado.veiculos,saidas:estado.saidas,solicitacoes:estado.solicitacoes});
+    var original=idEdicao&&estado.solicitacoes.find(function(s){return s.id===idEdicao;});
+    var erro=R.validarSolicitacao(sol,{veiculos:estado.veiculos,saidas:estado.saidas,solicitacoes:estado.solicitacoes,reservaOriginal:original});
     $("btnZap").style.display="none";
     if(erro){ msg("msgReserva",erro); return; }
     $("btnSolicitar").disabled=true; msg("msgReserva","Enviando...",true);
@@ -381,13 +391,16 @@ main.historico-aberto{max-width:1180px}
       gravacao=fs.runTransaction(function(t){return t.get(ref).then(function(d){
         var atual=d.exists?d.data():null, erro=R.validarAcao(atual,u.uid,"editar"); if(erro) throw new Error(erro);
         var up={}; ["placa","dataSaida","horaSaida","dataChegada","horaChegada","destino","motivo"].forEach(function(k){up[k]=sol[k];});
-        var conflito=R.validarSolicitacao(sol,{veiculos:estado.veiculos,saidas:estado.saidas,solicitacoes:estado.solicitacoes}); if(conflito) throw new Error(conflito);
-        up.atualizadoEm=firebase.firestore.FieldValue.serverTimestamp(); t.update(ref,up);
+        var conflito=R.validarSolicitacao(sol,{veiculos:estado.veiculos,saidas:estado.saidas,solicitacoes:estado.solicitacoes,reservaOriginal:atual}); if(conflito) throw new Error(conflito);
+        var pedido=Object.assign({},atual.pedidoEdicao,{situacao:atual.status==="Aprovada"?"Aguardando confirmação":"Aplicada",dados:Object.assign({},up),enviadoEm:new Date().toISOString()});
+        // Reservas aprovadas mantêm veículo e período originais até a confirmação.
+        var alteracao=atual.status==="Aprovada"?{}:up;
+        alteracao.pedidoEdicao=pedido; alteracao.atualizadoEm=new Date().toISOString(); t.update(ref,alteracao);
       });});
     } else gravacao=fs.collection(COL).add(sol);
     gravacao.then(function(){
       limparSolicitacao();
-      msg("msgReserva",idEdicao?"Alterações salvas. A solicitação continua pendente.":"Solicitação enviada. Ela aparece como Pendente até a aprovação.",true);
+      msg("msgReserva",idEdicao?(original&&original.status==="Aprovada"?"Alterações enviadas para confirmação do administrador. A reserva original continua válida.":"Alterações salvas. A solicitação continua pendente."):"Solicitação enviada. Ela aparece como Pendente até a aprovação.",true);
       var link=R.linkWhatsApp(estado.zap,sol,idEdicao?"Solicitação de reserva atualizada":undefined);
       if(link){ $("btnZap").href=link; $("btnZap").style.display="block"; } else avisoSemZap();
     }).catch(function(e){ msg("msgReserva",e.message||"Não foi possível salvar agora. Tente novamente."); }).then(function(){ $("btnSolicitar").disabled=false; });
@@ -395,7 +408,9 @@ main.historico-aberto{max-width:1180px}
 
   auth.onAuthStateChanged(function(u){
     estado.escutas.forEach(function(f){ try{f();}catch(e){} }); estado.escutas=[];
-    estado.veiculos=[]; estado.saidas=[]; estado.solicitacoes=[]; estado.agendaCarga={}; estado.admin=false;
+    estado.veiculos=[]; estado.saidas=[]; estado.solicitacoes=[]; estado.agendaCarga={}; estado.admin=false; hPagina=1;
+    $("hUsuario").value=""; $("hUsuarioBox").classList.add("hidden");
+    if(window.FMAvisos) window.FMAvisos.limpar();
     atualizarCalendario(); montarVeiculos(); limparSolicitacao();
     $("telaLogin").classList.toggle("hidden",!!u); $("telaReserva").classList.toggle("hidden",!u); $("btnSair").classList.toggle("hidden",!u);
     irAba(u?"calendario":"reservar");
@@ -408,6 +423,6 @@ main.historico-aberto{max-width:1180px}
 </script>
 <script src="./hora-ok.js"></script>
 <script src="./reserva-senha.js"></script>
-<script src="./avisos-reserva.js"></script>
+<script src="./avisos-reserva.js?v=2-pedidos"></script>
 </body>
 </html>

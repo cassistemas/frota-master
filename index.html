@@ -1257,6 +1257,7 @@ Em Viagem
 <option value="Finalizado">
 Finalizado
 </option>
+<option value="Cancelado">Cancelado</option>
 
 </select>
 
@@ -4446,7 +4447,7 @@ if(mod === 'manutencoes' && obj.mveiculo && obj.mkm){
 
 // KM do Combustível fica só no abastecimento: não altera KM do veículo nem outros módulos.
 
-if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno){
+if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno && !(contexto && contexto.reservaTransacao === true)){
 
     let vei = db.veiculos.find(
         v => v.vplaca === obj.svveiculo
@@ -4506,8 +4507,8 @@ if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno){
         ordenarFornecedores();
     }
 
-    // O lote de combustível confirma uma única gravação pelo escritor compartilhado.
-    if(importacaoCombustivel) return obj;
+    // Lotes e decisões de reserva confirmam a gravação pelo escritor compartilhado.
+    if(importacaoCombustivel || (mod === 'saidaVeiculos' && contexto && contexto.reservaTransacao === true)) return obj;
 
     salvarNuvem(mod === "veiculos"
         ? ["veiculos", "historicoKm"].concat(modulosVinculadosAlterados)
@@ -4844,7 +4845,7 @@ function editar(mod,i){
 
 }
 
-function salvarSaidaVeiculo() {
+function salvarSaidaVeiculo(contexto) {
     const idx = document.getElementById("sv_idx").value;
     const veiculo = document.getElementById("svveiculo").value;
     const statusSaida = document.getElementById("svstatus").value;
@@ -4932,7 +4933,7 @@ const existe = listaVeiculos.some((item, i) => {
 
 });
 
-if (existe) {
+if (existe && statusSaida !== "Cancelado") {
     alert(
         "Este veículo já possui uma reserva neste período."
     );
@@ -4945,7 +4946,7 @@ if (existe) {
 const paginaAtual = PAGINACAO.paginas["saidaVeiculos"] || 1;
 
 // Salva
-salvar(
+const resultadoSaida = salvar(
     "saidaVeiculos",
     [
         "svreserva",
@@ -4960,8 +4961,10 @@ salvar(
         "svstatus",
         "svobs"
     ],
-    "sv_idx"
+    "sv_idx",
+    contexto
 );
+if (contexto && contexto.reservaTransacao === true) return resultadoSaida;
 
 // Restaura a página
 PAGINACAO.paginas["saidaVeiculos"] = paginaAtual;
@@ -5655,7 +5658,7 @@ new MutationObserver(function(mudancas){
 function fmSincronizarReservaPorStatus(status){
     const campoReserva = document.getElementById('svreserva');
     if(!campoReserva) return;
-    const reserva = status === 'Finalizado' ? 'Liberado' : 'Reservado';
+    const reserva = ['Finalizado', 'Cancelado', 'Cancelada'].includes(status) ? 'Liberado' : 'Reservado';
     if(!Array.from(campoReserva.options || []).some(opcao => opcao.value === reserva)){
         campoReserva.add(new Option(reserva, reserva));
     }
@@ -9956,9 +9959,10 @@ style="width:100%; height:400px; border:none;">
 <script src="./importar-rastreamento-pdf.js?v=20261019"></script>
 <script src="./ordenar-tabelas.js?v=1"></script>
 <script src="./periodo-marcado.js?v=1"></script>
-<script src="./reservas-regras.js?v=4"></script>
-<script src="./avisos-reserva.js"></script>
-<script src="./reservas-aprovacao.js?v=5"></script>
+<script src="./reservas-regras.js?v=7-pedidos"></script>
+<script src="./avisos-reserva.js?v=2-pedidos"></script>
+<script src="./reservas-pedidos.js?v=2"></script>
+<script src="./reservas-aprovacao.js?v=7-pedidos"></script>
 <link rel="stylesheet" href="./fixos-importacao.css?v=20261015">
 <script src="./fixos-importacao-dados.js?v=20261016b"></script>
 <script src="./fixos-importacao.js?v=20261019a"></script>
@@ -9972,6 +9976,6 @@ style="width:100%; height:400px; border:none;">
 .fm-item-em-arraste *{pointer-events:none!important}
 .fm-reordenando-campos,.fm-reordenando-campos *{cursor:grabbing!important;user-select:none!important}
 </style>
-<script src="./limpeza-pos-salvar.js?v=5"></script>
+<script src="./limpeza-pos-salvar.js?v=6-reservas"></script>
 <script src="./organizacao-campos.js?v=20260928-4"></script>
 </html>

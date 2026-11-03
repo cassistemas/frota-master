@@ -43,13 +43,17 @@
 
     var saida = (ctx.saidas || []).some(function (s) {
       if (!s || placaNorm(s.svveiculo) !== alvo || s.svreserva !== "Reservado") return false;
+      // Uma edição não conflita com a própria saída vinculada, mesmo trocando de veículo.
+      if (sol.id && ctx.reservaOriginal && ctx.reservaOriginal.numeroReserva &&
+          String(s.svnumeroreserva) === String(ctx.reservaOriginal.numeroReserva) &&
+          placaNorm(s.svveiculo) === placaNorm(ctx.reservaOriginal.placa)) return false;
       return cruza(ini, fim, instante(s.svdataSaida, s.svhoraSaida), instante(s.svdataChegada, s.svhoraChegada));
     });
     if (saida) return "Este veículo já possui uma reserva neste período.";
 
     var outra = (ctx.solicitacoes || []).some(function (o) {
       if (!o || o.id === sol.id || placaNorm(o.placa) !== alvo) return false;
-      if (o.status !== "Pendente" && o.status !== "Aprovada") return false;
+      if (!["Pendente", "Em aprovação", "Aprovada", "Em uso"].includes(o.status)) return false;
       return cruza(ini, fim, instante(o.dataSaida, o.horaSaida), instante(o.dataChegada, o.horaChegada));
     });
     if (outra) return "Já existe outra solicitação para este veículo neste período.";
@@ -58,9 +62,18 @@
 
   function dataBR(iso) { var p = String(iso || "").split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : String(iso || ""); }
 
-  // O solicitante nunca edita nem exclui solicitações.
+  // A edição é individual, autorizada pelo administrador e consumida no envio.
   function validarAcao(sol, uid, acao) {
-    return "As solicitações não podem ser editadas nem excluídas pelo solicitante. Fale com o administrador.";
+    if (!sol) return "Solicitação não encontrada.";
+    if (!uid || sol.uid !== uid) return "Esta solicitação pertence a outro usuário.";
+    if (acao === "excluir") return "O histórico não pode ser excluído pelo solicitante.";
+    if (!podeCancelar(sol)) return "A viagem já foi iniciada ou a solicitação foi encerrada.";
+    if (sol.pedidoCancelamento && /^(Pendente|Processando)$/.test(sol.pedidoCancelamento.situacao)) return "Há um cancelamento aguardando análise.";
+    var p = sol.pedidoEdicao || {};
+    if (acao === "solicitar-edicao") return /^(Pendente|Autorizada|Aguardando confirmação|Processando)$/.test(p.situacao) ? "Já existe um pedido de edição em andamento." : "";
+    if (acao === "cancelar") return p.situacao === "Processando" ? "Aguarde a análise em andamento." : "";
+    if (acao !== "editar") return "Ação inválida.";
+    return p.situacao === "Autorizada" ? "" : "Solicite e aguarde a autorização do administrador para editar.";
   }
 
   // Administrador: editar/excluir somente antes de confirmar a devolução.
