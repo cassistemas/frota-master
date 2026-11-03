@@ -66,6 +66,7 @@ main.historico-aberto{max-width:1180px}
 @media(min-width:1100px){#listaHistorico{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.filtros-historico{grid-template-columns:repeat(2,minmax(0,1fr))}#listaHistorico{grid-template-columns:minmax(0,1fr)}main{padding:12px}#abaHistorico>.card{padding:14px}header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.marca{min-width:0}.marca img{flex-shrink:0}.marca h1{font-size:14px}.topo{gap:6px}#nomeTopo{max-width:28vw;font-size:12px}}
 </style>
+<link rel="stylesheet" href="./reservas-calendario.css?v=1">
 </head>
 <body>
 <header><div class="marca"><img src="./icon-192.png" alt="Frota Master"><h1>Reserva de Veículo<small>Frota Master</small></h1></div><div class="topo"><span id="nomeTopo"></span><button id="btnSair" class="hidden" type="button">Sair</button></div></header>
@@ -81,8 +82,23 @@ main.historico-aberto{max-width:1180px}
   </section>
 
   <section id="telaReserva" class="hidden">
-    <div class="abas"><button type="button" class="aba ativa" data-aba="reservar">Reservar</button><button type="button" class="aba" data-aba="historico">Histórico</button></div>
-    <div id="abaReservar">
+    <div class="abas"><button type="button" class="aba ativa" data-aba="calendario">Calendário</button><button type="button" class="aba" data-aba="reservar">Reservar</button><button type="button" class="aba" data-aba="historico">Histórico</button></div>
+    <div id="abaCalendario" class="card">
+      <h2>Calendário de reservas</h2>
+      <p class="cal-aviso">Consulte as datas e os horários ocupados antes de solicitar. A agenda não confirma a reserva; o período será conferido novamente no envio.</p>
+      <label for="calVeiculo">Filtrar por veículo</label><select id="calVeiculo"><option value="">Todos os veículos</option></select>
+      <div id="calCarga" class="cal-aviso" role="status">Carregando a agenda...</div>
+      <div class="cal-legenda"><span class="cal-pendente">Pendente / em aprovação</span><span class="cal-aprovada">Aprovada</span><span class="cal-uso">Em uso</span></div>
+      <div class="cal-layout">
+        <div>
+          <div class="cal-navegacao"><button type="button" id="calAnterior" aria-label="Mês anterior">‹</button><h3 id="calMes" aria-live="polite"></h3><button type="button" id="calProximo" aria-label="Próximo mês">›</button><button type="button" id="calHoje">Hoje</button></div>
+          <div class="cal-semana" aria-hidden="true"><span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span></div>
+          <div id="calDias" class="cal-dias" role="group" aria-label="Dias do mês"></div>
+        </div>
+        <div class="cal-detalhes"><h3 id="calDiaTitulo"></h3><div id="calLista" aria-live="polite"></div><button type="button" class="btn" id="calSolicitar" disabled>Solicitar para este dia</button><p class="cal-aviso">O formulário será aberto com a data e, se filtrado, o veículo selecionado. Informe os horários desejados.</p></div>
+      </div>
+    </div>
+    <div id="abaReservar" class="hidden">
     <div class="card">
       <h2 id="tituloSolicitacao">Nova solicitação</h2>
       <div style="font-size:13px;color:#6b7280">Solicitante: <b id="rNome"></b>. A reserva fica <b>pendente</b> até a aprovação.</div>
@@ -117,6 +133,7 @@ main.historico-aberto{max-width:1180px}
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="./reservas-regras.js?v=6"></script>
+<script src="./reservas-calendario.js?v=1"></script>
 <script>
 (function(){
   "use strict";
@@ -124,9 +141,17 @@ main.historico-aberto{max-width:1180px}
   firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
   var auth = firebase.auth(), fs = firebase.firestore(), R = window.FMReservasRegras;
   var COL = "reservasVeiculos";
-  var estado = { veiculos:[], saidas:[], solicitacoes:[], nome:"", zap:"54999505407", escutas:[] };
+  var estado = { veiculos:[], saidas:[], solicitacoes:[], nome:"", zap:"54999505407", escutas:[], agendaCarga:{} };
   var editandoId="";
   var camposSolicitacao=["rVeiculo","rDataSaida","rHoraSaida","rDataChegada","rHoraChegada","rDestino","rMotivo"];
+  var calendario=window.FMReservasCalendario.criar({solicitar:function(selecao){
+    limparSolicitacao();
+    $("rVeiculo").value=selecao.placa;
+    $("rDataSaida").value=selecao.dia; $("rDataChegada").value=selecao.dia;
+    msg("msgReserva",""); $("btnZap").style.display="none";
+    irAba("reservar"); $("rHoraSaida").focus();
+  }});
+  function atualizarCalendario(){ calendario.atualizar(estado); }
   function limparSolicitacao(){
     camposSolicitacao.forEach(function(id){ $(id).value=""; });
     editandoId=""; $("tituloSolicitacao").textContent="Nova solicitação";
@@ -223,8 +248,11 @@ main.historico-aberto{max-width:1180px}
   $("hProx").onclick=function(){ hPagina++; montarHistorico(); };
   function irAba(aba){
     document.querySelector("main").classList.toggle("historico-aberto",aba==="historico");
+    document.querySelector("main").classList.toggle("calendario-aberto",aba==="calendario");
     document.querySelectorAll(".aba").forEach(function(b){ b.classList.toggle("ativa", b.getAttribute("data-aba")===aba); });
+    $("abaCalendario").classList.toggle("hidden", aba!=="calendario");
     $("abaReservar").classList.toggle("hidden", aba!=="reservar"); $("abaHistorico").classList.toggle("hidden", aba!=="historico");
+    if(aba==="calendario") calendario.render();
     if(aba==="historico") montarHistorico(); else { msg("msgHist",""); $("btnZapHist").style.display="none"; }
   }
   document.querySelector(".abas").addEventListener("click",function(ev){
@@ -322,12 +350,18 @@ main.historico-aberto{max-width:1180px}
   });
 
   function escutar(){
-    estado.escutas.push(fs.collection("frota").doc("veiculos").onSnapshot(function(d){ estado.veiculos=(d.exists&&Array.isArray(d.data().dados))?d.data().dados:[]; montarVeiculos(); }, function(){ msg("msgReserva","Sem permissão para ler os veículos. Fale com o administrador."); }));
-    estado.escutas.push(fs.collection("frota").doc("saidaVeiculos").onSnapshot(function(d){ estado.saidas=(d.exists&&Array.isArray(d.data().dados))?d.data().dados:[]; }, function(){}));
+    estado.escutas.push(fs.collection("frota").doc("veiculos").onSnapshot(function(d){
+      estado.veiculos=(d.exists&&Array.isArray(d.data().dados))?d.data().dados:[]; estado.agendaCarga.veiculos="ok";
+      montarVeiculos(); atualizarCalendario();
+    }, function(){ estado.agendaCarga.veiculos="erro"; atualizarCalendario(); msg("msgReserva","Sem permissão para ler os veículos. Fale com o administrador."); }));
+    estado.escutas.push(fs.collection("frota").doc("saidaVeiculos").onSnapshot(function(d){
+      estado.saidas=(d.exists&&Array.isArray(d.data().dados))?d.data().dados:[]; estado.agendaCarga.saidas="ok"; atualizarCalendario();
+    }, function(){ estado.agendaCarga.saidas="erro"; atualizarCalendario(); }));
     estado.escutas.push(fs.collection(COL).onSnapshot(function(snap){
       var l=[]; snap.forEach(function(d){ if(d.id==="_config"){ estado.zap=(d.data()||{}).whatsapp||"54999505407"; return; } l.push(Object.assign({id:d.id},d.data())); });
-      estado.solicitacoes=l; montarMinhas(); try{ var u=auth.currentUser&&auth.currentUser.uid; if(window.FMAvisos) FMAvisos.reserva(l.filter(function(s){return s.uid===u;})); }catch(e){}
-    }, function(){ $("listaMinhas").textContent="Não foi possível carregar as solicitações."; }));
+      estado.solicitacoes=l; estado.agendaCarga.solicitacoes="ok"; atualizarCalendario();
+      montarMinhas(); try{ var u=auth.currentUser&&auth.currentUser.uid; if(window.FMAvisos) FMAvisos.reserva(l.filter(function(s){return s.uid===u;})); }catch(e){}
+    }, function(){ estado.agendaCarga.solicitacoes="erro"; atualizarCalendario(); $("listaMinhas").textContent="Não foi possível carregar as solicitações."; }));
   }
 
   $("btnSolicitar").onclick = function(){
@@ -361,8 +395,11 @@ main.historico-aberto{max-width:1180px}
 
   auth.onAuthStateChanged(function(u){
     estado.escutas.forEach(function(f){ try{f();}catch(e){} }); estado.escutas=[];
+    estado.veiculos=[]; estado.saidas=[]; estado.solicitacoes=[]; estado.agendaCarga={}; estado.admin=false;
+    atualizarCalendario(); montarVeiculos(); limparSolicitacao();
     $("telaLogin").classList.toggle("hidden",!!u); $("telaReserva").classList.toggle("hidden",!u); $("btnSair").classList.toggle("hidden",!u);
-    if(!u){ $("nomeTopo").textContent=""; limparSolicitacao(); irAba("reservar"); return; }
+    irAba(u?"calendario":"reservar");
+    if(!u){ $("nomeTopo").textContent=""; return; }
     estado.nome=u.displayName||u.email||"Usuário"; $("rNome").textContent=estado.nome; $("nomeTopo").textContent=estado.nome;
     estado.admin=false; fs.collection("usuarios").doc(u.uid).get().then(function(d){ if(d.exists&&d.data().tipo==="admin"){ estado.admin=true; montarHistorico(); } if(d.exists&&d.data().nome){ estado.nome=d.data().nome; $("rNome").textContent=estado.nome; $("nomeTopo").textContent=estado.nome; $("nomeTopo").textContent=estado.nome; } }).catch(function(){});
     escutar();

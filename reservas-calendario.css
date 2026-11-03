@@ -1,0 +1,45 @@
+/* Estilos exclusivos da agenda na página de reservas. */
+main.calendario-aberto{max-width:1080px}
+#abaCalendario{padding:20px}
+#abaCalendario h3{font-size:15px;color:var(--azul);margin:0}
+#abaCalendario .cal-aviso{font-size:13px;line-height:1.5;color:var(--mut);margin:8px 0 12px}
+#abaCalendario #calVeiculo{max-width:470px}
+#abaCalendario .cal-alerta{padding:10px;border-radius:8px;background:#fff4cc;color:#775600}
+#abaCalendario .cal-legenda{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0;font-size:12px}
+#abaCalendario .cal-legenda span{padding:5px 9px;border-radius:20px;font-weight:600}
+#abaCalendario .cal-pendente{background:#fff4cc;color:#805700}
+#abaCalendario .cal-aprovada{background:#dbeafe;color:#1e40af}
+#abaCalendario .cal-uso{background:#ffedd5;color:#9a3412}
+#abaCalendario .cal-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px;align-items:start}
+#abaCalendario .cal-navegacao{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+#abaCalendario .cal-navegacao h3{flex:1;text-transform:capitalize;text-align:center}
+#abaCalendario .cal-navegacao button{border:1px solid var(--borda);border-radius:8px;background:#fff;color:var(--azul);padding:8px 12px;min-height:40px;cursor:pointer}
+#abaCalendario .cal-semana,#abaCalendario .cal-dias{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+#abaCalendario .cal-semana{font-size:12px;text-align:center;color:var(--mut);margin-bottom:6px}
+#abaCalendario .cal-dia{font-family:inherit;border:1px solid var(--borda);border-radius:9px;min-height:66px;background:#fff;color:var(--txt);padding:6px 2px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:3px;cursor:pointer}
+#abaCalendario .cal-dia small{font-size:10px;color:var(--mut)}
+#abaCalendario .cal-dia.hoje b{text-decoration:underline;text-underline-offset:3px;color:var(--azul2)}
+#abaCalendario .cal-dia.selecionado{border:2px solid var(--azul2);background:#eff6ff;padding:5px 1px}
+#abaCalendario .cal-pontos{display:flex;gap:3px;min-height:7px}
+#abaCalendario .cal-pontos i{display:block;width:7px;height:7px;border-radius:50%}
+#abaCalendario .cal-pontos .cal-pendente{background:#ca8a04}
+#abaCalendario .cal-pontos .cal-aprovada{background:#2563eb}
+#abaCalendario .cal-pontos .cal-uso{background:#ea580c}
+#abaCalendario .cal-detalhes{min-width:0;border-left:1px solid var(--borda);padding-left:24px}
+#abaCalendario #calDiaTitulo{margin-bottom:12px;text-transform:capitalize}
+#abaCalendario .cal-evento{border-radius:9px;padding:12px;margin-bottom:10px;font-size:13px;overflow-wrap:anywhere}
+#abaCalendario .cal-evento>div{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+#abaCalendario .cal-evento>div span{font-size:11px;font-weight:700}
+#abaCalendario .cal-evento p{line-height:1.6;margin:8px 0}
+#abaCalendario .cal-evento small{font-size:11px}
+#abaCalendario button:focus-visible{outline:3px solid var(--azul2);outline-offset:2px}
+#abaCalendario .btn:disabled{cursor:not-allowed}
+@media(max-width:700px){
+  #abaCalendario{padding:14px}
+  #abaCalendario .cal-layout{grid-template-columns:minmax(0,1fr);gap:20px}
+  #abaCalendario .cal-detalhes{border-left:0;border-top:1px solid var(--borda);padding:18px 0 0}
+  #abaCalendario .cal-dia{min-height:60px}
+  #abaCalendario .cal-navegacao{gap:4px}
+  #abaCalendario .cal-navegacao button{padding:8px 10px}
+  .abas .aba{font-size:13px;padding:10px 6px}
+}
