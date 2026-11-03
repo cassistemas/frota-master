@@ -114,3 +114,65 @@ test('formulário manual não usa fechamento futuro como odômetro inicial', () 
   amb.api.preencher(false);
   assert.equal(amb.campos.cusKmInicial.value, '105000');
 });
+test('Atualizar KM bloqueia mês antigo mesmo com mês posterior fora do filtro e placa equivalente', () => {
+  const amb = ambiente({ quilometragens: [fechamento(), fechamento({ id: 'mar', veiculo: 'abc-1234', data: '2026-03-31' })] });
+  amb.campos.cusFiltroInicio.value = '2026-01-01';
+  amb.campos.cusFiltroFim.value = '2026-01-31';
+  const antes = JSON.stringify(amb.db), avisos = [];
+  amb.ctx.alert = texto => avisos.push(texto);
+  amb.ctx.confirm = () => { assert.fail('Não deve pedir confirmação de atualização bloqueada'); };
+  amb.ctx.atualizarKmRegistro('jan');
+  assert.equal(JSON.stringify(amb.db), antes);
+  assert.equal(amb.salvos.length, 0);
+  assert.equal(avisos.length, 1);
+  assert.match(avisos[0], /mês posterior \(03\/2026\)/);
+});
+test('Atualizar KM também bloqueia mês antigo na virada do ano', () => {
+  const amb = ambiente({ quilometragens: [fechamento({ id: 'dez', data: '2025-12-31' }), fechamento()] });
+  const antes = JSON.stringify(amb.db), avisos = [];
+  amb.ctx.alert = texto => avisos.push(texto);
+  amb.ctx.confirm = () => { assert.fail('Dezembro deve estar bloqueado'); };
+  amb.ctx.atualizarKmRegistro('dez');
+  assert.equal(JSON.stringify(amb.db), antes);
+  assert.equal(amb.salvos.length, 0);
+  assert.match(avisos[0], /01\/2026/);
+});
+test('Atualizar KM permite o último mês da placa e ignora meses futuros de outros veículos', () => {
+  const amb = ambiente({ quilometragens: [fechamento(), fechamento({ id: 'fev', data: '2026-02-28', odometroInicial: 105000, odometroFinal: 110000 }), fechamento({ id: 'outro', veiculo: 'XYZ9999', data: '2026-12-31' })] });
+  amb.ctx.alert = texto => { assert.fail(texto); };
+  amb.ctx.confirm = () => true;
+  const janeiro = JSON.stringify(amb.db.quilometragens[0]);
+  amb.ctx.atualizarKmRegistro('fev');
+  assert.equal(JSON.stringify(amb.db.quilometragens[0]), janeiro);
+  assert.equal(amb.db.quilometragens[1].odometroFinal, 130000);
+  assert.equal(amb.db.quilometragens[1].kmRodado, 25000);
+  assert.ok(amb.db.quilometragens[1].atualizadoEm);
+  assert.equal(amb.salvos.length, 1);
+  assert.equal(amb.salvos[0].join(','), 'quilometragens');
+});
+test('outro lançamento no mesmo mês não bloqueia Atualizar KM', () => {
+  const amb = ambiente({ quilometragens: [fechamento({ data: '2026-01-15' }), fechamento({ id: 'mesmo', data: '2026-01-31' })] });
+  amb.ctx.alert = texto => { assert.fail(texto); };
+  amb.ctx.confirm = () => true;
+  amb.ctx.atualizarKmRegistro('jan');
+  assert.equal(amb.db.quilometragens[0].odometroFinal, 130000);
+  assert.equal(amb.salvos.length, 1);
+});
+test('cancelar atualização permitida não altera registros', () => {
+  const amb = ambiente(), antes = JSON.stringify(amb.db);
+  amb.ctx.confirm = () => false;
+  amb.ctx.atualizarKmRegistro('jan');
+  assert.equal(JSON.stringify(amb.db), antes);
+  assert.equal(amb.salvos.length, 0);
+});
+test('proteção de Atualizar KM preserva a edição manual de mês antigo', () => {
+  const amb = ambiente({ quilometragens: [fechamento(), fechamento({ id: 'fev', data: '2026-02-28' })] });
+  amb.ctx.editarQuilometragem('jan');
+  assert.equal(amb.campos.cusKmIdx.value, 'jan');
+  assert.equal(amb.campos.cusKmData.value, '2026-01-31');
+  amb.campos.cusKmFinal.value = '106000';
+  amb.ctx.salvarQuilometragem();
+  assert.equal(amb.db.quilometragens[0].odometroFinal, 106000);
+  assert.equal(amb.db.quilometragens[0].kmRodado, 6000);
+  assert.equal(amb.salvos.length, 1);
+});
