@@ -147,6 +147,8 @@ function salvarRevisao(){
 
         rdata:document.getElementById("rdata").value,
 
+        rcompetencia:document.getElementById("rcompetencia") ? document.getElementById("rcompetencia").value : (anterior && anterior.rcompetencia) || "",
+
         robs: document.getElementById("robs").value,
 
         rvalor: document.getElementById("rvalor") ? document.getElementById("rvalor").value : (anterior && anterior.rvalor) || "",
@@ -181,6 +183,8 @@ function salvarRevisao(){
         robs: document.getElementById("robs").value
 
     });
+
+    if (window.FMCompetenciaDespesas && !window.FMCompetenciaDespesas.validar('revisoes', obj)) return;
 
     if (typeof window.fmPrepararRegistro === "function") {
         window.fmPrepararRegistro("revisoes", obj, idx === "" ? null : db.revisoes[Number(idx)]);
@@ -260,6 +264,7 @@ function editarRevisao(i){
     document.getElementById("rtipo").value = r.rtipo == null ? "" : r.rtipo;
 
     document.getElementById("rdata").value = r.rdata || "";
+    if(window.FMCompetenciaDespesas) window.FMCompetenciaDespesas.preencher('revisoes', r);
 
     document.getElementById("rkmatual").value = r.rkmatual == null ? "" : r.rkmatual;
 
@@ -345,6 +350,7 @@ function limparFormularioRevisao(){
     document.getElementById("rkmfaltante").value="";
 
     document.getElementById("rdata").value = "";
+    if(window.FMCompetenciaDespesas) window.FMCompetenciaDespesas.preencher('revisoes', {});
 
     document.getElementById("rstatus").innerHTML="";
 
