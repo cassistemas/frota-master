@@ -13,11 +13,26 @@
   function esc(v) { return texto(v).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function reais(c) { return (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
   function centavos(v) { if (typeof v === 'number') return Number.isFinite(v) ? Math.round(v * 100) : NaN; var s = texto(v).replace(/[^\d,.-]/g, ''); if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.'); return s && Number.isFinite(Number(s)) ? Math.round(Number(s) * 100) : NaN; }
-  function data(v) {
+  function data(v, wb) {
     if (v instanceof Date && !isNaN(v)) return [v.getFullYear(), String(v.getMonth() + 1).padStart(2, '0'), String(v.getDate()).padStart(2, '0')].join('-');
-    var m = texto(v).match(/^(\d{2})\/(\d{2})\/(\d{4})/); if (!m) return '';
-    var d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
-    return d.getFullYear() === Number(m[3]) && d.getMonth() + 1 === Number(m[2]) && d.getDate() === Number(m[1]) ? m[3] + '-' + m[2] + '-' + m[1] : '';
+    var s = texto(v), ano, mes, dia, m;
+    // Datas do Excel podem vir como número mesmo com cellDates:true (célula sem formato de data).
+    if (typeof v === 'number' || /^\d{5}(?:[.,]\d+)?$/.test(s)) {
+      var serial = typeof v === 'number' ? v : Number(s.replace(',', '.'));
+      if (!Number.isFinite(serial) || serial < 1 || serial >= 2958466 || !window.XLSX || !XLSX.SSF || !XLSX.SSF.parse_date_code) return '';
+      var excel = XLSX.SSF.parse_date_code(serial, { date1904: !!(wb && wb.Workbook && wb.Workbook.WBProps && wb.Workbook.WBProps.date1904) });
+      if (!excel) return '';
+      ano = excel.y; mes = excel.m; dia = excel.d;
+    } else if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?=$|[ T])/))) {
+      dia = Number(m[1]); mes = Number(m[2]); ano = Number(m[3]);
+    } else if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?=$|[ T])/))) {
+      ano = Number(m[1]); mes = Number(m[2]); dia = Number(m[3]);
+    } else return '';
+    var d = new Date(ano, mes - 1, dia);
+    return d.getFullYear() === ano && d.getMonth() + 1 === mes && d.getDate() === dia ? String(ano).padStart(4, '0') + '-' + String(mes).padStart(2, '0') + '-' + String(dia).padStart(2, '0') : '';
+  }
+  function erroCampo(aba, linha, nome, valor) {
+    return new Error(aba + ', linha ' + linha + ': ' + nome + ' inválido(a). Valor lido: ' + (texto(valor) ? '"' + texto(valor).slice(0, 100) + '"' : '(vazio)') + '. Nenhum lançamento foi salvo.');
   }
   function coluna(row, cab, nome) { return row[cab.indexOf(nome)]; }
   function lerDevolucoes(wb, agrupados) {
@@ -32,8 +47,8 @@
       if (valor <= 0) { ignoradas++; return; }
       var p = placa(campo(row, cab, camposPlaca));
       if (!/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(p)) throw new Error('Devolução sem placa válida em OUTROS_SERVICOS, linha ' + (i + 2) + '. Confira antes de importar.');
-      var raw = campo(row, cab, ['DATA','DATA_HORA','DATA_SERVICO','DATA_CREDITO','DATA_OCORRENCIA']), dia = data(raw);
-      if (texto(raw) && !dia) throw new Error('Data inválida em OUTROS_SERVICOS, linha ' + (i + 2) + '.');
+      var raw = campo(row, cab, ['DATA','DATA_HORA','DATA_SERVICO','DATA_CREDITO','DATA_OCORRENCIA']), dia = data(raw, wb);
+      if (texto(raw) && !dia) throw erroCampo('OUTROS_SERVICOS', i + 2, 'data', raw);
       var servico = texto(campo(row, cab, ['DESCRICAO','SERVICO','TIPO_SERVICO','DESCRICAO_SERVICO','MOTIVO','HISTORICO','TIPO']));
       var tag = texto(campo(row, cab, ['TAG','NUMERO_TAG'])), ref = texto(campo(row, cab, ['ID','REFERENCIA','PROTOCOLO','DOCUMENTO','TRANSACAO','CODIGO','NUMERO']));
       var original = {}; aba.cab.forEach(function (h, n) { original[h] = texto(row[n]); });
@@ -87,8 +102,10 @@
     var resumo = linhas(wb, 'RESUMO_PASSAGENS_PEDAGIO', ['PLACA','CATEGORIA','PASSAGENS','VALOR']);
     var agrupados = new Map(), totais = new Map(), repetidos = new Set();
     det.rows.forEach(function (row, i) {
-      var p = placa(coluna(row, det.cab, 'PLACA')), raw = coluna(row, det.cab, 'DATA'), dia = data(raw), valor = centavos(coluna(row, det.cab, 'VALOR'));
-      if (!p || !dia || !Number.isSafeInteger(valor) || valor <= 0) throw new Error('Passagem inválida na linha ' + (i + 2) + ': confira placa, data e valor.');
+      var p = placa(coluna(row, det.cab, 'PLACA')), raw = coluna(row, det.cab, 'DATA'), dia = data(raw, wb), rawValor = coluna(row, det.cab, 'VALOR'), valor = centavos(rawValor);
+      if (!p) throw erroCampo('PASSAGENS_PEDAGIO', i + 2, 'placa', coluna(row, det.cab, 'PLACA'));
+      if (!dia) throw erroCampo('PASSAGENS_PEDAGIO', i + 2, 'data', raw);
+      if (!Number.isSafeInteger(valor) || valor <= 0) throw erroCampo('PASSAGENS_PEDAGIO', i + 2, 'valor', rawValor);
       var categoria = texto(coluna(row, det.cab, 'CATEGORIA')), d = { placa:p, data:dia, dataHora:texto(raw), tag:texto(coluna(row, det.cab, 'TAG')), rodovia:texto(coluna(row, det.cab, 'RODOVIA')), praca:texto(coluna(row, det.cab, 'PRACA')), categoria:categoria, centavos:valor, valor:valor / 100 };
       d.chave = chave(d);
       if (repetidos.has(d.chave)) throw new Error('Passagem repetida na planilha (linha ' + (i + 2) + ').');

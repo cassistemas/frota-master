@@ -25,7 +25,16 @@ function ambiente(ok = true) {
     document: { readyState: 'loading', addEventListener() {}, getElementById(id) {
       return campos[id] ||= { textContent: '', innerHTML: '', hidden: false, closest() { return {}; } };
     } },
-    XLSX: { utils: { sheet_to_json: sh => sh.rows.map(r => [...r]), encode_cell: () => 'A1' } },
+    XLSX: { utils: { sheet_to_json: sh => sh.rows.map(r => [...r]), encode_cell: () => 'A1' },
+      SSF: { parse_date_code(serial, options) {
+        // Valores conhecidos do Excel; não reproduz o conversor usado pelo importador.
+        const value = serial + (options.date1904 ? 1462 : 0);
+        if (Math.floor(value) === 46032) return { y: 2026, m: 1, d: 10 };
+        if (Math.floor(value) === 46033) return { y: 2026, m: 1, d: 11 };
+        if (value === 60) return { y: 1900, m: 2, d: 29 };
+        return null;
+      } }
+    },
     fmModuloCarregado: () => true, confirm: () => true,
     alert: msg => avisos.push(msg), salvarNuvem: async mods => { salvos.push(mods); return ok; }
   };
@@ -51,6 +60,56 @@ test('abate devoluções positivas da mesma placa e mantém resumo de passagens 
   assert.equal(b.bruto, 0); assert.equal(b.liquido, -500);
   assert.equal(r.divergencias.length, 0);
   assert.equal(a.detalhes[1].original.DESCRICAO, 'EIXO SUSPENSO');
+});
+test('aceita dia e mês sem zero à esquerda nas passagens e devoluções', () => {
+  const { api, salvos } = ambiente();
+  for (const mes of ['1', '2', '10', '11']) {
+    const wb = planilha([cab, ['ABC1234', `1/${mes}/2026 09:30:00`, 'EIXO SUSPENSO', 10]],
+      [['ABC-1234', 'tag1', `2/${mes}/2026 10:00:00`, 'R1', 'P1', 100, 'CAMINHAO']]);
+    const g = api.ler(wb, 'a.xlsx').grupos[0];
+    const esperado = `2026-${mes.padStart(2, '0')}`;
+    assert.equal(g.detalhes[0].data, esperado + '-02');
+    assert.equal(g.detalhes[1].data, esperado + '-01');
+    assert.equal(api.previa(g).mes, esperado);
+    assert.equal(api.previa(g).liquido, 9000);
+  }
+  assert.equal(salvos.length, 0);
+});
+test('aceita datas seriais do Excel, inclusive no calendário 1904', () => {
+  const { api } = ambiente();
+  for (const date1904 of [false, true]) {
+    const ajuste = date1904 ? 1462 : 0;
+    const wb = planilha([cab, ['ABC1234', 46033.5 - ajuste, 'EIXO SUSPENSO', 10]],
+      [['ABC-1234', 'tag1', 46032.25 - ajuste, 'R1', 'P1', 100, 'CAMINHAO']]);
+    wb.Workbook = { WBProps: { date1904 } };
+    const g = api.ler(wb, 'a.xlsx').grupos[0];
+    assert.equal(g.detalhes[0].data, '2026-01-10');
+    assert.equal(g.detalhes[1].data, '2026-01-11');
+    assert.equal(api.previa(g).liquido, 9000);
+  }
+});
+test('aceita data ISO sem confundir mês e dia', () => {
+  const { api } = ambiente();
+  const wb = planilha([cab, ['ABC1234', '2026-02-03T09:30:00', 'EIXO SUSPENSO', 10]],
+    [['ABC-1234', 'tag1', '2026-02-04 10:00:00', 'R1', 'P1', 100, 'CAMINHAO']]);
+  const g = api.ler(wb, 'a.xlsx').grupos[0];
+  assert.equal(g.detalhes[0].data, '2026-02-04');
+  assert.equal(g.detalhes[1].data, '2026-02-03');
+});
+test('datas impossíveis continuam bloqueadas com aba, linha e valor no aviso', () => {
+  const { api, salvos } = ambiente();
+  assert.throws(() => api.ler(planilha([cab, ['ABC1234', '31/02/2026', 'EIXO SUSPENSO', 10]]), 'a.xlsx'),
+    /OUTROS_SERVICOS, linha 2: data.*31\/02\/2026/);
+  for (const valor of ['29/02/2026', '2026-13-01', 60]) {
+    const wb = planilha(null, [['ABC-1234', 'tag1', valor, 'R1', 'P1', 100, 'CAMINHAO']]);
+    assert.throws(() => api.ler(wb, 'a.xlsx'), /PASSAGENS_PEDAGIO, linha 2: data/);
+  }
+  assert.equal(salvos.length, 0);
+});
+test('diagnóstico diferencia valor inválido de data inválida nas passagens', () => {
+  const { api } = ambiente();
+  const wb = planilha(null, [['ABC-1234', 'tag1', '10/01/2026', 'R1', 'P1', 0, 'CAMINHAO']]);
+  assert.throws(() => api.ler(wb, 'a.xlsx'), /PASSAGENS_PEDAGIO, linha 2: valor.*"0"/);
 });
 test('extratos sem OUTROS_SERVICOS continuam com valor bruto', () => {
   const { api } = ambiente();
