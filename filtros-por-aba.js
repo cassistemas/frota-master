@@ -10,11 +10,16 @@
     var root=document.getElementById('custos');if(!root)return;
     var tabs=root.querySelector('.cus-tabs');
     if(tabs)new MutationObserver(rotulo).observe(tabs,{subtree:true,attributes:true,attributeFilter:['class']});
-    // Observa a saída e o retorno, inclusive navegação sem clique e trocas rápidas.
+    // Limpa somente na saída real. Entrar novamente não disputa com a consulta.
+    // oldValue também detecta sair e voltar antes da entrega do observador.
     new MutationObserver(function(registros){
       var oculta=root.classList.contains('hidden');
-      var mudou=registros.some(function(r){return /(^|\s)hidden(\s|$)/.test(r.oldValue||'')!==oculta});
-      if(mudou&&typeof window.limparFiltrosCustos==='function')window.limparFiltrosCustos();
+      var saiu=registros.some(function(r,i){
+        var antes=/(^|\s)hidden(\s|$)/.test(r.oldValue||'');
+        var depois=i+1<registros.length?/(^|\s)hidden(\s|$)/.test(registros[i+1].oldValue||''):oculta;
+        return !antes&&depois;
+      });
+      if(saiu&&typeof window.limparFiltrosCustos==='function')window.limparFiltrosCustos();
     }).observe(root,{attributes:true,attributeFilter:['class'],attributeOldValue:true});
     rotulo();
   }
@@ -39,5 +44,6 @@
   document.addEventListener('click',function(ev){if(ev.target&&ev.target.closest&&ev.target.closest('#custos .cus-tab, #custos .cus-filter button'))setTimeout(function(){try{ajustar()}catch(e){}},150)});
   document.addEventListener('change',function(ev){if(ev.target&&ev.target.closest&&ev.target.closest('#custos .cus-filter'))setTimeout(function(){try{ajustar()}catch(e){}},150)});
   document.addEventListener('frota:filtros-limpos',function(){try{ajustar()}catch(e){}});
+  document.addEventListener('frota:filtros-atualizados',function(){try{ajustar()}catch(e){}});
 })();
 /* A marcação dos períodos é controlada somente por periodo-marcado.js. */

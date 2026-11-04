@@ -63,6 +63,8 @@
     root.addEventListener('click', agendar);
     root.addEventListener('change', agendar);
     document.addEventListener('frota:filtros-limpos', agendar);
+    document.addEventListener('frota:filtros-atualizados', agendar);
+    document.addEventListener('frota:periodo-aplicado', agendar);
     var abas = root.querySelector('.cus-tabs');
     if (abas) new MutationObserver(agendar).observe(abas, {subtree:true, attributes:true, attributeFilter:['class']});
     var paineis = root.querySelectorAll('.cus-pane');

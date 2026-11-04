@@ -15,7 +15,7 @@ function funcao(fonte, nome) {
 }
 function ambiente(ativa = 'resultado') {
   const campos = Object.fromEntries(['Veiculo', 'Tipo', 'Categoria', 'Origem', 'Status', 'Inicio', 'Fim'].map(x => ['cusFiltro' + x, { value: 'selecionado' }]));
-  const abas = ['resultado', 'relatoriomensal', 'lancamentos', 'quilometragem'].map(nome => ({
+  const abas = ['resultado', 'relatoriomensal', 'producao', 'depreciacao', 'pneusresultado', 'caixa', 'lancamentos', 'quilometragem'].map(nome => ({
     dataset: { tab: nome }, active: nome === ativa,
     classList: { toggle(classe, valor) { if (classe === 'active') this.dono.active = valor; } }
   }));
@@ -31,14 +31,18 @@ function ambiente(ativa = 'resultado') {
       dispatchEvent: ev => eventos.push(ev.type)
     },
     Event: function(type) { this.type = type; },
+    CustomEvent: function(type, init) { this.type = type; this.detail = init.detail; },
     mesInicio: () => '2026-11-01', mesFim: () => '2026-11-30',
-    render() {}, renderTudo() {}, sincronizarKmVeiculo() {},
-    reiniciarPaginasResultadoFrota() {}, renderResultadoFrota() {}
+    consultas: [],
+    render() { ctx.consultas.push('custos'); }, renderTudo() {}, sincronizarKmVeiculo() {},
+    reiniciarPaginasResultadoFrota() { ctx.paginaResultado = 1; },
+    renderResultadoFrota() { ctx.consultas.push('resultado'); }
   };
   ctx.window = ctx;
   vm.createContext(ctx);
   vm.runInContext([
     funcao(custos, 'abaAtiva'), funcao(custos, 'reiniciarPaginasFiltros'),
+    funcao(custos, 'atualizarConsulta'), funcao(custos, 'filtrarConsulta'), funcao(custos, 'periodo'),
     funcao(custos, 'limparFiltros'), funcao(custos, 'trocarAba'), funcao(resultado, 'trocar')
   ].join('\n'), ctx);
   ctx.limparFiltrosCustos = ctx.limparFiltros;
@@ -55,7 +59,7 @@ test('troca entre abas dos dois grupos limpa filtros e todas as páginas', () =>
   assert.equal(campos.cusFiltroFim.value, '2026-11-30');
   assert.equal(ctx.estado.paginaImplementos, 1);
   assert.equal(ctx.estado.paginaTerceirizacao, 1);
-  assert.deepEqual(eventos, ['frota:filtros-limpos']);
+  assert.deepEqual(eventos, ['frota:filtros-atualizados', 'frota:filtros-limpos']);
   campos.cusFiltroVeiculo.value = 'ABC1234';
   ctx.trocar('relatoriomensal');
   assert.equal(campos.cusFiltroVeiculo.value, '');
@@ -69,7 +73,63 @@ test('selecionar a mesma aba mantém o filtro da consulta atual', () => {
   assert.equal(campos.cusFiltroVeiculo.value, 'selecionado');
   assert.equal(eventos.length, 0);
 });
-test('saída e retorno do módulo limpam sem recuperar a memória antiga', () => {
+test('filtrar e aplicar atalhos atualizam somente o grupo da aba aberta e reiniciam páginas', () => {
+  for (const aba of ['resultado', 'relatoriomensal', 'producao', 'depreciacao', 'pneusresultado', 'caixa', 'lancamentos', 'quilometragem']) {
+    const { ctx, campos, eventos } = ambiente(aba);
+    const grupo = ['lancamentos', 'quilometragem'].includes(aba) ? 'custos' : 'resultado';
+    ctx.paginaResultado = 8;
+    ctx.filtrarConsulta();
+    assert.deepEqual(ctx.consultas, [grupo]);
+    assert.equal(ctx.paginaResultado, 1);
+    assert.equal(ctx.estado.paginaLancamentos, 1);
+    assert.equal(campos.cusFiltroVeiculo.value, 'selecionado');
+    for (const tipo of ['mes', 'anterior', 'tri', 'ano']) {
+      ctx.consultas.length = 0;
+      eventos.length = 0;
+      ctx.estado.paginaLancamentos = 7;
+      ctx.paginaResultado = 5;
+      ctx.periodo(tipo);
+      assert.deepEqual(ctx.consultas, [grupo], aba + ': ' + tipo);
+      assert.equal(ctx.estado.paginaLancamentos, 1);
+      assert.equal(ctx.paginaResultado, 1);
+      assert.equal(campos.cusFiltroCategoria.value, 'selecionado');
+      const d = new Date(), ano = d.getFullYear(), mes = d.getMonth();
+      const inicio = tipo === 'anterior' ? new Date(ano, mes - 1, 1) : tipo === 'tri' ? new Date(ano, mes - 2, 1) : tipo === 'ano' ? new Date(ano, 0, 1) : new Date(ano, mes, 1);
+      const fim = tipo === 'anterior' ? new Date(ano, mes, 0) : tipo === 'ano' ? new Date(ano, 11, 31) : new Date(ano, mes + 1, 0);
+      const iso = x => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+      assert.equal(campos.cusFiltroInicio.value, iso(inicio));
+      assert.equal(campos.cusFiltroFim.value, iso(fim));
+      assert.deepEqual(eventos, ['frota:filtros-atualizados', 'frota:periodo-aplicado']);
+    }
+  }
+});
+test('período destacado acompanha o atalho e é removido após alteração das datas', () => {
+  const eventos = {}, campos = { cusFiltroInicio: { value: '' }, cusFiltroFim: { value: '' } };
+  const botoes = ['mes', 'anterior', 'tri', 'ano'].map(tipo => {
+    const classes = new Set(), attrs = { onclick: "aplicarPeriodoCustos('" + tipo + "')" };
+    return { classList: { contains: x => classes.has(x), toggle(x, ativo) { if (ativo) classes.add(x); else classes.delete(x); } }, getAttribute: x => attrs[x], setAttribute(x, valor) { attrs[x] = valor; } };
+  });
+  const ctx = { sessionStorage: { removeItem() {} }, document: {
+    readyState: 'complete', head: { appendChild() {} }, createElement: () => ({}),
+    getElementById: id => campos[id], querySelectorAll: () => botoes,
+    addEventListener: (nome, fn) => { eventos[nome] = fn; }
+  } };
+  vm.runInNewContext(ler('periodo-marcado.js'), ctx);
+  campos.cusFiltroInicio.value = '2026-10-01'; campos.cusFiltroFim.value = '2026-10-31';
+  eventos['frota:periodo-aplicado']({ detail: { tipo: 'anterior' } });
+  assert.equal(botoes[1].getAttribute('aria-pressed'), 'true');
+  eventos['frota:filtros-atualizados']();
+  assert.equal(botoes[1].getAttribute('aria-pressed'), 'true');
+  campos.cusFiltroInicio.value = '2026-10-10';
+  eventos.change({ target: { id: 'cusFiltroInicio' } });
+  for (const b of botoes) assert.equal(b.getAttribute('aria-pressed'), 'false');
+  const d = new Date(), mes = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  campos.cusFiltroInicio.value = mes + '-01';
+  campos.cusFiltroFim.value = mes + '-' + String(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate());
+  eventos['frota:filtros-limpos']();
+  assert.equal(botoes[0].getAttribute('aria-pressed'), 'true');
+});
+test('saída limpa uma vez e retorno não reinicia a consulta novamente', () => {
   let oculta = false, limpezas = 0, removida;
   const observadores = [];
   const root = { classList: { contains: () => oculta }, querySelector: () => null };
@@ -86,8 +146,11 @@ test('saída e retorno do módulo limpam sem recuperar a memória antiga', () =>
   observadores[0]([{ oldValue: 'cus-page' }]);
   oculta = false;
   observadores[0]([{ oldValue: 'hidden cus-page' }]);
-  assert.equal(limpezas, 2);
+  assert.equal(limpezas, 1);
   observadores[0]([{ oldValue: 'cus-page' }]);
+  assert.equal(limpezas, 1);
+  // Saída e retorno no mesmo lote também limpam exatamente uma vez.
+  observadores[0]([{ oldValue: 'cus-page' }, { oldValue: 'hidden cus-page' }]);
   assert.equal(limpezas, 2);
 });
 test('filtros e organização das abas estabilizam sem ciclo de observadores na entrada', () => {
