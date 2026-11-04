@@ -38,6 +38,38 @@
   function esc(v) { return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
   function vazio(v) { return (v === undefined || v === null || String(v).trim() === "") ? "--" : String(v); }
 
+  /* Atualiza somente a leitura dos pneus em uso. Não passa pelo salvamento
+     de cadastro: odômetro não é instalação, estoque nem custo mensal. */
+  window.fmAtualizarKmPneusVeiculo = function (veiculo) {
+    var b = base();
+    if (!veiculo || !Array.isArray(b.pneus)) return 0;
+    if (typeof window.fmModuloCarregado === 'function' &&
+        (!window.fmModuloCarregado('veiculos') || !window.fmModuloCarregado('pneus'))) return 0;
+    var normalizar = function (v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+    var placa = normalizar(veiculo.vplaca);
+    function kmNumero(v) {
+      var s = String(v == null ? '' : v).trim();
+      if (!s || !/^\d+(?:[.,]\d+)*$/.test(s)) return null;
+      var valor = typeof window.fmKmNumero === 'function' ? window.fmKmNumero(s)
+        : parseFloat(s.replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'));
+      return Number.isFinite(valor) ? valor : null;
+    }
+    var km = kmNumero(veiculo.vkm), alterados = 0;
+    if (!placa || km === null) return 0;
+    if (!Number.isFinite(km) || km < 0) return 0;
+    b.pneus.forEach(function (p) {
+      if (!p || p.pstatus !== 'Em Uso' || normalizar(p.pveiculo) !== placa) return;
+      var rodado = Math.max(0, km - (kmNumero(p.pkminstalacao) || 0));
+      if (String(p.pkmatual) === String(km) && String(p.pkmrodado) === String(rodado)) return;
+      var anterior = Object.assign({}, p);
+      p.pkmatual = String(km);
+      p.pkmrodado = String(rodado);
+      if (typeof window.fmPrepararRegistro === 'function') window.fmPrepararRegistro('pneus', p, anterior);
+      alterados++;
+    });
+    return alterados;
+  };
+
   /* ---------- identidade e nome do item no estoque ---------- */
   function garantirId(p) {
     if (!p.pid) p.pid = "PNEU-" + Date.now() + "-" + Math.floor(Math.random() * 10000);

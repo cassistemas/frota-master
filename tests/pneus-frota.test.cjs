@@ -124,6 +124,100 @@ test('vida consumida em mês anterior reduz somente o saldo disponível no segui
   assert.equal(amb.calculo.kmCicloPeriodo(c, { ini: '2026-02-01', fim: '2026-02-28' }, 'ABC1234'), 2000);
 });
 
+function carregarSync(amb) {
+  vm.runInContext(ler('pneus-sync.js'), amb.ctx);
+  return amb.ctx.fmAtualizarKmPneusVeiculo;
+}
+test('KM de Veículos atualiza apenas pneus Em Uso da mesma placa sem movimentações', () => {
+  const ativo = pneu({ pkmatual: '205000', pkmrodado: '5000', phist: [{ tipo: 'Instalação' }] });
+  const outros = ['Estoque', 'Recapado', 'Descartado', 'Veículo Vendido'].map(pstatus => pneu({ pstatus }));
+  outros.push(pneu({ pveiculo: 'XYZ9999' }));
+  const amb = ambiente({ pneus: [ativo, ...outros], estoque: [{ etipo: 'Saída' }], eventosPneus: [instalacao()], quilometragens: [fechamento()] });
+  const preservar = JSON.stringify({ outros, estoque: amb.db.estoque, eventos: amb.db.eventosPneus, km: amb.db.quilometragens, hist: ativo.phist });
+  const atualizar = carregarSync(amb);
+  assert.equal(atualizar({ vplaca: 'abc-1234', vkm: '210000' }), 1);
+  assert.equal(ativo.pkmatual, '210000');
+  assert.equal(ativo.pkmrodado, '10000');
+  assert.equal(ativo.pkminstalacao, 200000);
+  assert.equal(ativo.pvalor, 2500);
+  assert.equal(ativo.pvida, 50000);
+  assert.equal(JSON.stringify({ outros, estoque: amb.db.estoque, eventos: amb.db.eventosPneus, km: amb.db.quilometragens, hist: ativo.phist }), preservar);
+  assert.equal(amb.salvos.length, 0);
+  assert.equal(atualizar({ vplaca: 'ABC1234', vkm: 210000 }), 0);
+  const ciclo = amb.calculo.ciclos()[0];
+  assert.equal(amb.calculo.kmCicloPeriodo(ciclo, janeiro, 'ABC1234'), 6000);
+  assert.equal(amb.calculo.kmCicloPeriodo(ciclo, janeiro, 'ABC1234') * ciclo.valor / ciclo.vida, 300);
+});
+test('sincronização aceita correções sem KM rodado negativo e ignora leituras inválidas', () => {
+  const amb = ambiente({ pneus: [pneu({ pkminstalacao: '200.000' })] });
+  const atualizar = carregarSync(amb);
+  assert.equal(atualizar({ vplaca: 'ABC1234', vkm: '210.000' }), 1);
+  assert.equal(amb.db.pneus[0].pkmrodado, '10000');
+  assert.equal(atualizar({ vplaca: 'ABC1234', vkm: 190000 }), 1);
+  assert.equal(amb.db.pneus[0].pkmrodado, '0');
+  for (const vkm of ['', null, NaN, Infinity, -1, 'inválido']) {
+    assert.equal(atualizar({ vplaca: 'ABC1234', vkm }), 0);
+    assert.equal(amb.db.pneus[0].pkmatual, '190000');
+  }
+  amb.ctx.fmModuloCarregado = () => false;
+  assert.equal(atualizar({ vplaca: 'ABC1234', vkm: 220000 }), 0);
+  assert.equal(amb.db.pneus[0].pkmatual, '190000');
+});
+test('salvar Veículos envia pneus e veículo juntos e aguarda o carregamento', () => {
+  const amb = ambiente({ pneus: [pneu()], veiculos: [{ vplaca: 'ABC1234', vkm: 200000 }] });
+  carregarSync(amb);
+  const campos = { v_idx: { value: '0' }, vplaca: { value: 'ABC1234' }, vkm: { value: '210000' } };
+  const avisos = [];
+  Object.assign(amb.ctx, {
+    document: { getElementById: id => campos[id] || null },
+    fmNormalizarPlacaVinculo: s => String(s).replace(/[^a-z0-9]/gi, '').toUpperCase(),
+    fmKmTotalVeiculo: v => Number(v.vkm), fmRegistrarHistoricoKm: () => {},
+    fmPrepararRegistro: (mod, obj) => obj, limparForm: () => {},
+    carregarVeiculosSelect: () => {}, atualizarDashboardVeiculos: () => {},
+    dispatchEvent: () => {}, CustomEvent: function () {}, alert: msg => avisos.push(msg)
+  });
+  const fonte = ler('index.html').split('function salvar(mod, campos, idCampo, contexto){')[1].split('function feriasParaUtc(data){')[0];
+  assert.ok(fonte);
+  vm.runInContext('function salvar(mod, campos, idCampo, contexto){' + fonte, amb.ctx);
+  amb.ctx.salvar('veiculos', ['vplaca', 'vkm'], 'v_idx');
+  assert.equal(amb.db.veiculos[0].vkm, '210000');
+  assert.equal(amb.db.pneus[0].pkmatual, '210000');
+  assert.deepEqual(amb.salvos, [['veiculos', 'historicoKm', 'pneus']]);
+  campos.vkm.value = '220000';
+  amb.ctx.fmModuloCarregado = mod => mod !== 'pneus';
+  assert.equal(amb.ctx.salvar('veiculos', ['vplaca', 'vkm'], 'v_idx'), false);
+  assert.equal(amb.db.veiculos[0].vkm, '210000');
+  assert.equal(amb.salvos.length, 1);
+  assert.match(avisos[0], /carregamento de Pneus/);
+});
+
+test('cada pneu usa seu KM de instalação e mantém identidade sem inventar fechamento mensal', () => {
+  const primeiro = pneu({ _rid: 'registro-1', pkmatual: '200000', pkmrodado: '0' });
+  const segundo = pneu({ pid: 'p2', pnumero: 'PN2', _rid: 'registro-2', pkminstalacao: 205000 });
+  const amb = ambiente({ pneus: [primeiro, segundo], eventosPneus: [instalacao()], estoque: [] });
+  const preparados = [];
+  amb.ctx.fmPrepararRegistro = (mod, atual, anterior) => {
+    preparados.push({ mod, id: atual._rid, kmAnterior: anterior.pkmatual });
+    atual._alteradoEm = '2026-02-01T12:00:00.000Z';
+    return atual;
+  };
+  const atualizar = carregarSync(amb);
+  assert.equal(atualizar({ vplaca: 'ABC-1234', vkm: 210000 }), 2);
+  assert.equal(primeiro.pkmrodado, '10000');
+  assert.equal(segundo.pkmrodado, '5000');
+  assert.deepEqual(preparados, [
+    { mod: 'pneus', id: 'registro-1', kmAnterior: '200000' },
+    { mod: 'pneus', id: 'registro-2', kmAnterior: undefined }
+  ]);
+  assert.equal(primeiro._alteradoEm, '2026-02-01T12:00:00.000Z');
+  assert.equal(amb.db.eventosPneus.length, 1);
+  assert.equal(amb.db.estoque.length, 0);
+  assert.equal(amb.db.quilometragens.length, 0);
+  assert.equal(amb.calculo.kmCicloPeriodo(amb.calculo.ciclos()[0], janeiro, 'ABC1234'), 0);
+  assert.equal(atualizar({ vplaca: 'ABC1234', vkm: 210000 }), 0);
+  assert.equal(preparados.length, 2);
+});
+
 function memoria(amb, f = janeiro) {
   const box = { innerHTML: '', textContent: '' };
   amb.ctx.document.getElementById = id => id === 'resPneuAviso' ? {} : id === 'resPneuMemoria' ? box : null;

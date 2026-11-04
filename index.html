@@ -4386,6 +4386,12 @@ function salvar(mod, campos, idCampo, contexto){
             return;
         }
         obj.vplaca = String(obj.vplaca || "").trim().toUpperCase();
+        var mudouKmVeiculo = !anteriorVeiculo || String(anteriorVeiculo.vkm) !== String(obj.vkm);
+        if(mudouKmVeiculo && (!window.fmModuloCarregado('pneus') ||
+           typeof window.fmAtualizarKmPneusVeiculo !== 'function')){
+            alert('Aguarde o carregamento de Pneus antes de atualizar o KM do veículo.');
+            return false;
+        }
         obj.vkmtotal = fmKmTotalVeiculo(obj);
 
         if(anteriorVeiculo && fmNormalizarPlacaVinculo(anteriorVeiculo.vplaca) !== placaNovaNormalizada){
@@ -4506,9 +4512,19 @@ if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno && !(contexto && 
     // Lotes e decisões de reserva confirmam a gravação pelo escritor compartilhado.
     if(importacaoCombustivel || (mod === 'saidaVeiculos' && contexto && contexto.reservaTransacao === true)) return obj;
 
+    // A leitura dos pneus acompanha o veículo no mesmo envio, sem criar eventos.
+    var pneusKmAtualizados = mod === 'veiculos' && mudouKmVeiculo
+        ? window.fmAtualizarKmPneusVeiculo(obj) : 0;
+    if(pneusKmAtualizados && modulosVinculadosAlterados.indexOf('pneus') === -1)
+        modulosVinculadosAlterados.push('pneus');
+
     salvarNuvem(mod === "veiculos"
         ? ["veiculos", "historicoKm"].concat(modulosVinculadosAlterados)
         : undefined);
+    if(pneusKmAtualizados){
+        renderModulo('pneus');
+        if(typeof renderDashboard === 'function') renderDashboard();
+    }
     if(mod === "veiculos") window.dispatchEvent(new CustomEvent("frota:placa-alterada", {detail:{anterior:anteriorVeiculo && anteriorVeiculo.vplaca, nova:obj.vplaca}}));
     if(["veiculos", "manutencoes", "combustivel", "saidaVeiculos"].includes(mod) &&
        typeof window.fmSincronizarKmVeiculo === 'function') window.fmSincronizarKmVeiculo();
@@ -9925,7 +9941,7 @@ style="width:100%; height:400px; border:none;">
 <script src="./estoque-pro.js?v=20261110-competencia"></script>
 <script src="./terceiros-local.js?v=1"></script>
 <script src="./pneus-frota.js?v=20261110-competencia"></script>
-<script src="./pneus-sync.js?v=20261110-competencia"></script>
+<script src="./pneus-sync.js?v=20261111-km-veiculo"></script>
 <script src="./pneus-lote.js?v=20261110-competencia"></script>
 <script src="./login-senha.js?v=20260906-2"></script>
 <script src="./card-base-data.js?v=20260907-2"></script>
