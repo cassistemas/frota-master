@@ -91,7 +91,7 @@
   function prepararModulos() {
     var itens = modulos();
     itens.forEach(function (item) {
-      item.classList.add("fm-modulo-arrastavel");
+      if (!item.classList.contains("fm-modulo-arrastavel")) item.classList.add("fm-modulo-arrastavel");
       if (!item.title) item.title = "Segure e arraste para cima ou para baixo";
     });
     restaurarModulos(document.querySelector("#sistema .sb-nav"), itens);
@@ -99,7 +99,7 @@
   function prepararAbas() {
     var itens = abas();
     itens.forEach(function (item) {
-      item.classList.add("fm-aba-arrastavel");
+      if (!item.classList.contains("fm-aba-arrastavel")) item.classList.add("fm-aba-arrastavel");
       if (!item.title) item.title = "Segure e arraste para a esquerda ou para a direita";
     });
     restaurar(document.querySelector("#custos .cus-tabs"), itens, CHAVE_ABAS, "tab");

@@ -3,7 +3,9 @@
 (function(){
   'use strict';
   try{sessionStorage.removeItem('fm_filtros_por_aba')}catch(e){}
-  function rotulo(){var a=document.querySelector('#custos .cus-tab.active'),r=document.querySelector('#custos .cus-filter');if(!a||!r)return;var el=document.getElementById('fmFiltroAbaRotulo');if(!el){el=document.createElement('div');el.id='fmFiltroAbaRotulo';el.style.cssText='font-size:12px;font-weight:600;opacity:.75;margin-bottom:6px';r.insertBefore(el,r.firstChild)}el.textContent='Filtros da aba: '+a.textContent.trim()}
+  // Não reescreva o mesmo texto: observadores globais de organização reagem
+  // ao DOM e atualizam classes das abas, que também são observadas aqui.
+  function rotulo(){var a=document.querySelector('#custos .cus-tab.active'),r=document.querySelector('#custos .cus-filter');if(!a||!r)return;var el=document.getElementById('fmFiltroAbaRotulo');if(!el){el=document.createElement('div');el.id='fmFiltroAbaRotulo';el.style.cssText='font-size:12px;font-weight:600;opacity:.75;margin-bottom:6px';r.insertBefore(el,r.firstChild)}var texto='Filtros da aba: '+a.textContent.trim();if(el.textContent!==texto)el.textContent=texto}
   function iniciar(){
     var root=document.getElementById('custos');if(!root)return;
     var tabs=root.querySelector('.cus-tabs');

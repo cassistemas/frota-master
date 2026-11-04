@@ -90,3 +90,86 @@ test('saída e retorno do módulo limpam sem recuperar a memória antiga', () =>
   observadores[0]([{ oldValue: 'cus-page' }]);
   assert.equal(limpezas, 2);
 });
+test('filtros e organização das abas estabilizam sem ciclo de observadores na entrada', () => {
+  const observadores = [], pendentes = new Map(), elementos = new Map();
+  let escritasTexto = 0, escritasClasse = 0;
+  const body = {}, tabs = {};
+  function emitir(target, type) {
+    for (const obs of observadores) {
+      const cfg = obs.config;
+      const dentro = obs.target === target || cfg.subtree && (
+        obs.target === body || obs.target === tabs && target === tab
+      );
+      if (!dentro || !cfg[type === 'attributes' ? 'attributes' : 'childList']) continue;
+      if (type === 'attributes' && cfg.attributeFilter && !cfg.attributeFilter.includes('class')) continue;
+      if (!pendentes.has(obs)) pendentes.set(obs, []);
+      pendentes.get(obs).push({ target, type, attributeName: type === 'attributes' ? 'class' : null });
+    }
+  }
+  const classes = new Set(['cus-tab', 'active']);
+  const tab = {
+    dataset: { tab: 'lancamentos' }, textContent: 'Lançamentos', title: '',
+    classList: {
+      contains: classe => classes.has(classe),
+      // DOMTokenList.add notifica o atributo mesmo quando a classe já existe.
+      add(classe) { classes.add(classe); escritasClasse++; emitir(tab, 'attributes'); }
+    }
+  };
+  const root = {
+    classList: { contains: () => false },
+    querySelector: seletor => seletor === '.cus-tabs' ? tabs : null
+  };
+  const filtro = {
+    firstChild: null,
+    insertBefore(el) { elementos.set(el.id, el); emitir(filtro, 'childList'); }
+  };
+  const ctx = {
+    sessionStorage: { removeItem() {} }, localStorage: { getItem: () => null },
+    document: {
+      readyState: 'complete', body, addEventListener() {},
+      getElementById: id => id === 'custos' ? root : elementos.get(id) || null,
+      querySelector: seletor => ({
+        '#custos .cus-tab.active': tab, '#custos .cus-filter': filtro,
+        '#custos .cus-tabs': tabs
+      })[seletor] || null,
+      querySelectorAll: seletor => seletor === '#custos .cus-tabs > .cus-tab[data-tab]' ? [tab] : [],
+      createElement() {
+        let texto = '';
+        return {
+          style: {}, get textContent() { return texto; },
+          set textContent(valor) { texto = valor; escritasTexto++; emitir(this, 'childList'); }
+        };
+      }
+    },
+    MutationObserver: function(callback) {
+      this.callback = callback;
+      this.observe = (target, config) => { this.target = target; this.config = config; observadores.push(this); };
+    }
+  };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(filtros.split('/* Cartão')[0], ctx);
+  vm.runInContext(ler('organizacao-campos.js'), ctx);
+  function estabilizar() {
+    for (let rodada = 0; pendentes.size && rodada < 20; rodada++) {
+      const lote = [...pendentes]; pendentes.clear();
+      for (const [obs, registros] of lote) obs.callback(registros);
+    }
+    assert.equal(pendentes.size, 0, 'Observadores devem parar de gerar mutações repetidas');
+  }
+  estabilizar();
+  assert.equal(escritasTexto, 1);
+  assert.equal(escritasClasse, 1);
+  // Uma atualização de tabela não deve reescrever as classes das abas.
+  emitir(body, 'childList');
+  estabilizar();
+  assert.equal(escritasTexto, 1);
+  assert.equal(escritasClasse, 1);
+  // A mudança real de aba ainda deve atualizar o rótulo.
+  tab.textContent = 'Quilometragem';
+  emitir(tab, 'attributes');
+  estabilizar();
+  assert.equal(elementos.get('fmFiltroAbaRotulo').textContent, 'Filtros da aba: Quilometragem');
+  assert.equal(escritasTexto, 2);
+  assert.equal(escritasClasse, 1);
+});
