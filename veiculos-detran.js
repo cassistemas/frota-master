@@ -52,6 +52,86 @@
     return String(v || "").trim();
   }
 
+  /* Histórico mensal: a referência é da tabela, nunca a data da consulta. */
+  function mesFipe(ref) {
+    var s = String(ref || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    var m = s.match(/^(\d{4})-(\d{2})$/);
+    if (m && +m[2] >= 1 && +m[2] <= 12) return m[1] + "-" + m[2];
+    m = s.match(/^(\d{1,2})[\/-](\d{4})$/);
+    if (m && +m[1] >= 1 && +m[1] <= 12) return m[2] + "-" + String(+m[1]).padStart(2, "0");
+    var nomes = ["janeiro|january", "fevereiro|february", "marco|march", "abril|april", "maio|may", "junho|june", "julho|july", "agosto|august", "setembro|september", "outubro|october", "novembro|november", "dezembro|december"];
+    var ano = s.match(/\b(\d{4})\b/);
+    if (!ano) return "";
+    for (var i = 0; i < nomes.length; i++) {
+      if (new RegExp("\\b(" + nomes[i] + ")\\b").test(s)) return ano[1] + "-" + String(i + 1).padStart(2, "0");
+    }
+    return "";
+  }
+
+  function centavosFipe(valor) {
+    if (typeof valor === "number") return Number.isFinite(valor) && valor > 0 ? Math.round(valor * 100) : null;
+    var s = String(valor || "").replace(/R\$/gi, "").replace(/\s/g, "");
+    if (!/^(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{2})?$/.test(s)) return null;
+    var n = Number(s.replace(/\./g, "").replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null;
+  }
+
+  function amostraFipe(x) {
+    if (!x) return null;
+    var mes = mesFipe(x.dtFipeRef), valor = centavosFipe(x.dtFipeValor);
+    if (!mes || valor === null) return null;
+    return { mes: mes, centavos: valor, codigo: normFipe(x.dtFipeCodigo), ano: soAno(x.dtAnoMod || x.dtAnoFab), combustivel: txtNorm(x.dtCombustivel) };
+  }
+
+  function mesmaFipe(a, b) {
+    return !!(a && b && a.codigo && a.codigo === b.codigo && a.ano === b.ano && a.combustivel === b.combustivel);
+  }
+
+  function registrarHistoricoFipe(antigo, novo) {
+    var historico = [];
+    function incluir(a) {
+      if (!a || !mesFipe(a.mes) || !Number.isSafeInteger(a.centavos) || a.centavos <= 0) return;
+      var pos = historico.findIndex(function (h) {
+        return h.mes === a.mes && h.codigo === a.codigo && h.ano === a.ano && h.combustivel === a.combustivel;
+      });
+      var copia = Object.assign({}, a);
+      if (pos < 0) historico.push(copia);
+      else historico[pos] = copia;
+    }
+    (Array.isArray(antigo && antigo.dtFipeHistorico) ? antigo.dtFipeHistorico : []).forEach(incluir);
+    incluir(amostraFipe(antigo));
+    incluir(amostraFipe(novo));
+    novo.dtFipeHistorico = historico.sort(function (a, b) { return a.mes.localeCompare(b.mes); });
+    return novo;
+  }
+
+  function compararFipe(x) {
+    var atual = amostraFipe(x);
+    if (!atual) return { atual: null, anterior: null, diferenca: null };
+    var ano = +atual.mes.slice(0, 4), mes = +atual.mes.slice(5);
+    var mesAnterior = (mes === 1 ? ano - 1 : ano) + "-" + String(mes === 1 ? 12 : mes - 1).padStart(2, "0");
+    var anterior = (Array.isArray(x.dtFipeHistorico) ? x.dtFipeHistorico : []).find(function (h) {
+      return h.mes === mesAnterior && mesmaFipe(h, atual) && Number.isSafeInteger(h.centavos) && h.centavos > 0;
+    }) || null;
+    return { atual: atual, anterior: anterior, diferenca: anterior ? atual.centavos - anterior.centavos : null };
+  }
+
+  function comparativoFipeHtml(x) {
+    var c = compararFipe(x);
+    function moeda(n) { return (n / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
+    function mesNome(m) {
+      return ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"][+m.slice(5) - 1] + "/" + m.slice(0, 4);
+    }
+    var linhas = [];
+    if (c.anterior) linhas.push("FIPE anterior — " + mesNome(c.anterior.mes) + ": " + moeda(c.anterior.centavos));
+    else linhas.push("Sem histórico do mês anterior");
+    linhas.push(c.atual ? "FIPE atual — " + mesNome(c.atual.mes) + ": " + moeda(c.atual.centavos) : "FIPE atual: " + (x.dtFipeValor || "Não consultada") + " — referência mensal indisponível");
+    linhas.push(c.diferenca === null ? "Diferença no mês: indisponível" : c.diferenca === 0 ? "Diferença no mês: " + moeda(0) + " — sem alteração" : "Diferença no mês: " + (c.diferenca > 0 ? "aumento de " : "queda de ") + moeda(Math.abs(c.diferenca)));
+    return '<div class="mt-2"><strong>Comparativo mensal FIPE</strong>' + linhas.map(function (linha) { return '<div>' + esc(linha) + '</div>'; }).join("") + '</div>';
+  }
+
+  window.FMVeiculosFipe = { mes: mesFipe, centavos: centavosFipe, registrar: registrarHistoricoFipe, comparar: compararFipe };
+
   /* ---------------- FIPE API (Deivid Fortuna) ---------------- */
   function getJson(caminho, absoluta) {
     var url = absoluta ? caminho : FIPEAPI + caminho;
@@ -603,13 +683,13 @@
     }
 
     function manterFipe(antigo, novo) {
-      if (!antigo) return novo;
+      if (!antigo) return registrarHistoricoFipe(null, novo);
       ["dtFipeCodigo", "dtFipeValor", "dtFipeRef", "dtFipeAtualizado", "dtFipeMarca", "dtFipeModelo"].forEach(
         function (k) {
           if (antigo[k] && !novo[k]) novo[k] = antigo[k];
         }
       );
-      return novo;
+      return registrarHistoricoFipe(antigo, novo);
     }
 
     if (idx !== "" && lista[Number(idx)]) {
@@ -622,7 +702,7 @@
         );
       });
       if (dup >= 0) lista[dup] = manterFipe(lista[dup], obj);
-      else lista.push(obj);
+      else lista.push(manterFipe(null, obj));
     }
 
     persistir();
@@ -709,12 +789,13 @@
   function detalheHtml(x, idx) {
     var itens = CAMPOS.map(function (c) {
       var v = c[2] === "date" ? dataBR(x[c[0]]) : d(x[c[0]]);
+      if (c[0] === "dtObs") v += comparativoFipeHtml(x);
       return (
         '<div class="fm-det-item"><span class="fm-det-k">' +
         esc(c[1]) +
-        '</span><span class="fm-det-v">' +
+        '</span><div class="fm-det-v">' +
         v +
-        "</span></div>"
+        "</div></div>"
       );
     }).join("");
     itens +=
@@ -1250,6 +1331,10 @@
       statusMsg("fm-err", "Selecione Tipo, Marca, Modelo e Ano antes de aplicar.");
       return;
     }
+    if (centavosFipe(p.Valor) === null || !mesFipe(p.MesReferencia)) {
+      statusMsg("fm-err", "A consulta não trouxe valor e referência mensal válidos. Consulte novamente antes de aplicar.");
+      return;
+    }
 
     if (p.Marca || p.Modelo) set("dtMarca", [p.Marca, p.Modelo].filter(Boolean).join(" / "));
     if (p.AnoModelo) set("dtAnoMod", soAno(p.AnoModelo));
@@ -1535,7 +1620,9 @@
 
     buscarFipeAuto(x)
       .then(function (p) {
-        if (!p) throw new Error("Sem resultado na FIPE.");
+        if (!p || centavosFipe(p.Valor) === null || !mesFipe(p.MesReferencia))
+          throw new Error("Resposta FIPE sem valor ou referência mensal válida. Os dados anteriores foram preservados.");
+        var fipeAnterior = Object.assign({}, x);
         // atualiza SOMENTE os campos da FIPE, preservando o cadastro existente
         x.dtFipeCodigo = normFipe(p.CodigoFipe || "");
         x.dtFipeValor = p.Valor || "";
@@ -1544,15 +1631,20 @@
         x.dtFipeModelo = p.Modelo || "";
         x.dtFipeAtualizado = new Date().toISOString().slice(0, 10);
         if (!x.dtCombustivel && p.Combustivel) x.dtCombustivel = p.Combustivel;
+        registrarHistoricoFipe(fipeAnterior, x);
 
         // atualiza tambem o campo Observacoes com os dados da FIPE
         var linhaFipe = "FIPE " + (x.dtFipeCodigo || "") + ": " + (x.dtFipeValor || "") +
           (x.dtFipeRef ? " — ref. " + x.dtFipeRef : "");
         var obsAtual = String(x.dtObs || "").trim();
-        if (obsAtual.toUpperCase().indexOf("FIPE ") < 0) {
+        var linhaAntiga = "FIPE " + (fipeAnterior.dtFipeCodigo || "") + ": " + (fipeAnterior.dtFipeValor || "") +
+          (fipeAnterior.dtFipeRef ? " — ref. " + fipeAnterior.dtFipeRef : "");
+        // Troca apenas a anotação gerada, sem apagar comentários escritos depois dela.
+        var posLinha = obsAtual.indexOf(linhaAntiga);
+        if (fipeAnterior.dtFipeValor && posLinha >= 0) {
+          x.dtObs = obsAtual.slice(0, posLinha) + linhaFipe + obsAtual.slice(posLinha + linhaAntiga.length);
+        } else if (obsAtual.indexOf(linhaFipe) < 0) {
           x.dtObs = obsAtual ? obsAtual + " | " + linhaFipe : linhaFipe;
-        } else {
-          x.dtObs = obsAtual.replace(/FIPE [^|]+/i, linhaFipe);
         }
 
         persistir();
