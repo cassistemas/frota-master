@@ -1135,3 +1135,88 @@ tr.pneu-detalhe > td{background:#f8fafc;border-top:0}
 @media print {
   #dashboard.dashboard-page { min-height: 0; }
 }
+
+/* Gestão de Pneus: somente o cadastro individual, sem afetar lista ou lote. */
+#pneus .pneu-form-content { display: grid; gap: 20px; min-width: 0; }
+#pneus .pneu-form-section { min-width: 0; margin: 0; padding: 0; border: 0; }
+#pneus .pneu-form-section > legend {
+  float: none;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--pro-line);
+  color: var(--pro-ink);
+  font-size: .86rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+#pneus .pneu-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px 16px;
+  align-items: start;
+}
+#pneus .pneu-form-grid-dados { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#pneus .pneu-form-grid > div { min-width: 0; width: auto; max-width: 100%; }
+#pneus .pneu-form-content label {
+  display: block;
+  margin: 0 0 6px;
+  padding: 0;
+  color: var(--pro-ink-2);
+  font-size: .76rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: normal;
+}
+#pneus .pneu-form-content .form-control,
+#pneus .pneu-form-content .form-select {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 42px;
+  min-height: 42px;
+  margin: 0;
+  padding: .5rem .7rem;
+  border: 1px solid var(--pro-line);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: .84rem;
+  line-height: 1.4;
+}
+#pneus .pneu-form-content .form-select { padding-right: 2rem; }
+#pneus .pneu-form-content .form-control:focus,
+#pneus .pneu-form-content .form-select:focus { border-color: var(--pro-accent); }
+#pneus .pneu-form-content .form-control[readonly] {
+  background-color: var(--pro-bg);
+  color: var(--pro-ink-2);
+  font-weight: 600;
+}
+#pneus .pneu-form-content .fm-competencia-cabecalho { align-items: center; margin: 0 0 6px; min-height: 17px; }
+#pneus .pneu-form-content .fm-competencia-cabecalho > label { margin: 0; }
+#pneus .pneu-form-content .fm-busca-container { overflow: visible; }
+#pneus .pneu-form-content textarea.form-control { height: auto; min-height: 90px; resize: vertical; }
+#pneus .pneu-form-help { margin: 10px 0 0; color: var(--pro-mute); font-size: .74rem; line-height: 1.6; }
+#pneus .pneu-km-aviso:not([hidden]) {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: .78rem;
+  line-height: 1.5;
+}
+#pneus .pneu-form-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+#pneus .pneu-form-actions .btn { min-height: 42px; margin: 0; }
+@media (max-width: 1199.98px) {
+  #pneus .pneu-form-grid,
+  #pneus .pneu-form-grid-dados { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 575.98px) {
+  #pneus .pneu-form-grid,
+  #pneus .pneu-form-grid-dados { grid-template-columns: minmax(0, 1fr); }
+  #pneus .pneu-form-actions .btn { flex: 1 1 auto; }
+}

@@ -21,7 +21,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="./pro-ui.css?v=20261110-competencia-compacta">
+    <link rel="stylesheet" href="./pro-ui.css?v=20261111-pneus-formulario">
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=1">
@@ -3067,118 +3067,86 @@ Criar Usuário
     <!-- ========================= -->
     <!-- FORMULÁRIO -->
     <!-- ========================= -->
-    <div class="glass-container">
+    <div class="glass-container pneu-cadastro">
 
         <input type="hidden" id="p_idx">
 
-        <div class="row g-3">
+        <div class="pneu-form-content">
+            <fieldset class="pneu-form-section">
+                <legend>Dados do pneu</legend>
+                <div class="pneu-form-grid pneu-form-grid-dados">
+                    <div><label for="pnumero">Número do pneu</label><input id="pnumero" class="form-control" placeholder="Ex.: P001"></div>
+                    <div><label for="pmarca">Marca</label><input id="pmarca" class="form-control" placeholder="Informe a marca"></div>
+                    <div><label for="pmodelo">Modelo</label><input id="pmodelo" class="form-control" placeholder="Informe o modelo"></div>
+                    <div><label for="pmedida">Medida</label><input id="pmedida" class="form-control" placeholder="Ex.: 295/80 R22.5"></div>
+                    <div><label for="pdot">DOT</label><input id="pdot" class="form-control" placeholder="Código de fabricação"></div>
+                    <div><label for="psulco">Sulco inicial</label><input id="psulco" class="form-control" placeholder="Informe a medida"></div>
+                </div>
+            </fieldset>
 
-            <div class="col-md-3">
-                <input id="pnumero" class="form-control" placeholder="Número do Pneu">
+            <fieldset class="pneu-form-section">
+                <legend>Compra</legend>
+                <div class="pneu-form-grid">
+                    <div><label for="pvalor">Valor da compra (R$)</label><input id="pvalor" class="form-control" placeholder="R$ 0,00" oninput="mascaraMoeda(this)"></div>
+                    <div><label for="pdata">Data da compra</label><input type="date" id="pdata" class="form-control"></div>
+                    <div><label for="pfornecedor">Fornecedor</label><select id="pfornecedor" class="form-select"></select></div>
+                </div>
+            </fieldset>
+
+            <fieldset class="pneu-form-section">
+                <legend>Veículo e instalação</legend>
+                <div class="pneu-form-grid">
+                    <div><label for="pveiculo">Veículo</label><select id="pveiculo" class="form-select"></select></div>
+                    <div class="pneu-form-col">
+                        <label for="pposicao">Posição no veículo</label>
+                        <select id="pposicao" class="form-select">
+                            <option>Dianteiro Esquerdo</option>
+                            <option>Dianteiro Direito</option>
+                            <option>Tração E.Externo</option>
+                            <option>Tração E.Dentro</option>
+                            <option>Tração D.Externo</option>
+                            <option>Tração D.Dentro</option>
+                            <option>Truck E.Externo</option>
+                            <option>Truck E.Dentro</option>
+                            <option>Truck D.Externo</option>
+                            <option>Truck D.Dentro</option>
+                            <option>Estepe 1</option>
+                            <option>Estepe 2</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="pstatus">Status</label>
+                        <select id="pstatus" class="form-select">
+                            <option>Em Uso</option>
+                            <option>Estoque</option>
+                            <option>Recapado</option>
+                            <option>Veículo Vendido</option>
+                            <option>Descartado</option>
+                        </select>
+                    </div>
+                    <div><label for="pdatainstalacao">Data da movimentação</label><input id="pdatainstalacao" type="date" class="form-control" aria-describedby="pneuMovimentacaoAjuda"></div>
+                </div>
+                <p id="pneuMovimentacaoAjuda" class="pneu-form-help">Informe a data da instalação, retirada ou transferência.</p>
+            </fieldset>
+
+            <fieldset class="pneu-form-section">
+                <legend>Quilometragem</legend>
+                <div class="pneu-form-grid">
+                    <div><label for="pkminstalacao">KM Instalação</label><input id="pkminstalacao" type="number" class="form-control" placeholder="Informe o KM" oninput="calcularKMPneu()"></div>
+                    <div><label for="pkmatual">KM Atual</label><input id="pkmatual" type="number" class="form-control" placeholder="Automático pelo veículo" readonly aria-describedby="pneuKmAjuda pneuKmAviso" oninput="calcularKMPneu()"></div>
+                    <div><label for="pkmrodado">KM Rodado</label><input id="pkmrodado" class="form-control" placeholder="Calculado automaticamente" readonly aria-describedby="pneuKmAjuda"></div>
+                    <div><label for="pvida">Vida útil (KM)</label><input id="pvida" type="number" class="form-control" placeholder="Vida útil prevista"></div>
+                </div>
+                <p id="pneuKmAjuda" class="pneu-form-help">Em uso: KM Atual vem do cadastro do veículo. KM Rodado = Atual − Instalação. Em retiradas e transferências, KM Atual é a saída do veículo de origem.</p>
+                <div id="pneuKmAviso" class="pneu-km-aviso" role="status" aria-live="polite" hidden></div>
+            </fieldset>
+
+            <div class="pneu-form-observacoes">
+                <label for="pobs">Observações</label>
+                <textarea id="pobs" class="form-control" rows="3" placeholder="Informações adicionais sobre o pneu"></textarea>
             </div>
 
-            <div class="col-md-3">
-                <input id="pmarca" class="form-control" placeholder="Marca">
-            </div>
-
-            <div class="col-md-3">
-                <input id="pmodelo" class="form-control" placeholder="Modelo">
-            </div>
-
-            <div class="col-md-3">
-                <input id="pmedida" class="form-control" placeholder="Medida">
-            </div>
-
-            <div class="col-md-3">
-                <input id="pdot" class="form-control" placeholder="DOT">
-            </div>
-
-            <div class="col-md-3">
-                <input id="pvalor" class="form-control" placeholder="Valor Compra" oninput="mascaraMoeda(this)">
-            </div>
-
-            <div class="col-md-3">
-                <input type="date" id="pdata" class="form-control">
-            </div>
-
-            <div class="col-md-3">
-                <input id="pvida" type="number" class="form-control" placeholder="Vida Útil KM">
-            </div>
-
-            <div class="col-md-3">
-                <label for="pdatainstalacao">Data da instalação / movimentação</label>
-                <input id="pdatainstalacao" type="date" class="form-control">
-            </div>
-
-            <div class="col-md-3">
-                <input id="psulco" class="form-control" placeholder="Sulco Inicial">
-            </div>
-
-            <div class="col-md-3">
-                <select id="pveiculo" class="form-select"></select>
-            </div>
-
-            <div class="col-md-3">
-                <select id="pfornecedor" class="form-select"></select>
-            </div>
-
-            <div class="col-md-3">
-                <select id="pposicao" class="form-select">
-                    <option>Dianteiro Esquerdo</option>
-                    <option>Dianteiro Direito</option>
-                    <option>Tração E.Externo</option>
-                    <option>Tração E.Dentro</option>
-                    <option>Tração D.Externo</option>
-                    <option>Tração D.Dentro</option>
-                    <option>Truck E.Externo</option>
-                    <option>Truck E.Dentro</option>
-                    <option>Truck D.Externo</option>
-                    <option>Truck D.Dentro</option>
-                    <option>Estepe 1</option>
-                    <option>Estepe 2</option>
-                </select>
-            </div>
-
-            <div class="col-md-3">
-                <input id="pkminstalacao"
-type="number"
-class="form-control"
-placeholder="KM Instalação"
-oninput="calcularKMPneu()">
-            </div>
-
-            <div class="col-md-3">
-                <label for="pkmatual">KM Atual do veículo / saída da origem</label>
-                <input id="pkmatual"
-type="number"
-class="form-control"
-placeholder="Automático pelo veículo"
-readonly
-aria-describedby="pneuKmAviso"
-oninput="calcularKMPneu()">
-            </div>
-
-            <div class="col-md-3">
-                <label for="pkmrodado">KM Rodado (Atual − Instalação)</label>
-                <input id="pkmrodado"class="form-control"placeholder="KM Rodado Automático"readonly>
-            </div>
-            <div id="pneuKmAviso" class="col-12 small text-warning" role="status" aria-live="polite" hidden></div>
-
-            <div class="col-md-3">
-                <select id="pstatus" class="form-select">
-                    <option>Em Uso</option>
-                    <option>Estoque</option>
-                    <option>Recapado</option>
-                    <option>Veículo Vendido</option>
-                    <option>Descartado</option>
-                </select>
-            </div>
-
-            <div class="col-md-12">
-                <textarea id="pobs" class="form-control" placeholder="Observações"></textarea>
-            </div>
-
-            <div class="col-md-12 text-end">
+            <div class="pneu-form-actions text-end">
 
                 <button id="btn_cancel_pneus"
                 class="btn btn-outline-secondary btn-cancelar"
