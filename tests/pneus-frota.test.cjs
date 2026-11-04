@@ -124,6 +124,81 @@ test('vida consumida em mês anterior reduz somente o saldo disponível no segui
   assert.equal(amb.calculo.kmCicloPeriodo(c, { ini: '2026-02-01', fim: '2026-02-28' }, 'ABC1234'), 2000);
 });
 
+test('divergência mostra evento exato com número diferente e preserva todo o histórico', async () => {
+  const amb = ambiente({ pneus: [pneu({ pnumero: '71' })], eventosPneus: [instalacao({ pneuId: '17' })] });
+  const antes = JSON.stringify(amb.db);
+  const plano = amb.api.diagnosticar(amb.db.pneus[0]);
+  assert.match(plano.erro, /divergente/);
+  assert.equal(plano.conflitos.length, 1);
+  const c = plano.conflitos[0];
+  assert.equal(c.eventoId, 'e1');
+  assert.equal(c.pneu, '17');
+  assert.equal(c.data, '2026-01-01');
+  assert.equal(c.tipo, 'Instalação');
+  assert.equal(c.placa, 'ABC1234');
+  assert.match(c.motivo, /pneu 17.*cadastro de pneu 71/);
+  const resultado = await amb.api.sincronizarCadastros();
+  assert.equal(resultado.integrados, 0);
+  assert.equal(resultado.pendencias[0].conflitos[0].eventoId, 'e1');
+  assert.equal(JSON.stringify(amb.db), antes);
+  assert.equal(amb.salvos.length, 0);
+});
+test('mesmo número com vínculo em outro cadastro identifica todos os eventos conflitantes', () => {
+  const amb = ambiente({ pneus: [pneu({ pnumero: '71' }), pneu({ pid: 'p2', pnumero: '99', pstatus: 'Estoque' })],
+    eventosPneus: [instalacao({ pneuId: '71', cadastroPneuId: 'p2' }), instalacao({ id: 'e2', pneuId: '71', cadastroPneuId: 'ausente' }), instalacao({ id: 'e3', pneuId: '71' })] });
+  const plano = amb.api.diagnosticar(amb.db.pneus[0]);
+  assert.equal(plano.conflitos.length, 2);
+  assert.equal(plano.conflitos[0].pneuVinculado, '99');
+  assert.match(plano.conflitos[0].motivo, /cadastro do pneu 99/);
+  assert.match(plano.conflitos[1].motivo, /cadastro não encontrado/);
+});
+test('históricos coerentes e legados sem vínculo interno não geram falso conflito', () => {
+  for (const cadastroPneuId of ['p1', '']) {
+    const amb = ambiente({ pneus: [pneu()], eventosPneus: [instalacao({ cadastroPneuId })] });
+    assert.equal(amb.api.diagnosticar(amb.db.pneus[0]).integrado, true);
+  }
+});
+test('painel escapa dados e desabilita abertura de eventos sem ID único', () => {
+  const amb = ambiente({ pneus: [pneu()], eventosPneus: [instalacao({ id: 'e"1', pneuId: '<img src=x>' }), instalacao({ id: '', pneuId: 'errado' }), instalacao({ id: 'duplicado', pneuId: 'outro' }), instalacao({ id: 'duplicado', pneuId: 'outro' })] });
+  const ouvintes = [];
+  const painel = { innerHTML: '', addEventListener: (tipo, fn) => ouvintes.push(fn), contains: () => true };
+  amb.ctx.document.getElementById = id => id === 'resPneuIntegracao' ? painel : null;
+  const antes = JSON.stringify(amb.db);
+  amb.api.renderPainel();
+  assert.match(painel.innerHTML, /01\/01\/2026/);
+  assert.match(painel.innerHTML, /&lt;img src=x&gt;/);
+  assert.doesNotMatch(painel.innerHTML, /<img src=x>/);
+  assert.match(painel.innerHTML, /data-fm-pneu-evento="e&quot;1"/);
+  assert.equal((painel.innerHTML.match(/data-fm-pneu-evento=/g) || []).length, 1);
+  assert.match(painel.innerHTML, /Evento sem ID único/);
+  const abertos = [];
+  amb.ctx.fmConferirEventoPneuFrota = id => abertos.push(id);
+  ouvintes[0]({ target: { closest: () => ({ getAttribute: () => 'e"1' }) } });
+  assert.deepEqual(abertos, ['e"1']);
+  amb.api.renderPainel();
+  assert.equal(ouvintes.length, 1);
+  assert.equal(JSON.stringify(amb.db), antes);
+  assert.equal(amb.salvos.length, 0);
+});
+test('atalho abre a placa do evento e o registro exato, sem salvar nem corrigir vínculos', () => {
+  const evento = instalacao({ pneuId: '71', veiculo: 'XYZ9999' });
+  const chamadas = [], ajuda = {}, campo = { scrollIntoView: () => {}, focus: () => {} };
+  const ctx = { a: mod => mod === 'eventosPneus' ? [evento] : [pneu()],
+    abrirVeiculoPneus: pl => chamadas.push(['placa', pl]), editarEventoPneu: id => chamadas.push(['evento', id]), tipoEventoPneu: () => {},
+    document: { getElementById: id => id === 'resPneuId' ? campo : ajuda }, alert: msg => chamadas.push(['alerta', msg]) };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  const fonte = ler('resultado-frota.js').split('function conferirEventoPneu(xid){')[1].split('function excluirEventoPneu(xid)')[0];
+  vm.runInContext('function conferirEventoPneu(xid){' + fonte, ctx);
+  const antes = JSON.stringify(evento);
+  ctx.fmConferirEventoPneuFrota('e1');
+  assert.deepEqual(chamadas, [['placa', 'XYZ9999'], ['evento', 'e1']]);
+  assert.match(ajuda.textContent, /p1.*cadastro do pneu PN1/);
+  assert.equal(JSON.stringify(evento), antes);
+  ctx.fmConferirEventoPneuFrota('inexistente');
+  assert.equal(chamadas[2][0], 'alerta');
+});
+
 function carregarSync(amb) {
   vm.runInContext(ler('pneus-sync.js'), amb.ctx);
   return amb.ctx.fmAtualizarKmPneusVeiculo;

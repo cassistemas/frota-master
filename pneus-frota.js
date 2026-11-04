@@ -91,7 +91,14 @@
     var eventos = (b.eventosPneus || []).filter(function (e) {
       return e && ((p.pid && e.cadastroPneuId === p.pid) || chave(e.pneuId) === nome);
     }).sort(function (a, c) { return String(a.data).localeCompare(String(c.data)) || numero(a.odometro)-numero(c.odometro); });
-    if (eventos.some(function (e) { return (e.cadastroPneuId && e.cadastroPneuId !== p.pid) || chave(e.pneuId) !== nome; })) return {erro:'Vínculo de identificação divergente no histórico. Confira Pneus por KM.'};
+    var conflitos = eventos.filter(function (e) { return (e.cadastroPneuId && e.cadastroPneuId !== p.pid) || chave(e.pneuId) !== nome; }).map(function (e) {
+      var vinculado = e.cadastroPneuId && (b.pneus || []).find(function (x) { return x.pid === e.cadastroPneuId; });
+      var motivos = [];
+      if (chave(e.pneuId) !== nome) motivos.push('O evento informa o pneu ' + (e.pneuId || 'sem número') + ', mas está vinculado a este cadastro de pneu ' + nome + '.');
+      if (e.cadastroPneuId && e.cadastroPneuId !== p.pid) motivos.push('O evento usa o número ' + (e.pneuId || 'não informado') + ', mas seu vínculo interno aponta para ' + (vinculado ? 'o cadastro do pneu ' + (vinculado.pnumero || 'sem número') : 'um cadastro não encontrado') + ', não para este cadastro.');
+      return {eventoId:e.id || '', pneu:e.pneuId || '', data:e.data || '', tipo:e.tipo || '', placa:e.veiculo || '', cadastroPneuId:e.cadastroPneuId || '', pneuVinculado:vinculado ? vinculado.pnumero || 'Sem número' : '', motivo:motivos.join(' ')};
+    });
+    if (conflitos.length) return {erro:'Vínculo de identificação divergente no histórico. Confira os eventos abaixo em Pneus por KM.', conflitos:conflitos};
     var ultimo = eventos[eventos.length - 1];
     var ativo = ultimo && ultimo.tipo !== 'Retirada' && ultimo.tipo !== 'Descarte';
     if (ativo) {
@@ -125,7 +132,7 @@
       (b.pneus || []).forEach(function (p) {
         if (!p || p.pstatus !== 'Em Uso') return;
         var plano = diagnosticar(p);
-        if (plano.erro) resultado.pendencias.push({pneu:p.pnumero || 'Sem número', placa:p.pveiculo || 'Sem placa', motivo:plano.erro});
+        if (plano.erro) resultado.pendencias.push({pneu:p.pnumero || 'Sem número', placa:p.pveiculo || 'Sem placa', motivo:plano.erro, conflitos:plano.conflitos || []});
         else if (plano.integrado) resultado.existentes++;
         else if (plano.eventos.length) planos.push({pneu:p, plano:plano});
       });
@@ -172,13 +179,28 @@
     (b.pneus || []).forEach(function (p) {
       if (!p || p.pstatus !== 'Em Uso') return;
       var plano = diagnosticar(p);
-      if (plano.erro || plano.eventos.length) pendencias.push({pneu:p.pnumero, placa:p.pveiculo, motivo:plano.erro || 'Instalação válida ainda não integrada. Clique em Sincronizar.'});
+      if (plano.erro || plano.eventos.length) pendencias.push({pneu:p.pnumero, placa:p.pveiculo, motivo:plano.erro || 'Instalação válida ainda não integrada. Clique em Sincronizar.', conflitos:plano.conflitos || []});
     });
     var semOdometros = (b.quilometragens || []).filter(function (q) { return q.odometroInicial == null || q.odometroInicial === '' || q.odometroFinal == null || q.odometroFinal === '' || numero(q.odometroFinal) <= numero(q.odometroInicial); });
     el.innerHTML = '<p class="cus-note mb-2">KM mensal: fechamentos salvos em Gestão da Frota → Quilometragem. O KM Atual de Veículos apenas sugere a leitura; sincronizar pneus não altera fechamentos nem lança despesas financeiras.</p>' +
       (semOdometros.length ? '<p role="status">Atenção: ' + semOdometros.length + ' fechamento(s) sem odômetros válidos. Esses registros não calculam consumo de pneus; revise os odômetros em Quilometragem. Os valores podem estar parciais.</p>' : '') +
       (ultimoResultado ? '<p role="status">Última sincronização: ' + ultimoResultado.integrados + ' instalação(ões) integrada(s); ' + ultimoResultado.existentes + ' já existente(s).</p>' : '') +
-      (pendencias.length ? '<details open><summary>' + pendencias.length + ' pendência(s) de integração</summary><ul>' + pendencias.map(function (p) { return '<li><b>' + esc(p.pneu || 'Sem número') + ' · ' + esc(p.placa || 'Sem placa') + '</b>: ' + esc(p.motivo) + '</li>'; }).join('') + '</ul></details>' : '<p class="cus-note">Nenhuma integração pendente nos cadastros Em Uso.</p>');
+      (pendencias.length ? '<details open><summary>' + pendencias.length + ' pendência(s) de integração</summary><ul>' + pendencias.map(function (p) {
+        return '<li><b>' + esc(p.pneu || 'Sem número') + ' · ' + esc(p.placa || 'Sem placa') + '</b>: ' + esc(p.motivo) +
+          (p.conflitos.length ? '<div class="cus-table-wrap"><table class="table cus-table"><caption>Eventos com identificação divergente para o pneu ' + esc(p.pneu) + '</caption><thead><tr><th>Pneu no evento</th><th>Data</th><th>Tipo</th><th>Placa do evento</th><th>Identificação e vínculo</th><th>Conferir</th></tr></thead><tbody>' + p.conflitos.map(function (c) {
+            var data = /^\d{4}-\d{2}-\d{2}$/.test(c.data) ? c.data.split('-').reverse().join('/') : c.data;
+            var unico = c.eventoId && (b.eventosPneus || []).filter(function (x) { return x && x.id === c.eventoId; }).length === 1;
+            return '<tr><td>' + esc(c.pneu || 'Sem número') + '</td><td>' + esc(data || 'Sem data') + '</td><td>' + esc(c.tipo || 'Sem tipo') + '</td><td>' + esc(c.placa || 'Sem placa') + '</td><td>' + esc(c.motivo) + '<br><small>Evento: ' + esc(c.eventoId || 'Sem ID') + ' · Vínculo interno: ' + esc(c.cadastroPneuId || 'Sem vínculo') + '</small></td><td>' +
+              (unico ? '<button type="button" class="btn btn-outline-secondary btn-sm" data-fm-pneu-evento="' + esc(c.eventoId) + '">Conferir evento</button>' : 'Evento sem ID único; confira o histórico pelos dados ao lado.') + '</td></tr>';
+          }).join('') + '</tbody></table></div><p class="cus-note">Conferir evento abre o registro original para revisão, sem salvar alterações. Nenhum vínculo é corrigido automaticamente. Não exclua nem recrie eventos para eliminar o aviso.</p>' : '') + '</li>';
+      }).join('') + '</ul></details>' : '<p class="cus-note">Nenhuma integração pendente nos cadastros Em Uso.</p>');
+    if (!el.fmConferenciaVinculada) {
+      el.fmConferenciaVinculada = true;
+      el.addEventListener('click', function (ev) {
+        var botao = ev.target.closest && ev.target.closest('[data-fm-pneu-evento]');
+        if (botao && el.contains(botao) && typeof window.fmConferirEventoPneuFrota === 'function') window.fmConferirEventoPneuFrota(botao.getAttribute('data-fm-pneu-evento'));
+      });
+    }
   }
   window.fmSincronizarPneusFrota = async function (botao) {
     if (botao) botao.disabled = true;
