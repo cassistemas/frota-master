@@ -62,6 +62,7 @@
     var root = document.getElementById('custos'); if (!root) return;
     root.addEventListener('click', agendar);
     root.addEventListener('change', agendar);
+    document.addEventListener('frota:filtros-limpos', agendar);
     var abas = root.querySelector('.cus-tabs');
     if (abas) new MutationObserver(agendar).observe(abas, {subtree:true, attributes:true, attributeFilter:['class']});
     var paineis = root.querySelectorAll('.cus-pane');

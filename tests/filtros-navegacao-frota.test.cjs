@@ -1,0 +1,92 @@
+/* Executar: node --test tests/filtros-navegacao-frota.test.cjs */
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const ler = nome => fs.readFileSync(path.join(__dirname, '..', nome), 'utf8');
+const custos = ler('custos-frota.js');
+const resultado = ler('resultado-frota.js');
+const filtros = ler('filtros-por-aba.js');
+function funcao(fonte, nome) {
+  const linha = fonte.split('\n').find(x => x.trim().startsWith('function ' + nome + '('));
+  assert.ok(linha, nome);
+  return linha;
+}
+function ambiente(ativa = 'resultado') {
+  const campos = Object.fromEntries(['Veiculo', 'Tipo', 'Categoria', 'Origem', 'Status', 'Inicio', 'Fim'].map(x => ['cusFiltro' + x, { value: 'selecionado' }]));
+  const abas = ['resultado', 'relatoriomensal', 'lancamentos', 'quilometragem'].map(nome => ({
+    dataset: { tab: nome }, active: nome === ativa,
+    classList: { toggle(classe, valor) { if (classe === 'active') this.dono.active = valor; } }
+  }));
+  abas.forEach(x => { x.classList.dono = x; });
+  const panes = abas.map(x => ({ id: 'cusPane-' + x.dataset.tab, classList: { toggle() {} } }));
+  const eventos = [];
+  const ctx = {
+    estado: { tab: 'lancamentos', paginaLancamentos: 4, paginaImplementos: 3, paginaTerceirizacao: 2 },
+    document: {
+      getElementById: id => campos[id] || null,
+      querySelector: () => abas.find(x => x.active),
+      querySelectorAll: seletor => seletor === '.cus-tab' ? abas : panes,
+      dispatchEvent: ev => eventos.push(ev.type)
+    },
+    Event: function(type) { this.type = type; },
+    mesInicio: () => '2026-11-01', mesFim: () => '2026-11-30',
+    render() {}, renderTudo() {}, sincronizarKmVeiculo() {},
+    reiniciarPaginasResultadoFrota() {}, renderResultadoFrota() {}
+  };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext([
+    funcao(custos, 'abaAtiva'), funcao(custos, 'reiniciarPaginasFiltros'),
+    funcao(custos, 'limparFiltros'), funcao(custos, 'trocarAba'), funcao(resultado, 'trocar')
+  ].join('\n'), ctx);
+  ctx.limparFiltrosCustos = ctx.limparFiltros;
+  return { ctx, campos, eventos };
+}
+test('scripts alterados mantêm sintaxe JavaScript válida', () => {
+  for (const nome of ['custos-frota.js', 'resultado-frota.js', 'filtros-por-aba.js', 'periodo-marcado.js', 'resumo-filtros-frota.js']) new vm.Script(ler(nome));
+});
+test('troca entre abas dos dois grupos limpa filtros e todas as páginas', () => {
+  const { ctx, campos, eventos } = ambiente();
+  ctx.trocarAba('lancamentos');
+  for (const chave of ['Veiculo', 'Tipo', 'Categoria', 'Origem', 'Status']) assert.equal(campos['cusFiltro' + chave].value, '');
+  assert.equal(campos.cusFiltroInicio.value, '2026-11-01');
+  assert.equal(campos.cusFiltroFim.value, '2026-11-30');
+  assert.equal(ctx.estado.paginaImplementos, 1);
+  assert.equal(ctx.estado.paginaTerceirizacao, 1);
+  assert.deepEqual(eventos, ['frota:filtros-limpos']);
+  campos.cusFiltroVeiculo.value = 'ABC1234';
+  ctx.trocar('relatoriomensal');
+  assert.equal(campos.cusFiltroVeiculo.value, '');
+  campos.cusFiltroTipo.value = 'fixo';
+  ctx.trocarAba('lancamentos');
+  assert.equal(campos.cusFiltroTipo.value, '');
+});
+test('selecionar a mesma aba mantém o filtro da consulta atual', () => {
+  const { ctx, campos, eventos } = ambiente('lancamentos');
+  ctx.trocarAba('lancamentos');
+  assert.equal(campos.cusFiltroVeiculo.value, 'selecionado');
+  assert.equal(eventos.length, 0);
+});
+test('saída e retorno do módulo limpam sem recuperar a memória antiga', () => {
+  let oculta = false, limpezas = 0, removida;
+  const observadores = [];
+  const root = { classList: { contains: () => oculta }, querySelector: () => null };
+  const ctx = {
+    sessionStorage: { removeItem: chave => { removida = chave; } },
+    document: { readyState: 'complete', getElementById: () => root, querySelector: () => null, addEventListener() {} },
+    MutationObserver: function(callback) { this.observe = () => observadores.push(callback); },
+    limparFiltrosCustos: () => { limpezas++; }
+  };
+  ctx.window = ctx;
+  vm.runInNewContext(filtros.split('/* Cartão')[0], ctx);
+  assert.equal(removida, 'fm_filtros_por_aba');
+  oculta = true;
+  observadores[0]([{ oldValue: 'cus-page' }]);
+  oculta = false;
+  observadores[0]([{ oldValue: 'hidden cus-page' }]);
+  assert.equal(limpezas, 2);
+  observadores[0]([{ oldValue: 'cus-page' }]);
+  assert.equal(limpezas, 2);
+});
