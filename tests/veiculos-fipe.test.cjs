@@ -23,6 +23,7 @@ function ambiente(registros = [], resposta = {}) {
   // Acesso ao salvamento somente no ambiente de teste, sem API pública adicional.
   vm.runInContext(codigo.replace('  /* ---------------- boot ---------------- */',
     '  window.salvarDetranTeste = salvarDetran;\n' +
+    '  window.detalheDetranTeste = detalheHtml;\n' +
     '  window.aplicarFipeTeste = function(p) { FIPE.atual = p; aplicarAnoFipe(); };\n' +
     '  /* ---------------- boot ---------------- */'), ctx);
   function el(id, valor = '') {
@@ -41,7 +42,45 @@ function registro(ref, valor, extras = {}) {
 }
 test('sintaxe válida e módulo carregado na página principal', () => {
   new vm.Script(ler('veiculos-detran.js'));
-  assert.match(ler('index.html'), /src="\.\/veiculos-detran\.js\?v=2-historico-fipe"/);
+  assert.match(ler('index.html'), /src="\.\/veiculos-detran\.js\?v=3-observacoes-fipe"/);
+});
+test('olhinho separa observações da grade e mantém notas e comparativo em largura completa', () => {
+  const { ctx, api } = ambiente();
+  const notas = 'Primeira linha\nSegunda linha <teste>';
+  const x = api.registrar(registro('março de 2026', 'R$ 100.000,00'),
+    registro('abril de 2026', 'R$ 98.500,00', { dtObs: notas }));
+  const antes = JSON.stringify(x);
+  const html = ctx.detalheDetranTeste(x, 0);
+  const inicioObs = html.indexOf('<section class="fm-det-obs"');
+  assert.ok(inicioObs > html.indexOf('<div class="fm-det-grid">'));
+  assert.ok(html.slice(0, inicioObs).endsWith('</span></div></div>'));
+  assert.doesNotMatch(html.slice(0, inicioObs), /Observações|Comparativo mensal FIPE/);
+  assert.match(html.slice(inicioObs), /Observações do veículo/);
+  assert.match(html, /Primeira linha\nSegunda linha &lt;teste&gt;/);
+  assert.equal((html.match(/class="fm-det-fipe-card"/g) || []).length, 3);
+  assert.match(html, /FIPE anterior — março\/2026/);
+  assert.match(html, /FIPE atual — abril\/2026/);
+  assert.match(html, /Queda de/);
+  assert.equal(JSON.stringify(x), antes);
+});
+for (const [valor, texto] of [
+  ['R$ 101.500,10', 'Aumento de'],
+  ['R$ 98.500,00', 'Queda de'],
+  ['R$ 100.000,00', 'sem alteração']
+]) test(`quadro do comparativo apresenta ${texto} sem alterar o registro`, () => {
+  const { ctx, api } = ambiente();
+  const x = api.registrar(registro('março de 2026', 'R$ 100.000,00'), registro('abril de 2026', valor));
+  const antes = JSON.stringify(x);
+  assert.ok(ctx.detalheDetranTeste(x, 0).includes(texto));
+  assert.equal(JSON.stringify(x), antes);
+});
+test('quadro informa ausência de histórico sem criar valores anteriores', () => {
+  const { ctx } = ambiente();
+  const x = registro('abril de 2026', 'R$ 98.500,00');
+  const html = ctx.detalheDetranTeste(x, 0);
+  assert.match(html, /Sem histórico do mês anterior/);
+  assert.match(html, /Diferença no mês<\/span><strong class="fm-det-fipe-valor">Indisponível/);
+  assert.equal(x.dtFipeHistorico, undefined);
 });
 test('normaliza referências mensais e valores em centavos sem usar a data da consulta', () => {
   const { api } = ambiente();
@@ -110,7 +149,7 @@ test('Atualizar FIPE salva histórico e mostra o comparativo nas observações d
   x.dtObs += ' comentário adicional após a FIPE';
   assert.match(td.innerHTML, /FIPE anterior — março\/2026/);
   assert.match(td.innerHTML, /FIPE atual — abril\/2026/);
-  assert.match(td.innerHTML, /Diferença no mês: queda de/);
+  assert.match(td.innerHTML, /Diferença no mês<\/span><strong class="fm-det-fipe-valor">Queda de/);
   await amb.atualizar();
   assert.equal(x.dtFipeHistorico.length, 2);
   assert.match(x.dtObs, /comentário adicional após a FIPE/);

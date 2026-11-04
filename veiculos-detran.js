@@ -122,12 +122,14 @@
     function mesNome(m) {
       return ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"][+m.slice(5) - 1] + "/" + m.slice(0, 4);
     }
-    var linhas = [];
-    if (c.anterior) linhas.push("FIPE anterior — " + mesNome(c.anterior.mes) + ": " + moeda(c.anterior.centavos));
-    else linhas.push("Sem histórico do mês anterior");
-    linhas.push(c.atual ? "FIPE atual — " + mesNome(c.atual.mes) + ": " + moeda(c.atual.centavos) : "FIPE atual: " + (x.dtFipeValor || "Não consultada") + " — referência mensal indisponível");
-    linhas.push(c.diferenca === null ? "Diferença no mês: indisponível" : c.diferenca === 0 ? "Diferença no mês: " + moeda(0) + " — sem alteração" : "Diferença no mês: " + (c.diferenca > 0 ? "aumento de " : "queda de ") + moeda(Math.abs(c.diferenca)));
-    return '<div class="mt-2"><strong>Comparativo mensal FIPE</strong>' + linhas.map(function (linha) { return '<div>' + esc(linha) + '</div>'; }).join("") + '</div>';
+    var quadros = [
+      { titulo: c.anterior ? "FIPE anterior — " + mesNome(c.anterior.mes) : "FIPE anterior", valor: c.anterior ? moeda(c.anterior.centavos) : "Sem histórico do mês anterior" },
+      { titulo: c.atual ? "FIPE atual — " + mesNome(c.atual.mes) : "FIPE atual", valor: c.atual ? moeda(c.atual.centavos) : (x.dtFipeValor || "Não consultada"), nota: c.atual ? "" : "Referência mensal indisponível" },
+      { titulo: "Diferença no mês", valor: c.diferenca === null ? "Indisponível" : c.diferenca === 0 ? moeda(0) + " — sem alteração" : (c.diferenca > 0 ? "Aumento de " : "Queda de ") + moeda(Math.abs(c.diferenca)) }
+    ];
+    return '<div class="fm-det-fipe"><div class="fm-det-fipe-tit">Comparativo mensal FIPE</div><div class="fm-det-fipe-grid">' + quadros.map(function (q) {
+      return '<div class="fm-det-fipe-card"><span class="fm-det-k">' + esc(q.titulo) + '</span><strong class="fm-det-fipe-valor">' + esc(q.valor) + '</strong>' + (q.nota ? '<span class="fm-det-k">' + esc(q.nota) + '</span>' : '') + '</div>';
+    }).join("") + '</div></div>';
   }
 
   window.FMVeiculosFipe = { mes: mesFipe, centavos: centavosFipe, registrar: registrarHistoricoFipe, comparar: compararFipe };
@@ -570,6 +572,13 @@
       ".fm-det-item{display:flex;flex-direction:column;border-bottom:1px dashed #e2e8f0;padding-bottom:4px}" +
       ".fm-det-k{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#64748b}" +
       ".fm-det-v{font-size:.83rem;font-weight:600;color:#0f172a;word-break:break-word}" +
+      "#abaDetranPane .fm-det-obs{margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0;white-space:normal}" +
+      "#abaDetranPane .fm-det-notas{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:4px}" +
+      "#abaDetranPane .fm-det-fipe{margin-top:12px;padding:12px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;white-space:normal}" +
+      "#abaDetranPane .fm-det-fipe-tit{font-size:.75rem;font-weight:700;color:#1d4ed8;margin-bottom:10px}" +
+      "#abaDetranPane .fm-det-fipe-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}" +
+      "#abaDetranPane .fm-det-fipe-card{display:flex;flex-direction:column;gap:5px;min-width:0;padding:10px;background:#f8fafc;border-radius:6px;overflow-wrap:anywhere}" +
+      "#abaDetranPane .fm-det-fipe-valor{font-size:.9rem;line-height:1.5;color:#0f172a}" +
       "@media print{body *{visibility:hidden}#fmPrint,#fmPrint *{visibility:visible}" +
       "#fmPrint{position:absolute;left:0;top:0;width:100%}}";
     document.head.appendChild(s);
@@ -787,9 +796,8 @@
 
   /* ---------------- detalhes (todos os dados salvos) ---------------- */
   function detalheHtml(x, idx) {
-    var itens = CAMPOS.map(function (c) {
+    var itens = CAMPOS.filter(function (c) { return c[0] !== "dtObs"; }).map(function (c) {
       var v = c[2] === "date" ? dataBR(x[c[0]]) : d(x[c[0]]);
-      if (c[0] === "dtObs") v += comparativoFipeHtml(x);
       return (
         '<div class="fm-det-item"><span class="fm-det-k">' +
         esc(c[1]) +
@@ -818,7 +826,11 @@
       '<button type="button" class="btn btn-sm btn-primary" id="fipeUpBtn' + idx + '" onclick="atualizarFipeDetran(' + idx + ')">🔄 Atualizar FIPE</button>' +
       '<span id="fipeUpMsg' + idx + '" style="font-size:.8rem;color:#64748b"></span>' +
       "</div>" +
-      '<div class="fm-det-grid">' + itens + "</div></div>"
+      '<div class="fm-det-grid">' + itens + '</div>' +
+      '<section class="fm-det-obs" aria-label="Observações do veículo">' +
+      '<div class="fm-det-k">Observações</div>' +
+      '<div class="fm-det-v fm-det-notas">' + d(x.dtObs) + '</div>' +
+      comparativoFipeHtml(x) + '</section></div>'
     );
   }
 
