@@ -203,6 +203,144 @@ function carregarSync(amb) {
   vm.runInContext(ler('pneus-sync.js'), amb.ctx);
   return amb.ctx.fmAtualizarKmPneusVeiculo;
 }
+function formularioKm(amb, valores = {}) {
+  const campos = {};
+  for (const id of ['p_idx','pveiculo','pstatus','pkminstalacao','pkmatual','pkmrodado','pneuKmAviso']) {
+    campos[id] = { value: valores[id] ?? '', dataset: {}, textContent: '', hidden: true };
+  }
+  const ouvintes = {};
+  amb.ctx.document.getElementById = id => campos[id] || null;
+  amb.ctx.document.addEventListener = (tipo, fn) => {
+    (ouvintes[tipo] ||= []).push(fn);
+  };
+  amb.ctx.editar = (mod, i) => {
+    const p = amb.db.pneus[i];
+    for (const id of ['pveiculo','pstatus','pkminstalacao','pkmatual','pkmrodado']) campos[id].value = p[id] ?? '';
+    campos.p_idx.value = String(i);
+  };
+  carregarSync(amb);
+  return { campos, evento: (tipo, id) => {
+    for (const fn of ouvintes[tipo] || []) fn({ target: { id } });
+  } };
+}
+test('formulário busca KM de Veículos pela placa e recalcula sem salvar nem alterar registros', () => {
+  const amb = ambiente({ veiculos: [{ vplaca: 'ABC-1234', vkm: '150.000' }] });
+  const { campos, evento } = formularioKm(amb, { pstatus:'Em Uso', pveiculo:'abc1234', pkminstalacao:'120000' });
+  const antes = JSON.stringify(amb.db);
+  evento('change', 'pveiculo');
+  assert.equal(campos.pkmatual.value, '150000');
+  assert.equal(campos.pkmrodado.value, '30000');
+  assert.equal(campos.pkmatual.readOnly, true);
+  campos.pkminstalacao.value = '125000';
+  evento('input', 'pkminstalacao');
+  assert.equal(campos.pkmrodado.value, '25000');
+  assert.equal(campos.pkminstalacao.value, '125000');
+  assert.equal(JSON.stringify(amb.db), antes);
+  assert.equal(amb.salvos.length, 0);
+});
+test('editar consulta leitura atual sem modificar instalação, custos ou histórico', () => {
+  const amb = ambiente({ pneus: [pneu({ pkmatual:'201000', pkmrodado:'1000' })], veiculos: [{ vplaca:'ABC-1234', vkm:'210000' }] });
+  const { campos } = formularioKm(amb);
+  const antes = JSON.stringify(amb.db);
+  amb.ctx.editar('pneus', 0);
+  assert.equal(campos.pkmatual.value, '210000');
+  assert.equal(campos.pkmrodado.value, '10000');
+  assert.equal(campos.pkminstalacao.value, 200000);
+  assert.equal(JSON.stringify(amb.db), antes);
+  assert.equal(amb.salvos.length, 0);
+});
+test('leituras ausentes, instalação inválida e divergências não fabricam KM rodado', () => {
+  const amb = ambiente({ veiculos:[{ vplaca:'ABC1234', vkm:'150000' }] });
+  const { campos } = formularioKm(amb, { pstatus:'Em Uso', pveiculo:'ABC1234', pkminstalacao:'120000' });
+  for (const inicio of ['', 'inválido', '160000']) {
+    campos.pkminstalacao.value = inicio;
+    amb.ctx.calcularKMPneu();
+    assert.equal(campos.pkmatual.value, '150000');
+    assert.equal(campos.pkmrodado.value, '');
+    assert.equal(campos.pneuKmAviso.hidden, false);
+  }
+  campos.pkminstalacao.value = '120000';
+  for (const km of ['', null, NaN, Infinity, -1, 'inválido']) {
+    amb.db.veiculos[0].vkm = km;
+    amb.ctx.calcularKMPneu();
+    assert.equal(campos.pkmatual.value, '');
+    assert.equal(campos.pkmrodado.value, '');
+  }
+  amb.db.veiculos[0].vkm = 150000;
+  amb.ctx.fmModuloCarregado = () => false;
+  amb.ctx.calcularKMPneu();
+  assert.match(campos.pneuKmAviso.textContent, /Aguarde/);
+  assert.equal(campos.pkmatual.value, '');
+  amb.ctx.fmModuloCarregado = () => true;
+  amb.db.veiculos.push({ vplaca:'ABC-1234', vkm:160000 });
+  amb.ctx.calcularKMPneu();
+  assert.match(campos.pneuKmAviso.textContent, /cadastro único/);
+});
+test('transferência usa origem editável, destino independente e nunca subtrai placas', () => {
+  const amb = ambiente({ pneus:[pneu({ pkmatual:'201000' })], veiculos:[{ vplaca:'ABC-1234', vkm:210000 }, { vplaca:'XYZ9999', vkm:85000 }], eventosPneus:[instalacao()] });
+  const { campos, evento } = formularioKm(amb);
+  const antes = JSON.stringify(amb.db);
+  amb.ctx.editar('pneus', 0);
+  campos.pveiculo.value = 'XYZ9999';
+  campos.pkminstalacao.value = '80000';
+  evento('change', 'pveiculo');
+  assert.equal(campos.pkmatual.value, '210000');
+  assert.equal(campos.pkmatual.readOnly, false);
+  assert.equal(campos.pkmrodado.value, '');
+  campos.pkmatual.value = '207000';
+  evento('input', 'pkmatual');
+  evento('input', 'pkminstalacao');
+  assert.equal(campos.pkmatual.value, '207000');
+  const plano = amb.api.preparar(pneu({ pveiculo:'XYZ9999', pdatainstalacao:'2026-01-15', pkminstalacao:campos.pkminstalacao.value, pkmatual:campos.pkmatual.value }), amb.db.pneus[0]);
+  assert.equal(plano.erro, undefined);
+  assert.equal(plano.eventos[0].odometroOrigem, 207000);
+  assert.equal(plano.eventos[0].odometro, 80000);
+  assert.equal(JSON.stringify(amb.db), antes);
+  assert.equal(amb.salvos.length, 0);
+  campos.pveiculo.value = 'ABC1234';
+  campos.pkminstalacao.value = '200000';
+  evento('change', 'pveiculo');
+  assert.equal(campos.pkmatual.value, '210000');
+  assert.equal(campos.pkmatual.readOnly, true);
+  assert.equal(campos.pkmrodado.value, '10000');
+});
+test('retirada preserva saída histórica editável e pneus fora de uso não seguem o veículo', () => {
+  const amb = ambiente({ pneus:[pneu()], veiculos:[{ vplaca:'ABC1234', vkm:210000 }] });
+  const { campos, evento } = formularioKm(amb);
+  amb.ctx.editar('pneus', 0);
+  campos.pstatus.value = 'Estoque';
+  evento('change', 'pstatus');
+  assert.equal(campos.pkmatual.value, '210000');
+  assert.equal(campos.pkmatual.readOnly, false);
+  campos.pkmatual.value = '207000';
+  evento('input', 'pkmatual');
+  amb.db.veiculos[0].vkm = 220000;
+  amb.ctx.calcularKMPneu();
+  assert.equal(campos.pkmatual.value, '207000');
+  assert.equal(campos.pkmrodado.value, '7000');
+  amb.db.pneus[0].pstatus = 'Estoque';
+  amb.db.pneus[0].pkmatual = '207000';
+  amb.db.pneus[0].pkmrodado = '7000';
+  amb.ctx.editar('pneus', 0);
+  assert.equal(campos.pkmatual.value, '207000');
+  assert.equal(campos.pkmrodado.value, '7000');
+});
+test('detalhes consultam KM atualizado sem gravar nem gerar eventos', () => {
+  const amb = ambiente({ pneus:[pneu({ phist:[], pkmatual:'201000', pkmrodado:'1000' })], veiculos:[{ vplaca:'ABC-1234', vkm:210000 }], estoque:[] });
+  const { campos } = formularioKm(amb);
+  const tabela = { innerHTML:'' };
+  amb.ctx.document.getElementById = id => id === 'listaPneus' ? tabela : campos[id] || null;
+  const antes = JSON.stringify(amb.db);
+  amb.ctx.renderTabelaPneus();
+  assert.match(tabela.innerHTML, /KM atual<\/span><b>210000/);
+  assert.match(tabela.innerHTML, /KM rodado<\/span><b>10000 KM/);
+  amb.db.veiculos[0].vkm = 215000;
+  amb.ctx.renderTabelaPneus();
+  assert.match(tabela.innerHTML, /KM rodado<\/span><b>15000 KM/);
+  amb.db.veiculos[0].vkm = 210000;
+  assert.equal(JSON.stringify(amb.db), antes);
+  assert.equal(amb.salvos.length, 0);
+});
 test('KM de Veículos atualiza apenas pneus Em Uso da mesma placa sem movimentações', () => {
   const ativo = pneu({ pkmatual: '205000', pkmrodado: '5000', phist: [{ tipo: 'Instalação' }] });
   const outros = ['Estoque', 'Recapado', 'Descartado', 'Veículo Vendido'].map(pstatus => pneu({ pstatus }));

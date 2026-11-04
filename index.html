@@ -3148,16 +3148,21 @@ oninput="calcularKMPneu()">
             </div>
 
             <div class="col-md-3">
+                <label for="pkmatual">KM Atual do veículo / saída da origem</label>
                 <input id="pkmatual"
 type="number"
 class="form-control"
-placeholder="KM Atual"
+placeholder="Automático pelo veículo"
+readonly
+aria-describedby="pneuKmAviso"
 oninput="calcularKMPneu()">
             </div>
 
             <div class="col-md-3">
+                <label for="pkmrodado">KM Rodado (Atual − Instalação)</label>
                 <input id="pkmrodado"class="form-control"placeholder="KM Rodado Automático"readonly>
             </div>
+            <div id="pneuKmAviso" class="col-12 small text-warning" role="status" aria-live="polite" hidden></div>
 
             <div class="col-md-3">
                 <select id="pstatus" class="form-select">
@@ -9941,7 +9946,7 @@ style="width:100%; height:400px; border:none;">
 <script src="./estoque-pro.js?v=20261110-competencia"></script>
 <script src="./terceiros-local.js?v=1"></script>
 <script src="./pneus-frota.js?v=20261112-diagnostico-vinculo"></script>
-<script src="./pneus-sync.js?v=20261111-km-veiculo"></script>
+<script src="./pneus-sync.js?v=20261113-km-automatico"></script>
 <script src="./pneus-lote.js?v=20261110-competencia"></script>
 <script src="./login-senha.js?v=20260906-2"></script>
 <script src="./card-base-data.js?v=20260907-2"></script>

@@ -70,6 +70,102 @@
     return alterados;
   };
 
+  /* Consulta de tela: nunca prepara registros, salva ou cria movimentos. */
+  function placaKm(v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+  function numeroKm(v) {
+    var s = String(v == null ? '' : v).trim();
+    if (!/^\d+(?:[.,]\d+)*$/.test(s)) return null;
+    var valor = typeof window.fmKmNumero === 'function' ? window.fmKmNumero(s)
+      : Number(s.replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'));
+    return Number.isFinite(valor) && valor >= 0 ? valor : null;
+  }
+  function leituraKm(p) {
+    if (p.pstatus !== 'Em Uso') return { atual:p.pkmatual, rodado:p.pkmrodado, aviso:'' };
+    function pendente(txt) { return { atual:'', rodado:'', aviso:txt }; }
+    if (typeof window.fmModuloCarregado === 'function' &&
+        (!window.fmModuloCarregado('veiculos') || !window.fmModuloCarregado('pneus'))) return pendente('Aguarde o carregamento de Veículos e Pneus.');
+    var placa = placaKm(p.pveiculo);
+    var encontrados = (base().veiculos || []).filter(function (v) { return placa && placaKm(v.vplaca) === placa; });
+    if (encontrados.length !== 1) return pendente('Selecione um veículo com cadastro único para consultar o KM Atual.');
+    var atual = numeroKm(encontrados[0].vkm), inicio = numeroKm(p.pkminstalacao);
+    if (atual === null) return pendente('O veículo está sem KM Atual válido. Confira o módulo Veículos.');
+    if (inicio === null) return { atual:String(atual), rodado:'', aviso:'Informe um KM de instalação válido para calcular o KM rodado.' };
+    if (atual < inicio) return { atual:String(atual), rodado:'', aviso:'KM Atual menor que o KM de instalação. Confira as leituras; o KM rodado não foi calculado.' };
+    return { atual:String(atual), rodado:String(atual - inicio), aviso:'' };
+  }
+  function campoKm(id) { return document.getElementById(id); }
+  function valorKm(id) { return (campoKm(id) || {}).value || ''; }
+  function avisoKm(texto) {
+    var aviso = campoKm('pneuKmAviso');
+    if (aviso) { aviso.textContent = texto; aviso.hidden = !texto; }
+  }
+  window.calcularKMPneu = function () {
+    var atual = campoKm('pkmatual'), rodado = campoKm('pkmrodado');
+    if (!atual || !rodado) return;
+    var idx = valorKm('p_idx');
+    var original = idx !== '' ? (base().pneus || [])[Number(idx)] : null;
+    var status = valorKm('pstatus'), placa = valorKm('pveiculo');
+    var transferencia = original && original.pstatus === 'Em Uso' && status === 'Em Uso' && placaKm(original.pveiculo) !== placaKm(placa);
+    var retirada = original && original.pstatus === 'Em Uso' && status !== 'Em Uso';
+    if (transferencia || retirada) {
+      // KM Atual pertence à ORIGEM; nunca preenche com o odômetro do destino.
+      if (atual.dataset.fmKmModo !== 'origem') {
+        atual.value = leituraKm(original).atual || '';
+      }
+      atual.dataset.fmKmModo = 'origem';
+      atual.readOnly = false;
+      atual.title = 'Odômetro de saída do veículo de origem (editável para movimentações históricas)';
+      var saidaOrigem = numeroKm(atual.value), inicioOrigem = numeroKm(original.pkminstalacao);
+      rodado.value = !transferencia && saidaOrigem !== null && inicioOrigem !== null && saidaOrigem >= inicioOrigem ? String(saidaOrigem - inicioOrigem) : '';
+      avisoKm(transferencia ? 'Transferência: KM Atual é a saída da origem ' + original.pveiculo + '. Informe o KM Instalação do destino; os odômetros não são subtraídos entre placas.' : 'Retirada: confira o KM de saída da origem ' + original.pveiculo + ' e a data da movimentação.');
+      return;
+    }
+    atual.dataset.fmKmModo = status === 'Em Uso' ? 'automatico' : 'manual';
+    atual.readOnly = status === 'Em Uso';
+    atual.title = status === 'Em Uso' ? 'KM Atual consultado automaticamente no módulo Veículos' : 'Leitura da movimentação, sem atualização automática';
+    if (status === 'Em Uso') {
+      var leitura = leituraKm({ pstatus:status, pveiculo:placa, pkminstalacao:valorKm('pkminstalacao') });
+      atual.value = leitura.atual;
+      rodado.value = leitura.rodado;
+      avisoKm(leitura.aviso);
+    } else {
+      avisoKm('');
+    }
+  };
+  ['input','change'].forEach(function (tipo) {
+    document.addEventListener(tipo, function (ev) {
+      if (ev.target && ['pveiculo','pstatus','pkminstalacao','pkmatual'].indexOf(ev.target.id) >= 0) window.calcularKMPneu();
+    });
+  });
+  // Limpezas feitas pelo formulário também encerram o modo de saída da origem.
+  var limparKmAnterior = window.limparForm;
+  if (typeof limparKmAnterior === 'function') {
+    window.limparForm = function (mod) {
+      var r = limparKmAnterior.apply(this, arguments);
+      if (mod === 'pneus') {
+        var atual = campoKm('pkmatual');
+        if (atual) atual.dataset.fmKmModo = '';
+        window.calcularKMPneu();
+      }
+      return r;
+    };
+  }
+  window.addEventListener('frota:placa-alterada', function () {
+    window.calcularKMPneu();
+    var modulo = campoKm('pneus');
+    if (modulo && !modulo.classList.contains('hidden')) renderTabela();
+  });
+  var editarKmAnterior = window.editar;
+  window.editar = function (mod) {
+    var r = typeof editarKmAnterior === 'function' ? editarKmAnterior.apply(this, arguments) : undefined;
+    if (mod === 'pneus') {
+      var atual = campoKm('pkmatual');
+      if (atual) atual.dataset.fmKmModo = '';
+      window.calcularKMPneu();
+    }
+    return r;
+  };
+
   /* ---------- identidade e nome do item no estoque ---------- */
   function garantirId(p) {
     if (!p.pid) p.pid = "PNEU-" + Date.now() + "-" + Math.floor(Math.random() * 10000);
@@ -256,6 +352,7 @@
     }
     if (!Array.isArray(b.pneus)) b.pneus = [];
 
+    window.calcularKMPneu();
     var obj = {};
     campos.forEach(function (id) {
       var el = document.getElementById(id);
@@ -291,6 +388,13 @@
     }
     var plano = window.FMPneusFrota ? window.FMPneusFrota.preparar(obj, anterior) : {erro:'A integração de Pneus por KM não está disponível.'};
     if (plano.erro) { alert(plano.erro); return; }
+    // O plano já capturou a saída da origem. O cadastro Em Uso guarda
+    // somente a leitura do destino, sem misturar odômetros na transferência.
+    if (obj.pstatus === 'Em Uso') {
+      var leitura = leituraKm(obj);
+      obj.pkmatual = leitura.atual;
+      obj.pkmrodado = leitura.rodado;
+    }
     if (novo && !window.fmPneusLoteAtivo && !confirm('Confirmar cadastro do pneu ' + obj.pnumero + '?\n\nMarca: ' + (obj.pmarca || '--') + '\nMedida: ' + (obj.pmedida || '--') + '\nValor: ' + moeda(obj.pvalor) + '\nStatus: ' + (obj.pstatus || '--') + '\nVeículo: ' + (obj.pveiculo || 'Sem veículo (estoque)') + '\n\nSomente ao confirmar o pneu e seus movimentos serão salvos.')) return false;
     if (typeof window.fmPrepararRegistro === "function") {
       window.fmPrepararRegistro("pneus", obj, anterior);
@@ -355,6 +459,7 @@
   var abertos = {};
   window.togglePneuDetalhe = function (id) {
     abertos[id] = !abertos[id];
+    renderTabela(); // consulta novamente o odômetro ao abrir os detalhes
     var linha = document.getElementById("pneuDet_" + id);
     var btn = document.getElementById("pneuOlho_" + id);
     if (linha) linha.classList.toggle("hidden", !abertos[id]);
@@ -373,6 +478,7 @@
     var hist = historico(p).slice().reverse();
     var mv = movsPneu(p).slice().reverse();
     var saldo = saldoPneu(p);
+    var km = leituraKm(p);
 
     var info =
       linhaDet("Número", p.pnumero) +
@@ -388,8 +494,9 @@
       linhaDet("Fornecedor", p.pfornecedor) +
       linhaDet("Posição", p.pposicao) +
       linhaDet("KM instalação", p.pkminstalacao) +
-      linhaDet("KM atual", p.pkmatual) +
-      linhaDet("KM rodado", (p.pkmrodado || 0) + " KM") +
+      linhaDet("KM atual", km.atual) +
+      linhaDet("KM rodado", km.rodado === '' || km.rodado == null ? '--' : km.rodado + " KM") +
+      (km.aviso ? linhaDet("Aviso de quilometragem", km.aviso) : '') +
       linhaDet("Status", p.pstatus) +
       linhaDet("Em estoque", saldo > 0 ? "Sim (saldo " + saldo + ")" : "Não") +
       linhaDet("Cadastrado em", p.pdatacadastro ? dataBRx(String(p.pdatacadastro).slice(0, 10)) : "--") +
@@ -442,6 +549,7 @@
   }
 
   function renderTabela() {
+    window.calcularKMPneu();
     var b = base();
     if (!Array.isArray(b.pneus)) b.pneus = [];
     b.pneus.forEach(garantirId);
@@ -504,5 +612,9 @@
     }
   };
 
-  setTimeout(function () { if (!document.getElementById("pneus").classList.contains("hidden")) renderModulo("pneus"); }, 1200);
+  setTimeout(function () {
+    window.calcularKMPneu();
+    var modulo = document.getElementById('pneus');
+    if (modulo && !modulo.classList.contains('hidden')) renderModulo('pneus');
+  }, 1200);
 })();
