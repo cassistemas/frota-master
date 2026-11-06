@@ -2411,6 +2411,7 @@ Limpar
 
 <div id="combustivel" class="hidden">
     <h3>⛽ Controle de Combustível</h3>
+    <p class="small text-muted">Informe a data e o KM da nota ou cupom, mesmo ao lançar depois. A média de cada abastecimento usa o cupom anterior por data; lançamentos antigos recalculam essa sequência sem alterar o odômetro do cadastro. O primeiro abastecimento fica sem média.</p>
 
     <div class="glass-container">
         <input type="hidden" id="c_idx">
@@ -2422,7 +2423,7 @@ Limpar
             </div>
 
             <div class="col-md-2">
-                <input type="date" id="cdata" class="form-control">
+                <input type="date" id="cdata" class="form-control" aria-label="Data da nota ou cupom" title="Data do abastecimento na nota ou cupom, não a data de cadastro">
             </div>
 
             <div class="col-md-2">
@@ -2457,7 +2458,7 @@ Limpar
             </script>
 
             <div class="col-md-2">
-            <input id="ckm" class="form-control" placeholder="KM Atual">
+            <input id="ckm" class="form-control" placeholder="KM do cupom" aria-label="Odômetro na data do abastecimento" title="Informe o KM registrado na nota ou cupom, mesmo que seja um lançamento antigo">
             </div>
 
             <div class="col-md-3">
@@ -2536,7 +2537,7 @@ Limpar
                     <th>Litros</th>
                     <th>Valor/L</th>
                     <th>Total</th>
-                    <th>Média</th>
+                    <th title="Diferença de KM em relação ao abastecimento anterior por data, dividida pelos litros deste abastecimento. ARLA não entra no cálculo.">Média do cupom</th>
                     <th>Posto</th>
                     <th>Ações</th>
                 </tr>
@@ -5277,7 +5278,8 @@ function compararDataCombustivel(a, b) {
         (Number(a.ckm) || 0) - (Number(b.ckm) || 0);
 }
 
-function calcularMediaCombustivel(dados) {
+// Cada intervalo pertence à data do cupom, nunca à ordem de cadastro.
+function intervalosCombustivel(dados) {
     const porVeiculo = new Map();
     (dados || []).forEach(c => {
         // ARLA é um aditivo e não compõe os litros de combustível consumido.
@@ -5287,16 +5289,17 @@ function calcularMediaCombustivel(dados) {
         porVeiculo.get(placa).push(c);
     });
 
-    let totalKm = 0;
-    let totalLitros = 0;
+    const intervalos = new Map();
     porVeiculo.forEach(lista => {
         const grupos = [];
         lista.sort(compararDataCombustivel).forEach(c => {
             const km = Number(c.ckm) || 0;
             const litros = parseFloat(String(c.clitros || '').replace(',', '.')) || 0;
             const ultimo = grupos[grupos.length - 1];
-            if (ultimo && ultimo.data === c.cdata && ultimo.km === km) ultimo.litros += litros;
-            else grupos.push({ data: c.cdata, km, litros });
+            if (ultimo && ultimo.data === c.cdata && ultimo.km === km) {
+                ultimo.litros += litros;
+                ultimo.registros.push(c);
+            } else grupos.push({ data: c.cdata, km, litros, registros: [c] });
         });
         let maiorKm = 0;
         let anteriorValido = false;
@@ -5304,22 +5307,38 @@ function calcularMediaCombustivel(dados) {
             // Não transforma KM zerado/regressivo em distância positiva por reordenação.
             const valido = g.km > maiorKm && g.litros > 0;
             if (valido && anteriorValido) {
-                totalKm += g.km - maiorKm;
-                totalLitros += g.litros;
+                const intervalo = { km: g.km - maiorKm, litros: g.litros };
+                g.registros.forEach(c => intervalos.set(c, intervalo));
             }
             maiorKm = Math.max(maiorKm, g.km);
             anteriorValido = valido;
         });
     });
+    return intervalos;
+}
 
+function calcularMediaCombustivel(dados, historico = dados) {
+    let totalKm = 0, totalLitros = 0;
+    const intervalos = intervalosCombustivel(historico);
+    // O intervalo pertence ao cupom selecionado; sua referência anterior pode
+    // estar fora do período. Produtos do mesmo cupom contam uma única vez.
+    new Set((dados || []).map(c => intervalos.get(c)).filter(Boolean)).forEach(intervalo => {
+        totalKm += intervalo.km;
+        totalLitros += intervalo.litros;
+    });
     return totalKm > 0 && totalLitros > 0
         ? (totalKm / totalLitros).toFixed(2) + ' km/L'
         : '--';
 }
 
+function mediaPorAbastecimento(registro, intervalos) {
+    const intervalo = (intervalos || intervalosCombustivel(db.combustivel)).get(registro);
+    return intervalo ? (intervalo.km / intervalo.litros).toFixed(2) + ' km/L' : '--';
+}
+
 function atualizarResumoCombustivel() {
     const dados = obterCombustiveisFiltrados();
-    const media = calcularMediaCombustivel(dados);
+    const media = calcularMediaCombustivel(dados, db.combustivel || []);
     const litros = dados.reduce((soma, c) =>
         soma + (parseFloat(String(c.clitros || '').replace(',', '.')) || 0), 0);
     const total = dados.reduce((soma, c) => {
@@ -5969,40 +5988,8 @@ renderRevisoes();
 }
 
 function salvarCombustivel(){
-
-    const veiculo = document.getElementById('cveiculo').value;
-    const data = document.getElementById('cdata').value;
-    const tipo = document.getElementById('ctipo').value;
-    const litros = parseFloat(document.getElementById('clitros').value || 0);
-    const valorLitro = parseFloat(document.getElementById('cvalorlitro').value || 0);
-    const posto = document.getElementById('cposto').value;
-
-    const total = litros * valorLitro;
-
-    // média automática (base KM do veículo)
-    const veic = db.veiculos.find(v => v.vplaca == veiculo);
-    let media = '--';
-
-    if(veic && litros > 0){
-        media = (veic.vkm / litros).toFixed(2);
-    }
-
-    db.combustivel.push(fmPrepararRegistro('combustivel', {
-        cveiculo: veiculo,
-        cdata: data,
-        ctipo: tipo,
-        clitros: litros,
-        cvalorlitro: valorLitro,
-        ctotal: total,
-        cmedia: media,
-        cposto: posto
-    }));
-
-    salvarNuvem(['combustivel']);
-
-    irParaUltimaPagina('combustivel');
-    renderModulo('combustivel');
-    atualizarResumoCombustivel();
+    // Mantém chamadas antigas no mesmo fluxo do formulário e da conferência por data.
+    return salvarCombustivelCustom();
 }
 
 function estoqueNumero(valor) {
@@ -9705,9 +9692,9 @@ style="width:100%; height:400px; border:none;">
           if(!contem(c.cposto,po)) return false;
           return true;
         });
-      const dadosFiltrados = filtrados.map(({c}) => c);
-      return filtrados
-        .map(({c,i}) => `<tr><td>${d(c.cveiculo)}</td><td>${typeof formatarDataBR==='function'? formatarDataBR(c.cdata): d(c.cdata)}</td><td>${d(c.ctipo)}</td><td>${d(c.ckm)}</td><td>${d(c.clitros)}</td><td>${d(c.cvalorlitro)}</td><td>${d(c.ctotal)}</td><td>${typeof mediaPorVeiculo==='function' ? mediaPorVeiculo(c.cveiculo, dadosFiltrados) : d(c.cmedia)}</td><td>${d(c.cposto)}</td>${acoes(mod,i)}</tr>`)
+      const intervalos = intervalosCombustivel(base);
+      return filtrados.sort((a,b) => compararDataCombustivel(a.c, b.c))
+        .map(({c,i}) => `<tr><td>${d(c.cveiculo)}</td><td>${typeof formatarDataBR==='function'? formatarDataBR(c.cdata): d(c.cdata)}</td><td>${d(c.ctipo)}</td><td>${d(c.ckm)}</td><td>${d(c.clitros)}</td><td>${d(c.cvalorlitro)}</td><td>${d(c.ctotal)}</td><td>${mediaPorAbastecimento(c, intervalos)}</td><td>${d(c.cposto)}</td>${acoes(mod,i)}</tr>`)
         .join('');
     }
 

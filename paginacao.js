@@ -1084,6 +1084,9 @@ if(modulo === 'combustivel'){
         if (typeof window.atualizarSelectsFiltros === 'function') { try { window.atualizarSelectsFiltros(); } catch (e) {} }
         const filtradosComb = typeof obterCombustiveisFiltrados === 'function' ? obterCombustiveisFiltrados() : (db.combustivel || []);
         const dados = getDadosPaginadosCustom(filtradosComb, 'combustivel');
+        // O cupom anterior pode estar fora do filtro ou da página atual.
+        const intervalosComb = typeof intervalosCombustivel === 'function'
+            ? intervalosCombustivel(db.combustivel || []) : null;
 
         document.getElementById('listaCombustivel').innerHTML =
 dados.map(c => {
@@ -1119,7 +1122,7 @@ dados.map(c => {
 
         <td><b>${totalFormatado}</b></td>
 
-        <td>${typeof mediaPorVeiculo === 'function' ? mediaPorVeiculo(c.cveiculo) : (c.cmedia || '--')}</td>
+        <td>${typeof mediaPorAbastecimento === 'function' ? mediaPorAbastecimento(c, intervalosComb) : '--'}</td>
 
         <td>${c.cposto || '--'}</td>
 
