@@ -1,0 +1,19 @@
+/* Comparação de preços isolada no Controle de Combustível. */
+#combustivel .comb-precos{margin:0 0 20px;color:var(--pro-ink,#0f172a)}
+#combustivel .comb-precos>h4{font-size:1rem;font-weight:800;margin:0 0 6px}
+#combustivel .comb-precos-ajuda{font-size:.78rem;color:var(--pro-mute,#64748b);margin:0 0 12px;line-height:1.5}
+#combustivel .comb-precos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:12px}
+#combustivel .comb-preco-card{min-width:0;padding:16px 18px;border:1px solid var(--pro-line,#e2e8f0);border-radius:13px;background:var(--pro-surface,#fff);box-shadow:0 3px 12px rgba(37,99,235,.06)}
+#combustivel .comb-preco-card h5{font-size:.95rem;font-weight:800;margin:0 0 12px;color:var(--pro-ink,#0f172a)}
+#combustivel .comb-preco-card dl{margin:0;display:grid;gap:10px}
+#combustivel .comb-preco-item{min-width:0;padding:10px 12px;border-radius:9px;background:#f8fafc;border:1px solid #e2e8f0}
+#combustivel .comb-preco-item dt{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#475569}
+#combustivel .comb-preco-item dd{margin:4px 0 0}
+#combustivel .comb-preco-item strong{display:block;font-size:1.22rem;font-weight:800;line-height:1.3;color:#0f172a;overflow-wrap:anywhere}
+#combustivel .comb-preco-item span{display:block;font-size:.75rem;margin-top:4px;line-height:1.4;color:#475569;white-space:pre-wrap;overflow-wrap:anywhere}
+#combustivel .comb-preco-media{background:#eff6ff;border-color:#bfdbfe}
+#combustivel .comb-preco-maior{border-left:3px solid #ef4444}
+#combustivel .comb-preco-menor{border-left:3px solid #10b981}
+#combustivel .comb-preco-detalhe{margin:12px 0 0;color:var(--pro-mute,#64748b);font-size:.7rem;line-height:1.5;overflow-wrap:anywhere}
+#combustivel .comb-precos-vazio{grid-column:1/-1;margin:0;padding:16px;border:1px dashed var(--pro-line,#e2e8f0);border-radius:10px;color:var(--pro-mute,#64748b)}
+@media(max-width:600px){#combustivel .comb-preco-card{padding:14px}}

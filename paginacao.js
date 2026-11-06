@@ -1138,6 +1138,7 @@ dados.map(c => {
         const pagC = document.getElementById('paginacaoCombustivel'); if (pagC) pagC.style.display = '';
         const contC = document.getElementById('contFiltro_combustivel');
         if (contC) contC.textContent = filtradosComb.length !== (db.combustivel || []).length ? filtradosComb.length + ' registro(s) encontrado(s)' : '';
+        if (window.FMCombustivelPrecos) window.FMCombustivelPrecos.atualizar();
     }
 
 if(modulo=="motoristas"){
