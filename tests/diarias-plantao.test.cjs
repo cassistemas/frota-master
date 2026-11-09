@@ -92,3 +92,11 @@ test('exportação própria não é removida nem substituída pelo relatório ge
   assert.match(script, /var registros = dados\(\);/);
   assert.match(script, /data-modulo="plantoes" data-index=/);
 });
+test('consulta oferece botão Filtrar e títulos mantêm iniciais maiúsculas', () => {
+  const script = fs.readFileSync(path.join(__dirname, '../diarias-plantao.js'), 'utf8');
+  assert.match(script, /data-pa="filtrar">Filtrar<\/button>/);
+  assert.match(script, /if \(a === 'filtrar'\) \{ pagina = 1; render\(\); return; \}/);
+  assert.equal((script.match(/Novo Plantão \/ Sobreaviso/g) || []).length, 2);
+  assert.match(script, /Editar Plantão \/ Sobreaviso/);
+  assert.doesNotMatch(script, /(?:Novo|Editar) plantão \/ sobreaviso/);
+});

@@ -57,7 +57,7 @@
     var box = el('diPlantaoConteudo');
     if (!box || el('pa_form')) return;
     box.innerHTML = '<p class="text-muted">Registre finais de semana e feriados separadamente das diárias de viagem. Plantão é trabalho realizado; sobreaviso é disponibilidade para acionamento. Estes registros não geram custos financeiros automaticamente.</p>' +
-      '<div id="pa_aviso" role="status" class="small mb-3"></div><form id="pa_form" class="glass-container"><h4 id="pa_titulo">Novo plantão / sobreaviso</h4><div class="row g-3">' +
+      '<div id="pa_aviso" role="status" class="small mb-3"></div><form id="pa_form" class="glass-container"><h4 id="pa_titulo">Novo Plantão / Sobreaviso</h4><div class="row g-3">' +
       campo('motorista', 'Motorista *', select('motorista', [], 'Selecione o motorista')) +
       campo('data', 'Data *', input('data', 'date')) +
       campo('tipo', 'Tipo *', select('tipo', tipos, 'Selecione o tipo')) +
@@ -74,7 +74,7 @@
       campo('fTipo', 'Tipo', select('fTipo', tipos, 'Todos os tipos')) +
       campo('fStatus', 'Situação', select('fStatus', situacoes, 'Todas as situações')) +
       campo('fIni', 'Data inicial', input('fIni', 'date')) + campo('fFim', 'Data final', input('fFim', 'date')) +
-      '<div class="col-12 d-flex flex-wrap gap-2"><button type="button" class="btn btn-secondary" data-pa="limpar">Limpar filtros</button><button type="button" class="btn btn-outline-success" data-pa="exportar">📥 Exportar Excel filtrado</button></div></div></div>' +
+      '<div class="col-12 d-flex flex-wrap gap-2"><button type="button" class="btn btn-primary" data-pa="filtrar">Filtrar</button><button type="button" class="btn btn-secondary" data-pa="limpar">Limpar filtros</button><button type="button" class="btn btn-outline-success" data-pa="exportar">📥 Exportar Excel filtrado</button></div></div></div>' +
       '<div id="pa_totais" class="row g-3 mb-3" aria-live="polite"></div><div class="glass-container"><div class="table-responsive"><table class="table align-middle" data-sem-relatorio><thead><tr><th>Motorista</th><th>Data</th><th>Tipo / Ocasião</th><th>Horário</th><th>Veículo</th><th>Valor</th><th>Situação</th><th>Observações</th><th>Ações</th></tr></thead><tbody id="pa_lista"></tbody></table></div><div id="pa_paginas" class="d-flex gap-2 flex-wrap align-items-center"></div></div>';
     el('pa_status').value = 'Pendente';
     el('pa_form').addEventListener('submit', salvar);
@@ -116,7 +116,7 @@
   }
   function cancelar() {
     if (ocupado) return;
-    edicao = null; el('pa_form').reset(); el('pa_status').value = 'Pendente'; el('pa_titulo').textContent = 'Novo plantão / sobreaviso'; aviso(''); render();
+    edicao = null; el('pa_form').reset(); el('pa_status').value = 'Pendente'; el('pa_titulo').textContent = 'Novo Plantão / Sobreaviso'; aviso(''); render();
   }
   async function salvar(e) {
     e.preventDefault();
@@ -146,6 +146,7 @@
     if (!b || ocupado || !permitido()) return;
     var a = b.dataset.pa;
     if (a === 'cancelar') return cancelar();
+    if (a === 'filtrar') { pagina = 1; render(); return; }
     if (a === 'anterior' || a === 'proxima') { pagina += a === 'anterior' ? -1 : 1; render(); return; }
     if (a === 'limpar') { ['fMotorista','fTipo','fStatus','fIni','fFim'].forEach(function (k) { el('pa_' + k).value = ''; }); pagina = 1; render(); return; }
     if (a === 'exportar') {
@@ -160,7 +161,7 @@
     if (a === 'editar') {
       edicao = r._rid;
       campos.forEach(function (k) { var s = el('pa_' + k), v = k === 'valor' ? (r.valorCentavos / 100).toFixed(2).replace('.', ',') : r[k] || ''; if (s.tagName === 'SELECT' && v && !Array.from(s.options).some(function (o) { return o.value === v; })) { var opt = document.createElement('option'); opt.value = v; opt.textContent = v; s.appendChild(opt); } s.value = v; });
-      el('pa_titulo').textContent = 'Editar plantão / sobreaviso'; aviso(''); el('pa_form').scrollIntoView({behavior:'smooth', block:'start'});
+      el('pa_titulo').textContent = 'Editar Plantão / Sobreaviso'; aviso(''); el('pa_form').scrollIntoView({behavior:'smooth', block:'start'});
     }
     if (a === 'excluir' && typeof root.fmExcluirVinculado === 'function') {
       ocupado = true;
