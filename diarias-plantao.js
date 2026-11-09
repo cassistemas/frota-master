@@ -100,7 +100,7 @@
   function dataBR(v) { return String(v || '').split('-').reverse().join('/'); }
   function render() {
     if (!el('pa_form') || typeof db === 'undefined') return;
-    var motoristas = (db.motoristas || []).map(function (r) { return r.mnome; });
+    var motoristas = (db.motoristas || []).map(function (r) { return r.motNome; });
     preencherSelect('pa_motorista', motoristas, 'Selecione o motorista');
     preencherSelect('pa_veiculo', (db.veiculos || []).filter(function (r) { return String(r.vstatus || '').toUpperCase() !== 'VENDIDO'; }).map(function (r) { return r.vplaca; }), 'Sem veículo');
     preencherSelect('pa_fMotorista', motoristas.concat(lista().map(function (r) { return r.motorista; })), 'Todos os motoristas');
@@ -126,7 +126,7 @@
     campos.forEach(function (k) { r[k] = el('pa_' + k).value.trim(); });
     r.valorCentavos = r.valor === '' ? NaN : centavos(r.valor); delete r.valor;
     var mensagem = erro(r, lista(), edicao);
-    if (!mensagem && !(db.motoristas || []).some(function (m) { return m.mnome === r.motorista; })) mensagem = 'Selecione um motorista cadastrado.';
+    if (!mensagem && !(db.motoristas || []).some(function (m) { return m.motNome === r.motorista; })) mensagem = 'Selecione um motorista cadastrado.';
     if (!mensagem && r.veiculo && !(db.veiculos || []).some(function (v) { return v.vplaca === r.veiculo; })) mensagem = 'Selecione um veículo cadastrado ou deixe sem veículo.';
     var indice = edicao ? lista().findIndex(function (x) { return x._rid === edicao; }) : -1;
     if (!mensagem && edicao && indice < 0) mensagem = 'Este registro foi removido. Cancele a edição e confira a lista.';

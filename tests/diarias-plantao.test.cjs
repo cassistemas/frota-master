@@ -59,6 +59,31 @@ test('aba fica dentro de Diárias e não altera lançamentos de viagem', () => {
   assert.match(html, /Object\.keys\(MAP\)\.filter\(mod => mod !== 'plantoes'\)/);
   assert.match(html, /if\(mod === "plantoes" && n\(r\.motorista\)/);
 });
+test('seletores de plantão usam motNome do cadastro de motoristas', () => {
+  const vm = require('node:vm');
+  const script = fs.readFileSync(path.join(__dirname, '../diarias-plantao.js'), 'utf8');
+  const elementos = Object.fromEntries([
+    'pa_form', 'pa_motorista', 'pa_veiculo', 'pa_fMotorista', 'pa_fTipo',
+    'pa_fStatus', 'pa_fIni', 'pa_fFim', 'pa_totais', 'pa_lista', 'pa_paginas', 'pa_salvar'
+  ].map(id => [id, {value:'', innerHTML:''}]));
+  const contexto = {
+    document: {getElementById: id => elementos[id]},
+    db: {motoristas:[{motNome:'Maria Silva'}, {motNome:'João Souza'}], veiculos:[], plantoes:[]},
+    fmModuloCarregado: () => true,
+    addEventListener: () => {}
+  };
+  vm.runInNewContext(script, contexto);
+  contexto.FMPlantao.render();
+  for (const id of ['pa_motorista', 'pa_fMotorista']) {
+    assert.match(elementos[id].innerHTML, /<option>Maria Silva<\/option>/);
+    assert.match(elementos[id].innerHTML, /<option>João Souza<\/option>/);
+  }
+  elementos.pa_motorista.value = 'Maria Silva';
+  contexto.FMPlantao.render();
+  assert.equal(elementos.pa_motorista.value, 'Maria Silva');
+  assert.match(script, /m\.motNome === r\.motorista/);
+  assert.doesNotMatch(script, /\.mnome\b/);
+});
 test('exportação própria não é removida nem substituída pelo relatório genérico', () => {
   const script = fs.readFileSync(path.join(__dirname, '../diarias-plantao.js'), 'utf8');
   assert.match(script, /data-sem-relatorio/);
