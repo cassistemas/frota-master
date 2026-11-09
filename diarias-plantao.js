@@ -34,7 +34,7 @@
     if (r.inicio && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(r.inicio) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(r.fim) || r.inicio === r.fim)) return 'Informe horários válidos e diferentes.';
     if (!Number.isSafeInteger(r.valorCentavos) || r.valorCentavos < 0) return 'Informe um valor válido, igual ou maior que zero.';
     if (situacoes.indexOf(r.status) < 0) return 'Selecione a situação.';
-    if ((lista || []).some(function (x) { return x._rid !== id && x.motorista === r.motorista && x.data === r.data && x.tipo === r.tipo && (x.inicio || '') === r.inicio && (x.fim || '') === r.fim; })) return 'Já existe um lançamento deste motorista, tipo, data e horário.';
+    if ((lista || []).some(function (x) { return x._rid !== id && nomeCadastro(x.motorista) === nomeCadastro(r.motorista) && x.data === r.data && x.tipo === r.tipo && (x.inicio || '') === r.inicio && (x.fim || '') === r.fim; })) return 'Já existe um lançamento deste motorista, tipo, data e horário.';
     return '';
   }
   function filtrar(lista, f) {
@@ -49,7 +49,8 @@
   function permitido() { return typeof usuarioLogado !== 'undefined' && usuarioLogado && (usuarioLogado.tipo === 'admin' || (usuarioLogado.permissoes || {}).diarias === true); }
   function pronto() { return typeof root.fmModuloCarregado === 'function' && ['plantoes', 'motoristas', 'veiculos'].every(root.fmModuloCarregado); }
   function moeda(c) { return (c / 100).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
-  function opcoes(valores, vazio) { return '<option value="">' + esc(vazio) + '</option>' + valores.map(function (v) { return '<option>' + esc(v) + '</option>'; }).join(''); }
+  function nomeCadastro(v) { return String(v == null ? '' : v).trim().replace(/\s+/g, ' ').toLocaleUpperCase('pt-BR'); }
+  function opcoes(valores, vazio) { return '<option value="">' + esc(vazio) + '</option>' + valores.map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join(''); }
   function campo(id, nome, controle, largura) { return '<div class="col-12 col-md-' + (largura || 3) + '"><label class="form-label" for="pa_' + id + '">' + nome + '</label>' + controle + '</div>'; }
   function input(id, tipo, extra) { return '<input id="pa_' + id + '" type="' + tipo + '" class="form-control" ' + (extra || '') + '>'; }
   function select(id, valores, vazio) { return '<select id="pa_' + id + '" class="form-select">' + opcoes(valores, vazio) + '</select>'; }
@@ -65,10 +66,10 @@
       campo('inicio', 'Horário inicial (opcional)', input('inicio', 'time')) +
       campo('fim', 'Horário final (opcional)', input('fim', 'time')) +
       campo('veiculo', 'Veículo (opcional)', select('veiculo', [], 'Sem veículo')) +
-      campo('valor', 'Valor a pagar (R$) *', input('valor', 'text', 'inputmode="decimal" placeholder="0,00"')) +
+      campo('valor', 'Valor a pagar (R$) (opcional)', input('valor', 'text', 'inputmode="decimal" placeholder="0,00"')) +
       campo('status', 'Situação *', select('status', situacoes, 'Selecione a situação')) +
       campo('obs', 'Observações / nome do feriado', '<textarea id="pa_obs" class="form-control" rows="2" maxlength="2000"></textarea>', 9) +
-      '<p class="small text-muted mb-0">* Obrigatório. Se o horário final for anterior ao inicial, o término será considerado no dia seguinte. O valor é informado por você, sem cálculo automático de horas.</p><div class="col-12 d-flex justify-content-end gap-2"><button type="button" class="btn btn-outline-secondary" data-pa="cancelar">Cancelar</button><button id="pa_salvar" class="btn btn-success" type="submit">Salvar lançamento</button></div></div></form>' +
+      '<p class="small text-muted mb-0">* Obrigatório. Se o horário final for anterior ao inicial, o término será considerado no dia seguinte. O valor é opcional: em branco, será registrado como R$ 0,00 e poderá ser editado depois. Não há cálculo automático de horas.</p><div class="col-12 d-flex justify-content-end gap-2"><button type="button" class="btn btn-outline-secondary" data-pa="cancelar">Cancelar</button><button id="pa_salvar" class="btn btn-success" type="submit">Salvar lançamento</button></div></div></form>' +
       '<div class="glass-container"><div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><h4 class="mb-0">Consultar lançamentos</h4></div><div class="row g-3">' +
       campo('fMotorista', 'Motorista', select('fMotorista', [], 'Todos os motoristas')) +
       campo('fTipo', 'Tipo', select('fTipo', tipos, 'Todos os tipos')) +
@@ -120,13 +121,16 @@
   }
   async function salvar(e) {
     e.preventDefault();
-    if (ocupado || !permitido()) return;
+    if (ocupado) return;
+    if (!permitido()) { aviso('Sua sessão não tem permissão para salvar em Diárias. Entre novamente ou confira o acesso com o administrador.'); return; }
     if (!pronto()) { aviso('Aguarde o carregamento do banco e dos cadastros antes de salvar.'); return; }
     var r = {};
     campos.forEach(function (k) { r[k] = el('pa_' + k).value.trim(); });
-    r.valorCentavos = r.valor === '' ? NaN : centavos(r.valor); delete r.valor;
+    r.valorCentavos = r.valor === '' ? 0 : centavos(r.valor); delete r.valor;
+    var motorista = (db.motoristas || []).find(function (m) { return r.motorista && nomeCadastro(m.motNome) === nomeCadastro(r.motorista); });
+    if (motorista) r.motorista = String(motorista.motNome);
     var mensagem = erro(r, lista(), edicao);
-    if (!mensagem && !(db.motoristas || []).some(function (m) { return m.motNome === r.motorista; })) mensagem = 'Selecione um motorista cadastrado.';
+    if (!mensagem && !motorista) mensagem = 'Selecione um motorista cadastrado na lista.';
     if (!mensagem && r.veiculo && !(db.veiculos || []).some(function (v) { return v.vplaca === r.veiculo; })) mensagem = 'Selecione um veículo cadastrado ou deixe sem veículo.';
     var indice = edicao ? lista().findIndex(function (x) { return x._rid === edicao; }) : -1;
     if (!mensagem && edicao && indice < 0) mensagem = 'Este registro foi removido. Cancele a edição e confira a lista.';

@@ -75,14 +75,19 @@ test('seletores de plantão usam motNome do cadastro de motoristas', () => {
   vm.runInNewContext(script, contexto);
   contexto.FMPlantao.render();
   for (const id of ['pa_motorista', 'pa_fMotorista']) {
-    assert.match(elementos[id].innerHTML, /<option>Maria Silva<\/option>/);
-    assert.match(elementos[id].innerHTML, /<option>João Souza<\/option>/);
+    assert.match(elementos[id].innerHTML, /<option value="Maria Silva">Maria Silva<\/option>/);
+    assert.match(elementos[id].innerHTML, /<option value="João Souza">João Souza<\/option>/);
   }
   elementos.pa_motorista.value = 'Maria Silva';
   contexto.FMPlantao.render();
   assert.equal(elementos.pa_motorista.value, 'Maria Silva');
-  assert.match(script, /m\.motNome === r\.motorista/);
+  assert.match(script, /nomeCadastro\(m\.motNome\) === nomeCadastro\(r\.motorista\)/);
+  assert.match(script, /if \(motorista\) r\.motorista = String\(motorista\.motNome\);/);
   assert.doesNotMatch(script, /\.mnome\b/);
+  contexto.db.motoristas = [{motNome:' BRUNO  PIRES GOMES '}, {motNome:'Ana & João'}];
+  contexto.FMPlantao.render();
+  assert.match(elementos.pa_motorista.innerHTML, /<option value=" BRUNO  PIRES GOMES "> BRUNO  PIRES GOMES <\/option>/);
+  assert.match(elementos.pa_motorista.innerHTML, /<option value="Ana &amp; João">Ana &amp; João<\/option>/);
 });
 test('exportação própria não é removida nem substituída pelo relatório genérico', () => {
   const script = fs.readFileSync(path.join(__dirname, '../diarias-plantao.js'), 'utf8');
@@ -98,7 +103,7 @@ test('consulta oferece botão Filtrar ao lado de Limpar filtros e títulos mant�
   assert.match(script, /<div class="col-12 d-flex flex-wrap gap-2"><button type="button" class="btn btn-primary" data-pa="filtrar">Filtrar<\/button><button type="button" class="btn btn-secondary" data-pa="limpar">Limpar filtros<\/button>/);
   assert.equal((script.match(/data-pa="filtrar"/g) || []).length, 1);
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  assert.match(html, /diarias-plantao\.js\?v=20261115-4-filtrar-ao-lado/);
+  assert.match(html, /diarias-plantao\.js\?v=20261115-5-salvar-motorista-valor-opcional/);
   assert.match(script, /if \(a === 'filtrar'\) \{ pagina = 1; render\(\); return; \}/);
   assert.equal((script.match(/Novo Plantão \/ Sobreaviso/g) || []).length, 2);
   assert.match(script, /Editar Plantão \/ Sobreaviso/);
