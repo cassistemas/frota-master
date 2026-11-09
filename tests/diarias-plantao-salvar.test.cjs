@@ -54,6 +54,23 @@ function ambiente({nome = 'BRUNO PIRES GOMES', confirmar = true} = {}) {
       const target = elementos['pa_' + campo]; target.value = value;
       return eventos['diPlantaoConteudo:change']({target});
     },
+    digitarValor(value, cursor = value.length) {
+      const campo = elementos.pa_valor;
+      campo.value = value;
+      campo.selectionStart = cursor;
+      campo.selectionEnd = cursor;
+      campo.setSelectionRange = (inicio, fim) => { campo.selectionStart = inicio; campo.selectionEnd = fim; };
+      eventos['pa_valor:input']({isComposing:false});
+      return campo.value.replace(/\s/g, ' ');
+    },
+    colarValor(texto) {
+      const campo = elementos.pa_valor;
+      campo.selectionStart = 0;
+      campo.selectionEnd = campo.value.length;
+      let interceptada = false;
+      eventos['pa_valor:paste']({clipboardData:{getData:() => texto}, preventDefault() { interceptada = true; }});
+      return interceptada;
+    },
     formatarValor() { return eventos['pa_valor:blur'](); }
   };
 }
@@ -165,6 +182,52 @@ test('formata moeda brasileira ao sair do campo, salva centavos e mantém format
   await a.salvar();
   assert.equal(a.contexto.db.plantoes.length, 1);
   assert.equal(a.contexto.db.plantoes[0].valorCentavos, 123456);
+});
+
+test('mostra R$ e separadores durante a digitação, antes de sair do campo', async () => {
+  const a = ambiente();
+  assert.equal(a.digitarValor('1'), 'R$ 0,01');
+  assert.equal(a.digitarValor('R$ 0,012'), 'R$ 0,12');
+  assert.equal(a.digitarValor('R$ 0,123'), 'R$ 1,23');
+  assert.equal(a.digitarValor('R$ 1,234'), 'R$ 12,34');
+  assert.equal(a.digitarValor('R$ 12,345'), 'R$ 123,45');
+  assert.equal(a.digitarValor('R$ 123,456'), 'R$ 1.234,56');
+  await a.salvar();
+  assert.equal(a.contexto.db.plantoes[0].valorCentavos, 123456);
+});
+
+test('máscara formata a sequência da imagem e permite apagar ou substituir', async () => {
+  const a = ambiente();
+  assert.equal(a.digitarValor('11112333'), 'R$ 111.123,33');
+  assert.equal(a.digitarValor('123456', 3), 'R$ 1.234,56');
+  assert.equal(a.elementos.pa_valor.selectionStart, 7);
+  assert.equal(a.digitarValor('0'), 'R$ 0,00');
+  assert.equal(a.digitarValor('R$ '), '');
+  assert.equal(a.digitarValor(''), '');
+  await a.salvar();
+  assert.equal(a.contexto.db.plantoes[0].valorCentavos, 0);
+});
+
+test('colagem de valor completo respeita reais e decimais sem multiplicar valores', async () => {
+  for (const [texto, esperado, centavos] of [
+    ['1234,56', 'R$ 1.234,56', 123456],
+    ['R$ 1.234,56', 'R$ 1.234,56', 123456],
+    ['125.50', 'R$ 125,50', 12550],
+    ['100', 'R$ 100,00', 10000]
+  ]) {
+    const a = ambiente();
+    assert.equal(a.colarValor(texto), true);
+    assert.equal(a.elementos.pa_valor.value.replace(/\s/g, ' '), esperado);
+    await a.salvar();
+    assert.equal(a.contexto.db.plantoes[0].valorCentavos, centavos);
+  }
+});
+
+test('máscara não transforma entradas inválidas em cobranças válidas', () => {
+  const a = ambiente();
+  for (const valor of ['abc', '-1', '1e3']) {
+    assert.equal(a.digitarValor(valor), valor);
+  }
 });
 
 test('formatação preserva valor opcional vazio e não disfarça entradas inválidas', () => {

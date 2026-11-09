@@ -66,6 +66,37 @@
     var s = el('pa_valor'), texto = s.value.trim(), c = centavos(texto);
     if (texto && !isNaN(c)) s.value = moeda(c);
   }
+  function mascararValor(e) {
+    if (e && e.isComposing) return;
+    var s = el('pa_valor'), texto = s.value;
+    if (!/^(?:R\$\s*)?[\d.,\s]*$/.test(texto)) return;
+    var digitos = texto.replace(/\D/g, '');
+    if (!digitos) { s.value = ''; return; }
+    var c = Number(digitos);
+    if (!Number.isSafeInteger(c)) return;
+    var cursor = typeof s.selectionStart === 'number' ? s.selectionStart : texto.length;
+    var direita = texto.slice(cursor).replace(/\D/g, '').length;
+    s.value = moeda(c);
+    var pos = s.value.length;
+    while (pos > 0 && direita > 0) {
+      pos--;
+      if (/\d/.test(s.value.charAt(pos))) direita--;
+    }
+    if (typeof s.setSelectionRange === 'function') s.setSelectionRange(Math.max(3, pos), Math.max(3, pos));
+  }
+  function colarValor(e) {
+    if (!e.clipboardData) return;
+    var s = el('pa_valor'), texto = e.clipboardData.getData('text').trim();
+    if (!texto || !/\d/.test(texto)) return;
+    // Colagem de um valor completo respeita os reais e as casas decimais informadas.
+    if (s.selectionStart !== 0 || s.selectionEnd !== s.value.length) {
+      if (s.value) return;
+    }
+    e.preventDefault();
+    var c = centavos(texto);
+    s.value = isNaN(c) ? texto : moeda(c);
+    if (typeof s.setSelectionRange === 'function') s.setSelectionRange(s.value.length, s.value.length);
+  }
   function montar() {
     var box = el('diPlantaoConteudo');
     if (!box || el('pa_form')) return;
@@ -78,7 +109,7 @@
       campo('inicio', 'Horário inicial (opcional)', input('inicio', 'time')) +
       campo('fim', 'Horário final (opcional)', input('fim', 'time')) +
       campo('veiculo', 'Veículo (opcional)', select('veiculo', [], 'Sem veículo')) +
-      campo('valor', 'Valor a pagar (R$) (opcional)', input('valor', 'text', 'inputmode="decimal" placeholder="R$ 0,00"')) +
+      campo('valor', 'Valor a pagar (R$) (opcional)', input('valor', 'text', 'inputmode="numeric" placeholder="R$ 0,00" aria-describedby="pa_valor_ajuda"') + '<small id="pa_valor_ajuda" class="text-muted">Digite apenas números: 123456 = R$ 1.234,56.</small>') +
       campo('status', 'Situação *', select('status', situacoes, 'Selecione a situação')) +
       campo('obs', 'Observações / nome do feriado', '<textarea id="pa_obs" class="form-control" rows="2" maxlength="2000"></textarea>', 9) +
       '<p class="small text-muted mb-0">* Obrigatório. Se o horário final for anterior ao inicial, o término será considerado no dia seguinte. O valor é opcional: em branco, será registrado como R$ 0,00 e poderá ser editado depois. Não há cálculo automático de horas.</p><div class="col-12 d-flex justify-content-end gap-2"><button type="button" class="btn btn-outline-secondary" data-pa="cancelar">Cancelar</button><button id="pa_salvar" class="btn btn-success" type="submit">Salvar lançamento</button></div></div></form>' +
@@ -91,6 +122,8 @@
       '<div id="pa_totais" class="row g-3 mb-3" aria-live="polite"></div><div class="glass-container"><div class="table-responsive"><table class="table align-middle" data-sem-relatorio><thead><tr><th>Motorista</th><th>Data</th><th>Tipo / Ocasião</th><th>Horário</th><th>Veículo</th><th>Valor</th><th>Situação</th><th>Observações</th><th>Ações</th></tr></thead><tbody id="pa_lista"></tbody></table></div><div id="pa_paginas" class="d-flex gap-2 flex-wrap align-items-center"></div></div>';
     el('pa_status').value = 'Pendente';
     el('pa_form').addEventListener('submit', salvar);
+    el('pa_valor').addEventListener('input', mascararValor);
+    el('pa_valor').addEventListener('paste', colarValor);
     el('pa_valor').addEventListener('blur', formatarValor);
     box.addEventListener('click', acao);
     box.addEventListener('change', function (e) {

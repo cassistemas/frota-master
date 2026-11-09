@@ -103,7 +103,7 @@ test('consulta oferece botão Filtrar ao lado de Limpar filtros e títulos mant�
   assert.match(script, /<div class="col-12 d-flex flex-wrap gap-2"><button type="button" class="btn btn-primary" data-pa="filtrar">Filtrar<\/button><button type="button" class="btn btn-secondary" data-pa="limpar">Limpar filtros<\/button>/);
   assert.equal((script.match(/data-pa="filtrar"/g) || []).length, 1);
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  assert.match(html, /diarias-plantao\.js\?v=20261115-6-moeda-situacao-rapida/);
+  assert.match(html, /diarias-plantao\.js\?v=20261115-7-moeda-durante-digitacao/);
   assert.match(script, /if \(a === 'filtrar'\) \{ pagina = 1; render\(\); return; \}/);
   assert.equal((script.match(/Novo Plantão \/ Sobreaviso/g) || []).length, 2);
   assert.match(script, /Editar Plantão \/ Sobreaviso/);
