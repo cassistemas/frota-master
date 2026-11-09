@@ -1,7 +1,7 @@
 /* Exclusão explícita por IDs de origem; nunca por placa, data ou valor. */
 (function () {
   'use strict';
-  var nomes = {combustivel:'Combustível', manutencoes:'Manutenções', multas:'Multas', licenciamento:'Licenciamento', tacografo:'Tacógrafo', licencas:'CIV / CIPP', diarias:'Diárias', revisoes:'Revisões KM', estoque:'Estoque', pneus:'Pneus', eventosPneus:'Pneus por KM', preLancamentos:'Pré-lançamentos', custos:'Gestão da Frota — Lançamentos', custosRecorrentes:'Fixos e pessoal'};
+  var nomes = {combustivel:'Combustível', manutencoes:'Manutenções', multas:'Multas', licenciamento:'Licenciamento', tacografo:'Tacógrafo', licencas:'CIV / CIPP', diarias:'Diárias', plantoes:'Plantão / Sobre Aviso', revisoes:'Revisões KM', estoque:'Estoque', pneus:'Pneus', eventosPneus:'Pneus por KM', preLancamentos:'Pré-lançamentos', custos:'Gestão da Frota — Lançamentos', custosRecorrentes:'Fixos e pessoal'};
   var integrados = ['combustivel','manutencoes','multas','licenciamento','tacografo','licencas','diarias','revisoes'];
   var ocupado = false;
   var exclusoes = {};

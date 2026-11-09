@@ -792,6 +792,9 @@ function observacaoSaidaVeiculo(registro){
 
 function renderModulo(modulo){
 
+if ((modulo === 'diarias' || modulo === 'plantoes') && window.FMPlantao) window.FMPlantao.render();
+if (modulo === 'plantoes') return;
+
 if (!PAGINACAO.paginas[modulo]) {
     PAGINACAO.paginas[modulo] = 1;
 }
