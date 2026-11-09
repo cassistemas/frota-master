@@ -94,7 +94,10 @@ test('exportação própria não é removida nem substituída pelo relatório ge
 });
 test('consulta oferece botão Filtrar e títulos mantêm iniciais maiúsculas', () => {
   const script = fs.readFileSync(path.join(__dirname, '../diarias-plantao.js'), 'utf8');
-  assert.match(script, /data-pa="filtrar">Filtrar<\/button>/);
+  assert.match(script, /<h4 class="mb-0">Consultar lançamentos<\/h4><button type="button" class="btn btn-primary" data-pa="filtrar">Filtrar<\/button>/);
+  assert.equal((script.match(/data-pa="filtrar"/g) || []).length, 1);
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.match(html, /diarias-plantao\.js\?v=20261115-3-filtros-titulo/);
   assert.match(script, /if \(a === 'filtrar'\) \{ pagina = 1; render\(\); return; \}/);
   assert.equal((script.match(/Novo Plantão \/ Sobreaviso/g) || []).length, 2);
   assert.match(script, /Editar Plantão \/ Sobreaviso/);

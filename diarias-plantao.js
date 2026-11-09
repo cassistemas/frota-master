@@ -69,12 +69,12 @@
       campo('status', 'Situação *', select('status', situacoes, 'Selecione a situação')) +
       campo('obs', 'Observações / nome do feriado', '<textarea id="pa_obs" class="form-control" rows="2" maxlength="2000"></textarea>', 9) +
       '<p class="small text-muted mb-0">* Obrigatório. Se o horário final for anterior ao inicial, o término será considerado no dia seguinte. O valor é informado por você, sem cálculo automático de horas.</p><div class="col-12 d-flex justify-content-end gap-2"><button type="button" class="btn btn-outline-secondary" data-pa="cancelar">Cancelar</button><button id="pa_salvar" class="btn btn-success" type="submit">Salvar lançamento</button></div></div></form>' +
-      '<div class="glass-container"><h4>Consultar lançamentos</h4><div class="row g-3">' +
+      '<div class="glass-container"><div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><h4 class="mb-0">Consultar lançamentos</h4><button type="button" class="btn btn-primary" data-pa="filtrar">Filtrar</button></div><div class="row g-3">' +
       campo('fMotorista', 'Motorista', select('fMotorista', [], 'Todos os motoristas')) +
       campo('fTipo', 'Tipo', select('fTipo', tipos, 'Todos os tipos')) +
       campo('fStatus', 'Situação', select('fStatus', situacoes, 'Todas as situações')) +
       campo('fIni', 'Data inicial', input('fIni', 'date')) + campo('fFim', 'Data final', input('fFim', 'date')) +
-      '<div class="col-12 d-flex flex-wrap gap-2"><button type="button" class="btn btn-primary" data-pa="filtrar">Filtrar</button><button type="button" class="btn btn-secondary" data-pa="limpar">Limpar filtros</button><button type="button" class="btn btn-outline-success" data-pa="exportar">📥 Exportar Excel filtrado</button></div></div></div>' +
+      '<div class="col-12 d-flex flex-wrap gap-2"><button type="button" class="btn btn-secondary" data-pa="limpar">Limpar filtros</button><button type="button" class="btn btn-outline-success" data-pa="exportar">📥 Exportar Excel filtrado</button></div></div></div>' +
       '<div id="pa_totais" class="row g-3 mb-3" aria-live="polite"></div><div class="glass-container"><div class="table-responsive"><table class="table align-middle" data-sem-relatorio><thead><tr><th>Motorista</th><th>Data</th><th>Tipo / Ocasião</th><th>Horário</th><th>Veículo</th><th>Valor</th><th>Situação</th><th>Observações</th><th>Ações</th></tr></thead><tbody id="pa_lista"></tbody></table></div><div id="pa_paginas" class="d-flex gap-2 flex-wrap align-items-center"></div></div>';
     el('pa_status').value = 'Pendente';
     el('pa_form').addEventListener('submit', salvar);
