@@ -64,7 +64,7 @@ test('seletores de plantão usam motNome do cadastro de motoristas', () => {
   const script = fs.readFileSync(path.join(__dirname, '../diarias-plantao.js'), 'utf8');
   const elementos = Object.fromEntries([
     'pa_form', 'pa_motorista', 'pa_veiculo', 'pa_fMotorista', 'pa_fTipo',
-    'pa_fStatus', 'pa_fIni', 'pa_fFim', 'pa_totais', 'pa_lista', 'pa_paginas', 'pa_salvar'
+    'pa_fStatus', 'pa_fIni', 'pa_fFim', 'pa_totais', 'pa_lista', 'pa_paginas', 'pa_salvar', 'pa_status'
   ].map(id => [id, {value:'', innerHTML:''}]));
   const contexto = {
     document: {getElementById: id => elementos[id]},
@@ -103,7 +103,7 @@ test('consulta oferece botão Filtrar ao lado de Limpar filtros e títulos mant�
   assert.match(script, /<div class="col-12 d-flex flex-wrap gap-2"><button type="button" class="btn btn-primary" data-pa="filtrar">Filtrar<\/button><button type="button" class="btn btn-secondary" data-pa="limpar">Limpar filtros<\/button>/);
   assert.equal((script.match(/data-pa="filtrar"/g) || []).length, 1);
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  assert.match(html, /diarias-plantao\.js\?v=20261115-5-salvar-motorista-valor-opcional/);
+  assert.match(html, /diarias-plantao\.js\?v=20261115-6-moeda-situacao-rapida/);
   assert.match(script, /if \(a === 'filtrar'\) \{ pagina = 1; render\(\); return; \}/);
   assert.equal((script.match(/Novo Plantão \/ Sobreaviso/g) || []).length, 2);
   assert.match(script, /Editar Plantão \/ Sobreaviso/);

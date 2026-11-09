@@ -670,6 +670,12 @@ label, .form-label {
 .fm-status-pneu { min-width: 18ch !important; }
 .fm-status-frete { min-width: 13ch !important; }
 .fm-status-reserva { min-width: 13ch !important; }
+#diPlantaoConteudo .fm-status-plantao { min-width: 15ch !important; font-weight: 600; cursor: pointer; }
+#diPlantaoConteudo .fm-status-plantao option { color: var(--status-neutral-text); background-color: var(--status-neutral-bg); }
+#diPlantaoConteudo .fm-status-plantao option[value="Pendente"] { color: var(--status-critical-text); background-color: var(--status-critical-bg); }
+#diPlantaoConteudo .fm-status-plantao option[value="Enviadas RH"] { color: var(--status-info-text); background-color: var(--status-info-bg); }
+#diPlantaoConteudo .fm-status-plantao option[value="Pago"] { color: var(--status-ok-text); background-color: var(--status-ok-bg); }
+#diPlantaoConteudo .fm-status-plantao:disabled { cursor: wait; }
 .fm-status-rapido.fm-status-cor-ok { color: var(--status-ok-text) !important; border-color: var(--status-ok-border) !important; background-color: var(--status-ok-bg) !important; }
 .fm-status-rapido.fm-status-cor-alerta { color: var(--status-alert-text) !important; border-color: var(--status-alert-border) !important; background-color: var(--status-alert-bg) !important; }
 #diarias .fm-status-rapido[data-status="Pendente"],
