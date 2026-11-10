@@ -4013,8 +4013,11 @@ function fmReenviarPendentes(){
 }
 window.fmReenviarPendentes = fmReenviarPendentes;
 
-function salvarNuvem(modulos){
+function salvarNuvem(modulos, opcoes){
 
+    function notificarEstado(estado){
+        if(opcoes && typeof opcoes.aoEstado === 'function') opcoes.aoEstado(estado);
+    }
     if(typeof carimbarRegistros === "function") carimbarRegistros(Array.isArray(modulos) ? modulos : null);
     // persistida separadamente e não participa dos cálculos antes da confirmação.
     var preLancamentosAlterados = false;
@@ -4055,38 +4058,45 @@ function salvarNuvem(modulos){
     if(bloqueados.length){
         console.warn("Gravacao vazia bloqueada (dados ainda nao carregados):", bloqueados);
     }
-    if(!alvos.length) return Promise.resolve(false);
+    if(!alvos.length){
+        notificarEstado('fila');
+        return Promise.resolve(false);
+    }
 
     if(!auth.currentUser){
         statusNuvem("Sem login: dados ainda nao foram salvos no banco", "#dc3545");
+        notificarEstado('fila');
         return Promise.resolve(false);
     }
 
     var envios = [];
+    var assinaturasEnviadas = {};
 
     alvos.forEach(function(mod){
-        var payload = { dados: db[mod], atualizadoEm: new Date().toISOString() };
-
+        // Guarda exatamente a versão enviada, não a lista que pode mudar
+        // enquanto o servidor confirma outro cupom.
+        assinaturasEnviadas[mod] = fmAssinaturaModulo(db[mod]);
+        var payload = { dados: JSON.parse(assinaturasEnviadas[mod]), atualizadoEm: new Date().toISOString() };
         if(mod === 'ferias'){
-            payload.configuracoes = {
-                toleranciaSobreposicaoDias: obterToleranciaFerias()
-            };
+            payload.configuracoes = { toleranciaSobreposicaoDias: obterToleranciaFerias() };
         }
-
-        envios.push(
-            dbCloud.collection("frota").doc(mod).set(payload, { merge: true })
-            .then(function(){ return { mod: mod, ok: true }; })
-            .catch(function(err){ return { mod: mod, ok: false, err: err }; })
-        );
+        envios.push(Promise.resolve().then(function(){
+            return dbCloud.collection("frota").doc(mod).set(payload, { merge: true });
+        }).then(function(){ return { mod: mod, ok: true }; })
+          .catch(function(err){ return { mod: mod, ok: false, err: err }; }));
     });
 
     statusNuvem("Salvando no banco...", "#0d6efd");
+    notificarEstado('enviando');
 
     function concluir(resultados){
         var ok = resultados.filter(function(r){ return r.ok; }).map(function(r){ return r.mod; });
         var falhas = resultados.filter(function(r){ return !r.ok; });
-        fmFilaRemover(ok);
-        ok.forEach(function(mod){ window.fmAssinaturasBanco[mod] = fmAssinaturaModulo(db[mod]); });
+        // A confirmação de uma versão antiga nunca apaga uma edição mais nova da fila.
+        fmFilaRemover(ok.filter(function(mod){
+            return fmAssinaturaModulo(db[mod]) === assinaturasEnviadas[mod];
+        }));
+        ok.forEach(function(mod){ window.fmAssinaturasBanco[mod] = assinaturasEnviadas[mod]; });
         if(falhas.length){
             console.error("Falha ao gravar no banco:", falhas);
             var code = (falhas[0].err && falhas[0].err.code) || "desconhecido";
@@ -4095,24 +4105,34 @@ function salvarNuvem(modulos){
             } else {
                 statusNuvem("ERRO ao gravar no banco: " + code, "#dc3545");
             }
+            notificarEstado('erro');
+            return false;
+        }
+        if(bloqueados.length){
+            notificarEstado('fila');
             return false;
         }
         statusNuvem("Salvo e confirmado no banco de dados", "#198754");
+        notificarEstado('confirmado');
         if(typeof window.fmMarcarSyncConfirmado === "function") window.fmMarcarSyncConfirmado();
         return true;
     }
 
-    // O Firestore so resolve a promise quando o SERVIDOR confirma. Enquanto
-    // isso, o registro continua na fila local.
-    var timeout = new Promise(function(res){ setTimeout(function(){ res("pendente"); }, 6000); });
-
-    return Promise.race([Promise.all(envios), timeout]).then(function(r){
+    // Seis segundos indicam espera, não uma falha. A mesma operação continua
+    // acompanhada até a confirmação tardia ou um erro real do servidor.
+    var timer;
+    var timeout = new Promise(function(res){ timer = setTimeout(function(){ res("pendente"); }, 6000); });
+    var gravacao = Promise.all(envios).then(function(resultados){
+        clearTimeout(timer);
+        return concluir(resultados);
+    });
+    return Promise.race([gravacao, timeout]).then(function(r){
         if(r === "pendente"){
-            statusNuvem("Sem confirmacao do banco: mantenha o sistema aberto e tente sincronizar", "#fd7e14");
-            Promise.all(envios).then(concluir);
+            statusNuvem("Aguardando confirmacao do banco. Nao repita o lancamento.", "#fd7e14");
+            notificarEstado('pendente');
             return false;
         }
-        return concluir(r);
+        return r;
     });
 
 
@@ -4333,6 +4353,9 @@ function salvar(mod, campos, idCampo, contexto){
         obj = Object.assign(obj,dadosImportados);
         obj = fmPrepararRegistro('combustivel',obj);
     }
+    // O cupom manual é preparado inteiro antes de qualquer envio à nuvem.
+    const cupomCombustivel = mod === 'combustivel' && contexto && contexto.combustivelCupom === true;
+    if(cupomCombustivel) obj.ctotal = contexto.total;
     // Uma edição altera apenas os campos do formulário; IDs e vínculos permanecem.
     if(idx !== "" && db[mod] && db[mod][Number(idx)]){
         obj = Object.assign({}, db[mod][Number(idx)], obj);
@@ -4499,8 +4522,8 @@ if(mod === 'saidaVeiculos' && obj.svveiculo && obj.svkmretorno && !(contexto && 
         ordenarFornecedores();
     }
 
-    // Lotes e decisões de reserva confirmam a gravação pelo escritor compartilhado.
-    if(importacaoCombustivel || (mod === 'saidaVeiculos' && contexto && contexto.reservaTransacao === true)) return obj;
+    // Lotes, cupons completos e reservas confirmam pelo escritor compartilhado.
+    if(importacaoCombustivel || cupomCombustivel || (mod === 'saidaVeiculos' && contexto && contexto.reservaTransacao === true)) return obj;
 
     // A leitura dos pneus acompanha o veículo no mesmo envio, sem criar eventos.
     var pneusKmAtualizados = mod === 'veiculos' && mudouKmVeiculo
@@ -5216,40 +5239,44 @@ document.getElementById('ckm').value = km;
         if (comArla && jaLancado('Arla32', arlaL, arlaV)) { alert('O ARLA 32 deste cupom já foi lançado. O lançamento em duplicidade foi bloqueado.'); return; }
     }
 
-    // salva normalmente
-    const okSalvar = salvar('combustivel', campos, idxCampo);
-    if (okSalvar === false) return;
+    // Prepara os produtos com seus totais, sem gravar nem limpar o formulário.
+    const registroSalvo = salvar('combustivel', campos, idxCampo, {
+        combustivelCupom: true, total: total
+    });
+    if (!registroSalvo || registroSalvo === false) return false;
+    if (comArla) {
+        const arla = Object.assign({}, registroSalvo, {
+            ctipo: 'Arla32', clitros: arlaL, cvalorlitro: arlaV, ctotal: arlaL * arlaV
+        });
+        // A identidade e os carimbos são próprios de cada produto do cupom.
+        ['_rid', '_fid', 'id', '_registradoPor', '_registradoEm', '_alteradoPor', '_alteradoEm'].forEach(k => delete arla[k]);
+        db.combustivel.push(fmPrepararRegistro('combustivel', arla, null));
+    }
+
     window.fmArlaPendente = null;
     const rf = document.getElementById('cFotoResultado'); if (rf) rf.innerHTML = '';
     const fc = document.getElementById('cFotoCupom'); if (fc) fc.value = '';
-
-    // Mantém a referência do registro, sem reordenar os índices do banco.
-    const indiceSalvo = idxAntesDeSalvar === ''
-        ? db.combustivel.length - 1
-        : Number(idxAntesDeSalvar);
-    const registroSalvo = db.combustivel[indiceSalvo];
-    if (registroSalvo) {
-        registroSalvo.ctotal = total;
-    }
-
-    // Segundo lançamento: ARLA 32 com os mesmos veículo, data, KM e posto
-    let msg = 'Cupom lançado. Envie outra foto para ler o próximo cupom.';
-    if (comArla) {
-        const set = (id, v) => { const c = document.getElementById(id); if (c) { c.value = v; if (c._flatpickr) c._flatpickr.setDate(v, false); } };
-        set('cveiculo', ve); set('cdata', dt); set('ccompetencia', registroSalvo && registroSalvo.ccompetencia || ''); set('ctipo', 'Arla32'); set('clitros', arlaL); set('cvalorlitro', arlaV); set('ckm', km || ''); set('cposto', postoSalvo); set(idxCampo, '');
-        // O KM e a data deste mesmo cupom já foram confirmados no primeiro produto.
-        const okArla = salvar('combustivel', campos, idxCampo, { combustivelKmConfirmado: true });
-        if (okArla !== false) {
-            const ult = db.combustivel[db.combustivel.length - 1];
-            if (ult) ult.ctotal = arlaL * arlaV;
-            msg = 'Cupom lançado: combustível e ARLA 32 salvos juntos.';
-        } else {
-            msg = 'Combustível salvo, mas o ARLA 32 não foi salvo. Confira os dados do ARLA.';
-        }
-    }
+    limparForm('combustivel', campos, idxCampo);
     if (window.fmLimparArla) window.fmLimparArla();
-    salvarNuvem();
-    const av = document.getElementById('cFotoAviso'); if (av) av.textContent = msg;
+
+    // Só os módulos envolvidos no cupom entram neste envio. A mensagem local
+    // acompanha também confirmações que cheguem depois do aviso de espera.
+    const envioCupom = {};
+    window.fmUltimoEnvioCupom = envioCupom;
+    salvarNuvem(['combustivel'], { aoEstado: function(estado) {
+        if (window.fmUltimoEnvioCupom !== envioCupom) return;
+        const av = document.getElementById('cFotoAviso');
+        if (!av) return;
+        av.setAttribute('role', 'status');
+        const mensagens = {
+            enviando: 'Cupom registrado no aparelho. Aguardando confirmação do banco…',
+            pendente: 'Aguardando confirmação do banco. Mantenha o sistema aberto; não lance este cupom novamente.',
+            fila: 'Cupom na fila deste aparelho, ainda sem confirmação. Confira o login e a conexão e sincronize novamente sem repetir o lançamento.',
+            confirmado: comArla ? 'Combustível e ARLA 32 salvos e confirmados no banco.' : 'Cupom salvo e confirmado no banco.',
+            erro: 'O banco recusou o envio do cupom. Os dados permanecem na fila deste aparelho. Confira o aviso de erro e sincronize novamente.'
+        };
+        av.textContent = mensagens[estado] || mensagens.pendente;
+    }});
 
     // Abre a página da data lançada, inclusive para abastecimentos históricos.
     const ordenados = obterCombustiveisFiltrados();
@@ -5455,7 +5482,8 @@ function escutarDados(modulo){
     .doc(modulo)
     .onSnapshot({ includeMetadataChanges: true }, doc => {
 
-        const veioDoCache = !!(doc.metadata && doc.metadata.fromCache);
+        // O eco local de uma escrita também não é confirmação do servidor.
+        const veioDoCache = !!(doc.metadata && (doc.metadata.fromCache || doc.metadata.hasPendingWrites));
         if(!veioDoCache && typeof window.fmBancoLeituraConfirmada === "function") window.fmBancoLeituraConfirmada();
 
         // A edicao pontual ja alterou db.custos. Ignorar o eco local e a
