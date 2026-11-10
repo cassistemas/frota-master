@@ -2,7 +2,15 @@
 (function () {
   'use strict';
   var CATEGORIA = 'Rastreamento / Telemetria';
-  var grupos = [], arquivo = '', competenciaPdf = '', totalPdf = NaN, salvando = false;
+  var grupos = [], arquivo = '', competenciaPdf = '', totalPdf = NaN, salvando = false, conferencia = null, leitura = 0;
+  function bloqueioConferencia() {
+    if (!conferencia) return 'Importe um demonstrativo para conferir os valores.';
+    if (!Number.isSafeInteger(totalPdf)) return 'Total geral do PDF não identificado. Confira o documento e importe novamente.';
+    if (conferencia.pendencias.length) return 'Há linhas pendentes de conferência. Confira os detalhes e importe o PDF corrigido/original.';
+    if (conferencia.soma !== totalPdf) return 'O total reconhecido não confere com o PDF. Nenhum lançamento será feito até uma nova leitura conferir.';
+    if (grupos.some(function (g) { return g.cents !== g.centsOriginais; })) return 'Valor editado difere dos itens do PDF. Restaure o valor original; não ajuste uma placa para fechar a diferença.';
+    return '';
+  }
   function el(id) { return document.getElementById(id); }
   function texto(v) { return String(v == null ? '' : v).trim(); }
   function placa(v) { return texto(v).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
@@ -49,50 +57,78 @@
     }
     return out;
   }
-  var RE = /^(G\d+-\d+)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+(?:(\d{10,})\s+)?([A-Z]{3}-?\d[A-Z0-9]\d{2})\s+(\d+)\s+(.+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+(.+)$/;
+  var RE = /^(G\d+-\d+)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+(?:(\d{10,})\s+)?([A-Z]{3}[\s-]?\d[A-Z0-9]\d{2})\s+(\d+)\s+(.+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+(.+)$/i;
+  var RE_PLACA = /\b([A-Z]{3})[\s-]?(\d[A-Z0-9]\d{2})\b/i;
+  var RE_DINHEIRO = /(?:^|\s)(?:R\$\s*)?(-?(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2})\s*$/i;
+  function subtotal(l) { return /\b(SUB[ -]?TOTAL|TOTAL|TOTAIS|SOMA)\b/i.test(l); }
+  function itemLinha(l, equipamento) {
+    var valorFinal = l.match(RE_DINHEIRO), p = l.match(RE_PLACA);
+    if (subtotal(l) || !valorFinal || !p) return null;
+    var valor = centavos(valorFinal[1]); if (!Number.isSafeInteger(valor) || valor <= 0) return null;
+    var r = l.match(RE), datas = l.match(/\b\d{2}\/\d{2}\/\d{4}\b/g) || [];
+    // Uma linha de contrato incompleta não pode usar uma data ou preço intermediário como total.
+    if (/^G\S+/i.test(l) && (datas.length < 3 || !/\d{2}\/\d{2}\/\d{4}\s+.*\d,\d{2}\s*$/.test(l))) return null;
+    return { placa:placa(p[0]), alternativo:!r, detalhe:{
+      contrato:r ? r[1] : (/^(G\S+)/i.exec(l) || [,''])[1], serie:r ? r[3] : '', antena:r ? (r[4] || '') : '',
+      equipamento:equipamento, plano:r ? texto(r[7]) : l, inicio:r ? r[8] : (datas[1] || ''), fim:r ? r[9] : (datas[2] || ''),
+      valor:valor / 100, linhaOriginal:l }, cents:valor };
+  }
   function interpretar(linhas) {
     var comp = '', total = NaN, mapa = {}, equipamento = '', resumo = false;
-    linhas.forEach(function (l) {
+    var pendencias = [], alternativas = 0, vistos = Object.create(null);
+    for (var i = 0; i < linhas.length; i++) {
+      var l = texto(linhas[i]).replace(/\s+/g, ' '), numero = i + 1;
       var m = l.match(/COMPET[ÊE]NCIA:?\s*(\d{2})\/(\d{4})/i); if (m && !comp) comp = m[2] + '-' + m[1];
       var e = l.match(/EQUIPAMENTOS\s*\|\s*\d+\s+(.+)$/i); if (e) equipamento = texto(e[1]);
       if (/^RESUMO\b/i.test(l)) resumo = true;
-      if (resumo) { var t = l.match(/^TOTAIS\s+\d+\s+([\d.,]+)$/); if (t) total = centavos(t[1]); return; }
-      var r = l.match(RE); if (!r) return;
-      var nums = r[10].split(' ').filter(function (x) { return /^[\d.,]+$/.test(x); });
-      var valor = centavos(nums[nums.length - 1]); if (!Number.isFinite(valor)) return;
-      var p = placa(r[5]);
-      if (!mapa[p]) mapa[p] = { placa:p, itens:[], cents:0 };
-      mapa[p].itens.push({ contrato:r[1], serie:r[3], antena:r[4] || '', equipamento:equipamento, plano:texto(r[7]), inicio:r[8], fim:r[9], valor:valor / 100 });
-      mapa[p].cents += valor;
-    });
-    if (!Object.keys(mapa).length) generico(linhas, mapa);
+      var t = l.match(/^(?:TOTAL\s+GERAL|TOTAIS)(?:\s+\d+)?\s+(?:R\$\s*)?([\d.,]+)\s*$/i);
+      if (t && (resumo || /^TOTAL\s+GERAL/i.test(l))) {
+        var declarado = centavos(t[1]);
+        if (Number.isFinite(total) && total !== declarado) pendencias.push({ linha:numero, texto:l, motivo:'Totais conflitantes no documento' });
+        total = declarado; continue;
+      }
+      if (resumo || subtotal(l)) continue;
+      var item = itemLinha(l, equipamento);
+      // Linhas quebradas: reúna somente a continuação do mesmo contrato, nunca outra cobrança ou resumo.
+      if (!item && /^G\S+\s+\d{2}\/\d{2}\/\d{4}/i.test(l) && !RE_DINHEIRO.test(l)) {
+        var passos = 0;
+        while (!item && i + 1 < linhas.length && passos++ < 3) {
+          var proxima = texto(linhas[i + 1]);
+          if (!proxima || /^(G\S+|RESUMO|COMPET[ÊE]NCIA|EQUIPAMENTOS|CONTRATO|P[ÁA]GINA)\b/i.test(proxima) || subtotal(proxima)) break;
+          var outraPlaca = proxima.match(RE_PLACA), atualPlaca = l.match(RE_PLACA);
+          if (outraPlaca && atualPlaca) break;
+          l += ' ' + proxima; i++; item = itemLinha(l, equipamento);
+        }
+      }
+      if (!item) {
+        if (RE_PLACA.test(l) || /^G\S+\s+\d{2}\/\d{2}\/\d{4}/i.test(l) || RE_DINHEIRO.test(l)) {
+          pendencias.push({ linha:numero, texto:l, motivo:'Possível cobrança não reconhecida' });
+        }
+        continue;
+      }
+      var d = item.detalhe;
+      var identidade = d.contrato ? JSON.stringify([d.contrato.toUpperCase(), d.serie, d.antena, item.placa, d.inicio, d.fim, d.plano, item.cents]) : l.toUpperCase();
+      if (identidade && vistos[identidade]) {
+        pendencias.push({ linha:numero, texto:l, motivo:'Item repetido; confira o documento original' }); continue;
+      }
+      if (identidade) vistos[identidade] = true;
+      if (item.alternativo) alternativas++;
+      if (!mapa[item.placa]) mapa[item.placa] = { placa:item.placa, itens:[], cents:0 };
+      mapa[item.placa].itens.push(d); mapa[item.placa].cents += item.cents;
+    }
     if (!comp) comp = mesMaisFrequente(linhas);
     if (!comp) throw new Error('Competência não encontrada no demonstrativo.');
     var lista = Object.keys(mapa).sort().map(function (p) {
       var g = mapa[p], v = veiculo(p);
-      g.competencia = comp; g.cents = g.cents; g.selecionado = false;
+      g.competencia = comp; g.centsOriginais = g.cents; g.selecionado = false;
       g.veiculo = v ? v.vplaca : ''; g.motorista = v ? (v.vmotorista || '') : '';
       g.descricao = 'Rastreamento/telemetria ' + mesBr(comp) + ' · ' + g.itens.length + ' item(ns)';
       g.id = 'g' + Math.random().toString(36).slice(2, 9);
       return g;
     });
-    return { grupos:lista, competencia:comp, total:total };
-  }
-
-  // Outros formatos: placa com espaço/traço, valor no fim da linha; subtotais e total geral ficam fora da soma.
-  var RE_PLACA = /\b([A-Z]{3})[\s-]?(\d[A-Z0-9]\d{2})\b/;
-  function generico(linhas, mapa) {
-    linhas.forEach(function (l) {
-      var u = l.toUpperCase();
-      if (/\b(SUB-?TOTAL|TOTAL|TOTAIS|SOMA)\b/.test(u)) return;
-      var m = u.match(RE_PLACA); if (!m) return;
-      var vals = u.match(/\d{1,3}(?:\.\d{3})*,\d{2}\b/g); if (!vals) return;
-      var valor = centavos(vals[vals.length - 1]); if (!Number.isFinite(valor) || valor <= 0) return;
-      var p = m[1] + m[2];
-      if (!mapa[p]) mapa[p] = { placa:p, itens:[], cents:0 };
-      mapa[p].itens.push({ contrato:'', serie:'', antena:'', equipamento:'', plano:texto(l).slice(0, 120), inicio:'', fim:'', valor:valor / 100 });
-      mapa[p].cents += valor;
-    });
+    var soma = lista.reduce(function (s, g) { return s + g.cents; }, 0);
+    return { grupos:lista, competencia:comp, total:total, soma:soma, diferenca:Number.isFinite(total) ? total - soma : null,
+      pendencias:pendencias, alternativas:alternativas };
   }
   function mesMaisFrequente(linhas) {
     var cont = {}, melhor = '', n = 0;
@@ -116,17 +152,26 @@
   }
   function desenhar() {
     var prev = el('cusRastPrevia'); if (!prev) return;
-    prev.hidden = !grupos.length;
-    var soma = grupos.reduce(function (s, g) { return s + g.cents; }, 0);
-    var aviso = Number.isFinite(totalPdf) && totalPdf !== soma ? ' · Atenção: total do PDF ' + reais(totalPdf) + ' difere da soma lida.' : (Number.isFinite(totalPdf) ? ' · Confere com o total do PDF.' : '');
-    el('cusRastResumo').textContent = arquivo + ' · Competência ' + mesBr(competenciaPdf) + ' · ' + grupos.length + ' veículo(s) · ' + reais(soma) + aviso;
+    prev.hidden = !conferencia;
+    var soma = grupos.reduce(function (s, g) { return s + g.cents; }, 0), bloqueio = bloqueioConferencia();
+    var resumo = arquivo + ' · Competência ' + mesBr(competenciaPdf) + ' · ' + grupos.length + ' veículo(s) na prévia · Total na prévia: ' + reais(soma);
+    if (conferencia) resumo += ' · Total do PDF: ' + (Number.isFinite(totalPdf) ? reais(totalPdf) : 'não identificado') +
+      ' · Total reconhecido na leitura: ' + reais(conferencia.soma) + ' · Diferença (PDF − reconhecido): ' +
+      (Number.isFinite(totalPdf) ? reais(totalPdf - conferencia.soma) : 'não calculável') +
+      ' · Itens por leitura alternativa: ' + conferencia.alternativas + ' · ' + (bloqueio || 'Leitura conferida com o total do PDF.');
+    el('cusRastResumo').textContent = resumo;
+    var detalhes = el('cusRastPendencias');
+    if (detalhes) detalhes.innerHTML = conferencia && conferencia.pendencias.length ? '<details open><summary>' + conferencia.pendencias.length +
+      ' linha(s) pendente(s) — lançamentos bloqueados</summary><p>Não distribua a diferença entre veículos. Confira estas linhas no PDF original e importe novamente.</p><ul>' +
+      conferencia.pendencias.map(function (p) { return '<li><strong>Linha extraída ' + p.linha + ': ' + esc(p.motivo) + '</strong><div style="white-space:pre-wrap;overflow-wrap:anywhere">' + esc(p.texto) + '</div></li>'; }).join('') + '</ul></details>' : '';
+    ['cusRastLancarSel','cusRastLancarTodos'].forEach(function (id) { var b = el(id); if (b) { b.disabled = !!bloqueio || salvando || !grupos.some(function (g) { return situacao(g).ok; }); b.title = bloqueio; } });
     el('cusRastLinhas').innerHTML = grupos.map(function (g, i) {
       var s = situacao(g);
       return '<tr><td><input type="checkbox" data-rast-sel="' + i + '"' + (g.selecionado ? ' checked' : '') + (s.ok ? '' : ' disabled') + ' aria-label="Selecionar ' + esc(g.placa) + '"></td>' +
         '<td>' + esc(g.veiculo || g.placa) + '</td><td>' + esc(g.motorista || '—') + '</td><td>' + mesBr(g.competencia) + '</td>' +
         '<td title="' + esc(g.itens.map(function (d) { return d.plano + ' ' + reais(Math.round(d.valor * 100)); }).join('\n')) + '">' + g.itens.length + '</td>' +
         '<td>' + reais(g.cents) + '</td><td>' + esc(s.t) + '</td><td class="text-nowrap">' +
-        '<button type="button" class="btn btn-sm btn-primary" data-rast-lancar="' + i + '"' + (s.ok ? '' : ' disabled') + '>Lançar</button> ' +
+        '<button type="button" class="btn btn-sm btn-primary" data-rast-lancar="' + i + '"' + (s.ok && !bloqueio && !salvando ? '' : ' disabled') + '>Lançar</button> ' +
         '<button type="button" class="btn btn-sm btn-outline-secondary" data-rast-editar="' + i + '">Editar</button> ' +
         '<button type="button" class="btn btn-sm btn-outline-danger" data-rast-excluir="' + i + '">Excluir</button></td></tr>';
     }).join('') + '<tr class="fw-semibold"><td></td><td colspan="4">Total</td><td>' + reais(soma) + '</td><td colspan="2"></td></tr>';
@@ -140,12 +185,13 @@
   }
   async function lancar(lista) {
     if (salvando || typeof db === 'undefined' || !Array.isArray(db.custos)) return;
+    var bloqueio = bloqueioConferencia(); if (bloqueio) { alert(bloqueio); return; }
     if (typeof window.fmModuloCarregado === 'function' && ['custos','custosRecorrentes','veiculos'].some(function(m) { return !window.fmModuloCarregado(m); })) { alert('Aguarde o carregamento dos dados antes de lançar.'); return; }
     lista = lista.filter(function (g) { return situacao(g).ok; });
     if (!lista.length) { alert('Nenhum veículo apto para lançar.'); return; }
     var soma = lista.reduce(function (s, g) { return s + g.cents; }, 0);
     if (!confirm('Lançar ' + lista.length + ' custo(s) de ' + CATEGORIA + ' na competência ' + mesBr(lista[0].competencia) + ', total ' + reais(soma) + '?')) return;
-    salvando = true;
+    salvando = true; desenhar();
     var novos = lista.map(registro);
     novos.forEach(function (r) { db.custos.push(r); });
     try {
@@ -158,7 +204,7 @@
       // Shared writer may acknowledge late; retain source keys to prevent another charge.
       alert('Não foi possível lançar: ' + err.message);
       desenhar();
-    } finally { salvando = false; }
+    } finally { salvando = false; desenhar(); }
   }
   function editar(g) {
     var v = prompt('Valor total de ' + g.placa + ' (R$):', (g.cents / 100).toFixed(2).replace('.', ','));
@@ -173,7 +219,7 @@
     var box = document.createElement('section'); box.className = 'cus-panel';
     box.innerHTML = '<h5>Importar demonstrativo de rastreamento / telemetria</h5><label for="cusRastArquivo">Demonstrativo em PDF</label>' +
       '<input id="cusRastArquivo" type="file" accept=".pdf,application/pdf" class="form-control" data-nao-limpar="1">' +
-      '<div id="cusRastPrevia" hidden><p id="cusRastResumo" class="cus-note" aria-live="polite"></p>' +
+      '<div id="cusRastPrevia" hidden><p id="cusRastResumo" class="cus-note" aria-live="polite"></p><div id="cusRastPendencias" class="cus-note"></div>' +
       '<div class="d-flex flex-wrap gap-3 mb-2 align-items-end"><div><label for="cusRastComp">Competência</label><input id="cusRastComp" type="month" class="form-control form-control-sm"></div>' +
       '<div><label for="cusRastData">Data do lançamento</label><input id="cusRastData" type="date" class="form-control form-control-sm"></div></div>' +
       '<div class="d-flex flex-wrap gap-2 mb-2"><button id="cusRastLancarSel" type="button" class="btn btn-primary btn-sm">Lançar selecionados</button>' +
@@ -184,14 +230,18 @@
     pane.insertBefore(box, pane.firstChild);
     el('cusRastArquivo').addEventListener('change', function (ev) {
       var file = ev.target.files && ev.target.files[0]; if (!file) return;
-      grupos = []; desenhar();
+      if (salvando) { alert('Aguarde o salvamento antes de importar outro arquivo.'); ev.target.value = ''; return; }
+      var atual = ++leitura;
+      grupos = []; conferencia = null; totalPdf = NaN; desenhar();
       if (!/\.pdf$/i.test(file.name) || file.size > 15 * 1024 * 1024) { alert('Selecione um PDF de até 15 MB.'); ev.target.value = ''; return; }
       Promise.all([carregarPdfJs(), file.arrayBuffer()]).then(function (r) { return linhasPdf(r[1]); }).then(function (linhas) {
+        if (atual !== leitura) return;
         if (!linhas.join('').trim()) throw new Error('Este PDF parece escaneado (só imagem, sem texto). Use o PDF original emitido pela empresa de rastreamento.');
         var res = interpretar(linhas);
-        if (!res.grupos.length) throw new Error('Nenhuma linha de equipamento encontrada.');
-        arquivo = file.name; competenciaPdf = res.competencia; totalPdf = res.total; grupos = res.grupos; grupos.forEach(function (g) { g.data = res.competencia + '-01'; }); el('cusRastComp').value = res.competencia; el('cusRastData').value = res.competencia + '-01'; desenhar();
-      }).catch(function (err) { alert('Não foi possível ler o demonstrativo: ' + err.message); }).finally(function () { ev.target.value = ''; });
+        arquivo = file.name; competenciaPdf = res.competencia; totalPdf = res.total; conferencia = res;
+        grupos = res.grupos.slice(); grupos.forEach(function (g) { g.data = res.competencia + '-01'; }); el('cusRastComp').value = res.competencia; el('cusRastData').value = res.competencia + '-01'; desenhar();
+        if (!res.grupos.length && !res.pendencias.length) alert('Nenhuma linha de equipamento encontrada. Nenhum lançamento foi feito.');
+      }).catch(function (err) { if (atual === leitura) alert('Não foi possível ler o demonstrativo: ' + err.message); }).finally(function () { if (atual === leitura) ev.target.value = ''; });
     });
     box.addEventListener('change', function (ev) {
       var t = ev.target;
