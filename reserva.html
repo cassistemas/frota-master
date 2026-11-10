@@ -133,7 +133,7 @@ main.historico-aberto{max-width:1180px}
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="./reservas-regras.js?v=8-bloqueio-saida"></script>
+<script src="./reservas-regras.js?v=8-cancelar-saida"></script>
 <script src="./reservas-calendario.js?v=1"></script>
 <script>
 (function(){
@@ -216,6 +216,8 @@ main.historico-aberto{max-width:1180px}
   }
   function botoesRegistro(s){
     var uid=auth.currentUser&&auth.currentUser.uid, html="";
+    if(s.status==="Cancelada" && s.canceladoEm) html+='<small>Cancelada em '+esc(new Date(s.canceladoEm).toLocaleString("pt-BR"))+(s.canceladoPor?' por '+esc(s.canceladoPor):'')+'</small>';
+    if(s.status==="Cancelada" && s.motivoCancelamento) html+='<small>Motivo do cancelamento: '+esc(s.motivoCancelamento)+'</small>';
     if(R.podeCancelar(s) && R.aguardandoAutorizacao(s)) html+='<div class="msg espera" role="status">Aguardando autorização do administrador — saída bloqueada.</div>';
     [["pedidoEdicao","Edição"],["pedidoCancelamento","Cancelamento"]].forEach(function(c){
       var p=s[c[0]]; if(!p) return;

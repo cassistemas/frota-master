@@ -1439,6 +1439,15 @@ if(modulo==="saidaVeiculos"){
             onclick="deletar('saidaVeiculos',${real})">
             ✕
         </button>
+        ${s.svreserva === "Reservado" && s.svstatus === "Em Viagem" && !s.dataSaidaReal && !s.saidaRealEm ? `
+        <button
+            type="button"
+            title="Cancelar saída e reserva vinculada"
+            aria-label="Cancelar saída e reserva vinculada"
+            class="btn btn-sm btn-outline-warning"
+            data-cancelar-saida="${real}">
+            Cancelar
+        </button>` : ""}
         `
         : ""
     }

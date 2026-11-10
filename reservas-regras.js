@@ -42,7 +42,7 @@
     if (!veiculoDisponivel(veic)) return "Este veículo está " + (veic.vstatus || "indisponível") + " e não pode ser reservado.";
 
     var saida = (ctx.saidas || []).some(function (s) {
-      if (!s || placaNorm(s.svveiculo) !== alvo || s.svreserva !== "Reservado") return false;
+      if (!s || s.svstatus === "Cancelado" || placaNorm(s.svveiculo) !== alvo || s.svreserva !== "Reservado") return false;
       // Uma edição não conflita com a própria saída vinculada, mesmo trocando de veículo.
       if (sol.id && ctx.reservaOriginal && ctx.reservaOriginal.numeroReserva &&
           String(s.svnumeroreserva) === String(ctx.reservaOriginal.numeroReserva) &&

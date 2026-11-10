@@ -107,9 +107,102 @@
     } catch (e) { alert(e.message || "Não foi possível salvar a decisão. Tente novamente."); }
     finally { ocupado = false; b.disabled = false; }
   }
+  function mesmaReserva(s, sol) {
+    return !!s.svnumeroreserva && String(s.svnumeroreserva) === String(sol.numeroReserva) &&
+      regras().placaNorm(s.svveiculo) === regras().placaNorm(sol.placa);
+  }
+  function localizarSaida(lista, alvo) {
+    var indices = [];
+    lista.forEach(function (s, i) {
+      var igual = (alvo._rid && (s._rid || s._fid || s.id) === alvo._rid) ||
+        (alvo._fid && s._fid === alvo._fid) ||
+        (alvo.svnumeroreserva && mesmaReserva(s, {numeroReserva:alvo.svnumeroreserva, placa:alvo.svveiculo}));
+      if (!alvo._rid && !alvo._fid && !alvo.svnumeroreserva) igual = JSON.stringify(s) === JSON.stringify(alvo);
+      if (igual) indices.push(i);
+    });
+    if (indices.length !== 1) throw new Error("A saída mudou ou não foi localizada de forma única no banco. Atualize a página e confira novamente.");
+    return indices[0];
+  }
+  async function cancelarSaida(b) {
+    if (ocupado) return;
+    if (!admin()) { alert("Somente o administrador pode cancelar saídas."); return; }
+    if (typeof dbCloud === "undefined" || !dbCloud || typeof auth === "undefined" || !auth.currentUser ||
+        (typeof navigator !== "undefined" && navigator.onLine === false)) {
+      alert("Entre no sistema e conecte-se à internet para confirmar o cancelamento no banco."); return;
+    }
+    var alvo = (db.saidaVeiculos || [])[Number(b.dataset.cancelarSaida)];
+    if (!alvo || alvo.svstatus !== "Em Viagem" || alvo.svreserva !== "Reservado") {
+      alert("Esta saída não está disponível para cancelamento."); return;
+    }
+    alvo = Object.assign({}, alvo);
+    var motivo = prompt("Motivo do cancelamento (visível para o solicitante):", "");
+    if (motivo === null) return;
+    motivo = motivo.trim();
+    if (!motivo) { alert("Informe o motivo do cancelamento."); return; }
+    if (!confirm("Cancelar a saída Nº " + (alvo.svnumeroreserva || "—") + " de " + alvo.svveiculo +
+        " e a reserva vinculada no aplicativo?\nO histórico será preservado e o período será liberado após a confirmação do banco.")) return;
+    ocupado = true;
+    var texto = b.textContent; b.disabled = true; b.textContent = "Aguardando banco…";
+    try {
+      var saidaRef = dbCloud.collection("frota").doc("saidaVeiculos");
+      var snap = await dbCloud.collection("reservasVeiculos").get({source:"server"}), refs = [];
+      snap.forEach(function (d) { if (d.id !== "_config") refs.push(d.ref); });
+      await dbCloud.runTransaction(async function (t) {
+        var docs = await Promise.all([t.get(saidaRef)].concat(refs.map(function (r) { return t.get(r); })));
+        if (!admin()) throw new Error("Somente o administrador pode cancelar saídas.");
+        var saidas = docs[0].exists && Array.isArray(docs[0].data().dados) ? docs[0].data().dados : [];
+        var idx = localizarSaida(saidas, alvo), atual = saidas[idx];
+        // Cadastros antigos podem receber um _rid apenas ao carregar a tela.
+        // Compara os campos, não a ordem das propriedades nem esse ID temporário.
+        var chaves = Array.from(new Set(Object.keys(atual).concat(Object.keys(alvo))));
+        if (chaves.some(function (k) {
+          if (k === "_rid" && !atual._rid) return false;
+          return JSON.stringify(atual[k]) !== JSON.stringify(alvo[k]);
+        })) throw new Error("A saída foi alterada. Atualize a página antes de cancelar.");
+        if (atual.svstatus !== "Em Viagem" || atual.svreserva !== "Reservado" || atual.dataSaidaReal || atual.saidaRealEm) {
+          throw new Error("A saída já foi iniciada, encerrada ou cancelada.");
+        }
+        var vinculadas = docs.slice(1).filter(function (d) { return d.exists && mesmaReserva(atual, d.data()); });
+        vinculadas.forEach(function (d) {
+          var sol = d.data();
+          if (!regras().podeCancelar(sol) && !(sol.status === "Cancelada" && !sol.dataSaidaReal && !sol.saidaRealEm)) {
+            throw new Error("A reserva vinculada já foi iniciada ou encerrada. Não é possível cancelar esta saída.");
+          }
+        });
+        var agora = new Date().toISOString(), quem = typeof nomeUsuarioAtual === "function" ? nomeUsuarioAtual() : "Administrador";
+        var resultado = prepararSaida(saidas, idx, null, null, true);
+        resultado[idx] = Object.assign({}, resultado[idx], {
+          svstatus:"Cancelado", svreserva:"Liberado", motivoCancelamento:motivo,
+          canceladoEm:agora, canceladoPor:quem,
+          svobs:(atual.svobs || "") + "\nCancelado pelo administrador: " + quem + " — Motivo: " + motivo
+        });
+        t.set(saidaRef, {dados:resultado, atualizadoEm:agora}, {merge:true});
+        vinculadas.forEach(function (d) {
+          var sol = d.data();
+          if (sol.status === "Cancelada") return;
+          var up = {status:"Cancelada", canceladaApos:sol.status, motivoCancelamento:motivo,
+            canceladoEm:agora, canceladoPor:quem, atualizadoEm:agora,
+            pedidoCancelamento:Object.assign({}, sol.pedidoCancelamento || {}, {
+              situacao:"Aprovado", motivo:motivo, resposta:"Cancelada pelo administrador: " + motivo,
+              analisadoEm:agora, analisadoPor:quem
+            })};
+          if (sol.pedidoEdicao) up.pedidoEdicao = Object.assign({}, sol.pedidoEdicao, {
+            situacao:"Encerrada", resposta:"Reserva cancelada pelo administrador."
+          });
+          t.update(d.ref, up);
+        });
+      });
+      if (typeof renderModulo === "function") renderModulo("saidaVeiculos");
+      alert("Cancelamento confirmado no banco. A saída e a reserva vinculada foram canceladas, e o período foi liberado. O histórico foi preservado.");
+    } catch (e) {
+      alert("Cancelamento não confirmado. " + (e.message || "Confira a conexão e tente novamente."));
+    } finally { ocupado = false; b.disabled = false; b.textContent = texto; }
+  }
   document.addEventListener("click", function (ev) {
     var b = ev.target && ev.target.closest && ev.target.closest("#fmReservasPainel [data-pedido-id]");
     if (b) decidir(b);
+    var cancelar = ev.target && ev.target.closest && ev.target.closest("#listaSaidaVeiculos [data-cancelar-saida]");
+    if (cancelar) cancelarSaida(cancelar);
   });
   window.FMReservasPedidos = {html:html};
 })();

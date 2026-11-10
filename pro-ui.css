@@ -428,6 +428,15 @@ body {
   text-align: center;
   white-space: nowrap;
 }
+#saidaVeiculos .saida-veiculos-acoes {
+  white-space: normal;
+}
+#saidaVeiculos .saida-veiculos-acoes [data-cancelar-saida] {
+  margin-top: 4px;
+  max-width: 100%;
+  padding: 4px 6px;
+  font-size: .7rem;
+}
 #saidaVeiculos .saida-veiculos-reserva,
 #saidaVeiculos .saida-veiculos-status {
   min-width: 0;
