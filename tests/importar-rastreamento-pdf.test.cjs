@@ -47,6 +47,64 @@ test('completa leitura parcial sem repetir os itens já reconhecidos ou o resumo
   assert.match(r.grupos[1].itens[0].linhaOriginal, /103,45/);
   assert.equal(ctx.db.custos.length, 0);
 });
+test('reconhece as duas licenças com uma casa decimal e confere R$ 4.585,88', () => {
+  const { api, ctx } = ambiente();
+  const r = api.carregar([cab, item('4.536,68'),
+    item('1,5', 'G123-2').replace('Plano mensal', 'Licença Acesso Gestor'),
+    item('47,7', 'G123-3').replace('Plano mensal', 'Licença de Uso Omnisafe'),
+    ...resumo('4.585,88')]);
+  assert.equal(r.grupos.length, 1);
+  assert.equal(r.grupos[0].itens.length, 3);
+  assert.equal(r.grupos[0].itens[1].valor, 1.5);
+  assert.equal(r.grupos[0].itens[2].valor, 47.7);
+  assert.equal(r.soma, 458588);
+  assert.equal(r.total, 458588);
+  assert.equal(r.diferenca, 0);
+  assert.equal(r.pendencias.length, 0);
+  assert.equal(api.bloqueio(), '');
+  assert.equal(ctx.db.custos.length, 0);
+});
+test('aceita uma casa decimal na leitura alternativa e ignora subtotal e resumo', () => {
+  const { api } = ambiente();
+  const r = api.interpretar([cab, 'ABC-1234 Licença Acesso Gestor 1,5',
+    'DEF-5G67 Licença de Uso Omnisafe 47,7', 'SUBTOTAL ABC-1234 1,5',
+    'RESUMO', 'ABC-1234 1 1,5', 'DEF-5G67 1 47,7', 'TOTAIS 2 49,2']);
+  assert.equal(r.soma, 4920);
+  assert.equal(r.total, 4920);
+  assert.equal(r.diferenca, 0);
+  assert.equal(r.alternativas, 2);
+  assert.equal(r.pendencias.length, 0);
+  assert.equal(r.grupos[0].itens.length, 1);
+  assert.equal(r.grupos[1].itens.length, 1);
+});
+test('lê contrato quebrado com uma casa decimal sem duplicar a continuação', () => {
+  const { api } = ambiente();
+  const r = api.interpretar([cab, 'G123-1 01/10/2026 123 123456789012 ABC-1234 1 Licença Acesso Gestor',
+    '01/10/2026 31/10/2026 0,00 1,5', 'RESUMO', 'TOTAIS 1 1,50']);
+  assert.equal(r.soma, 150);
+  assert.equal(r.pendencias.length, 0);
+  assert.equal(r.grupos[0].itens.length, 1);
+});
+test('uma casa decimal não libera contratos incompletos nem valores com três casas', () => {
+  const { api } = ambiente();
+  for (const linha of [
+    'G123-1 01/10/2026 123 ABC-1234 1 Licença Acesso Gestor 1,5',
+    item('1,555')
+  ]) {
+    const r = api.carregar([cab, linha, 'RESUMO', 'TOTAIS 1 1,50']);
+    assert.equal(r.soma, 0);
+    assert.equal(r.pendencias.length, 1);
+    assert.notEqual(api.bloqueio(), '');
+  }
+});
+test('não duplica a mesma licença quando o zero final reaparece', () => {
+  const { api } = ambiente();
+  const r = api.interpretar([cab, item('1,5'), item('1,50'), 'RESUMO', 'TOTAIS 2 3,00']);
+  assert.equal(r.soma, 150);
+  assert.equal(r.grupos[0].itens.length, 1);
+  assert.equal(r.pendencias.length, 1);
+  assert.match(r.pendencias[0].motivo, /repetido/);
+});
 test('lê um contrato quebrado em duas linhas sem somar duas vezes', () => {
   const { api } = ambiente();
   const r = api.interpretar([cab, 'G123-1 01/10/2026 123 123456789012 ABC-1234 1 Plano mensal',

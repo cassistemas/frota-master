@@ -59,7 +59,8 @@
   }
   var RE = /^(G\d+-\d+)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+(?:(\d{10,})\s+)?([A-Z]{3}[\s-]?\d[A-Z0-9]\d{2})\s+(\d+)\s+(.+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+(.+)$/i;
   var RE_PLACA = /\b([A-Z]{3})[\s-]?(\d[A-Z0-9]\d{2})\b/i;
-  var RE_DINHEIRO = /(?:^|\s)(?:R\$\s*)?(-?(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2})\s*$/i;
+  // O texto extraído do PDF pode omitir o zero final (1,5 = R$ 1,50).
+  var RE_DINHEIRO = /(?:^|\s)(?:R\$\s*)?(-?(?:\d{1,3}(?:\.\d{3})+|\d+),\d{1,2})\s*$/i;
   function subtotal(l) { return /\b(SUB[ -]?TOTAL|TOTAL|TOTAIS|SOMA)\b/i.test(l); }
   function itemLinha(l, equipamento) {
     var valorFinal = l.match(RE_DINHEIRO), p = l.match(RE_PLACA);
@@ -67,7 +68,7 @@
     var valor = centavos(valorFinal[1]); if (!Number.isSafeInteger(valor) || valor <= 0) return null;
     var r = l.match(RE), datas = l.match(/\b\d{2}\/\d{2}\/\d{4}\b/g) || [];
     // Uma linha de contrato incompleta não pode usar uma data ou preço intermediário como total.
-    if (/^G\S+/i.test(l) && (datas.length < 3 || !/\d{2}\/\d{2}\/\d{4}\s+.*\d,\d{2}\s*$/.test(l))) return null;
+    if (/^G\S+/i.test(l) && (datas.length < 3 || !/\d{2}\/\d{2}\/\d{4}\s+.*\d,\d{1,2}\s*$/.test(l))) return null;
     return { placa:placa(p[0]), alternativo:!r, detalhe:{
       contrato:r ? r[1] : (/^(G\S+)/i.exec(l) || [,''])[1], serie:r ? r[3] : '', antena:r ? (r[4] || '') : '',
       equipamento:equipamento, plano:r ? texto(r[7]) : l, inicio:r ? r[8] : (datas[1] || ''), fim:r ? r[9] : (datas[2] || ''),
