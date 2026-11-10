@@ -46,7 +46,7 @@ test('usa a identidade do veículo e o histórico de KM sem deduzir nomes', () =
   });
   assert.deepEqual(r, { labels: ['XYZ-9999'], valores: [30] });
 });
-test('Estoque e nomes sem vínculo ficam separados sem perder nenhum valor', () => {
+test('Estoque e nomes sem vínculo ficam fora do gráfico sem alterar os lançamentos', () => {
   const r = projetar({
     veiculos: [{ vplaca: 'ABC-1234', vmodelo: 'Scania' }],
     manutencoes: [
@@ -57,9 +57,10 @@ test('Estoque e nomes sem vínculo ficam separados sem perder nenhum valor', () 
     ],
     multas: [{ muveiculo: 'DAF 310', muvalor: 'R$ 50,00' }]
   });
-  assert.deepEqual(r.labels, ['Sem vínculo identificado', 'ABC-1234']);
-  assert.deepEqual(r.valores, [110, 40]);
-  assert.equal(r.valores.reduce((a, b) => a + b, 0), 150);
+  assert.deepEqual(r.labels, ['ABC-1234']);
+  assert.deepEqual(r.valores, [40]);
+  // projetar também compara toda a base antes/depois, incluindo os R$ 110 fora do gráfico.
+  assert.equal(r.valores.reduce((a, b) => a + b, 0), 40);
 });
 test('histórico ambíguo não atribui a despesa a um veículo por suposição', () => {
   const r = projetar({
@@ -68,7 +69,7 @@ test('histórico ambíguo não atribui a despesa a um veículo por suposição',
     })),
     manutencoes: [{ mveiculo: 'DAF 310', mvalor: 'R$ 12,34' }]
   });
-  assert.deepEqual(r, { labels: ['Sem vínculo identificado'], valores: [12.34] });
+  assert.deepEqual(r, { labels: [], valores: [] });
 });
 test('aceita base vazia e não une nomes apenas por retirar pontuação', () => {
   assert.deepEqual(projetar({}), { labels: [], valores: [] });
@@ -76,7 +77,7 @@ test('aceita base vazia e não une nomes apenas por retirar pontuação', () => 
     veiculos: [{ vplaca: 'DAF 310' }],
     multas: [{ muveiculo: 'DAF310', muvalor: 'R$ 1,00' }]
   });
-  assert.deepEqual(r.labels, ['Sem vínculo identificado']);
+  assert.deepEqual(r, { labels: [], valores: [] });
 });
 test('o gráfico da página usa a projeção atual e os scripts inline têm sintaxe válida', () => {
   assert.match(html, /const mData = dadosCustosVeiculosDashboard\(db\);/);
