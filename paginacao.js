@@ -1409,7 +1409,7 @@ if(modulo==="saidaVeiculos"){
             </td>
 
            <td class="saida-veiculos-acoes">
-
+    <div class="saida-veiculos-acoes-grupo" role="group" aria-label="Ações da saída">
     ${
         usuarioLogado.tipo === "admin" ||
         s.criadoPor === usuarioLogado.usuario
@@ -1421,7 +1421,8 @@ if(modulo==="saidaVeiculos"){
             aria-label="Editar saída"
             class="btn-edit"
             onclick="editar('saidaVeiculos',${real})">
-            ✎
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 5 5M4 20l4-1L20 7a3.5 3.5 0 0 0-5-5L3 14l-1 7 6-2"/></svg>
+            <span>Editar</span>
         </button>
         `
         : ""
@@ -1437,21 +1438,22 @@ if(modulo==="saidaVeiculos"){
             aria-label="Excluir saída"
             class="btn-del"
             onclick="deletar('saidaVeiculos',${real})">
-            ✕
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6"/></svg>
         </button>
         ${s.svreserva === "Reservado" && s.svstatus === "Em Viagem" && !s.dataSaidaReal && !s.saidaRealEm ? `
         <button
             type="button"
             title="Cancelar saída e reserva vinculada"
             aria-label="Cancelar saída e reserva vinculada"
-            class="btn btn-sm btn-outline-warning"
+            class="saida-veiculos-btn-cancelar"
             data-cancelar-saida="${real}">
-            Cancelar
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg>
+            <span>Cancelar</span>
         </button>` : ""}
         `
         : ""
     }
-
+    </div>
 </td>
         </tr>
 

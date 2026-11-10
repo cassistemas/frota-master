@@ -397,13 +397,13 @@ body {
 }
 #saidaVeiculos .saida-veiculos-table th:nth-child(1) { width: 11%; }
 #saidaVeiculos .saida-veiculos-table th:nth-child(2) { width: 11%; }
-#saidaVeiculos .saida-veiculos-table th:nth-child(3) { width: 15%; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(3) { width: 13%; }
 #saidaVeiculos .saida-veiculos-table th:nth-child(4),
 #saidaVeiculos .saida-veiculos-table th:nth-child(5) { width: 9%; }
-#saidaVeiculos .saida-veiculos-table th:nth-child(6) { width: 11%; }
-#saidaVeiculos .saida-veiculos-table th:nth-child(7) { width: 16%; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(6) { width: 9%; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(7) { width: 13%; }
 #saidaVeiculos .saida-veiculos-table th:nth-child(8) { width: 11%; text-align: center; }
-#saidaVeiculos .saida-veiculos-table th:nth-child(9) { width: 7%; text-align: center; }
+#saidaVeiculos .saida-veiculos-table th:nth-child(9) { width: 14%; text-align: center; }
 #saidaVeiculos .saida-veiculos-reserva,
 #saidaVeiculos .saida-veiculos-data {
   font-variant-numeric: tabular-nums;
@@ -431,11 +431,74 @@ body {
 #saidaVeiculos .saida-veiculos-acoes {
   white-space: normal;
 }
-#saidaVeiculos .saida-veiculos-acoes [data-cancelar-saida] {
-  margin-top: 4px;
-  max-width: 100%;
-  padding: 4px 6px;
-  font-size: .7rem;
+#saidaVeiculos .saida-veiculos-acoes-grupo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  gap: 6px;
+  width: 100%;
+  max-width: 148px;
+  margin: 0 auto;
+}
+#saidaVeiculos .saida-veiculos-acoes-grupo > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: auto;
+  min-width: 0;
+  height: 32px;
+  margin: 0;
+  padding: 0 7px;
+  border: 1px solid var(--pro-line);
+  border-radius: 7px;
+  background: var(--pro-surface);
+  color: var(--pro-ink-2);
+  font: 600 .7rem/1 Inter, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+#saidaVeiculos .saida-veiculos-acoes-grupo svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+#saidaVeiculos .saida-veiculos-acoes-grupo .btn-edit {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+#saidaVeiculos .saida-veiculos-acoes-grupo .btn-edit:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+#saidaVeiculos .saida-veiculos-acoes-grupo .btn-del {
+  padding: 0;
+  color: var(--pro-mute);
+}
+#saidaVeiculos .saida-veiculos-acoes-grupo .btn-del:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+#saidaVeiculos .saida-veiculos-acoes-grupo .saida-veiculos-btn-cancelar {
+  grid-column: 1 / -1;
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+#saidaVeiculos .saida-veiculos-acoes-grupo .saida-veiculos-btn-cancelar:hover {
+  background: #ffedd5;
+  border-color: #fdba74;
+}
+#saidaVeiculos .saida-veiculos-acoes-grupo > button:focus-visible {
+  outline: 2px solid var(--pro-accent);
+  outline-offset: 2px;
+}
+#saidaVeiculos .saida-veiculos-acoes-grupo > button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
 }
 #saidaVeiculos .saida-veiculos-reserva,
 #saidaVeiculos .saida-veiculos-status {
@@ -461,14 +524,6 @@ body {
   padding: .3em .58em;
   font-size: .61rem;
   line-height: 1.1;
-}
-#saidaVeiculos .saida-veiculos-table .btn-edit,
-#saidaVeiculos .saida-veiculos-table .btn-del {
-  width: 27px;
-  height: 27px;
-  margin: 0 2px;
-  border-radius: 6px;
-  font-size: .76rem;
 }
 @media (max-width: 768px) {
   #saidaVeiculos .saida-veiculos-listagem { padding: 10px !important; }
