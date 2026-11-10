@@ -525,6 +525,28 @@ body {
   font-size: .61rem;
   line-height: 1.1;
 }
+/* Estados somente de leitura também precisam de contraste, sem depender dos selects. */
+#saidaVeiculos .saida-veiculos-status > .badge.fm-status-cor-critico,
+#saidaVeiculos .saida-veiculos-reserva > .badge.fm-status-cor-ok {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 5px 9px;
+  border: 1px solid;
+  font-size: .7rem;
+  line-height: 1.2;
+}
+#saidaVeiculos .saida-veiculos-status > .badge.fm-status-cor-critico {
+  color: var(--status-critical-text) !important;
+  background-color: var(--status-critical-bg) !important;
+  border-color: var(--status-critical-border) !important;
+}
+#saidaVeiculos .saida-veiculos-reserva > .badge.fm-status-cor-ok {
+  color: var(--status-ok-text) !important;
+  background-color: var(--status-ok-bg) !important;
+  border-color: var(--status-ok-border) !important;
+}
 @media (max-width: 768px) {
   #saidaVeiculos .saida-veiculos-listagem { padding: 10px !important; }
   #saidaVeiculos .saida-veiculos-table { min-width: 960px; }
