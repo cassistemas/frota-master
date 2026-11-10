@@ -6338,6 +6338,72 @@ function alternarParcelamentoManutencao(){
 window.alternarParcelamentoManutencao = alternarParcelamentoManutencao;
 
 
+// Projeção somente de leitura: o gráfico usa o cadastro atual sem regravar despesas.
+function dadosCustosVeiculosDashboard(base){
+    const veiculos = (base.veiculos || []).filter(v => v && String(v.vplaca || '').trim() &&
+        String(v.vplaca).trim().toUpperCase() !== 'ESTOQUE');
+    const normalizar = valor => {
+        const texto = String(valor == null ? '' : valor).trim().normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ');
+        const placa = texto.replace(/[^A-Z0-9]/g, '');
+        return /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(placa) ? placa : texto;
+    };
+    const porId = new Map(), porReferencia = new Map();
+    function indexar(mapa, chave, veiculo){
+        if(!chave) return;
+        if(!mapa.has(chave)) mapa.set(chave, new Set());
+        mapa.get(chave).add(veiculo);
+    }
+    veiculos.forEach(v => {
+        [v._rid, v._fid, v.id].forEach(id => {
+            if(id != null && String(id).trim()) indexar(porId, String(id), v);
+        });
+        const referencias = [v.vplaca];
+        (Array.isArray(v.historicoPlacas) ? v.historicoPlacas : []).forEach(h => {
+            if(h && typeof h === 'object') referencias.push(h.placaAnterior, h.placaNova);
+        });
+        referencias.forEach(ref => {
+            const chave = normalizar(ref);
+            if(chave && chave !== 'ESTOQUE') indexar(porReferencia, chave, v);
+        });
+    });
+    // O histórico de KM também guarda a placa e a identidade estável do cadastro.
+    (base.historicoKm || []).forEach(h => {
+        if(!h) return;
+        const candidatos = porId.get(String(h.veiculoId || ''));
+        const chave = normalizar(h.placa);
+        if(candidatos && candidatos.size === 1 && chave && chave !== 'ESTOQUE'){
+            indexar(porReferencia, chave, candidatos.values().next().value);
+        }
+    });
+    function resolver(registro, referencia){
+        const id = registro.veiculoId;
+        const candidatos = id != null && String(id).trim()
+            ? porId.get(String(id)) : porReferencia.get(normalizar(referencia));
+        return candidatos && candidatos.size === 1 ? candidatos.values().next().value : null;
+    }
+    const grupos = new Map();
+    function somar(registro, referencia, valor){
+        if(!registro) return;
+        const veiculo = resolver(registro, referencia);
+        const chave = veiculo ? normalizar(veiculo.vplaca) : null;
+        if(!grupos.has(chave)) grupos.set(chave, {
+            rotulo: veiculo ? String(veiculo.vplaca).trim() : 'Sem vínculo identificado', valor: 0
+        });
+        grupos.get(chave).valor += valor;
+    }
+    (base.manutencoes || []).forEach(x => {
+        if(x) somar(x, x.mveiculo, totalManutencaoRegistro(x));
+    });
+    (base.multas || []).forEach(x => {
+        if(x) somar(x, x.muveiculo, moedaParaFloat(x.muvalor));
+    });
+    return {
+        labels: Array.from(grupos.values(), g => g.rotulo),
+        valores: Array.from(grupos.values(), g => g.valor)
+    };
+}
+
 function renderDashboard(){
     if(!document.getElementById('d_vei')) return;
     if(typeof sincronizarRevisoes==="function"){
@@ -6585,13 +6651,12 @@ pagina.length
 : '<div class="text-success p-3">✅ Frota em dia</div>';
 
 renderPaginacaoAlertas(alertas.length);
-    let mData={};
-    db.manutencoes.forEach(x=>mData[x.mveiculo]=(mData[x.mveiculo]||0)+totalManutencaoRegistro(x));
-    db.multas.forEach(x=>mData[x.muveiculo]=(mData[x.muveiculo]||0)+moedaParaFloat(x.muvalor));
+    const mData = dadosCustosVeiculosDashboard(db);
     if(chart) chart.destroy();
+    chart = null;
     let ctx=document.getElementById('graficoCustos');
-    if(ctx && Object.keys(mData).length)
-        chart = new Chart(ctx,{type:'bar',data:{labels:Object.keys(mData),datasets:[{label:'Investimento Total R$',data:Object.values(mData),backgroundColor:'#3b82f6'}]},options:{responsive:true,maintainAspectRatio:false}});
+    if(ctx && mData.labels.length)
+        chart = new Chart(ctx,{type:'bar',data:{labels:mData.labels,datasets:[{label:'Investimento Total R$',data:mData.valores,backgroundColor:mData.labels.map(label => label === 'Sem vínculo identificado' ? '#64748b' : '#3b82f6')}]},options:{responsive:true,maintainAspectRatio:false}});
 }
 
 function gerarRelatorioPDF() { window.print(); }
