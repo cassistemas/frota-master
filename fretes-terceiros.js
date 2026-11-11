@@ -243,6 +243,30 @@
       st.value = atualT;
     }
   }
+  var preCadastrosConfirmados = new WeakSet();
+  // A prévia só solicita este pré-cadastro depois da confirmação explícita do usuário.
+  window.fmPrepararTerceiroPlanilha = async function (placa) {
+    var p = String(placa || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!p) throw new Error('Informe a placa do terceiro.');
+    if (typeof db === 'undefined' || typeof salvarNuvem !== 'function') throw new Error('Cadastro de terceiros indisponível.');
+    if (typeof window.fmModuloCarregado === 'function' && !window.fmModuloCarregado('terceiros')) throw new Error('Aguarde o carregamento do cadastro de terceiros.');
+    if (listaArr('veiculos').some(function (v) { return String(v.vplaca || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === p; })) throw new Error('Esta placa pertence à frota própria. Confira novamente.');
+    var encontrados = listaArr('terceiros').filter(function (t) { return String(t.terplaca || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === p; });
+    if (encontrados.length > 1) throw new Error('Há mais de um terceiro nesta placa. Escolha em Editar.');
+    var t = encontrados[0];
+    if (!t) {
+      t = { terempresa: 'Terceiro (pré-cadastro)', terplaca: p, terpreCadastroPlanilha: true, terobs: 'Pré-cadastro pela planilha de viagens. Complete os dados do contratado.', _ts: Date.now() };
+      if (!Array.isArray(db.terceiros)) db.terceiros = [];
+      db.terceiros.push(t);
+    }
+    if (t.terpreCadastroPlanilha && !preCadastrosConfirmados.has(t)) {
+      var ok = await salvarNuvem(['terceiros']);
+      if (ok !== true) throw new Error('Pré-cadastro do terceiro pendente de sincronização. Confira a conexão antes de confirmar o frete; não crie outro cadastro.');
+      preCadastrosConfirmados.add(t);
+    }
+    preencherSelectsFrete();
+    return rotuloTerceiro(t);
+  };
   window.alternarExecucaoFrete = function () {
     var terceiro = val('freexecucao') === 'terceiro';
     [['grpFreVeiculo', !terceiro], ['grpFreTerceiro', terceiro], ['grpFreCustoTerceiro', terceiro]]

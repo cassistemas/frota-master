@@ -88,3 +88,70 @@ test('pagamento ausente nunca é assumido como zero', () => {
   assert.ok(Number.isNaN(item.custo));
   assert.equal(api.motivo(item), 'Informe o valor pago ao terceiro');
 });
+test('placa desconhecida pode ser confirmada sem cadastro ou vínculo manual', () => {
+  const { api, db } = ambiente();
+  const item = api.ler(planilha())[0]; api.periodo(item, '2026-11');
+  assert.equal(api.motivo(item), 'Confirme Valor da Viagem como pagamento');
+  item.aceitarRateio = true;
+  assert.equal(api.motivo(item), 'Pronto');
+  assert.equal(db.terceiros.length, 0, 'a prévia não cria cadastros');
+});
+test('placa ambígua ainda exige escolha explícita e veículo vendido fica bloqueado', () => {
+  const { api, db } = ambiente({ terceiros: [
+    { terempresa: 'A', terplaca: 'ABC1234' }, { terempresa: 'B', terplaca: 'ABC-1234' }
+  ] });
+  const item = api.ler(planilha())[0]; api.periodo(item, '2026-11'); item.aceitarRateio = true;
+  assert.match(api.motivo(item), /Mais de um terceiro/);
+  item.terceiro = 'A — ABC1234'; assert.equal(api.motivo(item), 'Pronto');
+  db.veiculos.push({ vplaca: 'abc1234', vstatus: 'VENDIDO' });
+  assert.equal(api.motivo(item), 'Veículo vendido: conferir cadastro');
+});
+test('seleção não reconstrói tabela nem repete consultas e prévia limita linhas no DOM', () => {
+  const fonte = ler('importar-planilha-fretes.js');
+  const selecao = fonte.slice(fonte.indexOf("el('frePlanilhaTodos').onchange"), fonte.indexOf("el('frePlanilhaLista').onclick"));
+  assert.doesNotMatch(selecao, /render\(|identificar\(|motivo\(|indices\(/);
+  assert.match(selecao, /atualizarSelecao\(\)/);
+  assert.match(fonte, /itens\.slice\(inicio, inicio \+ porPagina\)/);
+  assert.match(fonte, /data-confirmar=/);
+  assert.match(fonte, /individual \? \(itens\[indice\] \? \[itens\[indice\]\]/);
+  assert.match(fonte, /if \(ocupado\) return;\s*var base = indices\(\); itens = itens\.filter/);
+});
+function ambientePreCadastro(ok = true, terceiros = []) {
+  const fonte = ler('fretes-terceiros.js');
+  const trecho = fonte.slice(fonte.indexOf('  var preCadastrosConfirmados'), fonte.indexOf('  window.alternarExecucaoFrete ='));
+  const chamadas = [];
+  const ctx = { db: { terceiros, veiculos: [] }, Date, console,
+    listaArr(k) { return ctx.db[k] || []; },
+    salvarNuvem: async mods => { chamadas.push(Array.from(mods)); return ok; },
+    preencherSelectsFrete() {},
+    rotuloTerceiro(t) { return (t.terempresa || 'Terceiro') + ' — ' + t.terplaca; },
+    fmModuloCarregado() { return true; }
+  };
+  ctx.window = ctx; vm.createContext(ctx); vm.runInContext(trecho, ctx);
+  return { ctx, chamadas };
+}
+test('pré-cadastro normaliza placa e reutiliza o mesmo terceiro entre CT-e', async () => {
+  const { ctx, chamadas } = ambientePreCadastro();
+  const primeiro = await ctx.fmPrepararTerceiroPlanilha('abc-1234');
+  const segundo = await ctx.fmPrepararTerceiroPlanilha('ABC1234');
+  assert.equal(primeiro, segundo);
+  assert.equal(ctx.db.terceiros.length, 1);
+  assert.equal(ctx.db.terceiros[0].terplaca, 'ABC1234');
+  assert.equal(ctx.db.terceiros[0].terpreCadastroPlanilha, true);
+  assert.deepEqual(chamadas, [['terceiros']]);
+});
+test('falha de sincronização não permite prosseguir nem duplica pré-cadastro', async () => {
+  const { ctx, chamadas } = ambientePreCadastro(false);
+  await assert.rejects(ctx.fmPrepararTerceiroPlanilha('ABC1234'), /pendente de sincronização/);
+  await assert.rejects(ctx.fmPrepararTerceiroPlanilha('ABC-1234'), /pendente de sincronização/);
+  assert.equal(ctx.db.terceiros.length, 1);
+  assert.equal(chamadas.length, 2);
+});
+test('terceiro já cadastrado não é recriado e placa própria é recusada pelo pré-cadastro', async () => {
+  const { ctx, chamadas } = ambientePreCadastro(true, [{ terempresa: 'Transportes', terplaca: 'ABC-1234' }]);
+  assert.equal(await ctx.fmPrepararTerceiroPlanilha('ABC1234'), 'Transportes — ABC-1234');
+  assert.equal(chamadas.length, 0);
+  ctx.db.veiculos.push({ vplaca: 'XYZ-9999' });
+  await assert.rejects(ctx.fmPrepararTerceiroPlanilha('xyz9999'), /frota própria/);
+  assert.equal(ctx.db.terceiros.length, 1);
+});
