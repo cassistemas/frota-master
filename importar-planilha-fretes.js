@@ -27,6 +27,19 @@
     return isFinite(Number(s)) ? Math.round(Number(s) * 100) : NaN;
   }
   function moeda(c) { return (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+  var camposComparacao = [
+    { campo: 'placa', label: 'Placa', normalizar: normalizar },
+    { campo: 'frete', label: 'Receita', normalizar: function (v) { return v; } },
+    { campo: 'origem', label: 'Origem', normalizar: chave },
+    { campo: 'destino', label: 'Destino', normalizar: chave },
+    { campo: 'peso', label: 'Peso (kg)', normalizar: function (v) { return v; } }
+  ];
+  function diferencas(ocorrencias) {
+    return camposComparacao.filter(function (c) {
+      var primeiro = c.normalizar(ocorrencias[0][c.campo]);
+      return ocorrencias.some(function (o) { return !Object.is(primeiro, c.normalizar(o[c.campo])); });
+    }).map(function (c) { return c.campo; });
+  }
   function valor(c) { return isFinite(c) ? (c / 100).toFixed(2).replace('.', ',') : ''; }
   function numero(x) { return typeof x === 'number' ? x : Number(texto(x).replace(/\./g, '').replace(',', '.')) || 0; }
   function lista(k) { return typeof db !== 'undefined' && Array.isArray(db[k]) ? db[k] : []; }
@@ -43,15 +56,17 @@
     var partes = comp.split('-'), ultimo = new Date(Number(partes[0]), Number(partes[1]), 0).getDate();
     item.inicio = comp + '-01'; item.fim = comp + '-' + ultimo; item.data = item.inicio;
   }
-  function ler(rows) {
-    var porCte = new Map(), grupos = new Map(), viagem = '', placa = '', linha = '', colunas = null;
+  function ler(rows, fontes) {
+    var porCte = new Map(), grupos = new Map(), viagem = '', placa = '', linha = '', colunas = null, abaAtual = '';
     function grupo() {
       var id = normalizar(viagem) + '|' + normalizar(placa);
       if (!grupos.has(id)) grupos.set(id, { id: id, valores: [], itens: [] });
       return grupos.get(id);
     }
     function registrarValor(g, v) { var c = dinheiro(v); if (isFinite(c) && c >= 0 && g.valores.indexOf(c) < 0) g.valores.push(c); }
-    rows.forEach(function (row) {
+    rows.forEach(function (row, indiceLinha) {
+      var fonte = fontes && fontes[indiceLinha] || { aba: '', linha: indiceLinha + 1 };
+      if (fonte.aba !== abaAtual) { viagem = ''; placa = ''; linha = ''; colunas = null; abaAtual = fonte.aba; }
       var primeiro = celula(row, 0), tipo = chave(primeiro);
       if (tipo === 'viagem') { viagem = celula(row, 1); placa = ''; linha = ''; colunas = null; }
       if (tipo === 'veiculo') placa = celula(row, 1);
@@ -74,12 +89,19 @@
       var origem = celula(row, colunas.origem), ufo = celula(row, colunas.ufOrigem).toUpperCase();
       var destino = celula(row, colunas.destino), ufd = celula(row, colunas.ufDestino).toUpperCase();
       var registro = { cte: primeiro, placa: placa, frete: frete, peso: numero(row[colunas.peso]), origem: origem && ufo ? origem + '-' + ufo : '', destino: destino && ufd ? destino + '-' + ufd : '', viagens: [viagem], linhas: [linha], grupos: [g.id], divergente: false, selecionado: false, competencia: '', data: '', inicio: '', fim: '', custo: NaN, custoManual: false, aceitarRateio: false, terceiro: '' };
+      // Guarde cada linha original para comparação, sem criar outra receita ou pagamento.
+      var ocorrencia = { aba: fonte.aba, linhaPlanilha: fonte.linha, viagem: viagem, linhaViagem: linha, placa: placa, frete: frete, peso: registro.peso, origem: registro.origem, destino: registro.destino };
+      registro.ocorrencias = [ocorrencia]; registro.camposDivergentes = [];
       var id = normalizar(primeiro), anterior = porCte.get(id);
       if (!anterior) { porCte.set(id, registro); g.itens.push(registro); return; }
+      anterior.ocorrencias.push(ocorrencia);
       if (anterior.viagens.indexOf(viagem) < 0) anterior.viagens.push(viagem);
       if (linha && anterior.linhas.indexOf(linha) < 0) anterior.linhas.push(linha);
       if (anterior.grupos.indexOf(g.id) < 0) { anterior.grupos.push(g.id); g.itens.push(anterior); }
-      if (anterior.frete !== frete || normalizar(anterior.placa) !== normalizar(placa) || anterior.origem !== registro.origem || anterior.destino !== registro.destino || anterior.peso !== registro.peso) anterior.divergente = true;
+      diferencas([anterior.ocorrencias[0], ocorrencia]).forEach(function (campo) {
+        if (anterior.camposDivergentes.indexOf(campo) < 0) anterior.camposDivergentes.push(campo);
+      });
+      anterior.divergente = anterior.camposDivergentes.length > 0;
     });
     grupos.forEach(function (g) {
       if (g.valores.length !== 1 || !g.itens.length || g.itens.some(function (x) { return x.divergente || x.grupos.length !== 1 || !(x.frete > 0); })) return;
@@ -131,7 +153,7 @@
     var inicio = (pagina - 1) * porPagina;
     el('frePlanilhaLista').innerHTML = itens.slice(inicio, inicio + porPagina).map(function (x, pos) {
       var i = inicio + pos, c = identificar(x, base), m = situacoes.get(x);
-      return '<tr><td><input type="checkbox" data-selecao="' + i + '" aria-label="Selecionar CT-e ' + escapar(x.cte) + '" ' + (x.selecionado ? 'checked ' : '') + (ocupado ? 'disabled' : '') + '></td><td>' + escapar(x.viagens.join(', ')) + '<br><b>CT-e ' + escapar(x.cte) + '</b></td><td>' + escapar(x.placa) + '<br>' + (c.propria ? 'Frota própria' : 'Terceiro') + '<br><small>' + escapar(c.propria ? c.veiculo.vmodelo || '' : terceiroItem(x, c) || 'Pré-cadastro pela placa ao confirmar') + '</small></td><td>' + escapar(x.origem) + '<br>→ ' + escapar(x.destino) + '</td><td>' + (isFinite(x.frete) ? moeda(x.frete) : 'Pendente') + '</td><td>' + (c.propria ? 'Não se aplica' : isFinite(x.custo) ? moeda(x.custo) : 'Pendente') + (x.rateioQuantidade > 1 && !x.custoManual && !c.propria ? '<br><small>Rateio sugerido (' + x.rateioQuantidade + ' CT-e)</small>' : '') + '</td><td>' + (c.propria || !isFinite(x.custo) ? '—' : moeda(x.frete - x.custo)) + '</td><td>' + escapar(x.competencia || 'Pendente') + '<br><small>' + escapar(x.inicio) + ' → ' + escapar(x.fim) + '</small></td><td>' + escapar(m) + '</td><td><button type="button" class="btn btn-sm btn-success" data-confirmar="' + i + '" ' + (ocupado ? 'disabled' : '') + '>Confirmar</button> <button type="button" class="btn btn-sm btn-outline-primary" data-editar="' + i + '" ' + (ocupado ? 'disabled' : '') + '>Editar</button> <button type="button" class="btn btn-sm btn-outline-danger" data-remover="' + i + '" ' + (ocupado ? 'disabled' : '') + '>Remover</button></td></tr>';
+      return '<tr><td><input type="checkbox" data-selecao="' + i + '" aria-label="Selecionar CT-e ' + escapar(x.cte) + '" ' + (x.selecionado ? 'checked ' : '') + (ocupado ? 'disabled' : '') + '></td><td>' + escapar(x.viagens.join(', ')) + '<br><b>CT-e ' + escapar(x.cte) + '</b></td><td>' + escapar(x.placa) + '<br>' + (c.propria ? 'Frota própria' : 'Terceiro') + '<br><small>' + escapar(c.propria ? c.veiculo.vmodelo || '' : terceiroItem(x, c) || 'Pré-cadastro pela placa ao confirmar') + '</small></td><td>' + escapar(x.origem) + '<br>→ ' + escapar(x.destino) + '</td><td>' + (isFinite(x.frete) ? moeda(x.frete) : 'Pendente') + '</td><td>' + (c.propria ? 'Não se aplica' : isFinite(x.custo) ? moeda(x.custo) : 'Pendente') + (x.rateioQuantidade > 1 && !x.custoManual && !c.propria ? '<br><small>Rateio sugerido (' + x.rateioQuantidade + ' CT-e)</small>' : '') + '</td><td>' + (c.propria || !isFinite(x.custo) ? '—' : moeda(x.frete - x.custo)) + '</td><td>' + escapar(x.competencia || 'Pendente') + '<br><small>' + escapar(x.inicio) + ' → ' + escapar(x.fim) + '</small></td><td>' + escapar(m) + '</td><td><button type="button" class="btn btn-sm btn-success" data-confirmar="' + i + '" ' + (ocupado ? 'disabled' : '') + '>Confirmar</button> <button type="button" class="btn btn-sm btn-outline-primary" data-editar="' + i + '" ' + (ocupado ? 'disabled' : '') + '>Editar</button> ' + (x.ocorrencias.length > 1 ? '<button type="button" class="btn btn-sm btn-outline-warning" data-editar="' + i + '" ' + (ocupado ? 'disabled' : '') + '>' + (x.divergente ? 'Comparar divergências' : 'Comparar ocorrências') + '</button> ' : '') + '<button type="button" class="btn btn-sm btn-outline-danger" data-remover="' + i + '" ' + (ocupado ? 'disabled' : '') + '>Remover</button></td></tr>';
     }).join('') || '<tr><td colspan="10">Escolha a planilha para iniciar a conferência.</td></tr>';
     atualizarSelecao();
     if (el('frePlanilhaPagina')) el('frePlanilhaPagina').textContent = 'Página ' + pagina + ' de ' + paginas + ' · até ' + porPagina + ' CT-e por página. Selecionar todos inclui todas as páginas.';
@@ -139,16 +161,47 @@
     if (el('frePlanilhaProxima')) el('frePlanilhaProxima').disabled = ocupado || pagina === paginas;
     el('frePlanilhaBox').querySelectorAll('[data-lote], #frePlanilhaArquivo, #frePlanilhaTodos, #frePlanilhaCompetencia').forEach(function (e) { e.disabled = ocupado; });
   }
+  function comparacao(x) {
+    if (!x.ocorrencias || x.ocorrencias.length < 2) return '';
+    var diferentes = x.camposDivergentes || [], resumoCampos = camposComparacao.filter(function (c) { return diferentes.indexOf(c.campo) >= 0; }).map(function (c) { return c.label; });
+    return '<section class="mb-3" aria-label="Comparação das ocorrências do CT-e"><h6>Comparar ocorrências da planilha</h6><p>' + (resumoCampos.length ? 'Campos diferentes: <b>' + escapar(resumoCampos.join(', ')) + '</b>. As células destacadas mostram os valores originais. Escolha uma ocorrência ou ajuste os campos abaixo e confirme a revisão.' : 'As ocorrências são equivalentes. Maiúsculas, acentos e espaços nas cidades e pontuação da placa não geram divergência.') + '</p><p class="cus-note">A primeira ocorrência preenche a prévia inicialmente. Usar outra ocorrência apenas preenche a edição; não salva frete nem confirma pagamento.</p><div class="table-responsive"><table class="table table-sm table-bordered"><caption>Dados originais; o CT-e será contado uma única vez.</caption><thead><tr><th scope="col">Campo</th>' + x.ocorrencias.map(function (o, j) {
+      return '<th scope="col">Ocorrência ' + (j + 1) + '<br><small>Aba: ' + escapar(o.aba || 'não informada') + ' · linha ' + escapar(o.linhaPlanilha) + '<br>Viagem: ' + escapar(o.viagem) + (o.linhaViagem ? '<br>Linha da viagem: ' + escapar(o.linhaViagem) : '') + '</small><br><button type="button" class="btn btn-sm btn-outline-primary" data-ocorrencia="' + j + '">Usar os dados desta ocorrência</button></th>';
+    }).join('') + '</tr></thead><tbody>' + camposComparacao.map(function (c) {
+      var mudou = diferentes.indexOf(c.campo) >= 0;
+      return '<tr><th scope="row">' + c.label + (mudou ? ' — diferente' : '') + '</th>' + x.ocorrencias.map(function (o) {
+        var v = o[c.campo];
+        if (c.campo === 'frete') v = isFinite(v) ? moeda(v) : 'Não informado';
+        if (c.campo === 'peso') v = isFinite(v) ? v.toLocaleString('pt-BR', { maximumFractionDigits: 6 }) : 'Não informado';
+        return '<td' + (mudou ? ' class="table-warning"' : '') + '>' + escapar(v || 'Não informado') + '</td>';
+      }).join('') + '</tr>';
+    }).join('') + '</tbody></table></div><p class="cus-note" id="frePEEscolha" role="status" aria-live="polite"></p></section>';
+  }
   function editar(i) {
     var x = itens[i]; if (!x || ocupado) return;
     var c = identificar(x), host = el('frePlanilhaEditor'); host.hidden = false; host.dataset.indice = i;
     function input(id, label, tipo, v) { return '<div class="col-md-3"><label for="' + id + '" class="form-label-mini">' + label + '</label><input id="' + id + '" class="form-control" type="' + tipo + '" value="' + escapar(v) + '"></div>'; }
-    host.innerHTML = '<h6>Conferir CT-e ' + escapar(x.cte) + '</h6><div class="row g-2">' + input('frePEPlaca', 'Placa (classificação automática)', 'text', x.placa) + input('frePEOrigem', 'Cidade-UF de origem', 'text', x.origem) + input('frePEDestino', 'Cidade-UF de destino', 'text', x.destino) + input('frePEReceita', 'Receita do frete (R$)', 'text', valor(x.frete)) + input('frePECusto', 'Pago ao terceiro (R$)', 'text', valor(x.custo)) + input('frePECompetencia', 'Competência', 'month', x.competencia) + input('frePEData', 'Data do lançamento', 'date', x.data) + input('frePEInicio', 'Início do período de referência', 'date', x.inicio) + input('frePEFim', 'Fim do período de referência', 'date', x.fim) + '<div class="col-md-6"><label for="frePETerceiro" class="form-label-mini">Terceiro contratado (somente para placa não cadastrada na frota)</label><select id="frePETerceiro" class="form-select"><option value="">Automático pela placa (pré-cadastro se necessário)</option>' + lista('terceiros').map(function (t) { var r = rotulo(t); return '<option value="' + escapar(r) + '"' + (r === terceiroItem(x, c) ? ' selected' : '') + '>' + escapar(r) + '</option>'; }).join('') + '</select></div></div><p class="cus-note">Valor da Viagem é tratado apenas como sugestão de pagamento. Quando há vários CT-e, o total é distribuído proporcionalmente à receita, em centavos, sem repetir o custo. Confira o total contratado; se estiver ambíguo, informe o pagamento real de cada CT-e.</p><label><input type="checkbox" id="frePEAceitar" ' + (x.custoManual || x.aceitarRateio ? 'checked' : '') + '> Confirmo o valor pago ao terceiro deste CT-e</label><br>' + (x.divergente ? '<label><input type="checkbox" id="frePEResolver"> Revisei as divergências entre as linhas repetidas e confirmo estes dados</label><br>' : '') + '<button type="button" class="btn btn-primary mt-2" id="frePESalvar">Aplicar à prévia</button> <button type="button" class="btn btn-outline-secondary mt-2" id="frePECancelar">Cancelar edição</button>';
+    host.innerHTML = '<h6>Conferir CT-e ' + escapar(x.cte) + '</h6>' + comparacao(x) + '<div class="row g-2">' + input('frePEPlaca', 'Placa (classificação automática)', 'text', x.placa) + input('frePEOrigem', 'Cidade-UF de origem', 'text', x.origem) + input('frePEDestino', 'Cidade-UF de destino', 'text', x.destino) + input('frePEReceita', 'Receita do frete (R$)', 'text', valor(x.frete)) + input('frePEPeso', 'Peso (kg)', 'text', x.peso.toLocaleString('pt-BR', { maximumFractionDigits: 6 })) + input('frePECusto', 'Pago ao terceiro (R$)', 'text', valor(x.custo)) + input('frePECompetencia', 'Competência', 'month', x.competencia) + input('frePEData', 'Data do lançamento', 'date', x.data) + input('frePEInicio', 'Início do período de referência', 'date', x.inicio) + input('frePEFim', 'Fim do período de referência', 'date', x.fim) + '<div class="col-md-6"><label for="frePETerceiro" class="form-label-mini">Terceiro contratado (somente para placa não cadastrada na frota)</label><select id="frePETerceiro" class="form-select"><option value="">Automático pela placa (pré-cadastro se necessário)</option>' + lista('terceiros').map(function (t) { var r = rotulo(t); return '<option value="' + escapar(r) + '"' + (r === terceiroItem(x, c) ? ' selected' : '') + '>' + escapar(r) + '</option>'; }).join('') + '</select></div></div><p class="cus-note">Valor da Viagem é tratado apenas como sugestão de pagamento. Quando há vários CT-e, o total é distribuído proporcionalmente à receita, em centavos, sem repetir o custo. Confira o total contratado; se estiver ambíguo, informe o pagamento real de cada CT-e.</p><label><input type="checkbox" id="frePEAceitar" ' + (x.custoManual || x.aceitarRateio ? 'checked' : '') + '> Confirmo o valor pago ao terceiro deste CT-e</label><br>' + (x.camposDivergentes.length ? '<label><input type="checkbox" id="frePEResolver" ' + (!x.divergente ? 'checked' : '') + '> Revisei as divergências entre as linhas repetidas e confirmo estes dados</label><br>' : '') + '<button type="button" class="btn btn-primary mt-2" id="frePESalvar">Aplicar à prévia</button> <button type="button" class="btn btn-outline-secondary mt-2" id="frePECancelar">Cancelar edição</button>';
+    host.querySelectorAll('[data-ocorrencia]').forEach(function (botao) {
+      botao.onclick = function () {
+        if (ocupado) return;
+        var o = x.ocorrencias[Number(botao.dataset.ocorrencia)]; if (!o) return;
+        campo('frePEPlaca', o.placa); campo('frePEOrigem', o.origem); campo('frePEDestino', o.destino);
+        campo('frePEReceita', valor(o.frete)); campo('frePEPeso', o.peso.toLocaleString('pt-BR', { maximumFractionDigits: 6 }));
+        // Pagamento e vínculo não são transferidos entre placas sem conferência.
+        if (normalizar(o.placa) !== normalizar(x.placa)) { campo('frePETerceiro', ''); campo('frePECusto', ''); el('frePEAceitar').checked = false; }
+        if (el('frePEResolver')) el('frePEResolver').checked = false;
+        el('frePEEscolha').textContent = 'Ocorrência ' + (Number(botao.dataset.ocorrencia) + 1) + ' preenchida abaixo. Confira os dados e marque a revisão antes de aplicar à prévia.';
+      };
+    });
     el('frePECompetencia').onchange = function () { var temp = {}; periodo(temp, this.value); campo('frePEData', temp.data); campo('frePEInicio', temp.inicio); campo('frePEFim', temp.fim); };
     el('frePECancelar').onclick = function () { host.hidden = true; host.innerHTML = ''; };
     el('frePESalvar').onclick = function () {
       if (ocupado) return;
+      var pesoTexto = texto(el('frePEPeso').value), pesoNovo = numero(pesoTexto);
+      if (pesoTexto && (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,\d+)?$/.test(pesoTexto) || !isFinite(pesoNovo) || pesoNovo < 0)) { mensagem('Informe um peso válido em kg. Use vírgula nos decimais, por exemplo: 1.234,50.'); return; }
+      if (x.camposDivergentes.length && (!el('frePEResolver') || !el('frePEResolver').checked)) { mensagem('Compare as ocorrências e marque a confirmação da revisão antes de aplicar.'); return; }
       var custoNovo = dinheiro(el('frePECusto').value);
+      x.peso = pesoNovo;
       x.placa = texto(el('frePEPlaca').value); x.origem = texto(el('frePEOrigem').value).replace(/\s*[-/]\s*([a-z]{2})$/i, function (_, uf) { return '-' + uf.toUpperCase(); });
       x.destino = texto(el('frePEDestino').value).replace(/\s*[-/]\s*([a-z]{2})$/i, function (_, uf) { return '-' + uf.toUpperCase(); });
       x.frete = dinheiro(el('frePEReceita').value); x.custoManual = x.custoManual || custoNovo !== x.custo; x.custo = custoNovo;
@@ -245,9 +298,13 @@
       if (typeof XLSX === 'undefined') { mensagem('O leitor Excel não está disponível. Recarregue a página.'); return; }
       ocupado = true; render(); mensagem('Lendo a planilha…');
       try {
-        var buffer = await arquivo.arrayBuffer(), wb = XLSX.read(buffer, { type: 'array' }), rows = [];
-        wb.SheetNames.forEach(function (nome) { rows = rows.concat(XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, defval: '', raw: true })); });
-        var novos = ler(rows);
+        var buffer = await arquivo.arrayBuffer(), wb = XLSX.read(buffer, { type: 'array' }), rows = [], fontes = [];
+        wb.SheetNames.forEach(function (nome) {
+          // range: 0 mantém a numeração real das linhas, inclusive vazias antes do cabeçalho.
+          var linhasAba = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, defval: '', raw: true, range: 0, blankrows: true });
+          linhasAba.forEach(function (row, j) { rows.push(row); fontes.push({ aba: nome, linha: j + 1 }); });
+        });
+        var novos = ler(rows, fontes);
         if (!novos.length) throw new Error('Formato não reconhecido. São esperados blocos Viagem, Veículo, Linha e cabeçalhos CT-e, Valor do Frete, Cidade/Estado Origem e Cidade/Estado Destino.');
         itens = novos; pagina = 1; nomeArquivo = arquivo.name; el('frePlanilhaEditor').hidden = true; el('frePlanilhaEditor').innerHTML = '';
         mensagem('Planilha lida. Selecione os CT-e, aplique a competência e confira as pendências. Nenhum frete foi salvo.');
