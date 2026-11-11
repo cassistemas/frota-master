@@ -747,7 +747,7 @@
   function sincronizarRota() {
     setVal('freorigem', montarLocal('freorigemcid', 'freorigemuf'));
     setVal('fredestino', montarLocal('fredestinocid', 'fredestinouf'));
-    atualizarDistancia();
+    return atualizarDistancia();
   }
 
   function geocodificar(local) {
@@ -818,7 +818,7 @@
     if (c && c.txt) { campo.value = c.txt; return; }
     var meu = ++distToken;
     campo.value = 'Calculando...';
-    Promise.all([geocodificar(o), geocodificar(d)]).then(function (p) {
+    return Promise.all([geocodificar(o), geocodificar(d)]).then(function (p) {
       if (meu !== distToken) return;
       if (!p[0] || !p[1]) { campo.value = ''; return; }
       return fetch('https://router.project-osrm.org/route/v1/driving/'
@@ -894,8 +894,10 @@
     };
   }
 
-  window.salvarFrete = function () {
+  window.salvarFrete = function (opcoes) {
+    var planilha = !!(opcoes && opcoes.planilha === true);
     var obj = coletar();
+    if (planilha && opcoes.referencia) obj.freplanilha = opcoes.referencia;
     if (!obj.freorigem || !obj.fredestino) {
       alert('Informe a origem e o destino do frete.');
       return;
@@ -914,17 +916,21 @@
       fretes[Number(idx)] = obj;
     }
     if (typeof db !== 'undefined') db.fretes = fretes;
-    persistir().then(function (ok) {
+    var confirmacao = persistir().then(function (ok) {
       if (ok) {
         try { if (typeof statusNuvem === 'function') statusNuvem('Frete salvo e confirmado no banco de dados', '#198754'); } catch (e) {}
       }
+      return { registrado: true, nuvem: !!ok, fid: obj._fid };
     });
     window.limparFormFrete();
     renderFretes();
     window.dispatchEvent(new Event('fm:frete-salvo'));
-    // o card agora e gerado na aba exclusiva "Gerar Card"
-    if (typeof window.renderAbaCard === 'function') window.renderAbaCard();
-    try { if (typeof renderModulo === 'function') renderModulo('terceiros'); } catch (e) {}
+    // A confirmação da planilha mantém a tela estável até terminar a sequência.
+    if (!planilha) {
+      if (typeof window.renderAbaCard === 'function') window.renderAbaCard();
+      try { if (typeof renderModulo === 'function') renderModulo('terceiros'); } catch (e) {}
+    }
+    return confirmacao;
   };
 
   window.limparFormFrete = function () {

@@ -222,6 +222,16 @@ function comparativoTerceirizacao(){
 function somarGrupo(alvo,grupo){['viagens','km','ton','m3','receita','custo'].forEach(function(k){alvo[k]+=grupo[k]||0})}
 function divSeguro(a,b){return b?a/b:0}
 function celulaIndice(valor,unidade){return valor?brl(valor)+unidade:'--'}
+function resultadoContratacoes(){
+ var lista=fretesPeriodo(filtros()),receitaPropria=0,receitaTerceiros=0,pago=0,pendentes=0;
+ function centavos(v){return Math.round(num(v)*100)}
+ var linhas=lista.map(function(x){
+  var terceiro=x.freexecucao==='terceiro',r=centavos(x.frevalor),informado=String(x.frecustoterceiro==null?'':x.frecustoterceiro).trim()!=='',c=centavos(x.frecustoterceiro);
+  if(terceiro){receitaTerceiros+=r;if(informado)pago+=c;else pendentes++}else receitaPropria+=r;
+  return '<tr><td>'+esc(x.fredata||'—')+'</td><td>'+esc(freteRota(x))+'</td><td>'+esc(terceiro?'Terceiro: '+(x.freterceiro||'sem vínculo'):x.freveiculo||'Frota própria')+'</td><td>'+brl(r/100)+'</td><td>'+(terceiro?(informado?brl(c/100):'Pendente'):'Não se aplica')+'</td><td>'+(terceiro&&informado?brl((r-c)/100):'—')+'</td><td>'+esc(x.freobs||'')+'</td></tr>';
+ }).join('');
+ return '<h5>Resultado dos fretes no período</h5><div class="cus-kpis"><div class="cus-kpi"><span>Receita — frota própria</span><strong>'+brl(receitaPropria/100)+'</strong></div><div class="cus-kpi"><span>Receita — terceiros</span><strong>'+brl(receitaTerceiros/100)+'</strong></div><div class="cus-kpi"><span>Pago aos terceiros (informado)</span><strong>'+brl(pago/100)+'</strong></div><div class="cus-kpi"><span>Saldo da contratação</span><strong>'+(pendentes?'Pendente':brl((receitaTerceiros-pago)/100))+'</strong></div></div><p class="cus-note">Receita menos o valor contratado, sem deduzir impostos ou outras despesas: não representa lucro líquido. '+(pendentes?pendentes+' frete(s) de terceiros sem valor pago; o saldo total não é calculado.':'')+' Os valores abaixo incluem os fretes filtrados, mesmo sem KM ou par equivalente. O comparativo por KM continua separado.</p><details><summary>Conferir receita, pagamento e saldo por frete / CT-e ('+lista.length+')</summary><div class="cus-table-wrap"><table class="table table-sm cus-table"><thead><tr><th>Data</th><th>Cidade/UF origem → destino</th><th>Execução</th><th>Receita</th><th>Pago ao terceiro</th><th>Saldo</th><th>Referência / viagem</th></tr></thead><tbody>'+(linhas||'<tr><td colspan="7">Nenhum frete no período.</td></tr>')+'</tbody></table></div></details>';
+}
 function renderTerceirizacao(){
  var wrap=document.getElementById('cusTercResumo');if(!wrap)return;
  var c=comparativoTerceirizacao(),p=c.proprio,t=c.terceiro;
@@ -232,8 +242,8 @@ function renderTerceirizacao(){
  else if(!c.comparaveis)veredito='Ainda não há viagens próprias e terceirizadas da mesma rota e do mesmo tipo de veículo para uma comparação válida.';
  else if(kmP<kmT)veredito='Comparando somente a mesma rota e o mesmo tipo de veículo, a frota própria sai '+brl(kmT-kmP)+' por km mais barata.';
  else veredito='Comparando somente a mesma rota e o mesmo tipo de veículo, o terceiro sai '+brl(kmP-kmT)+' por km mais barato.';
- wrap.innerHTML=''
-  +'<div class="cus-kpis">'
+ wrap.innerHTML=resultadoContratacoes()
+  +'<h5 class="mt-4">Comparação de custos por KM — mesma rota e tipo de veículo</h5><div class="cus-kpis">'
   +'<div class="cus-kpi"><span>Custo por km — própria</span><strong>'+celulaIndice(kmP,'')+'</strong><small>'+p.viagens+' viagem(ns) · '+Math.round(p.km).toLocaleString('pt-BR')+' km</small></div>'
   +'<div class="cus-kpi"><span>Custo por km — terceiro</span><strong>'+celulaIndice(kmT,'')+'</strong><small>'+t.viagens+' viagem(ns) · '+Math.round(t.km).toLocaleString('pt-BR')+' km</small></div>'
   +'<div class="cus-kpi"><span>Custo por tonelada</span><strong>'+celulaIndice(divSeguro(p.custo,p.ton),'')+' / '+celulaIndice(divSeguro(t.custo,t.ton),'')+'</strong><small>própria / terceiro</small></div>'
