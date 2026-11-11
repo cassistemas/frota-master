@@ -455,7 +455,7 @@
       + '  <table class="table table-sm align-middle">'
       + '    <thead><tr>'
       + '      <th>Data</th><th>Origem</th><th>Destino</th><th>Peso</th><th>Quem executou</th><th>Carregamento</th>'
-      + '      <th>Entrega</th><th>Rastreada</th><th>Valor</th><th>Status</th><th class="col-acoes">Ações</th>'
+      + '      <th>Entrega</th><th>Rastreada</th><th>Valor</th><th>Valor pago ao terceiro</th><th>Saldo</th><th>Status</th><th class="col-acoes">Ações</th>'
       + '    </tr></thead>'
       + '    <tbody id="listaFretes"></tbody>'
       + '  </table>'
@@ -1054,9 +1054,14 @@
       var texto = [f.freorigem, f.fredestino, f.fretipocarga, f.fretipoveiculo, f.freobs].join(' ').toLowerCase();
       if (busca && texto.indexOf(busca) === -1) return;
       if (st && f.frestatus !== st) return;
-      var quem = f.freexecucao === 'terceiro'
+      var terceiro = f.freexecucao === 'terceiro';
+      var quem = terceiro
         ? (f.freterceiro ? 'Terceiro: ' + f.freterceiro : 'Terceiro')
         : (f.freveiculo ? 'Própria: ' + f.freveiculo : 'Frota própria');
+      var custoInformado = !terceiro || (f.frecustoterceiro != null && String(f.frecustoterceiro).trim() !== '');
+      var custoCentavos = terceiro ? Math.round(valorNum(f.frecustoterceiro) * 100) : 0;
+      var saldoCentavos = Math.round(valorNum(f.frevalor) * 100) - custoCentavos;
+      function dinheiro(centavos) { return (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
       html += '<tr>'
         + '<td>' + esc(dataBR(f.fredata)) + '</td>'
         + '<td>' + esc(f.freorigem) + '</td>'
@@ -1067,6 +1072,8 @@
         + '<td>' + esc(dataHoraBR(f.freentrega)) + '</td>'
         + '<td>' + esc(f.frerastreada) + '</td>'
         + '<td class="money">' + esc(f.frevalor) + '</td>'
+        + '<td class="money">' + (terceiro ? (custoInformado ? esc(dinheiro(custoCentavos)) : '<span title="Edite o frete para informar o valor pago ao terceiro">Não informado</span>') : '—') + '</td>'
+        + '<td class="money" title="Valor do frete menos o valor pago ao terceiro; não desconta outros custos">' + (custoInformado ? esc(dinheiro(saldoCentavos)) : '—') + '</td>'
         + '<td><span class="fm-status-rapido fm-status-badge fm-status-frete ' + (typeof window.fmClasseStatusCor === 'function' ? window.fmClasseStatusCor(f.frestatus || 'Disponível') : '') + '" data-status="' + esc(f.frestatus || 'Disponível') + '">' + esc(f.frestatus || 'Disponível') + '</span></td>'
         + '<td class="col-acoes">'
         + '<button class="btn btn-sm btn-outline-secondary" title="Visualizar" onclick="verFrete(' + i + ')">👁️</button> '
@@ -1074,7 +1081,7 @@
         + '<button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="excluirFrete(' + i + ')">🗑️</button>'
         + '</td></tr>';
     });
-    tb.innerHTML = html || '<tr><td colspan="11" class="text-center text-muted">Nenhum frete cadastrado.</td></tr>';
+    tb.innerHTML = html || '<tr><td colspan="13" class="text-center text-muted">Nenhum frete cadastrado.</td></tr>';
   };
   var renderFretes = window.renderFretes;
 
