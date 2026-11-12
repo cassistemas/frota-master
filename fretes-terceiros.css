@@ -19,11 +19,8 @@
 #subTerFretes .fretes-lista-lancados .table>tbody>tr>td{padding:10px 8px;}
 #subTerFretes .fretes-lista-lancados th:nth-child(9),
 #subTerFretes .fretes-lista-lancados th:nth-child(10),
-#subTerFretes .fretes-lista-lancados th:nth-child(11){min-width:105px;text-align:right;background:#eff6ff;color:#1e3a8a;}
+#subTerFretes .fretes-lista-lancados th:nth-child(11){min-width:105px;text-align:right;}
 #subTerFretes .fretes-lista-lancados td.money{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;}
-#subTerFretes .fretes-lista-lancados td:nth-child(10),
-#subTerFretes .fretes-lista-lancados td:nth-child(11){background:#eff6ff;}
-#subTerFretes .fretes-lista-lancados td:nth-child(11){font-weight:800;}
 #subTerFretes .fretes-lista-lancados td:nth-child(2),
 #subTerFretes .fretes-lista-lancados td:nth-child(3),
 #subTerFretes .fretes-lista-lancados td:nth-child(5){min-width:100px;overflow-wrap:anywhere;}
