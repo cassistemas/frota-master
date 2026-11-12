@@ -64,3 +64,9 @@ test('estado vazio acompanha as treze colunas da tabela', () => {
   assert.match(renderizar([]), /colspan="13"/);
   assert.match(fonte, /<th>Valor pago ao terceiro<\/th><th>Saldo<\/th>/);
 });
+
+test('identifica a lista de fretes lançados e mantém os valores antes do status', () => {
+  assert.match(fonte, /<h5 class="mb-1">Fretes lançados<\/h5>/);
+  assert.match(fonte, /aria-label="Fretes lançados" aria-describedby="fretesAjudaTabela" tabindex="0"/);
+  assert.match(fonte, /<th>Valor<\/th><th>Valor pago ao terceiro<\/th><th>Saldo<\/th><th>Status<\/th>/);
+});
