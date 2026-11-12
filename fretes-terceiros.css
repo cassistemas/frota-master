@@ -15,8 +15,11 @@
 /* Somente a lista de fretes já lançados; não altera o formulário. */
 #subTerFretes .fretes-lista-lancados{max-width:100%;}
 #subTerFretes .fretes-lista-lancados:focus-visible{outline:2px solid #2563eb;outline-offset:2px;}
-#subTerFretes .fretes-lista-lancados .table>thead>tr>th{white-space:normal;letter-spacing:.03em;padding:10px 8px;}
-#subTerFretes .fretes-lista-lancados .table>tbody>tr>td{padding:10px 8px;}
+/* A mesma grade e a mesma cor em todas as colunas, inclusive pagamento e saldo. */
+#subTerFretes .fretes-lista-lancados .table>thead>tr>th{white-space:normal;letter-spacing:.03em;padding:10px 8px;background:#f8fafc;color:var(--pro-mute,#64748b);font-weight:800;border:1px solid #94a3b8 !important;border-bottom-color:var(--pro-line,#e2e8f0) !important;}
+#subTerFretes .fretes-lista-lancados .table>tbody>tr>td{padding:10px 8px;background:#fff;color:var(--pro-ink-2,#334155);font-weight:400;border:1px solid #cbd5e1 !important;box-shadow:none !important;}
+#subTerFretes .fretes-lista-lancados .table>tbody>tr:nth-child(even)>td{background:#fcfdff;}
+#subTerFretes .fretes-lista-lancados .table>tbody>tr:hover>td{background:#eff6ff;}
 #subTerFretes .fretes-lista-lancados th:nth-child(9),
 #subTerFretes .fretes-lista-lancados th:nth-child(10),
 #subTerFretes .fretes-lista-lancados th:nth-child(11){min-width:105px;text-align:right;}
