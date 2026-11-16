@@ -353,7 +353,10 @@ test('feriados salva pelo cadastro existente e permite alterar status sem duplic
   assert.equal(a.elementos.pa_grupo_ocasiao.hidden, true);
   assert.equal(a.elementos.pa_grupo_feriado.hidden, false);
   assert.equal(a.elementos.pa_feriado.required, true);
-  assert.equal(a.elementos.pa_tipo.value, 'Plantão trabalhado');
+  assert.equal(a.elementos.pa_tipo.value, 'Feriado Trabalhado');
+  assert.match(a.elementos.pa_tipo.innerHTML, /value="Feriado Trabalhado"/);
+  assert.doesNotMatch(a.elementos.pa_tipo.innerHTML, /value="Sobreaviso"|value="Plantão trabalhado"/);
+  assert.match(a.elementos.pa_fTipo.innerHTML, /value="Feriado Trabalhado"/);
   a.elementos.pa_motorista.value = 'BRUNO PIRES GOMES';
   a.mudarCampo('data', '2026-11-15');
   a.elementos.pa_feriado.value = 'Proclamação da República';
@@ -396,23 +399,49 @@ test('feriados exige nome próprio e mantém rascunhos separados dos plantões',
   assert.equal(a.contexto.db.plantoes.length, 1);
 });
 
-test('feriados antigos aparecem somente na nova aba e preservam identidade na edição', async () => {
+test('feriados não importa plantões antigos e mantém listas, totais e exportações separados', async () => {
   const a = ambiente();
   const antigo = {_rid:'feriado-antigo', motorista:'BRUNO PIRES GOMES', data:'2026-11-15',
     tipo:'Plantão trabalhado', ocasiao:'Feriado', inicio:'', fim:'', veiculo:'',
     valorCentavos:12550, status:'Enviadas RH', obs:'Proclamação da República'};
   a.contexto.db.plantoes.push(antigo);
   a.contexto.FMPlantao.render();
-  assert.doesNotMatch(a.elementos.pa_lista.innerHTML, /feriado-antigo/);
-  a.contexto.FMPlantao.aba('feriados');
   assert.match(a.elementos.pa_lista.innerHTML, /feriado-antigo/);
-  assert.match(a.elementos.pa_lista.innerHTML, /Proclamação da República/);
-  await a.acao({pa:'editar', id:'feriado-antigo'});
-  assert.equal(a.elementos.pa_feriado.value, antigo.obs);
+  a.contexto.FMPlantao.aba('feriados');
+  assert.doesNotMatch(a.elementos.pa_lista.innerHTML, /feriado-antigo/);
+  assert.match(a.elementos.pa_lista.innerHTML, /Nenhum lançamento/);
+  a.elementos.pa_motorista.value = 'BRUNO PIRES GOMES';
+  a.mudarCampo('data', '2026-11-15');
+  a.elementos.pa_feriado.value = 'Feriado independente';
+  a.elementos.pa_valor.value = '50';
+  await a.salvar();
+  assert.equal(a.contexto.db.plantoes.length, 2);
+  assert.equal(a.contexto.db.plantoes[0], antigo);
+  const novo = a.contexto.db.plantoes[1];
+  assert.equal(novo.tipo, 'Feriado Trabalhado');
+  assert.match(a.elementos.pa_lista.innerHTML, /Feriado independente/);
+  assert.doesNotMatch(a.elementos.pa_lista.innerHTML, /feriado-antigo/);
+  assert.match(a.elementos.pa_totais.innerHTML.replace(/\s/g, ' '), /Total filtrado<\/h6><h4>R\$ 50,00/);
+  let exportados;
+  a.contexto.XLSX = {utils:{book_new:() => ({}), json_to_sheet:linhas => { exportados = linhas; }, book_append_sheet() {}}, writeFile() {}};
+  await a.acao({pa:'exportar'});
+  assert.equal(exportados.length, 1);
+  assert.equal(exportados[0].Tipo, 'Feriado Trabalhado');
+  await a.acao({pa:'editar', id:novo._rid});
   a.elementos.pa_obs.value = 'Conferido pelo RH';
   await a.salvar();
-  assert.equal(a.contexto.db.plantoes.length, 1);
-  assert.equal(a.contexto.db.plantoes[0]._rid, antigo._rid);
-  assert.equal(a.contexto.db.plantoes[0].feriado, antigo.obs);
+  assert.equal(a.contexto.db.plantoes.length, 2);
+  assert.equal(a.contexto.db.plantoes[1]._rid, novo._rid);
+  assert.equal(a.contexto.db.plantoes[1].tipo, 'Feriado Trabalhado');
+  a.contexto.FMPlantao.aba('plantao');
+  assert.match(a.elementos.pa_lista.innerHTML, /feriado-antigo/);
+  assert.doesNotMatch(a.elementos.pa_lista.innerHTML, /Feriado independente/);
+  assert.doesNotMatch(a.elementos.pa_tipo.innerHTML, /Feriado Trabalhado/);
+  await a.acao({pa:'editar', id:antigo._rid});
+  assert.equal(a.elementos.pa_ocasiao.value, 'Feriado');
+  assert.equal(a.elementos.pa_feriado.value, antigo.obs);
+  await a.salvar();
+  assert.equal(a.contexto.db.plantoes.length, 2);
+  assert.equal(a.contexto.db.plantoes[0].tipo, 'Plantão trabalhado');
   assert.equal(a.contexto.db.plantoes[0].valorCentavos, 12550);
 });

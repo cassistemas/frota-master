@@ -1,13 +1,15 @@
 /* Plantões isolados das diárias de viagem e dos cálculos financeiros. */
 (function (root) {
   'use strict';
-  var tipos = ['Plantão trabalhado', 'Sobreaviso'];
+  var tiposPlantao = ['Plantão trabalhado', 'Sobreaviso'];
+  var tipoFeriado = 'Feriado Trabalhado';
+  var tipos = tiposPlantao.concat([tipoFeriado]);
   var situacoes = ['Pendente', 'Enviadas RH', 'Pago'];
   var campos = ['motorista', 'data', 'tipo', 'ocasiao', 'inicio', 'fim', 'veiculo', 'valor', 'status', 'obs', 'feriado'];
   var pagina = 1, edicao = null, ocupado = false, abaAtual = 'plantao';
   var rascunhos = {};
   var camposFiltro = ['fMotorista', 'fTipo', 'fStatus', 'fIni', 'fFim'];
-  function daAba(r, aba) { return aba === 'feriados' ? r.ocasiao === 'Feriado' : r.ocasiao !== 'Feriado'; }
+  function daAba(r, aba) { return aba === 'feriados' ? r.tipo === tipoFeriado : r.tipo !== tipoFeriado; }
   function nomeFeriado(r) { return String(r.feriado || (r.ocasiao === 'Feriado' ? r.obs : '') || '').trim(); }
   function el(id) { return document.getElementById(id); }
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -139,22 +141,29 @@
         var d = dia(e.target.value);
         el('pa_ocasiao').value = abaAtual === 'feriados' ? 'Feriado' : d === 6 ? 'Sábado' : d === 0 ? 'Domingo' : '';
         if (abaAtual !== 'feriados' && d !== 6 && d !== 0) aviso('Para registrar trabalho em feriado, use a aba Feriados.');
+        configurarAba();
       }
+      if (e.target.id === 'pa_ocasiao') configurarAba();
     });
   }
   function configurarAba() {
     var feriados = abaAtual === 'feriados';
     el('pa_descricao').textContent = feriados
-      ? 'Selecione um motorista do cadastro e informe a data e o nome do feriado. Use os mesmos status das diárias: Pendente, Enviadas RH e Pago. Os feriados já registrados aparecem aqui, sem duplicação e sem gerar custos financeiros automaticamente.'
-      : 'Registre finais de semana separadamente das diárias de viagem. Plantão é trabalho realizado; sobreaviso é disponibilidade para acionamento. Para feriados, use a aba Feriados. Estes registros não geram custos financeiros automaticamente.';
+      ? 'Registre Feriado Trabalhado selecionando um motorista do cadastro, a data e o nome do feriado. Esta aba tem lançamentos próprios e não traz registros de Plantão / Sobreaviso. Status: Pendente, Enviadas RH e Pago. Não gera custos financeiros automaticamente.'
+      : 'Plantão é trabalho realizado; sobreaviso é disponibilidade para acionamento. Os lançamentos anteriores permanecem nesta aba, inclusive os de ocasião Feriado. Para novos registros de Feriado Trabalhado, use a aba Feriados. Estes registros não geram custos financeiros automaticamente.';
     el('pa_titulo').textContent = (edicao ? 'Editar ' : 'Novo ') + (feriados ? 'Feriado' : 'Plantão / Sobreaviso');
     el('pa_grupo_ocasiao').hidden = feriados;
-    el('pa_grupo_feriado').hidden = !feriados;
-    el('pa_feriado').required = feriados;
     var ocasiao = el('pa_ocasiao'), atual = ocasiao.value;
-    ocasiao.innerHTML = opcoes(feriados ? ['Feriado'] : ['Sábado', 'Domingo'], 'Selecione a ocasião');
-    ocasiao.value = feriados ? 'Feriado' : atual === 'Feriado' ? '' : atual;
-    if (feriados && !el('pa_tipo').value) el('pa_tipo').value = 'Plantão trabalhado';
+    ocasiao.innerHTML = opcoes(feriados ? ['Feriado'] : ['Sábado', 'Domingo', 'Feriado'], 'Selecione a ocasião');
+    ocasiao.value = feriados ? 'Feriado' : atual;
+    el('pa_grupo_feriado').hidden = ocasiao.value !== 'Feriado';
+    el('pa_feriado').required = ocasiao.value === 'Feriado';
+    var tipo = el('pa_tipo'), valorTipo = tipo.value, filtroTipo = el('pa_fTipo'), valorFiltro = filtroTipo.value;
+    var tiposAba = feriados ? [tipoFeriado] : tiposPlantao;
+    tipo.innerHTML = opcoes(tiposAba, 'Selecione o tipo');
+    tipo.value = feriados ? tipoFeriado : tiposAba.indexOf(valorTipo) >= 0 ? valorTipo : '';
+    filtroTipo.innerHTML = opcoes(tiposAba, 'Todos os tipos');
+    filtroTipo.value = tiposAba.indexOf(valorFiltro) >= 0 ? valorFiltro : '';
   }
   function guardarRascunho() {
     var valores = {};
@@ -189,7 +198,7 @@
     var motoristas = (db.motoristas || []).map(function (r) { return r.motNome; });
     preencherSelect('pa_motorista', motoristas, 'Selecione o motorista');
     preencherSelect('pa_veiculo', (db.veiculos || []).filter(function (r) { return String(r.vstatus || '').toUpperCase() !== 'VENDIDO'; }).map(function (r) { return r.vplaca; }), 'Sem veículo');
-    preencherSelect('pa_fMotorista', motoristas.concat(lista().map(function (r) { return r.motorista; })), 'Todos os motoristas');
+    preencherSelect('pa_fMotorista', motoristas.concat(lista().filter(function (r) { return daAba(r, abaAtual); }).map(function (r) { return r.motorista; })), 'Todos os motoristas');
     var registros = dados(), paginas = Math.max(1, Math.ceil(registros.length / 15));
     pagina = Math.min(Math.max(1, pagina), paginas);
     el('pa_totais').innerHTML = [['Lançamentos',registros.length], ['Pendente',moeda(total(registros.filter(function (r) { return r.status === 'Pendente'; })))], ['Enviadas RH',moeda(total(registros.filter(function (r) { return r.status === 'Enviadas RH'; })))], ['Pago',moeda(total(registros.filter(function (r) { return r.status === 'Pago'; })))], ['Total filtrado',moeda(total(registros))]].map(function (x) { return '<div class="col-12 col-sm-6 col-xl"><div class="stat-card"><h6>' + x[0] + '</h6><h4>' + esc(x[1]) + '</h4></div></div>'; }).join('');
@@ -238,9 +247,9 @@
     var motorista = (db.motoristas || []).find(function (m) { return r.motorista && nomeCadastro(m.motNome) === nomeCadastro(r.motorista); });
     if (motorista) r.motorista = String(motorista.motNome);
     if (abaAtual === 'feriados') r.ocasiao = 'Feriado';
-    else r.feriado = '';
+    if (r.ocasiao !== 'Feriado') r.feriado = '';
     var mensagem = abaAtual === 'feriados' && !r.feriado ? 'Informe o nome do feriado.' : '';
-    if (!mensagem && !daAba(r, abaAtual)) mensagem = 'Para registrar um feriado, use a aba Feriados.';
+    if (!mensagem && !daAba(r, abaAtual)) mensagem = 'Selecione um tipo de lançamento desta aba.';
     if (!mensagem) mensagem = erro(r, lista(), edicao);
     if (!mensagem && !motorista) mensagem = 'Selecione um motorista cadastrado na lista.';
     if (!mensagem && r.veiculo && !(db.veiculos || []).some(function (v) { return v.vplaca === r.veiculo; })) mensagem = 'Selecione um veículo cadastrado ou deixe sem veículo.';
