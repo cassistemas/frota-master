@@ -5181,20 +5181,31 @@ function confirmarKmCombustivel(obj, idx) {
     const anterior = anteriores[anteriores.length - 1];
     const posterior = historico.find(c => c.cdata > obj.cdata && Number(c.ckm) < km);
     const avisos = [];
-    if (km === 0) avisos.push('O KM informado está zerado ou vazio.');
+    const kmInformado = km.toLocaleString('pt-BR') + ' km';
+    if (km === 0) avisos.push('O KM informado está zerado ou vazio. Confira o odômetro do cupom.');
     if (anterior) {
-        avisos.push('O KM informado (' + km.toLocaleString('pt-BR') + ' km em ' + formatarDataBR(obj.cdata) +
-            ') é inferior ao abastecimento anterior por data: ' +
-            Number(anterior.ckm).toLocaleString('pt-BR') + ' km em ' + formatarDataBR(anterior.cdata) + '.');
+        const kmSalvo = Number(anterior.ckm).toLocaleString('pt-BR') + ' km';
+        const mesmaData = anterior.cdata === obj.cdata;
+        avisos.push('Já existe um abastecimento salvo ' +
+            (mesmaData ? 'na mesma data:' : 'com data antes de ' + formatarDataBR(obj.cdata) + ':') +
+            '\n' + formatarDataBR(anterior.cdata) + ' — ' + kmSalvo +
+            '\n\nO que está diferente?\n' + (mesmaData
+                ? 'Na mesma data, o abastecimento salvo tem ' + kmSalvo + ', mas você está informando ' + kmInformado + '. Confira a ordem dos abastecimentos e os odômetros.'
+                : 'Pelas datas informadas, o veículo aparece com ' + kmSalvo + ' antes e ' + kmInformado + ' depois, como se o odômetro tivesse voltado.'));
     }
     if (km > 0 && posterior) {
-        avisos.push('O KM informado (' + km.toLocaleString('pt-BR') + ' km em ' + formatarDataBR(obj.cdata) +
-            ') é superior ao abastecimento posterior: ' + Number(posterior.ckm).toLocaleString('pt-BR') +
-            ' km em ' + formatarDataBR(posterior.cdata) + '.');
+        const kmSalvo = Number(posterior.ckm).toLocaleString('pt-BR') + ' km';
+        avisos.push('Já existe um abastecimento salvo com data depois de ' + formatarDataBR(obj.cdata) +
+            ':\n' + formatarDataBR(posterior.cdata) + ' — ' + kmSalvo +
+            '\n\nO que está diferente?\nPelas datas informadas, o veículo aparece com ' + kmInformado +
+            ' antes e ' + kmSalvo + ' depois, como se o odômetro tivesse voltado.');
     }
     if (!avisos.length) return true;
-    return confirm('Atenção ao KM do veículo ' + obj.cveiculo + ':\n\n' + avisos.join('\n') +
-        '\n\nConfira a data e o odômetro. KM zerado ou regressivo não será usado para criar uma média artificial.\n\nDeseja salvar mesmo assim? Clique em Cancelar para corrigir.');
+    return confirm('⚠️ Confira as datas e a quilometragem\nVeículo: ' + obj.cveiculo +
+        '\n\nVocê está lançando:\n' + formatarDataBR(obj.cdata) + ' — ' + kmInformado +
+        '\n\n' + avisos.join('\n\n') +
+        '\n\nConfira a data e a quilometragem dos abastecimentos. KM zerado ou regressivo não será usado para criar uma média artificial.' +
+        '\n\nClique em Cancelar para voltar e conferir este lançamento, ou em OK para salvar mesmo com essa diferença.');
 }
 
 function salvarCombustivelCustom() {

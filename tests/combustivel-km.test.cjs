@@ -79,30 +79,34 @@ test('Cancelar em KM inferior ou zerado preserva todos os registros', () => {
   const dados = [registro(1, 1000)], antes = JSON.stringify(dados);
   const { ctx, avisos } = ambiente(dados, false);
   assert.equal(ctx.confirmarKmCombustivel(registro(2, 900), ''), false);
-  assert.match(avisos[0], /inferior.*anterior por data/);
+  assert.match(avisos[0], /com data antes de 02\/01\/2026/);
+  assert.match(avisos[0], /1\.000 km antes e 900 km depois, como se o odômetro tivesse voltado/);
   assert.equal(ctx.confirmarKmCombustivel(registro(2, 0), ''), false);
   assert.match(avisos[1], /zerado ou vazio/);
   assert.equal(JSON.stringify(dados), antes);
 });
 
-test('confirmação aceita exceção, ignora o próprio registro na edição e avisa sobre posterior', () => {
+test('confirmação aceita exceção, ignora o próprio registro na edição e explica as duas direções', () => {
   const { ctx, avisos } = ambiente([registro(1, 1000), registro(3, 1200)]);
   assert.equal(ctx.confirmarKmCombustivel(registro(1, 950), '0'), true);
   assert.equal(avisos.length, 0);
   assert.equal(ctx.confirmarKmCombustivel(registro(2, 1300), ''), true);
-  assert.match(avisos[0], /posterior/);
+  assert.match(avisos[0], /com data depois de 02\/01\/2026/);
   assert.equal(ctx.confirmarKmCombustivel(registro(4, 900), ''), true);
-  assert.match(avisos[1], /inferior/);
+  assert.match(avisos[1], /com data antes de 04\/01\/2026/);
 });
 
-test('data anterior com KM superior ao posterior permite cancelar sem alterar dados', () => {
+test('data anterior com KM superior mostra os dois registros e permite cancelar sem alterar dados', () => {
   const dados = [registro(15, 50000)], antes = JSON.stringify(dados);
   const { ctx, avisos } = ambiente(dados, false);
   assert.equal(ctx.confirmarKmCombustivel(registro(10, 51000), ''), false);
   assert.equal(avisos.length, 1);
-  assert.match(avisos[0], /superior ao abastecimento posterior/);
-  assert.match(avisos[0], /10\/01\/2026/);
-  assert.match(avisos[0], /15\/01\/2026/);
+  assert.match(avisos[0], /Confira as datas e a quilometragem/);
+  assert.match(avisos[0], /Você está lançando:\n10\/01\/2026 — 51\.000 km/);
+  assert.match(avisos[0], /com data depois de 10\/01\/2026:\n15\/01\/2026 — 50\.000 km/);
+  assert.match(avisos[0], /51\.000 km antes e 50\.000 km depois, como se o odômetro tivesse voltado/);
+  assert.match(avisos[0], /Cancelar para voltar e conferir este lançamento/);
+  assert.match(avisos[0], /OK para salvar mesmo com essa diferença/);
   assert.equal(JSON.stringify(dados), antes);
 });
 
@@ -112,10 +116,18 @@ test('exceções existentes não escondem conflitos de KM em nenhuma direção',
   ], false);
   assert.equal(ctx.confirmarKmCombustivel(registro(10, 49500), ''), false);
   assert.equal(avisos.length, 1);
-  assert.match(avisos[0], /inferior ao abastecimento anterior por data/);
-  assert.match(avisos[0], /superior ao abastecimento posterior/);
-  assert.match(avisos[0], /01\/01\/2026/);
-  assert.match(avisos[0], /20\/01\/2026/);
+  assert.match(avisos[0], /com data antes de 10\/01\/2026/);
+  assert.match(avisos[0], /com data depois de 10\/01\/2026/);
+  assert.match(avisos[0], /01\/01\/2026 — 50\.000 km/);
+  assert.match(avisos[0], /20\/01\/2026 — 49\.000 km/);
+});
+
+test('conflito na mesma data não inventa uma ordem cronológica', () => {
+  const { ctx, avisos } = ambiente([registro(10, 51000)], false);
+  assert.equal(ctx.confirmarKmCombustivel(registro(10, 50000), ''), false);
+  assert.match(avisos[0], /salvo na mesma data:\n10\/01\/2026 — 51\.000 km/);
+  assert.match(avisos[0], /Confira a ordem dos abastecimentos e os odômetros/);
+  assert.doesNotMatch(avisos[0], /como se o odômetro tivesse voltado/);
 });
 
 test('ARLA participa da conferência do odômetro, sem misturar placas', () => {
