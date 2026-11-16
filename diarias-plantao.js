@@ -3,8 +3,12 @@
   'use strict';
   var tipos = ['Plantão trabalhado', 'Sobreaviso'];
   var situacoes = ['Pendente', 'Enviadas RH', 'Pago'];
-  var campos = ['motorista', 'data', 'tipo', 'ocasiao', 'inicio', 'fim', 'veiculo', 'valor', 'status', 'obs'];
-  var pagina = 1, edicao = null, ocupado = false;
+  var campos = ['motorista', 'data', 'tipo', 'ocasiao', 'inicio', 'fim', 'veiculo', 'valor', 'status', 'obs', 'feriado'];
+  var pagina = 1, edicao = null, ocupado = false, abaAtual = 'plantao';
+  var rascunhos = {};
+  var camposFiltro = ['fMotorista', 'fTipo', 'fStatus', 'fIni', 'fFim'];
+  function daAba(r, aba) { return aba === 'feriados' ? r.ocasiao === 'Feriado' : r.ocasiao !== 'Feriado'; }
+  function nomeFeriado(r) { return String(r.feriado || (r.ocasiao === 'Feriado' ? r.obs : '') || '').trim(); }
   function el(id) { return document.getElementById(id); }
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function centavos(v) {
@@ -29,7 +33,7 @@
     if (tipos.indexOf(r.tipo) < 0) return 'Selecione o tipo de lançamento.';
     if (['Sábado', 'Domingo', 'Feriado'].indexOf(r.ocasiao) < 0) return 'Selecione a ocasião.';
     if ((r.ocasiao === 'Sábado' && d !== 6) || (r.ocasiao === 'Domingo' && d !== 0)) return 'A ocasião não corresponde ao dia da semana. Para feriados, selecione Feriado.';
-    if (r.ocasiao === 'Feriado' && !String(r.obs || '').trim()) return 'Informe o nome do feriado nas observações.';
+    if (r.ocasiao === 'Feriado' && !nomeFeriado(r)) return 'Informe o nome do feriado.';
     if (!!r.inicio !== !!r.fim) return 'Preencha os dois horários ou deixe ambos em branco.';
     if (r.inicio && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(r.inicio) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(r.fim) || r.inicio === r.fim)) return 'Informe horários válidos e diferentes.';
     if (!Number.isSafeInteger(r.valorCentavos) || r.valorCentavos < 0) return 'Informe um valor válido, igual ou maior que zero.';
@@ -51,7 +55,7 @@
   function moeda(c) { return (c / 100).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
   function nomeCadastro(v) { return String(v == null ? '' : v).trim().replace(/\s+/g, ' ').toLocaleUpperCase('pt-BR'); }
   function opcoes(valores, vazio) { return '<option value="">' + esc(vazio) + '</option>' + valores.map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join(''); }
-  function campo(id, nome, controle, largura) { return '<div class="col-12 col-md-' + (largura || 3) + '"><label class="form-label" for="pa_' + id + '">' + nome + '</label>' + controle + '</div>'; }
+  function campo(id, nome, controle, largura) { return '<div id="pa_grupo_' + id + '" class="col-12 col-md-' + (largura || 3) + '"><label class="form-label" for="pa_' + id + '">' + nome + '</label>' + controle + '</div>'; }
   function input(id, tipo, extra) { return '<input id="pa_' + id + '" type="' + tipo + '" class="form-control" ' + (extra || '') + '>'; }
   function select(id, valores, vazio) { return '<select id="pa_' + id + '" class="form-select">' + opcoes(valores, vazio) + '</select>'; }
   function corStatus(status) { return status === 'Pendente' ? 'critico' : status === 'Enviadas RH' ? 'info' : status === 'Pago' ? 'ok' : 'neutro'; }
@@ -100,7 +104,7 @@
   function montar() {
     var box = el('diPlantaoConteudo');
     if (!box || el('pa_form')) return;
-    box.innerHTML = '<p class="text-muted">Registre finais de semana e feriados separadamente das diárias de viagem. Plantão é trabalho realizado; sobreaviso é disponibilidade para acionamento. Estes registros não geram custos financeiros automaticamente.</p>' +
+    box.innerHTML = '<p id="pa_descricao" class="text-muted">Registre finais de semana separadamente das diárias de viagem. Os feriados ficam na aba Feriados. Estes registros não geram custos financeiros automaticamente.</p>' +
       '<div id="pa_aviso" role="status" class="small mb-3"></div><form id="pa_form" class="glass-container"><h4 id="pa_titulo">Novo Plantão / Sobreaviso</h4><div class="row g-3">' +
       campo('motorista', 'Motorista *', select('motorista', [], 'Selecione o motorista')) +
       campo('data', 'Data *', input('data', 'date')) +
@@ -110,8 +114,9 @@
       campo('fim', 'Horário final (opcional)', input('fim', 'time')) +
       campo('veiculo', 'Veículo (opcional)', select('veiculo', [], 'Sem veículo')) +
       campo('valor', 'Valor a pagar (R$) (opcional)', input('valor', 'text', 'inputmode="numeric" placeholder="R$ 0,00" aria-describedby="pa_valor_ajuda"') + '<small id="pa_valor_ajuda" class="text-muted">Digite apenas números: 123456 = R$ 1.234,56.</small>') +
-      campo('status', 'Situação *', select('status', situacoes, 'Selecione a situação')) +
-      campo('obs', 'Observações / nome do feriado', '<textarea id="pa_obs" class="form-control" rows="2" maxlength="2000"></textarea>', 9) +
+      campo('status', 'Status *', select('status', situacoes, 'Selecione o status')) +
+      campo('feriado', 'Nome do feriado *', input('feriado', 'text', 'maxlength="200" placeholder="Ex.: Independência do Brasil"')) +
+      campo('obs', 'Observações', '<textarea id="pa_obs" class="form-control" rows="2" maxlength="2000"></textarea>', 9) +
       '<p class="small text-muted mb-0">* Obrigatório. Se o horário final for anterior ao inicial, o término será considerado no dia seguinte. O valor é opcional: em branco, será registrado como R$ 0,00 e poderá ser editado depois. Não há cálculo automático de horas.</p><div class="col-12 d-flex justify-content-end gap-2"><button type="button" class="btn btn-outline-secondary" data-pa="cancelar">Cancelar</button><button id="pa_salvar" class="btn btn-success" type="submit">Salvar lançamento</button></div></div></form>' +
       '<div class="glass-container"><div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><h4 class="mb-0">Consultar lançamentos</h4></div><div class="row g-3">' +
       campo('fMotorista', 'Motorista', select('fMotorista', [], 'Todos os motoristas')) +
@@ -130,8 +135,40 @@
       if (e.target.dataset && e.target.dataset.paStatus !== undefined) return alterarStatus(e.target);
       if (e.target.id === 'pa_status' || e.target.id === 'pa_fStatus') pintarStatus(e.target);
       if (/^pa_f[A-Z]/.test(e.target.id)) { pagina = 1; render(); }
-      if (e.target.id === 'pa_data' && dia(e.target.value) >= 0) el('pa_ocasiao').value = dia(e.target.value) === 6 ? 'Sábado' : dia(e.target.value) === 0 ? 'Domingo' : 'Feriado';
+      if (e.target.id === 'pa_data' && dia(e.target.value) >= 0) {
+        var d = dia(e.target.value);
+        el('pa_ocasiao').value = abaAtual === 'feriados' ? 'Feriado' : d === 6 ? 'Sábado' : d === 0 ? 'Domingo' : '';
+        if (abaAtual !== 'feriados' && d !== 6 && d !== 0) aviso('Para registrar trabalho em feriado, use a aba Feriados.');
+      }
     });
+  }
+  function configurarAba() {
+    var feriados = abaAtual === 'feriados';
+    el('pa_descricao').textContent = feriados
+      ? 'Selecione um motorista do cadastro e informe a data e o nome do feriado. Use os mesmos status das diárias: Pendente, Enviadas RH e Pago. Os feriados já registrados aparecem aqui, sem duplicação e sem gerar custos financeiros automaticamente.'
+      : 'Registre finais de semana separadamente das diárias de viagem. Plantão é trabalho realizado; sobreaviso é disponibilidade para acionamento. Para feriados, use a aba Feriados. Estes registros não geram custos financeiros automaticamente.';
+    el('pa_titulo').textContent = (edicao ? 'Editar ' : 'Novo ') + (feriados ? 'Feriado' : 'Plantão / Sobreaviso');
+    el('pa_grupo_ocasiao').hidden = feriados;
+    el('pa_grupo_feriado').hidden = !feriados;
+    el('pa_feriado').required = feriados;
+    var ocasiao = el('pa_ocasiao'), atual = ocasiao.value;
+    ocasiao.innerHTML = opcoes(feriados ? ['Feriado'] : ['Sábado', 'Domingo'], 'Selecione a ocasião');
+    ocasiao.value = feriados ? 'Feriado' : atual === 'Feriado' ? '' : atual;
+    if (feriados && !el('pa_tipo').value) el('pa_tipo').value = 'Plantão trabalhado';
+  }
+  function guardarRascunho() {
+    var valores = {};
+    campos.concat(camposFiltro).forEach(function (k) { valores[k] = el('pa_' + k).value; });
+    rascunhos[abaAtual] = {valores:valores, edicao:edicao, pagina:pagina};
+  }
+  function restaurarRascunho() {
+    var r = rascunhos[abaAtual];
+    el('pa_form').reset();
+    configurarAba();
+    campos.concat(camposFiltro).forEach(function (k) { el('pa_' + k).value = r ? r.valores[k] || '' : ''; });
+    edicao = r ? r.edicao : null; pagina = r ? r.pagina : 1;
+    if (!r) el('pa_status').value = 'Pendente';
+    configurarAba(); aviso('');
   }
   function aviso(texto) { if (el('pa_aviso')) el('pa_aviso').textContent = texto; }
   function preencherSelect(id, valores, vazio) {
@@ -144,7 +181,7 @@
     return {motorista:el('pa_fMotorista').value, tipo:el('pa_fTipo').value, status:el('pa_fStatus').value, ini:el('pa_fIni').value, fim:el('pa_fFim').value};
   }
   function dados() {
-    return filtrar(lista(), filtros()).slice().sort(function (a,b) { return String(b.data).localeCompare(String(a.data)) || String(a.motorista).localeCompare(String(b.motorista), 'pt-BR'); });
+    return filtrar(lista().filter(function (r) { return daAba(r, abaAtual); }), filtros()).slice().sort(function (a,b) { return String(b.data).localeCompare(String(a.data)) || String(a.motorista).localeCompare(String(b.motorista), 'pt-BR'); });
   }
   function dataBR(v) { return String(v || '').split('-').reverse().join('/'); }
   function render() {
@@ -158,7 +195,7 @@
     el('pa_totais').innerHTML = [['Lançamentos',registros.length], ['Pendente',moeda(total(registros.filter(function (r) { return r.status === 'Pendente'; })))], ['Enviadas RH',moeda(total(registros.filter(function (r) { return r.status === 'Enviadas RH'; })))], ['Pago',moeda(total(registros.filter(function (r) { return r.status === 'Pago'; })))], ['Total filtrado',moeda(total(registros))]].map(function (x) { return '<div class="col-12 col-sm-6 col-xl"><div class="stat-card"><h6>' + x[0] + '</h6><h4>' + esc(x[1]) + '</h4></div></div>'; }).join('');
     el('pa_lista').innerHTML = registros.slice((pagina-1)*15, pagina*15).map(function (r) {
       var i = lista().indexOf(r), horario = r.inicio ? r.inicio + ' – ' + r.fim + (r.fim < r.inicio ? ' (+1 dia)' : '') : 'Não informado';
-      return '<tr data-modulo="plantoes" data-index="' + i + '">' + [r.motorista,dataBR(r.data),r.tipo + ' / ' + r.ocasiao,horario,r.veiculo || 'Sem veículo',moeda(r.valorCentavos)].map(function (v) { return '<td>' + esc(v) + '</td>'; }).join('') + '<td>' + statusLista(r) + '</td><td>' + esc(r.obs || '—') + '</td><td><div class="d-flex gap-2"><button type="button" class="btn btn-sm btn-outline-primary" data-pa="editar" data-id="' + esc(r._rid) + '" data-i="' + i + '">Editar</button><button type="button" class="btn btn-sm btn-outline-danger" data-pa="excluir" data-id="' + esc(r._rid) + '" data-i="' + i + '">Excluir</button></div></td></tr>';
+      return '<tr data-modulo="plantoes" data-index="' + i + '">' + [r.motorista,dataBR(r.data),r.tipo + ' / ' + r.ocasiao + (r.ocasiao === 'Feriado' ? ' — ' + nomeFeriado(r) : ''),horario,r.veiculo || 'Sem veículo',moeda(r.valorCentavos)].map(function (v) { return '<td>' + esc(v) + '</td>'; }).join('') + '<td>' + statusLista(r) + '</td><td>' + esc(r.obs || '—') + '</td><td><div class="d-flex gap-2"><button type="button" class="btn btn-sm btn-outline-primary" data-pa="editar" data-id="' + esc(r._rid) + '" data-i="' + i + '">Editar</button><button type="button" class="btn btn-sm btn-outline-danger" data-pa="excluir" data-id="' + esc(r._rid) + '" data-i="' + i + '">Excluir</button></div></td></tr>';
     }).join('') || '<tr><td colspan="9">' + (pronto() ? 'Nenhum lançamento nos filtros selecionados.' : 'Aguardando carregamento dos dados…') + '</td></tr>';
     el('pa_paginas').innerHTML = '<button type="button" class="btn btn-sm btn-outline-secondary" data-pa="anterior" ' + (pagina === 1 ? 'disabled' : '') + '>Anterior</button><span>Página ' + pagina + ' de ' + paginas + ' · ' + registros.length + ' registro(s)</span><button type="button" class="btn btn-sm btn-outline-secondary" data-pa="proxima" ' + (pagina === paginas ? 'disabled' : '') + '>Próxima</button>';
     el('pa_salvar').disabled = ocupado || !pronto();
@@ -188,7 +225,7 @@
   }
   function cancelar() {
     if (ocupado) return;
-    edicao = null; el('pa_form').reset(); el('pa_status').value = 'Pendente'; el('pa_titulo').textContent = 'Novo Plantão / Sobreaviso'; aviso(''); render();
+    edicao = null; el('pa_form').reset(); el('pa_status').value = 'Pendente'; configurarAba(); aviso(''); render();
   }
   async function salvar(e) {
     e.preventDefault();
@@ -200,7 +237,11 @@
     r.valorCentavos = r.valor === '' ? 0 : centavos(r.valor); delete r.valor;
     var motorista = (db.motoristas || []).find(function (m) { return r.motorista && nomeCadastro(m.motNome) === nomeCadastro(r.motorista); });
     if (motorista) r.motorista = String(motorista.motNome);
-    var mensagem = erro(r, lista(), edicao);
+    if (abaAtual === 'feriados') r.ocasiao = 'Feriado';
+    else r.feriado = '';
+    var mensagem = abaAtual === 'feriados' && !r.feriado ? 'Informe o nome do feriado.' : '';
+    if (!mensagem && !daAba(r, abaAtual)) mensagem = 'Para registrar um feriado, use a aba Feriados.';
+    if (!mensagem) mensagem = erro(r, lista(), edicao);
     if (!mensagem && !motorista) mensagem = 'Selecione um motorista cadastrado na lista.';
     if (!mensagem && r.veiculo && !(db.veiculos || []).some(function (v) { return v.vplaca === r.veiculo; })) mensagem = 'Selecione um veículo cadastrado ou deixe sem veículo.';
     var indice = edicao ? lista().findIndex(function (x) { return x._rid === edicao; }) : -1;
@@ -228,8 +269,8 @@
       var registros = dados();
       if (!registros.length) { aviso('Nenhum lançamento para exportar com estes filtros.'); return; }
       if (!root.XLSX) { aviso('Exportação indisponível: aguarde o carregamento do Excel.'); return; }
-      var linhas = registros.map(function (r) { return {'Motorista':r.motorista,'Data':dataBR(r.data),'Tipo':r.tipo,'Ocasião':r.ocasiao,'Horário inicial':r.inicio,'Horário final':r.fim,'Término no dia seguinte':r.inicio && r.fim < r.inicio ? 'Sim' : 'Não','Veículo':r.veiculo,'Valor (R$)':r.valorCentavos / 100,'Situação':r.status,'Observações':r.obs}; });
-      var wb = root.XLSX.utils.book_new(); root.XLSX.utils.book_append_sheet(wb, root.XLSX.utils.json_to_sheet(linhas), 'Plantões e sobreaviso'); root.XLSX.writeFile(wb, 'FrotaMaster_Plantoes.xlsx'); return;
+      var linhas = registros.map(function (r) { return {'Motorista':r.motorista,'Data':dataBR(r.data),'Tipo':r.tipo,'Ocasião':r.ocasiao,'Feriado':r.ocasiao === 'Feriado' ? nomeFeriado(r) : '', 'Horário inicial':r.inicio,'Horário final':r.fim,'Término no dia seguinte':r.inicio && r.fim < r.inicio ? 'Sim' : 'Não','Veículo':r.veiculo,'Valor (R$)':r.valorCentavos / 100,'Situação':r.status,'Observações':r.obs}; });
+      var wb = root.XLSX.utils.book_new(), feriados = abaAtual === 'feriados'; root.XLSX.utils.book_append_sheet(wb, root.XLSX.utils.json_to_sheet(linhas), feriados ? 'Feriados' : 'Plantões e sobreaviso'); root.XLSX.writeFile(wb, feriados ? 'FrotaMaster_Feriados.xlsx' : 'FrotaMaster_Plantoes.xlsx'); return;
     }
     var r = lista().find(function (x) { return x._rid === b.dataset.id; });
     if (!r) { render(); aviso('O registro mudou. Confira a lista novamente.'); return; }
@@ -237,7 +278,8 @@
       edicao = r._rid;
       campos.forEach(function (k) { var s = el('pa_' + k), v = k === 'valor' ? moeda(r.valorCentavos) : r[k] || ''; if (s.tagName === 'SELECT' && v && !Array.from(s.options).some(function (o) { return o.value === v; })) { var opt = document.createElement('option'); opt.value = v; opt.textContent = v; s.appendChild(opt); } s.value = v; });
       pintarStatus(el('pa_status'));
-      el('pa_titulo').textContent = 'Editar Plantão / Sobreaviso'; aviso(''); el('pa_form').scrollIntoView({behavior:'smooth', block:'start'});
+      el('pa_feriado').value = r.ocasiao === 'Feriado' ? nomeFeriado(r) : '';
+      configurarAba(); aviso(''); el('pa_form').scrollIntoView({behavior:'smooth', block:'start'});
     }
     if (a === 'excluir' && typeof root.fmExcluirVinculado === 'function') {
       ocupado = true;
@@ -247,12 +289,15 @@
   }
   api.render = render;
   api.aba = function (nome) {
-    if (!permitido()) return;
+    if (!permitido() || ocupado) return;
     montar();
-    var plantao = nome === 'plantao';
-    el('diPlantaoConteudo').hidden = !plantao; el('diViagemConteudo').hidden = plantao;
-    [['diAbaViagem',!plantao],['diAbaPlantao',plantao]].forEach(function (x) { el(x[0]).className = 'btn ' + (x[1] ? 'btn-primary' : 'btn-outline-primary'); el(x[0]).setAttribute('aria-pressed', String(x[1])); });
-    if (plantao) render();
+    var registros = nome === 'plantao' || nome === 'feriados';
+    if (registros && abaAtual !== nome) {
+      guardarRascunho(); abaAtual = nome; restaurarRascunho();
+    } else configurarAba();
+    el('diPlantaoConteudo').hidden = !registros; el('diViagemConteudo').hidden = registros;
+    [['diAbaViagem',!registros],['diAbaPlantao',nome === 'plantao'],['diAbaFeriados',nome === 'feriados']].forEach(function (x) { var b = el(x[0]); if (!b) return; b.className = 'btn ' + (x[1] ? 'btn-primary' : 'btn-outline-primary'); b.setAttribute('aria-pressed', String(x[1])); });
+    if (registros) render();
   };
   root.addEventListener('fm:registros-excluidos', render);
 })(typeof window !== 'undefined' ? window : globalThis);

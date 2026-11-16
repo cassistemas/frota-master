@@ -7,7 +7,7 @@ const script = fs.readFileSync(path.join(__dirname, '../diarias-plantao.js'), 'u
 
 function ambiente({nome = 'BRUNO PIRES GOMES', confirmar = true} = {}) {
   const elementos = {};
-  const campos = ['motorista', 'data', 'tipo', 'ocasiao', 'inicio', 'fim', 'veiculo', 'valor', 'status', 'obs'];
+  const campos = ['motorista', 'data', 'tipo', 'ocasiao', 'inicio', 'fim', 'veiculo', 'valor', 'status', 'obs', 'feriado'];
   const eventos = {};
   const envios = [];
   const preparar = [];
@@ -19,7 +19,7 @@ function ambiente({nome = 'BRUNO PIRES GOMES', confirmar = true} = {}) {
       reset() { campos.forEach(campo => { elementos['pa_' + campo].value = ''; }); }
     };
   }
-  ['diPlantaoConteudo', 'diViagemConteudo', 'diAbaViagem', 'diAbaPlantao'].forEach(elemento);
+  ['diPlantaoConteudo', 'diViagemConteudo', 'diAbaViagem', 'diAbaPlantao', 'diAbaFeriados'].forEach(elemento);
   Object.defineProperty(elementos.diPlantaoConteudo, 'innerHTML', {
     set(html) {
       for (const match of html.matchAll(/id="([^"]+)"/g)) elemento(match[1]);
@@ -344,4 +344,75 @@ test('situação bloqueia alterações simultâneas e libera controles se o envi
   assert.equal(a.elementos.pa_salvar.disabled, false);
   assert.equal(a.elementos.pa_status.disabled, false);
   assert.match(a.elementos.pa_aviso.textContent, /fila de sincronização/);
+});
+
+test('feriados salva pelo cadastro existente e permite alterar status sem duplicar', async () => {
+  const a = ambiente();
+  a.contexto.FMPlantao.aba('feriados');
+  assert.equal(a.elementos.diViagemConteudo.hidden, true);
+  assert.equal(a.elementos.pa_grupo_ocasiao.hidden, true);
+  assert.equal(a.elementos.pa_grupo_feriado.hidden, false);
+  assert.equal(a.elementos.pa_feriado.required, true);
+  assert.equal(a.elementos.pa_tipo.value, 'Plantão trabalhado');
+  a.elementos.pa_motorista.value = 'BRUNO PIRES GOMES';
+  a.mudarCampo('data', '2026-11-15');
+  a.elementos.pa_feriado.value = 'Proclamação da República';
+  await a.salvar();
+  assert.equal(a.contexto.db.plantoes.length, 1);
+  const registro = a.contexto.db.plantoes[0];
+  assert.equal(registro.ocasiao, 'Feriado');
+  assert.equal(registro.feriado, 'Proclamação da República');
+  assert.equal(registro.status, 'Pendente');
+  assert.equal(registro.valorCentavos, 0);
+  assert.deepEqual(a.envios, [['plantoes']]);
+  assert.match(a.elementos.pa_lista.innerHTML, /Proclamação da República/);
+  await a.mudarStatus(registro._rid, 'Enviadas RH');
+  assert.match(a.elementos.pa_lista.innerHTML, /fm-status-cor-info/);
+  await a.mudarStatus(registro._rid, 'Pago');
+  assert.equal(a.contexto.db.plantoes.length, 1);
+  assert.equal(a.contexto.db.plantoes[0].status, 'Pago');
+  assert.match(a.elementos.pa_lista.innerHTML, /fm-status-cor-ok/);
+});
+
+test('feriados exige nome próprio e mantém rascunhos separados dos plantões', async () => {
+  const a = ambiente();
+  a.elementos.pa_obs.value = 'Rascunho de sábado';
+  a.contexto.FMPlantao.aba('feriados');
+  a.elementos.pa_motorista.value = 'BRUNO PIRES GOMES';
+  a.mudarCampo('data', '2026-11-15');
+  a.elementos.pa_obs.value = 'Observação separada';
+  await a.salvar();
+  assert.equal(a.contexto.db.plantoes.length, 0);
+  assert.match(a.elementos.pa_aviso.textContent, /nome do feriado/);
+  a.elementos.pa_feriado.value = 'Proclamação da República';
+  a.contexto.FMPlantao.aba('plantao');
+  assert.equal(a.elementos.pa_obs.value, 'Rascunho de sábado');
+  assert.equal(a.elementos.pa_ocasiao.value, 'Sábado');
+  a.contexto.FMPlantao.aba('feriados');
+  assert.equal(a.elementos.pa_feriado.value, 'Proclamação da República');
+  assert.equal(a.elementos.pa_obs.value, 'Observação separada');
+  assert.equal(a.elementos.pa_ocasiao.value, 'Feriado');
+  await a.salvar();
+  assert.equal(a.contexto.db.plantoes.length, 1);
+});
+
+test('feriados antigos aparecem somente na nova aba e preservam identidade na edição', async () => {
+  const a = ambiente();
+  const antigo = {_rid:'feriado-antigo', motorista:'BRUNO PIRES GOMES', data:'2026-11-15',
+    tipo:'Plantão trabalhado', ocasiao:'Feriado', inicio:'', fim:'', veiculo:'',
+    valorCentavos:12550, status:'Enviadas RH', obs:'Proclamação da República'};
+  a.contexto.db.plantoes.push(antigo);
+  a.contexto.FMPlantao.render();
+  assert.doesNotMatch(a.elementos.pa_lista.innerHTML, /feriado-antigo/);
+  a.contexto.FMPlantao.aba('feriados');
+  assert.match(a.elementos.pa_lista.innerHTML, /feriado-antigo/);
+  assert.match(a.elementos.pa_lista.innerHTML, /Proclamação da República/);
+  await a.acao({pa:'editar', id:'feriado-antigo'});
+  assert.equal(a.elementos.pa_feriado.value, antigo.obs);
+  a.elementos.pa_obs.value = 'Conferido pelo RH';
+  await a.salvar();
+  assert.equal(a.contexto.db.plantoes.length, 1);
+  assert.equal(a.contexto.db.plantoes[0]._rid, antigo._rid);
+  assert.equal(a.contexto.db.plantoes[0].feriado, antigo.obs);
+  assert.equal(a.contexto.db.plantoes[0].valorCentavos, 12550);
 });
