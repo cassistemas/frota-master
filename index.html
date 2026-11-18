@@ -1582,6 +1582,12 @@ onclick="exportarExcel('saidaVeiculos')">
         <option value="Sim">Indicação: Sim</option>
     </select>
 </div>
+<div class="col-md-3">
+    <select id="mucobrarmotorista" class="form-select" aria-label="Cobrar Motorista" title="Apenas informativo; não gera cobrança ou desconto automático">
+        <option value="Não" selected>Cobrar Motorista: Não</option>
+        <option value="Sim">Cobrar Motorista: Sim</option>
+    </select>
+</div>
 <div class="col-md-12" style="display:none" aria-hidden="true">
     <label>Arquivos (opcional)</label>
     <input type="file" id="muarquivos" class="form-control" multiple>
@@ -1590,7 +1596,7 @@ onclick="exportarExcel('saidaVeiculos')">
     <input id="muobs" class="form-control" placeholder="Observações (ex: motorista contestou, radar escondido, etc)">
 </div>
                 <div class="col-md-12 text-end">
-                    <button id="btn_cancel_multas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('multas',['muveiculo','mumotorista','muinfracao','muait','murenainf','mudata','muvenc','muvalor','mustatus','muindicacao','muobs'],'mu_idx')">Cancelar</button>
+                    <button id="btn_cancel_multas" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('multas',['muveiculo','mumotorista','muinfracao','muait','murenainf','mudata','muvenc','muvalor','mustatus','muindicacao','mucobrarmotorista','muobs'],'mu_idx')">Cancelar</button>
                     <button class="btn btn-danger" onclick="salvarMulta()">
                     Salvar Multa
                     </button>
@@ -1754,6 +1760,7 @@ onclick="exportarExcel('saidaVeiculos')">
 <th>Valor</th>
 <th>Status</th>
 <th>Indicação</th>
+<th>Cobrar Motorista</th>
 <th>Obs</th>
 <th>Ações</th>
 </tr>
@@ -3751,7 +3758,7 @@ function formatarDataBR(data){
 </script>
 
 <script src="./manutencao-tipos.js?v=20261009-gerenciar"></script>
-<script src="./paginacao.js?v=20261116-cancelar-saida"></script>
+<script src="./paginacao.js?v=20261124-cobrar-motorista"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -4838,6 +4845,7 @@ function editar(mod,i){
         let el=document.getElementById(k);
         fmPreencherCampoEdicao(el, item[k]);
     })
+    if(mod === 'multas') fmPreencherCampoEdicao(document.getElementById('mucobrarmotorista'), item.mucobrarmotorista === 'Sim' ? 'Sim' : 'Não');
     document.getElementById(ID_MAP_INDEX[mod]).value=i;
     if(mod === 'ferias'){
         if(!item.fediastotal && item.feinicio && item.fefim){
@@ -6894,6 +6902,7 @@ let obj = {
     muvalor: document.getElementById("muvalor").value,
     mustatus: document.getElementById("mustatus").value,
     muindicacao: document.getElementById("muindicacao").value,
+    mucobrarmotorista: document.getElementById("mucobrarmotorista").value,
     muobs: document.getElementById("muobs").value,
     arquivos: []
 
@@ -7700,7 +7709,7 @@ document.getElementById("muarquivos").value=""
 
 limparForm(
 'multas',
-['muveiculo','mumotorista','muinfracao','muait','murenainf','mudata','muvenc','muvalor','mustatus',"muindicacao",'muobs'],
+['muveiculo','mumotorista','muinfracao','muait','murenainf','mudata','muvenc','muvalor','mustatus',"muindicacao",'mucobrarmotorista','muobs'],
 'mu_idx'
 )
 

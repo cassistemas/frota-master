@@ -1519,6 +1519,11 @@ const dados = getDadosPaginadosCustom(filtrados, 'multas');
         ${mu.muindicacao || "Não"}
     </span>
 </td>
+<td>
+    <span class="badge ${mu.mucobrarmotorista === 'Sim' ? 'bg-success' : 'bg-secondary'}">
+        ${mu.mucobrarmotorista === 'Sim' ? 'Sim' : 'Não'}
+    </span>
+</td>
             <td>${mu.muobs || '--'}</td>
             <td>
             <button class="btn-edit" onclick="editar('multas',${realIndex})">✎</button>
