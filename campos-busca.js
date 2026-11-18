@@ -30,14 +30,37 @@
       .toLowerCase();
   }
 
+  function permiteNomeLivre(select) {
+    return select.id === "mumotorista";
+  }
+
   function opcoesValidas(select) {
     return Array.from(select.options || []).filter(function (option) {
-      return option.value && !option.disabled;
+      return option.value && !option.disabled && option.dataset.fmNomeLivre !== "1";
     });
+  }
+
+  // Opção temporária só no formulário da multa; não altera o cadastro de motoristas.
+  function definirNomeLivre(select, nome) {
+    var opcao = Array.from(select.options || []).find(function (item) {
+      return item.dataset.fmNomeLivre === "1";
+    });
+    if (!opcao) {
+      opcao = document.createElement("option");
+      opcao.dataset.fmNomeLivre = "1";
+      select.appendChild(opcao);
+    }
+    if (opcao.value !== nome) opcao.value = nome;
+    if (opcao.textContent !== nome) opcao.textContent = nome;
+    select.value = nome;
   }
 
   function atualizarSugestoes(select, input, lista) {
     var atual = input.value;
+    // Recarregar os cadastros não pode apagar o nome livre já digitado.
+    if (permiteNomeLivre(select) && atual && !select.value) {
+      selecionarCorrespondencia(select, input, false);
+    }
     if (select.value && !atual) {
       var escolhida = select.options[select.selectedIndex];
       input.value = escolhida ? escolhida.textContent.trim() : "";
@@ -91,7 +114,9 @@
     if (!correspondencias.length) {
       var vazio = document.createElement("div");
       vazio.className = "fm-busca-vazia";
-      vazio.textContent = "Nenhum cadastro encontrado";
+      vazio.textContent = permiteNomeLivre(select)
+        ? "Digite o nome; ele será salvo apenas nesta multa."
+        : "Nenhum cadastro encontrado";
       lista.appendChild(vazio);
     }
 
@@ -120,6 +145,12 @@
     }
 
     if (!encontrada) {
+      if (permiteNomeLivre(select)) {
+        definirNomeLivre(select, input.value.trim());
+        select.dispatchEvent(new Event("input", { bubbles: true }));
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      }
       select.value = "";
       return false;
     }
@@ -139,8 +170,12 @@
     input.type = "search";
     input.id = select.id + "-busca";
     input.className = "form-control fm-busca-cadastro";
-    input.placeholder = "Digite para buscar " + tipo;
-    input.setAttribute("aria-label", "Buscar " + tipo + " cadastrado");
+    input.placeholder = permiteNomeLivre(select)
+      ? "Busque ou digite o motorista"
+      : "Digite para buscar " + tipo;
+    input.setAttribute("aria-label", permiteNomeLivre(select)
+      ? "Motorista: selecione um cadastrado ou digite um nome livre"
+      : "Buscar " + tipo + " cadastrado");
     input.setAttribute("aria-autocomplete", "list");
     input.setAttribute("aria-controls", "fm-lista-" + select.id);
     input.autocomplete = "off";
@@ -160,7 +195,10 @@
     if (rotulo) rotulo.setAttribute("for", input.id);
 
     input.addEventListener("input", function () {
+      var digitado = input.value;
       selecionarCorrespondencia(select, input, false);
+      // Não corta espaços entre palavras enquanto o usuário digita.
+      if (permiteNomeLivre(select)) input.value = digitado;
       filtrarSugestoes(select, input, lista);
     });
     input.addEventListener("change", function () {
@@ -169,6 +207,12 @@
       }
     });
     input.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" && permiteNomeLivre(select)) {
+        event.preventDefault();
+        selecionarCorrespondencia(select, input, false);
+        fecharSugestoes(lista);
+        return;
+      }
       var primeira = lista.querySelector(".fm-busca-opcao");
       if (event.key === "Enter" && primeira) {
         event.preventDefault();

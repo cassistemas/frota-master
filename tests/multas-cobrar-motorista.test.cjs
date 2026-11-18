@@ -88,3 +88,71 @@ test('cancelar restaura Não e o campo aparece ao lado de Indicação no formul�
   assert.match(html, /<th>Indicação<\/th>\s*<th>Cobrar Motorista<\/th>/);
   assert.match(paginacao, /mu\.mucobrarmotorista === 'Sim' \? 'Sim' : 'Não'/);
 });
+
+function campoMotorista(a, id = 'mumotorista') {
+  const select = {
+    id, tagName: 'SELECT', type: 'select-one',
+    options: [{ value: '', textContent: 'Motorista...', dataset: {} },
+      { value: 'João Cadastrado', textContent: 'João Cadastrado', dataset: {} }],
+    appendChild(opcao) { this.options.push(opcao); }, dispatchEvent() {}
+  };
+  let valor = '';
+  Object.defineProperty(select, 'value', {
+    get() { return valor; },
+    set(v) { valor = this.options.some(o => o.value === String(v)) ? String(v) : ''; }
+  });
+  Object.defineProperty(select, 'selectedIndex', {
+    get() { return this.options.findIndex(o => o.value === valor); },
+    set(i) { valor = this.options[i]?.value || ''; }
+  });
+  a.campos[id] = select;
+  a.ctx.document.createElement = () => ({ value: '', textContent: '', dataset: {} });
+  const busca = fs.readFileSync(path.join(__dirname, '..', 'campos-busca.js'), 'utf8');
+  new vm.Script(busca);
+  vm.runInContext(busca.replace('  window.fmAtualizarBuscasCadastro = prepararTodos;',
+    '  window.testNomeLivre = { selecionarCorrespondencia, opcoesValidas, atualizarSugestoes }; return;'), a.ctx);
+  return select;
+}
+
+test('nome livre fica só na multa e pode ser editado sem perder anexos', () => {
+  const a = ambiente();
+  const select = campoMotorista(a);
+  a.ctx.db.motoristas = [{ motNome: 'João Cadastrado' }];
+  const input = { value: '  José Avulso  ' };
+  assert.equal(a.ctx.testNomeLivre.selecionarCorrespondencia(select, input, false), true);
+  assert.equal(select.value, 'José Avulso');
+  assert.equal(a.ctx.testNomeLivre.opcoesValidas(select).length, 1);
+  a.ctx.salvarMulta();
+  assert.equal(a.ctx.db.multas[0].mumotorista, 'José Avulso');
+  assert.equal(select.value, '');
+  // Simula uma nova abertura, sem nenhuma opção temporária anterior.
+  select.options = select.options.filter(o => !o.dataset.fmNomeLivre);
+  a.ctx.db.multas[0].arquivos = [{ nome: 'auto.pdf' }];
+  a.ctx.editar('multas', 0);
+  assert.equal(select.value, 'José Avulso');
+  assert.equal(select.options.at(-1).textContent, 'José Avulso');
+  input.value = 'Maria Avulsa';
+  a.ctx.testNomeLivre.selecionarCorrespondencia(select, input, false);
+  a.ctx.salvarMulta();
+  assert.equal(a.ctx.db.multas.length, 1);
+  assert.equal(a.ctx.db.multas[0].mumotorista, 'Maria Avulsa');
+  assert.equal(a.ctx.db.multas[0].arquivos[0].nome, 'auto.pdf');
+  assert.deepEqual(a.ctx.db.motoristas, [{ motNome: 'João Cadastrado' }]);
+});
+
+test('preserva seleção cadastrada e restringe nomes livres ao formulário de Multas', () => {
+  const a = ambiente();
+  const select = campoMotorista(a);
+  a.ctx.testNomeLivre.selecionarCorrespondencia(select, { value: 'joao cadastrado' }, false);
+  assert.equal(select.value, 'João Cadastrado');
+  a.ctx.testNomeLivre.selecionarCorrespondencia(select, { value: 'Avulso' }, false);
+  select.options = select.options.filter(o => !o.dataset.fmNomeLivre);
+  select.value = '';
+  a.ctx.testNomeLivre.atualizarSugestoes(select, { value: 'Avulso' }, { hidden: true });
+  assert.equal(select.value, 'Avulso');
+  a.ctx.testNomeLivre.selecionarCorrespondencia(select, { value: '' }, false);
+  assert.equal(select.value, '');
+  select.id = 'agmotorista';
+  assert.equal(a.ctx.testNomeLivre.selecionarCorrespondencia(select, { value: 'Outro avulso' }, false), false);
+  assert.equal(select.value, '');
+});
