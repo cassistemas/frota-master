@@ -363,11 +363,21 @@
   }
 
   /* ---------- barra de botoes ---------- */
+  var ICONES = {
+    "rel-excel": '<path d="M4 3h10l6 6v12H4zM14 3v6h6M8 12l5 6m0-6l-5 6"/>',
+    "rel-pdf": '<path d="M4 3h10l6 6v12H4zM14 3v6h6M8 13h8m-8 4h6"/>',
+    "rel-print": '<path d="M6 9V3h12v6M6 17H3V9h18v8h-3M6 14h12v7H6zM17 11h1"/>',
+    "rel-all": '<path d="M12 3v12m-5-5l5 5 5-5M4 16v5h16v-5"/>'
+  };
+
   function botao(rotulo, classe, fn) {
     var b = document.createElement("button");
     b.type = "button";
     b.className = "rel-btn " + classe;
-    b.textContent = rotulo;
+    b.innerHTML = '<svg class="rel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONES[classe] + '</svg>';
+    var texto = document.createElement("span");
+    texto.textContent = rotulo;
+    b.appendChild(texto);
     b.addEventListener("click", fn);
     return b;
   }
@@ -387,23 +397,25 @@
     wrap = wrap || tabela;
     var barra = document.createElement("div");
     barra.className = "rel-bar";
+    barra.setAttribute("role", "group");
+    barra.setAttribute("aria-label", "Relatórios de " + info.nome);
     barra.innerHTML = '<span class="rel-tt">Relatórios</span>';
     barra.appendChild(
-      botao("📊 Excel", "rel-excel", function () {
+      botao("Excel", "rel-excel", function () {
         excel(tabela, info.nome);
       })
     );
     barra.appendChild(
-      botao("📄 PDF", "rel-pdf", function () {
+      botao("PDF", "rel-pdf", function () {
         pdf(tabela, info.nome);
       })
     );
     barra.appendChild(
-      botao("🖨️ Imprimir", "rel-print", function () {
+      botao("Imprimir", "rel-print", function () {
         imprimir(tabela, info.nome);
       })
     );
-    barra.appendChild(botao("⬇️ Baixar tudo", "rel-all", baixarTudo));
+    barra.appendChild(botao("Baixar tudo", "rel-all", baixarTudo));
     if (wrap.parentNode) wrap.parentNode.insertBefore(barra, wrap);
   }
 

@@ -223,8 +223,10 @@
       }
     });
     input.addEventListener("focus", function () {
-      var indice = document.getElementById("le_idx");
-      if (select.id === "leveiculo" && indice && indice.value !== "") {
+      var indice = document.getElementById(select.id === "cveiculo" ? "c_idx" : "le_idx");
+      var editandoSemAbrir = (select.id === "leveiculo" || select.id === "cveiculo") &&
+        indice && indice.value !== "";
+      if (input.dataset.fmBuscaFocoSilencioso === "1" || editandoSemAbrir) {
         fecharSugestoes(lista);
         return;
       }

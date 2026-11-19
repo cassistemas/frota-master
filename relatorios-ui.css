@@ -70,23 +70,63 @@ table tbody tr:hover > td,
   margin-right: 4px;
 }
 
-.rel-btn {
-  border: 1px solid transparent;
+/* Escopo compartilhado: independe dos estilos de botões de cada módulo. */
+.rel-bar > .rel-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 36px;
+  margin: 0;
+  border: 1px solid var(--rel-border) !important;
   border-radius: 9px;
-  padding: 7px 13px;
+  padding: 8px 13px;
+  background: var(--rel-bg) !important;
+  color: var(--rel-color) !important;
+  font-family: inherit;
   font-size: 0.76rem;
   font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: none;
   cursor: pointer;
   transition: filter 0.15s ease, transform 0.05s ease;
 }
 
-.rel-btn:hover { filter: brightness(0.95); }
-.rel-btn:active { transform: translateY(1px); }
+.rel-bar > .rel-btn:hover { filter: brightness(0.95); }
+.rel-bar > .rel-btn:active { transform: translateY(1px); }
+.rel-bar > .rel-btn:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+.rel-bar .rel-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
 
-.rel-excel { background: #dcfce7; color: #14532d; border-color: #86efac; }
-.rel-pdf { background: #fee2e2; color: #7f1d1d; border-color: #fca5a5; }
-.rel-print { background: #e0e7ff; color: #312e81; border-color: #c7d2fe; }
-.rel-all { background: #0f172a; color: #fff; margin-left: auto; }
+.rel-bar > .rel-excel { --rel-bg: #dcfce7; --rel-color: #14532d; --rel-border: #86efac; }
+.rel-bar > .rel-pdf { --rel-bg: #fee2e2; --rel-color: #7f1d1d; --rel-border: #fca5a5; }
+.rel-bar > .rel-print { --rel-bg: #e0e7ff; --rel-color: #312e81; --rel-border: #c7d2fe; }
+.rel-bar > .rel-all {
+  --rel-bg: #0f172a;
+  --rel-color: #fff;
+  --rel-border: #0f172a;
+  margin-left: auto;
+}
+
+@media (max-width: 575px) {
+  .rel-bar { gap: 8px; padding: 10px; }
+  .rel-bar .rel-tt { flex-basis: 100%; margin: 0; }
+  .rel-bar > .rel-btn { flex: 1 1 calc(50% - 8px); min-height: 40px; }
+  .rel-bar > .rel-all { margin-left: 0; }
+}
 
 @media print {
   .sidebar,

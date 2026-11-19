@@ -21,7 +21,7 @@
   }
   document.addEventListener("click", function (ev) {
     var btn = ev.target && ev.target.closest && ev.target.closest("button, a, [onclick]");
-    if (!ehEditar(btn)) return;
+    if (!ehEditar(btn) || !btn.closest("#combustivel")) return;
     if (btn.closest(".modal, #fmModalVerFrete")) {
       /* botao Editar dentro da janela de detalhes: segue normalmente */
     }
@@ -36,8 +36,14 @@
         return;
       }
       var el = mudou[0];
+      if (el.dataset.fmBuscaCadastro === "1") {
+        el = document.getElementById(el.id + "-busca") || el;
+      }
       alvo(el).scrollIntoView({ behavior: "smooth", block: "start" });
+      // O foco de edição não é um pedido para abrir as sugestões.
+      el.dataset.fmBuscaFocoSilencioso = "1";
       try { el.focus({ preventScroll: true }); } catch (e) { void e; }
+      finally { delete el.dataset.fmBuscaFocoSilencioso; }
     }
     setTimeout(function () { rolar(0); }, 80);
   }, true);
