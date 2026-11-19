@@ -1286,6 +1286,8 @@ if(modulo === 'terceiros'){
 
 <td class="col-cidade" title="${t.tercidade || ''}">${t.tercidade || '--'}</td>
 
+<td class="col-observacao">${String(t.terobs || '--').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))}</td>
+
 <td class="money">${t.terfrete || 'R$ 0,00'}</td>
 
 <td class="num">${fmSeletorStatusManual('terceiros', idx, t.terstatus, 'fm-status-terceiro')}</td>

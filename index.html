@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="./pro-ui.css?v=20261203-acoes-padrao">
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css?v=20261202-botoes-padrao">
-    <link rel="stylesheet" href="./fretes-terceiros.css?v=3-grade-uniforme">
+    <link rel="stylesheet" href="./fretes-terceiros.css?v=4-alinhamento-rolagem">
     <link rel="stylesheet" href="./custos-frota.css?v=20260928-6">
     <link rel="stylesheet" href="./importar-planilha-producao.css?v=1">
     <style>
@@ -1044,7 +1044,8 @@ Limpar
 
 </div>
 
-<div class="table-responsive tabela-terceiros">
+<p id="terceirosAjudaTabela" class="terceiros-rolagem-ajuda">Mova o mouse para as laterais da tabela para rolar. Use também a barra horizontal ou as setas do teclado ao selecionar a tabela.</p>
+<div id="terceirosTabela" class="table-responsive tabela-terceiros" role="region" aria-label="Terceiros cadastrados" aria-describedby="terceirosAjudaTabela" tabindex="0">
 
 <table class="table table-sm align-middle">
 
@@ -3758,7 +3759,7 @@ function formatarDataBR(data){
 </script>
 
 <script src="./manutencao-tipos.js?v=20261009-gerenciar"></script>
-<script src="./paginacao.js?v=20261124-cobrar-motorista"></script>
+<script src="./paginacao.js?v=20261204-terceiros-alinhamento"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -10104,4 +10105,5 @@ style="width:100%; height:400px; border:none;">
 <script src="./limpeza-pos-salvar.js?v=6-reservas"></script>
 <script src="./organizacao-campos.js?v=20261114-correcao-carregamento"></script>
 <script src="./acoes-tabelas.js?v=1"></script>
+<script src="./terceiros-rolagem.js?v=1"></script>
 </html>

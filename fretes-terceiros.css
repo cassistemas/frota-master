@@ -28,3 +28,36 @@
 #subTerFretes .fretes-lista-lancados td:nth-child(3),
 #subTerFretes .fretes-lista-lancados td:nth-child(5){min-width:100px;overflow-wrap:anywhere;}
 @media(max-width:576px){.fm-modal{padding:.5rem;}.fm-modal-foot .btn{flex:1 1 100%;}}
+
+/* Terceiros: cabeçalho e dados compartilham a mesma grade, sem espremer colunas. */
+#terceiros .tabela-terceiros{
+    width:100%;max-width:100%;min-width:0;overflow-x:auto;
+    overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;
+    scroll-behavior:auto;
+}
+#terceiros .tabela-terceiros table{
+    display:table;width:max-content;min-width:100%;table-layout:auto;
+}
+#terceiros .tabela-terceiros thead{display:table-header-group;}
+#terceiros .tabela-terceiros tbody{display:table-row-group;}
+#terceiros .tabela-terceiros tr{display:table-row;}
+#terceiros .tabela-terceiros tr>th,
+#terceiros .tabela-terceiros tr>td{
+    display:table-cell !important;vertical-align:middle;white-space:nowrap;
+}
+#terceirosTabela th,#terceirosTabela td{min-width:90px;}
+#terceirosTabela .col-nome,#terceirosTabela .col-empresa,
+#terceirosTabela .col-cidade{min-width:170px;max-width:none;}
+#terceirosTabela td.col-observacao{
+    min-width:240px;max-width:360px;white-space:pre-wrap !important;
+    overflow-wrap:anywhere;line-height:1.4;
+}
+#terceiros .tabela-terceiros td.col-acoes{
+    min-width:190px;white-space:nowrap !important;text-align:center;
+}
+#terceiros .tabela-terceiros:focus-visible{
+    outline:2px solid #2563eb;outline-offset:2px;
+}
+#terceiros .terceiros-rolagem-ajuda{
+    margin:0 0 .5rem;color:var(--pro-mute,#64748b);font-size:.78rem;
+}
