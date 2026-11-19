@@ -717,6 +717,85 @@ label, .form-label {
 .btn-edit:hover { background: #eff6ff; border-color: #bfdbfe; color: var(--pro-accent); }
 .btn-del:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
 
+/* Somente Editar/Excluir nas tabelas. Saída de Veículos não recebe estas classes.
+   Os !important isolam o padrão das dimensões e cores locais de cada módulo. */
+td.fm-acoes-celula:not(#saidaVeiculos td) {
+  white-space: nowrap !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+}
+td.fm-acoes-celula .fm-acao-tabela:not(#saidaVeiculos button) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  width: auto !important;
+  min-width: 80px !important;
+  max-width: none !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+  padding: 0 10px !important;
+  border: 1px solid #bfdbfe !important;
+  border-radius: 7px !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  box-shadow: none !important;
+  font: 600 .72rem/1 Inter, sans-serif !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  white-space: nowrap !important;
+  vertical-align: middle;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+td.fm-acoes-celula .fm-acao-tabela + .fm-acao-tabela:not(#saidaVeiculos button) {
+  margin-left: 6px !important;
+}
+/* Contêineres que já possuem gap não precisam de margem adicional. */
+td.fm-acoes-celula :is(.veiculos-acoes, .pneu-acoes-linha, .cus-history-actions, .fixos-actions) > .fm-acao-tabela + .fm-acao-tabela:not(#saidaVeiculos button) {
+  margin-left: 0 !important;
+}
+td.fm-acoes-celula :is(.cus-history-actions, .fixos-actions) {
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+}
+td.fm-acoes-celula .fm-acao-excluir:not(#saidaVeiculos button) {
+  background: #fef2f2 !important;
+  border-color: #fecaca !important;
+  color: #b91c1c !important;
+}
+td.fm-acoes-celula .fm-acao-editar:hover:not(:disabled) {
+  background: #dbeafe !important;
+  border-color: #93c5fd !important;
+}
+td.fm-acoes-celula .fm-acao-excluir:hover:not(:disabled) {
+  background: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+}
+td.fm-acoes-celula .fm-acao-tabela:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+td.fm-acoes-celula .fm-acao-tabela:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+td.fm-acoes-celula .fm-acao-tabela svg {
+  width: 14px !important;
+  height: 14px !important;
+  flex: 0 0 14px;
+  pointer-events: none;
+}
+td.fm-acoes-celula .fm-acao-tabela span {
+  pointer-events: none;
+}
+.veiculos-acoes-celula.fm-acoes-celula {
+  min-width: 290px;
+  width: 290px;
+}
+
 /* Veículos: mantém KM, editar e excluir alinhados na mesma linha. */
 .veiculos-acoes-cabecalho,
 .veiculos-acoes-celula {
