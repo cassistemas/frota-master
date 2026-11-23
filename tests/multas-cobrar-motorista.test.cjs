@@ -85,7 +85,10 @@ test('cancelar restaura Não e o campo aparece ao lado de Indicação no formul�
   vm.runInContext(cancelar, a.ctx);
   assert.equal(a.campos.mucobrarmotorista.value, 'Não');
   assert.match(html, /id="muindicacao"[\s\S]*?<\/select>\s*<\/div>\s*<div class="col-md-3">\s*<select id="mucobrarmotorista"/);
-  assert.match(html, /<th>Indicação<\/th>\s*<th>Cobrar Motorista<\/th>/);
+  assert.match(html, /<th class="multas-col-sim-nao">Indicação<\/th>\s*<th class="multas-col-sim-nao">Cobrar Motorista<\/th>/);
+  assert.match(html, /<div class="table-responsive multas-tablewrap">\s*<table class="table multas-table">/);
+  assert.match(paginacao, /<td class="multas-col-sim-nao">\s*<span class="badge \$\{mu\.mucobrarmotorista/);
+  assert.match(paginacao, /<td class="multas-col-obs">\$\{mu\.muobs/);
   assert.match(paginacao, /mu\.mucobrarmotorista === 'Sim' \? 'Sim' : 'Não'/);
 });
 

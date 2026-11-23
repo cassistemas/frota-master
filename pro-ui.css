@@ -1220,6 +1220,34 @@ tr.pneu-detalhe > td{background:#f8fafc;border-top:0}
 /* Ações inline na tabela de pneus (olho + editar + excluir) */
 .pneu-acoes-linha{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end}
 .pneu-acoes-linha .btn-edit,.pneu-acoes-linha .btn-del{line-height:1}
+/* Multas: colunas Sim/Não compactas, sem espremer os demais dados. */
+#multas .multas-tablewrap { max-width: 100%; overflow-x: auto; }
+#multas .multas-table { width: 100%; min-width: 1240px; }
+#multas .multas-table > thead > tr > th.multas-col-sim-nao,
+#multas .multas-table > tbody > tr > td.multas-col-sim-nao {
+  width: 82px;
+  min-width: 82px;
+  max-width: 82px;
+  padding-left: 6px;
+  padding-right: 6px;
+  text-align: center;
+  vertical-align: middle;
+}
+#multas .multas-table > thead > tr > th.multas-col-sim-nao {
+  white-space: normal;
+  font-size: .65rem;
+  letter-spacing: .02em;
+  line-height: 1.35;
+}
+#multas .multas-table > tbody > tr > td.multas-col-sim-nao { white-space: nowrap; }
+#multas .multas-table .multas-col-obs {
+  min-width: 180px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#multas .multas-table > tbody > tr > td:nth-child(2),
+#multas .multas-table > tbody > tr > td:nth-child(3) { min-width: 120px; }
+
 /* Multas: cor própria para cada status */
 .fm-status-rapido.fm-status-multa[data-status="Pendente"]{color:#991b1b!important;border-color:#fca5a5!important;background-color:#fee2e2!important}
 .fm-status-rapido.fm-status-multa[data-status="Pago"]{color:#166534!important;border-color:#86efac!important;background-color:#dcfce7!important}

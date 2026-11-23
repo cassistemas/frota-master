@@ -21,7 +21,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="./pro-ui.css?v=20261203-acoes-padrao">
+    <link rel="stylesheet" href="./pro-ui.css?v=20261205-multas-compactas">
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css?v=20261202-botoes-padrao">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=4-alinhamento-rolagem">
@@ -1748,7 +1748,8 @@ onclick="exportarExcel('saidaVeiculos')">
             <div class="d-flex justify-content-end mb-3">
                 <button class="btn-excel" onclick="exportarExcel('multas')">📥 Exportar Excel</button>
             </div>
-           <table class="table">
+           <div class="table-responsive multas-tablewrap">
+<table class="table multas-table">
 <thead>
 <tr>
 <th>Veículo</th>
@@ -1760,14 +1761,15 @@ onclick="exportarExcel('saidaVeiculos')">
 <th>Venc. Desconto</th>
 <th>Valor</th>
 <th>Status</th>
-<th>Indicação</th>
-<th>Cobrar Motorista</th>
-<th>Obs</th>
+<th class="multas-col-sim-nao">Indicação</th>
+<th class="multas-col-sim-nao">Cobrar Motorista</th>
+<th class="multas-col-obs">Observações</th>
 <th>Ações</th>
 </tr>
 </thead>
 <tbody id="listaMultas"></tbody>
 </table>
+</div>
 <div id="paginacaoMultas"></div>
         </div>
     </div>

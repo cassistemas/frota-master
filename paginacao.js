@@ -1512,7 +1512,7 @@ const dados = getDadosPaginadosCustom(filtrados, 'multas');
             <td>${formatarDataBR(mu.muvenc || mu.vencimento)}</td>
             <td><b>${mu.muvalor || mu.valor || '--'}</b></td>
             <td>${fmSeletorStatusManual('multas', realIndex, mu.mustatus, 'fm-status-multa')}</td>
-<td>
+<td class="multas-col-sim-nao">
     <span class="badge ${
         (mu.muindicacao || "Não") === "Sim"
             ? "bg-success"
@@ -1521,12 +1521,12 @@ const dados = getDadosPaginadosCustom(filtrados, 'multas');
         ${mu.muindicacao || "Não"}
     </span>
 </td>
-<td>
+<td class="multas-col-sim-nao">
     <span class="badge ${mu.mucobrarmotorista === 'Sim' ? 'bg-success' : 'bg-secondary'}">
         ${mu.mucobrarmotorista === 'Sim' ? 'Sim' : 'Não'}
     </span>
 </td>
-            <td>${mu.muobs || '--'}</td>
+            <td class="multas-col-obs">${mu.muobs || '--'}</td>
             <td>
             <button class="btn-edit" onclick="editar('multas',${realIndex})">✎</button>
             <button class="btn-del" onclick="deletar('multas',${realIndex})">✕</button>
