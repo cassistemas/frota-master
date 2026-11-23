@@ -1509,7 +1509,7 @@ const dados = getDadosPaginadosCustom(filtrados, 'multas');
             <td><b>${mu.muait || mu.ait || '---'}</b></td>
             <td>${mu.murenainf || '--'}</td>
             <td>${formatarDataBR(mu.mudata || mu.data)}</td>
-            <td>${formatarDataBR(mu.muvenc || mu.vencimento)}</td>
+            <td class="multas-col-vencimento">${formatarDataBR(mu.muvenc || mu.vencimento)}</td>
             <td><b>${mu.muvalor || mu.valor || '--'}</b></td>
             <td>${fmSeletorStatusManual('multas', realIndex, mu.mustatus, 'fm-status-multa')}</td>
 <td class="multas-col-sim-nao">

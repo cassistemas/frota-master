@@ -1240,6 +1240,23 @@ tr.pneu-detalhe > td{background:#f8fafc;border-top:0}
   line-height: 1.35;
 }
 #multas .multas-table > tbody > tr > td.multas-col-sim-nao { white-space: nowrap; }
+#multas .multas-table > thead > tr > th.multas-col-vencimento,
+#multas .multas-table > tbody > tr > td.multas-col-vencimento {
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+  padding-left: 6px;
+  padding-right: 6px;
+  text-align: center;
+  vertical-align: middle;
+}
+#multas .multas-table > thead > tr > th.multas-col-vencimento {
+  white-space: normal;
+  font-size: .65rem;
+  letter-spacing: .02em;
+  line-height: 1.35;
+}
+#multas .multas-table > tbody > tr > td.multas-col-vencimento { white-space: nowrap; }
 #multas .multas-table .multas-col-obs {
   min-width: 180px;
   white-space: normal;

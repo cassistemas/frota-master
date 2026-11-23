@@ -92,6 +92,15 @@ test('cancelar restaura Não e o campo aparece ao lado de Indicação no formul�
   assert.match(paginacao, /mu\.mucobrarmotorista === 'Sim' \? 'Sim' : 'Não'/);
 });
 
+test('vencimento de desconto usa coluna compacta com título em duas linhas e data inteira', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'pro-ui.css'), 'utf8');
+  assert.match(html, /<th class="multas-col-vencimento">Venc\.<br>Desconto<\/th>/);
+  assert.match(paginacao, /<td class="multas-col-vencimento">\$\{formatarDataBR\(mu\.muvenc \|\| mu\.vencimento\)\}<\/td>/);
+  assert.match(css, /#multas \.multas-table > tbody > tr > td\.multas-col-vencimento\s*\{\s*width: 100px;\s*min-width: 100px;\s*max-width: 100px;/);
+  assert.match(css, /#multas \.multas-table > thead > tr > th\.multas-col-vencimento\s*\{\s*white-space: normal;/);
+  assert.match(css, /#multas \.multas-table > tbody > tr > td\.multas-col-vencimento\s*\{ white-space: nowrap; \}/);
+});
+
 function campoMotorista(a, id = 'mumotorista') {
   const select = {
     id, tagName: 'SELECT', type: 'select-one',
