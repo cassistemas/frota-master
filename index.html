@@ -25,7 +25,7 @@
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css?v=20261202-botoes-padrao">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=4-alinhamento-rolagem">
-    <link rel="stylesheet" href="./custos-frota.css?v=20261206-comparativo-veiculos">
+    <link rel="stylesheet" href="./custos-frota.css?v=20261206-graficos-por-veiculo">
     <link rel="stylesheet" href="./importar-planilha-producao.css?v=1">
     <style>
         :root{--sidebar:#0f172a;--accent:#3b82f6;--bg:#f8fafc;--danger:#ef4444;--warning:#f59e0b;--success:#10b981}
@@ -3477,6 +3477,7 @@ Criar Usuário
                 <label for="cusComparativoBusca">Buscar por placa</label>
                 <input type="search" id="cusComparativoBusca" class="form-control" placeholder="Ex.: ABC1D23" autocomplete="off">
                 <div id="cusComparativoLista" class="cus-comparativo-lista" role="group" aria-label="Veículos disponíveis"></div>
+                <div class="cus-comparativo-rodape"><button id="cusComparativoConcluir" type="button" class="btn btn-primary btn-sm">Concluir</button></div>
               </div>
             </details>
             <div id="cusComparativoMarcados" class="cus-comparativo-marcados" role="group" aria-label="Veículos selecionados"></div>
@@ -3530,10 +3531,7 @@ Criar Usuário
           </div>
           <div id="cusVeiculosPaginacao"></div>
         </div>
-        <div class="cus-grid cus-analise-paineis">
-          <div class="cus-panel"><h5>Custos por categoria</h5><div id="cusCategorias"></div></div>
-          <div class="cus-panel"><h5>Distribuição dos custos</h5><div id="cusGrafico"></div></div>
-        </div>
+        <div id="cusComposicaoCustos" class="cus-composicoes"></div>
       </div>
       <datalist id="cusVeiculosLista"></datalist><datalist id="cusMotoristasLista"></datalist><datalist id="cusPneusLista"></datalist>
     </div>
@@ -10095,12 +10093,12 @@ style="width:100%; height:400px; border:none;">
 <script src="./editar-rolar.js?v=20261202-edicao-silenciosa"></script>
 <script src="./civ-competencia.js?v=20261009-1"></script>
 <script src="./competencia-despesas.js?v=20261110-compacta"></script>
-<script src="./custos-frota.js?v=20261206-comparativo-veiculos"></script>
+<script src="./custos-frota.js?v=20261206-graficos-por-veiculo"></script>
 <script src="./exclusao-vinculada.js?v=4-plantoes"></script>
 <script src="./pneus-veiculos.js?v=2-cadastro-em-uso"></script>
 <script src="./resultado-veiculos.js?v=1"></script>
 <script src="./veiculos-detran.js?v=3-observacoes-fipe"></script>
-<script src="./resultado-frota.js?v=20261206-comparativo-veiculos"></script>
+<script src="./resultado-frota.js?v=20261206-graficos-por-veiculo"></script>
 <script src="./filtros-por-aba.js?v=20261206-comparativo-veiculos"></script>
 <script src="./resumo-filtros-frota.js?v=20261206-comparativo-veiculos"></script>
 <script src="./exportar-aba-frota.js?v=1"></script>

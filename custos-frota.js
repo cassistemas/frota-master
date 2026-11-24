@@ -124,7 +124,9 @@ function placasComparativo(){
 function sincronizarFiltroComparativo(aba){
  var filtro=document.getElementById('cusFiltroComparativo'),simples=document.getElementById('cusFiltroVeiculo');
  if(!filtro)return;
- var ativa=aba==='analise';filtro.hidden=!ativa;if(simples)simples.hidden=ativa;
+ var ativa=aba==='analise',seletor=filtro.querySelector('details');
+ filtro.hidden=!ativa;if(simples)simples.hidden=ativa;
+ if(!ativa&&seletor)seletor.open=false;
 }
 function renderFiltroComparativo(placas){
  var busca=document.getElementById('cusComparativoBusca'),lista=document.getElementById('cusComparativoLista'),marcados=document.getElementById('cusComparativoMarcados');
@@ -144,7 +146,12 @@ function renderFiltroComparativo(placas){
 }
 function iniciarFiltroComparativo(){
  var filtro=document.getElementById('cusFiltroComparativo'),lista=document.getElementById('cusComparativoLista'),busca=document.getElementById('cusComparativoBusca');
- if(filtro&&lista&&busca){
+ var seletor=filtro&&filtro.querySelector('details'),resumo=document.getElementById('cusComparativoResumo'),concluir=document.getElementById('cusComparativoConcluir');
+ if(seletor&&lista&&busca&&resumo){
+  function fecharSelecao(devolverFoco){seletor.open=false;if(devolverFoco)resumo.focus()}
+  if(concluir)concluir.addEventListener('click',function(){fecharSelecao(true)});
+  document.addEventListener('click',function(ev){if(seletor.open&&!filtro.contains(ev.target))fecharSelecao(false)},true);
+  document.addEventListener('keydown',function(ev){if(seletor.open&&ev.key==='Escape'){ev.preventDefault();fecharSelecao(seletor.contains(document.activeElement))}},true);
   busca.addEventListener('input',function(){renderFiltroComparativo(placasComparativo())});
   lista.addEventListener('change',function(ev){var input=ev.target;if(input.type!=='checkbox')return;if(input.checked)comparativo.selecionadas.add(input.value);else comparativo.selecionadas.delete(input.value);estado.paginaVeiculos=1;atualizarConsulta()});
   filtro.addEventListener('click',function(ev){var botao=ev.target.closest('[data-cus-remover]');if(!botao)return;var placa=botao.dataset.cusRemover;if(placa)comparativo.selecionadas.delete(placa);else comparativo.selecionadas.clear();estado.paginaVeiculos=1;atualizarConsulta();document.getElementById('cusComparativoResumo').focus()});
@@ -178,21 +185,29 @@ function renderVeiculos(linhas){
  }).join('')||'<tr><td colspan="7" class="cus-empty">Sem dados por veículo no período.</td></tr>';
  var pg=document.getElementById('cusVeiculosPaginacao');if(pg)pg.innerHTML=p.html;
 }
-function renderComposicao(categorias,total,escopo,naoAlocados){
- var barras=document.getElementById('cusCategorias'),rosca=document.getElementById('cusGrafico');if(!barras||!rosca)return;
+function painelComposicao(categorias,total,escopo,naoAlocados,cores){
  var itens=Array.from(categorias,function(par){return {nome:par[0],valor:par[1]}}).filter(function(x){return Math.round(x.valor*100)!==0}).sort(function(a,b){return Math.abs(b.valor)-Math.abs(a.valor)||a.nome.localeCompare(b.nome,'pt-BR')});
  var soma=itens.reduce(function(s,x){return s+Math.abs(x.valor)},0),fim=0;
- var nota='<p class="cus-note">'+esc(escopo)+(naoAlocados?' · Sem vínculo com placa: '+brl(naoAlocados):'')+'</p>';
- var vazio=nota+'<p class="cus-empty">Sem custos para os filtros selecionados.</p>';
- if(!soma){barras.innerHTML=vazio;rosca.innerHTML=vazio;return}
- itens.forEach(function(x,i){x.p=Math.abs(x.valor)/soma*100;x.cor='hsl('+Math.round(i*137.508)%360+' 65% '+(i%2?38:47)+'%)'});
+ var nota=naoAlocados?'<p class="cus-note">Sem vínculo com placa: '+brl(naoAlocados)+'</p>':'';
+ var titulo='<section class="cus-composicao"><h5 class="cus-composicao-titulo">'+esc(escopo)+'</h5>'+nota;
+ if(!soma)return titulo+'<div class="cus-panel"><h6>Composição dos custos</h6><p class="cus-note">Sem custos para os filtros selecionados.</p><strong>Custo total: '+brl(total)+'</strong></div></section>';
+ itens.forEach(function(x){
+  var i=cores.size;
+  if(!cores.has(x.nome))cores.set(x.nome,'hsl('+Math.round(i*137.508)%360+' 65% '+(i%2?38:47)+'%)');
+  x.p=Math.abs(x.valor)/soma*100;x.cor=cores.get(x.nome);
+ });
  function percentual(x){return x.p.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%'}
  var notaCreditos=itens.some(function(x){return x.valor<0})?'<p class="cus-note">As barras e a rosca mostram o peso de cada categoria sem o sinal. Os créditos reduzem o custo total.</p>':'';
- barras.innerHTML=nota+itens.map(function(x){return '<div class="cus-comparativo-barra"><div><b>'+esc(x.nome)+'</b><span>'+brl(x.valor)+' · '+percentual(x)+'</span></div><div class="cus-progress" aria-hidden="true"><i style="width:'+x.p+'%;background:'+x.cor+'"></i></div></div>'}).join('')+notaCreditos;
+ var barras=itens.map(function(x){return '<div class="cus-comparativo-barra"><div><b>'+esc(x.nome)+'</b><span>'+brl(x.valor)+' · '+percentual(x)+'</span></div><div class="cus-progress" aria-hidden="true"><i style="width:'+x.p+'%;background:'+x.cor+'"></i></div></div>'}).join('');
  var faixas=itens.map(function(x,i){var inicio=fim;fim=i===itens.length-1?100:fim+x.p;return x.cor+' '+inicio+'% '+fim+'%'}).join(',');
- rosca.innerHTML=nota+'<div class="cus-comparativo-rosca" style="--cus-rosca:conic-gradient('+faixas+')"><div><small>Custo total</small><strong>'+brl(total)+'</strong></div></div>'
-  +'<ul class="cus-comparativo-legenda" aria-label="Distribuição dos custos por categoria">'+itens.map(function(x){return '<li><i aria-hidden="true" style="background:'+x.cor+'"></i><span>'+esc(x.nome)+'</span><strong>'+percentual(x)+'</strong></li>'}).join('')+'</ul>'
-  +notaCreditos;
+ var rosca='<div class="cus-comparativo-rosca" style="--cus-rosca:conic-gradient('+faixas+')"><div><small>Custo total</small><strong>'+brl(total)+'</strong></div></div>'
+  +'<ul class="cus-comparativo-legenda" aria-label="Distribuição dos custos por categoria">'+itens.map(function(x){return '<li><i aria-hidden="true" style="background:'+x.cor+'"></i><span>'+esc(x.nome)+'</span><strong>'+brl(x.valor)+' · '+percentual(x)+'</strong></li>'}).join('')+'</ul>';
+ return titulo+'<div class="cus-grid cus-analise-paineis"><div class="cus-panel"><h6>Custos por categoria</h6>'+barras+'</div><div class="cus-panel"><h6>Distribuição dos custos</h6>'+rosca+'</div></div>'+notaCreditos+'</section>';
+}
+function renderComposicoes(dados,total,todas){
+ var el=document.getElementById('cusComposicaoCustos');if(!el)return;
+ var cores=new Map();
+ el.innerHTML=todas?painelComposicao(dados.categorias,total,'Frota geral',dados.naoAlocados,cores):dados.linhas.map(function(x){return painelComposicao(x.categorias,x.total,x.placa,0,cores)}).join('');
 }
 function renderAnalise(f,base){
  var placas=placasComparativo(),validas=new Set(placas.map(normalizarPlaca));
@@ -207,7 +222,7 @@ function renderAnalise(f,base){
  comparativo.dados={linhas:todas?dados.linhas.filter(function(x){return x.total||x.km||x.faturamento||x.receitaLiquida||x.fix||x.vari||x.ind}):dados.linhas,total:totais.custo,placas:selecionadas};
  if(api)api.atualizarIndicadores(totais,f);
  renderVeiculos(comparativo.dados.linhas);
- renderComposicao(dados.categorias,totais.custo,todas?'Frota geral':selecionadas.length+(selecionadas.length===1?' veículo selecionado':' veículos selecionados'),dados.naoAlocados);
+ renderComposicoes(dados,totais.custo,todas);
  var lancamentos=todas?filtrados('',f,base).filter(function(x){return !x.veiculo||!veiculoVendido(x.veiculo)}):selecionadas.flatMap(function(placa){return filtrados(placa,f,base)});
  renderPendencias(lancamentos,{placasComparativo:selecionadas},totais.km);
 }

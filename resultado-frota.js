@@ -101,8 +101,9 @@ function custosNaoAlocados(f,modo,base,categorias){if(!window.FMCustosAPI)return
 function dadosComparativo(placas,f,base,incluirNaoAlocados){
  var categorias=new Map(),modo=f.modo;
  var linhas=placas.map(function(placa){
-  var c=custosBase(placa,f,modo,base,categorias);
-  return {placa:placa,faturamento:faturamento(placa,f,modo),receitaLiquida:receita(placa,f,modo),fix:c.fix,vari:c.vari,ind:c.ind,total:c.total,km:window.FMCustosAPI.kmPeriodo(placa,f.ini,f.fim)};
+  var categoriasVeiculo=new Map(),c=custosBase(placa,f,modo,base,categoriasVeiculo);
+  categoriasVeiculo.forEach(function(valor,categoria){adicionarCategoria(categorias,categoria,valor)});
+  return {placa:placa,faturamento:faturamento(placa,f,modo),receitaLiquida:receita(placa,f,modo),fix:c.fix,vari:c.vari,ind:c.ind,total:c.total,km:window.FMCustosAPI.kmPeriodo(placa,f.ini,f.fim),categorias:categoriasVeiculo};
  });
  var naoAlocados=incluirNaoAlocados?custosNaoAlocados(f,modo,base,categorias):0;
  return {linhas:linhas,categorias:categorias,naoAlocados:naoAlocados};
