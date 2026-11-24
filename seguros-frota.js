@@ -124,7 +124,11 @@
                 ${input('fAte','Vencimento até','type="date"')}
                 <label>Alerta de prazo<select id="fmSeg_fPrazo" class="form-select"><option value="">Todos</option><option value="vencido">Vencidos</option><option value="atencao">Até 30 dias</option><option value="vigente">Em dia</option><option value="sem">Sem data</option></select></label>
             </div>
-            <div class="fm-seg-acoes"><button type="button" class="btn btn-outline-primary" id="fmSeg_exportar">Exportar Excel</button></div>
+            <div class="fm-seg-acoes">
+                <button type="button" class="btn btn-outline-primary" id="fmSeg_importar" aria-controls="fmSeg_previa" aria-expanded="false">Importar Excel</button>
+                <button type="button" class="btn btn-outline-primary" id="fmSeg_exportar">Exportar Excel</button>
+            </div>
+            <div id="fmSeg_previa" class="mt-3" hidden></div>
             <div id="fmSeg_resultado"></div>
         </div>`;
         campo('form').addEventListener('submit', salvar);
@@ -140,6 +144,10 @@
         ['fPlaca','fSeguradora','fAte','fPrazo'].forEach(k => campo(k).addEventListener('input', consultar));
         campo('cancelar').addEventListener('click', () => { limpar(); atualizar(); });
         campo('exportar').addEventListener('click', exportar);
+        root.FMImportarSeguros?.montar({
+            botao: campo('importar'), painel: campo('previa'), seguros: api, veiculos, lista,
+            podeGravar: podeImportar, gravar: importar, ocupado: () => ocupada,
+        });
         host.addEventListener('click', acoes);
         limpar();
     }
@@ -298,14 +306,48 @@
         limpar();
         persistir('Registro salvo no banco.');
     }
+    function gravarSeguros(aoEstado) {
+        root.fmPularSincronizacaoPreUmaVez = true;
+        return salvarNuvem(['seguros'], aoEstado ? { aoEstado } : undefined);
+    }
+    function podeImportar() {
+        return podeGravar() && root.fmModuloCarregado('veiculos') && Array.isArray(db.seguros) && Array.isArray(db.veiculos);
+    }
+    async function importar(linhas, revisao, aoEstado) {
+        if (ocupada || !podeImportar()) return { status: 'indisponivel' };
+        const resultado = root.FMImportarSeguros.validar(linhas, veiculos(), lista(), api);
+        const novos = resultado.filter(l => l.status === 'nova');
+        if (JSON.stringify(novos) !== revisao) return { status: 'mudou', resultado };
+        if (!novos.length) return { status: 'sem-novos', resultado };
+        let prontos;
+        try {
+            prontos = novos.map(l => fmPrepararRegistro('seguros', { ...l.registro }, null));
+        } catch (erro) {
+            console.error(erro);
+            return { status: 'erro-preparo' };
+        }
+        ocupada = true;
+        lista().push(...prontos);
+        let estado = 'erro';
+        try {
+            atualizar();
+            const ok = await gravarSeguros(s => { estado = s; aoEstado(s, prontos.length); });
+            if (ok) estado = 'confirmado';
+        } catch (erro) { console.error(erro); }
+        finally {
+            ocupada = false;
+            atualizar();
+            if (typeof renderDashboard === 'function') renderDashboard();
+        }
+        return { status: estado, quantidade: prontos.length };
+    }
     async function persistir(mensagem) {
         ocupada = true;
         atualizar();
         aviso('Salvando no banco…');
         let ok = false;
         try {
-            root.fmPularSincronizacaoPreUmaVez = true;
-            ok = await salvarNuvem(['seguros']);
+            ok = await gravarSeguros();
         } catch (erro) { console.error(erro); }
         finally {
             ocupada = false;
