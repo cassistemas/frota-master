@@ -96,6 +96,76 @@ test('a chegada dos veículos alimenta o seletor aberto sem mexer no formulário
     assert.deepEqual(db.seguros, [{ sveiculo: 'ABC1D23', sseguradora: 'Seguro anterior' }]);
 });
 
+test('o Excel de Seguros não usa classe ou acionador de exportação legada', () => {
+    const fonte = fs.readFileSync(path.join(__dirname, '..', 'seguros-frota.js'), 'utf8');
+    const botao = fonte.match(/<button[^>]*\bid="fmSeg_exportar"[^>]*>/)?.[0];
+    assert.ok(botao);
+    assert.doesNotMatch(botao, /\bbtn-excel\b|\bonclick=/);
+});
+
+test('as três abas de Seguros renderizam com ou sem o botão de exportação', () => {
+    const vm = require('node:vm');
+    const fonte = fs.readFileSync(path.join(__dirname, '..', 'seguros-frota.js'), 'utf8');
+    const db = { veiculos: [], seguros: [] };
+    let carregado = false;
+    const campos = new Map();
+    let aoClicar;
+    const abas = ['principal', 'segundo', 'legado'].map(segAba => ({
+        dataset: { segAba }, closest() { return this; }, setAttribute() {},
+    }));
+    const host = {
+        querySelectorAll: () => abas,
+        addEventListener(evento, fn) { if (evento === 'click') aoClicar = fn; },
+        set innerHTML(html) {
+            for (const [, id] of html.matchAll(/id="(fmSeg_\w+)"/g)) {
+                campos.set(id, {
+                    value: '', parentElement: {}, selectedOptions: [],
+                    add() {}, addEventListener() {}, reset() {},
+                });
+            }
+        },
+    };
+    const window = { addEventListener() {}, fmModuloCarregado: () => carregado };
+    vm.runInNewContext(fonte, {
+        window, db, Option: function (label, value) { Object.assign(this, { label, value, dataset: {} }); },
+        document: {
+            readyState: 'loading', addEventListener() {},
+            getElementById: id => id === 'fmApolices' ? host : campos.get(id) || null,
+        },
+    });
+
+    window.FMSegurosFrota.render();
+    const resultado = campos.get('fmSeg_resultado');
+    const excel = campos.get('fmSeg_exportar');
+    assert.match(resultado.textContent, /Aguardando o carregamento dos seguros/);
+    assert.equal(excel.disabled, true);
+
+    carregado = true;
+    db.seguros = [base, { ...base, stipo: 'segundo', sveiculo: 'XYZ4J56' }, {
+        sveiculo: 'HIS1A23', sseguradora: 'Seguradora anterior', svencimento: '2025-12-31',
+    }];
+    window.FMSegurosFrota.render();
+    assert.equal(excel.disabled, false);
+
+    // Simula a remoção do botão após a montagem, como no limpador de relatórios.
+    campos.delete('fmSeg_exportar');
+    for (const [i, placa] of ['ABC1D23', 'XYZ4J56', 'HIS1A23'].entries()) {
+        resultado.innerHTML = '';
+        aoClicar({ target: abas[i] });
+        assert.match(abas[i].textContent, /\(1\)$/);
+        assert.match(resultado.innerHTML, /<table\b/);
+        assert.ok(resultado.innerHTML.includes(`<td>${placa}</td>`));
+    }
+
+    db.seguros = [];
+    for (const aba of abas) {
+        resultado.textContent = '';
+        aoClicar({ target: aba });
+        assert.match(aba.textContent, /\(0\)$/);
+        assert.match(resultado.textContent, /Nenhum registro/);
+    }
+});
+
 test('a chave de sincronização distingue apólice, tipo, vigência e placa', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
     const inicio = html.indexOf('function fmTextoChave(v)');

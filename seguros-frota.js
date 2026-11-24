@@ -124,7 +124,7 @@
                 ${input('fAte','Vencimento até','type="date"')}
                 <label>Alerta de prazo<select id="fmSeg_fPrazo" class="form-select"><option value="">Todos</option><option value="vencido">Vencidos</option><option value="atencao">Até 30 dias</option><option value="vigente">Em dia</option><option value="sem">Sem data</option></select></label>
             </div>
-            <div class="fm-seg-acoes"><button type="button" class="btn-excel" id="fmSeg_exportar">Exportar Excel</button></div>
+            <div class="fm-seg-acoes"><button type="button" class="btn btn-outline-primary" id="fmSeg_exportar">Exportar Excel</button></div>
             <div id="fmSeg_resultado"></div>
         </div>`;
         campo('form').addEventListener('submit', salvar);
@@ -329,7 +329,8 @@
             b.setAttribute('aria-pressed', String(t === aba));
             b.textContent = `${tipos[t]} (${geral.filter(r => tipo(r) === t).length})`;
         });
-        campo('exportar').disabled = !registros.length;
+        const botaoExportar = campo('exportar');
+        if (botaoExportar) botaoExportar.disabled = !registros.length;
         if (!registros.length) {
             campo('resultado').textContent = root.fmModuloCarregado?.('seguros') ? 'Nenhum registro nesta aba para os filtros informados.' : 'Aguardando o carregamento dos seguros…';
             return;
