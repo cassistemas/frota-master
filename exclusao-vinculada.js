@@ -140,7 +140,10 @@
     if (!prontos(mods)) { alert('Aguarde o carregamento dos módulos vinculados antes de excluir: ' + mods.map(nome).join(', ') + '.'); return false; }
     ocupado = true;
     try {
-      var p = plano(mod,registro), antes = assinatura(p), selecionados = await escolher(p);
+      var p = plano(mod,registro), antes = assinatura(p);
+      var selecionados = mod === 'seguros'
+        ? (window.confirm('Excluir o registro de seguro da placa ' + registro.sveiculo + '?') ? p.nos : null)
+        : await escolher(p);
       if (!selecionados) return false;
       if (window.fmConfirmacaoPreEmAndamento || !prontos(mods) || p.nos.some(function (n) { return lista(n.mod).indexOf(n.registro) < 0; }) || assinatura(plano(mod,registro)) !== antes) {
         alert('Os dados mudaram durante a conferência. Nada foi excluído. Abra a exclusão novamente.'); return false;

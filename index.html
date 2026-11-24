@@ -2631,24 +2631,7 @@ Limpar
 
     <div id="seguros" class="hidden">
         <h3>🛡 Seguros</h3>
-        <div class="glass-container">
-            <input type="hidden" id="s_idx">
-            <div class="row g-3">
-                <div class="col-md-4"><select id="sveiculo" class="form-select"></select></div>
-                <div class="col-md-4"><input id="sseguradora" class="form-control" placeholder="Seguradora"></div>
-                <div class="col-md-4"><input type="date" id="svencimento" class="form-control"></div>
-                <div class="col-md-12 text-end">
-                    <button id="btn_cancel_seguros" class="btn btn-outline-secondary btn-cancelar" onclick="limparForm('seguros',['sveiculo','sseguradora','svencimento'],'s_idx')">Cancelar</button>
-                    <button class="btn btn-primary" onclick="salvar('seguros',['sveiculo','sseguradora','svencimento'],'s_idx')">Salvar</button>
-                </div>
-            </div>
-        </div>
-        <div class="glass-container">
-            <div class="d-flex justify-content-end mb-3">
-                <button class="btn-excel" onclick="exportarExcel('seguros')">📥 Exportar Excel</button>
-            </div>
-            <table class="table"><thead><tr><th>Veículo</th><th>Seguradora</th><th>Vencimento</th><th>Ações</th></tr></thead><tbody id="listaSeguros"></tbody></table>
-        </div>
+        <div id="fmApolices"></div>
     </div>
     
     <div id="licencas" class="hidden">
@@ -5637,6 +5620,7 @@ function escutarDados(modulo){
             if(['plantoes', 'motoristas', 'veiculos'].includes(modulo) && window.FMPlantao && window.fmModuloVisivel('diarias')) window.FMPlantao.render();
             if((modulo === 'tiposManutencao' || modulo === 'manutencoes') && window.FMManutencaoTipos) window.FMManutencaoTipos.preencher();
             if(modulo === 'veiculos' && typeof window.fmSincronizarKmVeiculo === 'function') window.fmSincronizarKmVeiculo();
+            if(modulo === 'veiculos' && window.FMSegurosFrota && window.fmModuloVisivel('seguros')) window.FMSegurosFrota.render();
 
             // Desenha a tela que o usuario esta vendo (e o painel inicial).
             // As demais ficam marcadas e sao desenhadas ao abrir o modulo.
@@ -6057,7 +6041,7 @@ document.getElementById('listaFerias').innerHTML =
 </tr>
 `).join('');
    
-    document.getElementById('listaSeguros').innerHTML = db.seguros.map((s,i)=>`<tr><td>${s.sveiculo}</td><td>${s.sseguradora}</td><td>${formatarVencimento(s.svencimento)}</td>${btnSet('seguros',i)}</tr>`).join('');
+    if(window.FMSegurosFrota) window.FMSegurosFrota.render();
     document.getElementById('listaLicenciamento').innerHTML = db.licenciamento.map((l,i)=>`<tr><td>${l.lveiculo}</td><td>${formatarVencimento(l.lvencimento)}</td><td><b>${l.lvalor}</b></td>${btnSet('licenciamento',i)}</tr>`).join('');
     document.getElementById('listaTacografo').innerHTML = db.tacografo.map((t,i)=>{
         const periodoTexto = t.tperiodo && t.tperiodounidade ? `${t.tperiodo} ${t.tperiodounidade}` : '<span class="text-muted">---</span>';
@@ -7208,8 +7192,12 @@ function fmChaveNegocio(mod, r){
         return mod + "|" + codigo(r.agveiculo) + "|" + r.agdata + "|" + r.aghora + "|" + n(r.agdescricao);
     if(mod === "ferias" && n(r.femotorista) && r.feinicio)
         return mod + "|" + n(r.femotorista) + "|" + r.feinicio + "|fim:" + String(r.fefim || "");
-    if(mod === "seguros" && codigo(r.sveiculo) && r.svencimento)
+    if(mod === "seguros" && codigo(r.sveiculo) && r.svencimento){
+        if(r.stipo === 'principal' || r.stipo === 'segundo'){
+            return mod + '|apolice:' + JSON.stringify([r.stipo, n(r.sseguradora), n(r.sapolice), r.sinicio || '', r.svencimento, codigo(r.sveiculo)]);
+        }
         return mod + "|" + codigo(r.sveiculo) + "|" + r.svencimento + "|" + n(r.sseguradora);
+    }
     if(mod === "licenciamento" && codigo(r.lveiculo) && r.lvencimento)
         return mod + "|" + codigo(r.lveiculo) + "|" + r.lvencimento;
     if(mod === "tacografo" && codigo(r.tveiculo) && r.tdataafericao)
@@ -9037,10 +9025,7 @@ ${btnSet('agendamentos', i)}
         }
 
         if(modulo === 'seguros'){
-            fmPreencher('sveiculo', fmSelectVeiculos());
-            fmLista('listaSeguros', (db.seguros || []).map((s,i)=>
-                `<tr><td>${s.sveiculo || '--'}</td><td>${s.sseguradora || '--'}</td><td>${formatarVencimento(s.svencimento)}</td>${btnSet('seguros',i)}</tr>`
-            ).join(''));
+            if(window.FMSegurosFrota) window.FMSegurosFrota.render();
             return true;
         }
 
@@ -10094,7 +10079,7 @@ style="width:100%; height:400px; border:none;">
 <script src="./civ-competencia.js?v=20261009-1"></script>
 <script src="./competencia-despesas.js?v=20261110-compacta"></script>
 <script src="./custos-frota.js?v=20261206-graficos-por-veiculo"></script>
-<script src="./exclusao-vinculada.js?v=4-plantoes"></script>
+<script src="./exclusao-vinculada.js?v=5-seguros"></script>
 <script src="./pneus-veiculos.js?v=2-cadastro-em-uso"></script>
 <script src="./resultado-veiculos.js?v=1"></script>
 <script src="./veiculos-detran.js?v=3-observacoes-fipe"></script>
@@ -10108,7 +10093,7 @@ style="width:100%; height:400px; border:none;">
 <script src="./importar-extrato-pedagio.js?v=3-datas-excel-diagnostico"></script>
 <link rel="stylesheet" href="./manual.css?v=20261015">
 <link rel="stylesheet" href="./importar-planilha-folha.css?v=20261015">
-<script src="./manual-conteudo.js?v=20261015"></script>
+<script src="./manual-conteudo.js?v=20261206-apolices"></script>
 <script src="./manual.js?v=20261015"></script>
 <script src="./importar-planilha-folha.js?v=20261015"></script>
 <script src="./importar-rastreamento-pdf.js?v=20261116-conferencia-total"></script>
@@ -10139,4 +10124,6 @@ style="width:100%; height:400px; border:none;">
 <script src="./organizacao-campos.js?v=20261114-correcao-carregamento"></script>
 <script src="./acoes-tabelas.js?v=1"></script>
 <script src="./terceiros-rolagem.js?v=1"></script>
+<link rel="stylesheet" href="./seguros-frota.css?v=1">
+<script src="./seguros-frota.js?v=1"></script>
 </html>

@@ -1,0 +1,20 @@
+#fmApolices .fm-seg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:.75rem 1rem}
+#fmApolices .fm-seg-grid label{display:grid;gap:.3rem;font-weight:600;min-width:0}
+#fmApolices [hidden]{display:none!important}
+#fmApolices .fm-seg-editor h5{margin:1.2rem 0 .65rem}
+#fmApolices .fm-seg-acoes,#fmApolices .fm-seg-abas{display:flex;gap:.55rem;align-items:center;flex-wrap:wrap;margin:.85rem 0}
+#fmApolices .fm-seg-acoes{justify-content:flex-end}
+#fmApolices .fm-seg-abas [aria-pressed="true"]{color:#fff;background:#193d8e;border-color:#193d8e}
+#fmApolices .fm-seg-apolice{margin-top:1rem;border:1px solid var(--bs-border-color,#dbe3ef);border-radius:.75rem}
+#fmApolices .fm-seg-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem 1rem;flex-wrap:wrap;padding:1rem}
+#fmApolices .fm-seg-cab h5{margin:0 0 .35rem;overflow-wrap:anywhere}
+#fmApolices .table-responsive{overflow-x:auto}
+#fmApolices .table{margin-bottom:0}
+#fmApolices .table th,#fmApolices .table td{white-space:nowrap;vertical-align:middle}
+#fmApolices .table tfoot td,#fmApolices .table tfoot th{font-weight:700}
+#fmApolices .fm-seg-prazo,#fmApolices .fm-seg-situacao{display:inline-block;padding:.25rem .6rem;border-radius:999px;font-size:.83rem;font-weight:700;color:#1e293b;background:#e2e8f0}
+#fmApolices .fm-seg-vencido{color:#991b1b;background:#fee2e2}
+#fmApolices .fm-seg-atencao{color:#7b3e00;background:#fef3c7}
+#fmApolices .fm-seg-vigente{color:#166534;background:#dcfce7}
+#fmApolices .fm-seg-linha-acoes button{min-width:2rem}
+#fmApolices #fmSeg_aviso:not(:empty){padding:.5rem 0;font-weight:600}
