@@ -116,12 +116,13 @@ test('confirma só após revalidar a prévia e chama a gravação compartilhada 
         return true;
     });
     const linhas = ler('Seguro principal', [colunas, linha('ABC1D23'), linha('XYZ4567'), linha('AAA1234')]);
-    const revisao = JSON.stringify(validar(linhas).filter(l => l.status === 'nova'));
+    const indices = [0, 1, 2];
+    const revisao = JSON.stringify(importador.selecionadasValidas(validar(linhas), indices));
     db.seguros.push(existente);
-    assert.equal((await opcoes.gravar(linhas, revisao, () => {})).status, 'mudou');
+    assert.equal((await opcoes.gravar(linhas, indices, revisao, () => {})).status, 'mudou');
     assert.equal(envios.length, 0);
-    const novaRevisao = JSON.stringify(validar(linhas, db.seguros).filter(l => l.status === 'nova'));
-    assert.equal((await opcoes.gravar(linhas, novaRevisao, () => {})).status, 'confirmado');
+    const novaRevisao = JSON.stringify(importador.selecionadasValidas(validar(linhas, db.seguros), indices));
+    assert.equal((await opcoes.gravar(linhas, indices, novaRevisao, () => {})).status, 'confirmado');
     assert.deepEqual(envios, [['seguros']]);
     assert.equal(db.seguros[2].sveiculo, 'XYZ4567');
     assert.deepEqual(db.seguros.slice(0, 2), [legado, existente]);
@@ -130,11 +131,142 @@ test('confirma só após revalidar a prévia e chama a gravação compartilhada 
 test('falha de gravação não anuncia sucesso e o lote pendente não é inserido novamente', async () => {
     const { db, opcoes } = ambiente(async (_, { aoEstado }) => { aoEstado('enviando'); aoEstado('erro'); return false; });
     const linhas = ler('Seguro principal', [colunas, linha('ABC1D23')]);
-    const revisao = JSON.stringify(validar(linhas).filter(l => l.status === 'nova'));
+    const revisao = JSON.stringify(validar(linhas));
     const estados = [];
-    assert.equal((await opcoes.gravar(linhas, revisao, s => estados.push(s))).status, 'erro');
+    assert.equal((await opcoes.gravar(linhas, [0], revisao, s => estados.push(s))).status, 'erro');
     assert.deepEqual(estados, ['enviando','erro']);
-    assert.equal((await opcoes.gravar(linhas, revisao, () => {})).status, 'mudou');
+    assert.equal((await opcoes.gravar(linhas, [0], revisao, () => {})).status, 'mudou');
     assert.equal(db.seguros.length, 2);
     assert.deepEqual(db.seguros[0], legado);
+});
+
+test('grava somente a linha selecionada, mesmo quando há outras novas válidas', async () => {
+    const { db, opcoes } = ambiente(async (_, { aoEstado }) => { aoEstado('confirmado'); return true; });
+    const linhas = ler('Seguro principal', [colunas, linha('ABC1D23'), linha('XYZ4567')]);
+    const r = validar(linhas);
+    assert.deepEqual(r.map(l => l.status), ['nova', 'nova']);
+    assert.equal((await opcoes.gravar(linhas, [], '[]', () => {})).status, 'sem-novos');
+    assert.equal((await opcoes.gravar(linhas, [1, 1], JSON.stringify([r[1]]), () => {})).status, 'confirmado');
+    assert.equal(db.seguros.length, 2);
+    assert.equal(db.seguros[1].sveiculo, 'XYZ4567');
+});
+
+test('combina cabeçalhos em duas linhas e lê metadados mesclados sem copiar valores de outra placa', () => {
+    const faixa = (r, c, rr, cc) => ({ s: { r, c }, e: { r: rr, c: cc } });
+    const linhas = importador.lerAbas([{ nome: 'Cotação 2° risco', primeiraLinha: 4, dados: [
+        ['Placa', 'Nº da apólice', 'Companhia seguradora', 'Vigência', '', 'Prêmio líquido', 'IOF', 'Prêmio bruto'],
+        ['', '', '', 'Início', 'Fim', '', '', ''],
+        ['ABC1D23', '001', 'Seguradora A', '2026-01-01', '2026-12-31', 100, 10, 110],
+        ['XYZ4567', '', '', '', '', '', 12, 120],
+        ['Totais', '', '', '', '', 100, 22, 230],
+    ], mesclas: [faixa(0, 3, 0, 4), faixa(2, 1, 3, 1), faixa(2, 2, 3, 2), faixa(2, 3, 3, 3), faixa(2, 4, 3, 4), faixa(2, 5, 3, 5)] }]);
+    const r = validar(linhas);
+    assert.deepEqual(r.map(l => [l.status, l.tipo, l.linha]), [['nova','segundo',6], ['nova','segundo',7]]);
+    assert.equal(r[0].totalExcel, 11000);
+    assert.equal(r[0].avisos.length, 0);
+    assert.equal(r[1].registro.sapolice, '001');
+    assert.equal(r[1].registro.spremio, null);
+    assert.equal(r[1].calculado, 1200);
+    assert.match(r[1].avisos.join(' '), /Total do Excel difere/);
+});
+
+test('lê vigência em uma célula no cabeçalho ou na tabela e mantém datas explícitas', () => {
+    const lidas = ler('Seguro principal', [
+        ['Seguradora', 'Seguradora A'], ['Apólice', '001'],
+        ['Vigência: de 01/01/2026 até 31/12/2026'], ['Placa', 'Início', 'Prêmio'],
+        ['ABC1D23', 46023, 100],
+    ]).concat(ler('2º risco', [
+        ['Placa', 'Seguradora', 'Apólice', 'Período de vigência', 'Prêmio'],
+        ['XYZ4567', 'Seguradora A', '002', '2026-01-01 – 2026-12-31', 120],
+        ['XYZ4567', 'Seguradora A', '003', '31/02/2026 a 31/12/2026', 120],
+    ]));
+    const r = validar(lidas);
+    assert.deepEqual(r.map(l => [l.status, l.registro.sinicio, l.registro.svencimento]), [
+        ['nova', '2026-01-01', '2026-12-31'], ['nova', '2026-01-01', '2026-12-31'],
+        ['invalida', '', '2026-12-31'],
+    ]);
+});
+
+test('avisa quando a planilha informa uma cobertura que o tipo de seguro não grava', () => {
+    const [r] = validar(ler('2º risco', [colunas.concat('FIPE'), linha('ABC1D23').concat(240000)]));
+    assert.equal(r.status, 'nova');
+    assert.equal(r.registro.sfipe, undefined);
+    assert.ok(r.avisos.includes('Este tipo de seguro não grava: FIPE (240000).'));
+});
+
+test('mostra prêmio, IOF e coberturas divergentes sem alterar a duplicata cadastrada', () => {
+    const salvo = { ...existente, siof: 100, smateriais: 8000 };
+    const [r] = validar(ler('Seguro principal', [colunas.concat('RCF - Danos materiais'), linha('ABC1D23').concat(120)]), [salvo]);
+    assert.equal(r.status, 'duplicada');
+    assert.match(r.avisos.join(' '), /Excel\/Prévia × Sistema.*Danos materiais:.*Pr[eê]mio:.*IOF:/);
+    assert.equal(salvo.smateriais, 8000);
+});
+
+test('a prévia seleciona todas as páginas e só envia a seleção com as edições salvas', async () => {
+    function controle() {
+        const eventos = {};
+        return {
+            innerHTML: '', value: '', textContent: '', focus() {}, querySelector: () => null,
+            addEventListener: (tipo, fn) => { eventos[tipo] = fn; },
+            emitir: (tipo, e = {}) => eventos[tipo]?.(e),
+        };
+    }
+    const painel = controle(), botao = controle(), ids = new Map();
+    botao.setAttribute = () => {};
+    painel.querySelector = id => {
+        if (!ids.has(id)) ids.set(id, controle());
+        return ids.get(id);
+    };
+    const el = k => painel.querySelector('#fmSeg_' + k);
+    const dados = [colunas, ...Array.from({ length: 26 }, (_, i) => {
+        const row = linha('ABC1D23');
+        row[2] = `A${i}`;
+        return row;
+    }), linha('XYZ4567', '-1')];
+    const window = { XLSX: { read: () => ({ SheetNames: ['Seguro principal'], Sheets: { 'Seguro principal': {} } }),
+        utils: { sheet_to_json: () => dados } } };
+    vm.runInNewContext(fs.readFileSync(require.resolve('../importar-planilha-seguros.js'), 'utf8'), { window });
+    const gravados = [];
+    window.FMImportarSeguros.montar({ painel, botao, seguros, veiculos: () => cadastro, lista: () => [],
+        podeGravar: () => true, ocupado: () => false, gravar: async (linhas, indices) => {
+            gravados.push({ linhas, indices });
+            return { status: 'confirmado', quantidade: indices.length };
+        },
+    });
+    const arquivo = el('arquivo'), tabela = el('linhasImportacao'), editor = el('edicaoImportacao');
+    arquivo.files = [{ name: 'FROTA.xlsx', size: 8, arrayBuffer: async () => new ArrayBuffer(8) }];
+    await arquivo.emitir('change');
+    assert.equal(el('confirmarImportacao').disabled, true);
+    el('marcarImportacao').emitir('click');
+    assert.match(el('qtdImportacao').textContent, /^26 de 26/);
+    function tabelaEvento(tipo, atributo, dataset, checked) {
+        tabela.emitir(tipo, { target: { closest: seletor => seletor === atributo ? { dataset, checked } : null } });
+    }
+    tabelaEvento('click', '[data-seg-previa]', { segPrevia: 'principal', pagina: '2' });
+    assert.match(tabela.innerHTML, /Página 2 de 2/);
+    assert.match(tabela.innerHTML, /data-seg-selecionar="25"[^>]+checked/);
+    tabelaEvento('change', '[data-seg-selecionar]', { segSelecionar: '25' }, false);
+    assert.match(el('qtdImportacao').textContent, /^25 de 26/);
+    el('limparImportacao').emitir('click');
+    assert.match(el('qtdImportacao').textContent, /^0 de 26/);
+
+    const campos = { stipo: { value: 'principal' }, siof: { value: '8,50', defaultValue: '-1' } };
+    editor.querySelectorAll = () => [];
+    editor.querySelector = seletor => seletor === 'form' ? { elements: {
+        namedItem: k => campos[k] || { value: '', defaultValue: '' },
+    } } : seletor === '[name="stipo"]' ? campos.stipo : controle();
+    tabelaEvento('click', '[data-seg-editar-previa]', { segEditarPrevia: '26' });
+    assert.equal(editor.hidden, false);
+    editor.emitir('click', { target: { closest: () => true } });
+    assert.equal(editor.hidden, true);
+    assert.match(tabela.innerHTML, /iof: valor inválido/);
+    tabelaEvento('click', '[data-seg-editar-previa]', { segEditarPrevia: '26' });
+    editor.emitir('submit', { preventDefault() {} });
+    assert.equal(gravados.length, 0);
+    assert.match(tabela.innerHTML, /Editada na prévia/);
+    tabelaEvento('change', '[data-seg-selecionar]', { segSelecionar: '26' }, true);
+    await el('confirmarImportacao').emitir('click');
+    assert.deepEqual(Array.from(gravados[0].indices), [26]);
+    assert.equal(gravados[0].linhas[26].dados.siof, '8,50');
+    assert.equal(gravados[0].linhas[26].dados.totalExcel, 999999);
 });

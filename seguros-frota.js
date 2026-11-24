@@ -313,10 +313,11 @@
     function podeImportar() {
         return podeGravar() && root.fmModuloCarregado('veiculos') && Array.isArray(db.seguros) && Array.isArray(db.veiculos);
     }
-    async function importar(linhas, revisao, aoEstado) {
+    async function importar(linhas, indices, revisao, aoEstado) {
         if (ocupada || !podeImportar()) return { status: 'indisponivel' };
-        const resultado = root.FMImportarSeguros.validar(linhas, veiculos(), lista(), api);
-        const novos = resultado.filter(l => l.status === 'nova');
+        const importador = root.FMImportarSeguros;
+        const resultado = importador.validar(linhas, veiculos(), lista(), api);
+        const novos = importador.selecionadasValidas(resultado, indices);
         if (JSON.stringify(novos) !== revisao) return { status: 'mudou', resultado };
         if (!novos.length) return { status: 'sem-novos', resultado };
         let prontos;

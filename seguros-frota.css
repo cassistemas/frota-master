@@ -18,3 +18,7 @@
 #fmApolices .fm-seg-vigente{color:#166534;background:#dcfce7}
 #fmApolices .fm-seg-linha-acoes button{min-width:2rem}
 #fmApolices #fmSeg_aviso:not(:empty){padding:.5rem 0;font-weight:600}
+#fmApolices #fmSeg_selecaoImportacao{justify-content:flex-start}
+#fmSeg_previa .fm-seg-apolice h6{padding:.75rem 1rem;margin:0}
+#fmSeg_previa .fm-seg-apolice .fm-seg-acoes{padding-inline:1rem}
+#fmApolices #fmSeg_previa .table td.fm-seg-previa-detalhe{white-space:normal;min-width:13rem;max-width:22rem;overflow-wrap:anywhere}
