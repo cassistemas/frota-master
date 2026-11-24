@@ -7,13 +7,28 @@ const vm = require('node:vm');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../combustivel-foto.js'), 'utf8');
 
 function ambiente(opcoes = {}) {
-  const contagem = { imagens: 0, jpeg: 0, urls: 0 }, chamadas = [];
+  const contagem = { imagens: 0, jpeg: 0, urls: 0 }, chamadas = [], dialogos = [];
+  const campos = opcoes.campos || {};
   const ctx = {
-    console, Promise, Date, AbortController,
+    console, Promise, Date: opcoes.Date || Date, AbortController,
+    Event: class { constructor(tipo) { this.type = tipo; } },
     setTimeout: (f, ms) => ms === 1500 ? 0 : setTimeout(f, ms), clearTimeout,
     document: {
       readyState: 'loading', addEventListener() {},
-      createElement() { return { width: 0, height: 0, getContext: () => ({ drawImage() {} }),
+      getElementById(id) { return campos[id] || null; },
+      body: { appendChild(dialogo) { dialogos.push(dialogo); } },
+      createElement(tag) {
+        if (tag === 'dialog') {
+          const botoes = {}, eventos = {};
+          return { style: {}, setAttribute() {},
+            querySelector(id) { return botoes[id] || (botoes[id] = {}); },
+            addEventListener(tipo, fn) { eventos[tipo] = fn; },
+            showModal() { this.aberto = true; },
+            close() { this.aberto = false; }, remove() { this.removido = true; },
+            cancelar() { eventos.cancel({ preventDefault() {} }); }
+          };
+        }
+        return { width: 0, height: 0, getContext: () => ({ drawImage() {} }),
         toDataURL(tipo, qualidade) {
           contagem.jpeg++; assert.equal(tipo, 'image/jpeg'); assert.equal(qualidade, 0.85);
           return 'data:image/jpeg;base64,Zm90bw==';
@@ -32,10 +47,10 @@ function ambiente(opcoes = {}) {
     firebase: { auth: () => ({ currentUser: { getIdToken: async () => 'token-ficticio' } }) }
   };
   ctx.window = ctx;
-  const exposicao = 'window.cupomTeste = { criarContexto, lerGeminiDireto, lerIA, comPrazo };\n';
+  const exposicao = 'window.cupomTeste = { criarContexto, lerGeminiDireto, lerIA, comPrazo, conferirAnoCupom, preencher, extrair };\n';
   vm.runInNewContext(source.replace("  if (document.readyState === 'loading')", exposicao + "  if (document.readyState === 'loading')"), ctx);
   const contexto = ctx.cupomTeste.criarContexto({ type: 'image/jpeg', size: 1024 }, () => {});
-  return { ...ctx.cupomTeste, contexto, contagem, chamadas };
+  return { ...ctx.cupomTeste, contexto, contagem, chamadas, dialogos };
 }
 function dados() {
   return { data: '2026-01-10', posto: 'Posto Teste', placa: 'ABC1234', km: 123000,
@@ -92,4 +107,106 @@ test('arquivo inválido é rejeitado antes de iniciar qualquer chamada de IA', a
   const a = ambiente(), contexto = a.criarContexto({ type: 'text/plain', size: 12, name: 'teste.txt' }, () => {});
   await assert.rejects(contexto.obterImagem(), /FORMATO_INVALIDO/);
   assert.equal(a.chamadas.length, 0); assert.equal(a.contagem.imagens, 0);
+});
+
+function anoDoAparelho(ano) {
+  return class extends Date { getFullYear() { return ano; } };
+}
+
+test('ano vigente ou data ausente não abre alerta', async () => {
+  const a = ambiente({ Date: anoDoAparelho(2031) });
+  assert.equal(await a.conferirAnoCupom({ data: '2031-04-15' }), '');
+  assert.equal(await a.conferirAnoCupom({}), '');
+  assert.equal(a.dialogos.length, 0);
+});
+
+test('corrige somente o ano após confirmação, inclusive em datas futuras', async () => {
+  for (const original of ['2020-12-31', '2040-12-31']) {
+    const a = ambiente({ Date: anoDoAparelho(2031) });
+    const d = { ...dados(), data: original }, antes = { ...d };
+    const promessa = a.conferirAnoCupom(d), dialogo = a.dialogos[0];
+    assert.equal(d.data, original);
+    assert.match(dialogo.innerHTML, /Atenção ao ano do cupom/);
+    assert.match(dialogo.innerHTML, /2031/);
+    dialogo.querySelector('#cFotoAnoCorrigir').onclick();
+    assert.match(await promessa, /Ano corrigido/);
+    assert.equal(d.data, '2031-12-31');
+    assert.deepEqual(d, { ...antes, data: '2031-12-31' });
+    assert.equal(dialogo.removido, true);
+  }
+});
+
+test('manter data original ou pressionar Escape continua sem alterar os dados', async () => {
+  for (const cancelar of [false, true]) {
+    const a = ambiente({ Date: anoDoAparelho(2031) });
+    const d = { ...dados(), data: '2024-02-29' }, antes = { ...d };
+    const promessa = a.conferirAnoCupom(d), dialogo = a.dialogos[0];
+    if (cancelar) dialogo.cancelar();
+    else dialogo.querySelector('#cFotoAnoManter').onclick();
+    assert.match(await promessa, /Data original mantida/);
+    assert.deepEqual(d, antes);
+    assert.equal(a.chamadas.length, 0);
+  }
+});
+
+test('29/02 para ano não bissexto pede ajuste manual sem inventar outro dia', async () => {
+  const a = ambiente({ Date: anoDoAparelho(2031) });
+  const d = { data: '2024-02-29', litros: 100 };
+  const promessa = a.conferirAnoCupom(d), dialogo = a.dialogos[0];
+  assert.match(dialogo.innerHTML, /preencher a data manualmente/);
+  dialogo.querySelector('#cFotoAnoCorrigir').onclick();
+  assert.match(await promessa, /nenhum outro dia foi escolhido/);
+  assert.equal(d.data, '');
+  assert.equal(d.dataRequerAjuste, true);
+  assert.equal(d.litros, 100);
+});
+
+test('29/02 para outro ano bissexto mantém dia e mês', async () => {
+  const a = ambiente({ Date: anoDoAparelho(2032) });
+  const d = { data: '2024-02-29' }, promessa = a.conferirAnoCupom(d);
+  a.dialogos[0].querySelector('#cFotoAnoCorrigir').onclick();
+  await promessa;
+  assert.equal(d.data, '2032-02-29');
+});
+
+test('OCR local preserva anos distantes para a decisão explícita do usuário', () => {
+  const a = ambiente({ Date: anoDoAparelho(2031) });
+  for (const data of ['15/06/2021', '15/06/2011', '15/06/2041']) {
+    assert.equal(a.extrair(data).data, data.split('/').reverse().join('-'));
+  }
+});
+
+test('preenchimento exibe a data escolhida e continua sem salvar', async () => {
+  for (const corrigir of [false, true]) {
+    const eventos = [], datasCalendario = [];
+    const campoData = { value: '2031-01-01', dispatchEvent(e) { eventos.push(e.type); },
+      _flatpickr: { setDate(v) { datasCalendario.push(v); } } };
+    const a = ambiente({ Date: anoDoAparelho(2031), campos: { cdata: campoData } });
+    const d = { data: '2020-05-16', litros: 100, total: 600 };
+    const promessa = a.conferirAnoCupom(d);
+    a.dialogos[0].querySelector(corrigir ? '#cFotoAnoCorrigir' : '#cFotoAnoManter').onclick();
+    await promessa;
+    const r = a.preencher(d), esperada = corrigir ? '2031-05-16' : '2020-05-16';
+    assert.equal(campoData.value, esperada);
+    assert.ok(r.lidos.includes('Data: ' + esperada.split('-').reverse().join('/')));
+    assert.ok(r.lidos.includes('Litros: 100,00'));
+    assert.deepEqual(eventos, ['input', 'change']);
+    assert.deepEqual(datasCalendario, [esperada]);
+    assert.equal(a.chamadas.length, 0);
+  }
+});
+
+test('ajuste manual limpa a data anterior do formulário e do calendário', async () => {
+  const datasCalendario = [];
+  const campoData = { value: '2031-01-01', dispatchEvent() {},
+    _flatpickr: { setDate(v) { datasCalendario.push(v); } } };
+  const a = ambiente({ Date: anoDoAparelho(2031), campos: { cdata: campoData } });
+  const d = { data: '2024-02-29', litros: 100 }, promessa = a.conferirAnoCupom(d);
+  a.dialogos[0].querySelector('#cFotoAnoCorrigir').onclick();
+  await promessa;
+  const r = a.preencher(d);
+  assert.equal(campoData.value, '');
+  assert.deepEqual(datasCalendario, ['']);
+  assert.ok(r.faltam.includes('data'));
+  assert.ok(r.lidos.includes('Litros: 100,00'));
 });

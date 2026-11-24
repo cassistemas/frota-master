@@ -133,10 +133,9 @@
     var T = txt.toUpperCase().replace(/[“”"]/g, ' '), d = {};
     var m = T.match(/\b([0-3]?\d)[\/.-]([01]?\d)[\/.-](20\d{2}|\d{2})\b/);
     if (m) {
-      var a = m[3].length === 2 ? '20' + m[3] : m[3], atual = new Date().getFullYear();
-      if (Math.abs(+a - atual) > 2 && String(a).slice(-1) === String(atual).slice(-1)) a = String(atual);
+      var a = m[3].length === 2 ? '20' + m[3] : m[3];
       var mes = ('0' + m[2]).slice(-2), dia = ('0' + m[1]).slice(-2);
-      if (+a >= 2020 && +a <= atual + 2 && +mes >= 1 && +mes <= 12 && +dia >= 1 && +dia <= 31) d.data = a + '-' + mes + '-' + dia;
+      if (+mes >= 1 && +mes <= 12 && +dia >= 1 && +dia <= 31) d.data = a + '-' + mes + '-' + dia;
     }
     for (var t = 0; t < TIPOS.length; t++) if (TIPOS[t][0].test(T)) { d.tipo = TIPOS[t][1]; break; }
     var NUM = '\\d{1,4}[.,]\\d{1,3}';
@@ -282,7 +281,7 @@
     '{"data":"AAAA-MM-DD ou vazio","posto":"razão social do posto ou vazio","cnpj":"CNPJ do posto ou vazio","placa":"placa do veículo sem traço ou vazio","km":número ou null,"tipo":"um de: Diesel S10, Diesel S500, Gasolina, Etanol, Arla32, ou vazio","litros":número ou null,"valorLitro":número ou null,"total":número ou null,"arla":{"litros":número,"valorLitro":número,"total":número} ou null}\n' +
     'Os campos tipo/litros/valorLitro/total são do combustível. Se o cupom também tiver ARLA 32, coloque o ARLA só em "arla". Se o cupom tiver apenas ARLA 32, use tipo Arla32 e deixe "arla" null.\n' +
     'BIODIESEL S10 ou DIESEL S10 = Diesel S10. A placa pode vir como "PLACA:" e o KM como "ODOM:" ou "KM:" no rodapé. Litros = QTD (ex.: 203,280 L), valorLitro = VL.UNIT, total = TOTAL da mesma linha; nunca use o Valor Total do cupom.\n' +
-    'Use ponto como separador decimal. Não invente: deixe vazio/null o que não estiver legível.';
+    'Use ponto como separador decimal. Leia a data e o ano exatamente como estão impressos no cupom, mesmo que o ano seja diferente do atual; não atualize o ano por conta própria. Não invente: deixe vazio/null o que não estiver legível.';
   function interpretarIA(x, canvas) {
     function n(v) { var k = typeof v === 'number' ? v : num(String(v || '')); return k > 0 ? k : 0; }
     var d = { data: /^\d{4}-\d{2}-\d{2}$/.test(x.data || '') ? x.data : '', posto: String(x.posto || '').trim(), cnpj: String(x.cnpj || '').trim(), placas: x.placa ? [N(x.placa)] : [], km: n(x.km) ? String(Math.round(n(x.km))) : '', tipo: String(x.tipo || '').trim(), litros: n(x.litros), valorLitro: n(x.valorLitro), total: n(x.total) };
@@ -400,6 +399,47 @@
     });
   }
 
+  /* ---------- Conferir o ano antes de preencher, independentemente do leitor ---------- */
+  function conferirAnoCupom(d) {
+    var original = String(d.data || ''), partes = original.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    var atual = new Date().getFullYear();
+    if (!partes || +partes[1] === atual) return Promise.resolve('');
+    var corrigida = atual + '-' + partes[2] + '-' + partes[3];
+    var teste = new Date(atual, +partes[2] - 1, +partes[3]);
+    var valida = teste.getFullYear() === atual && teste.getMonth() === +partes[2] - 1 && teste.getDate() === +partes[3];
+    return new Promise(function (resolver) {
+      var dialogo = document.createElement('dialog');
+      dialogo.className = 'border rounded shadow p-3';
+      dialogo.style.cssText = 'max-width:480px;width:calc(100% - 32px);';
+      dialogo.setAttribute('aria-labelledby', 'cFotoAnoTitulo');
+      dialogo.setAttribute('aria-describedby', 'cFotoAnoTexto');
+      dialogo.innerHTML = '<h2 id="cFotoAnoTitulo" class="h5">Atenção ao ano do cupom</h2>' +
+        '<p id="cFotoAnoTexto">Data identificada: <strong>' + original.split('-').reverse().join('/') +
+        '</strong>. O ano atual é <strong>' + atual + '</strong>.<br>Deseja corrigir apenas o ano, mantendo o dia e o mês?</p>' +
+        (!valida ? '<p class="text-warning">Essa data não existe no ano atual. Se optar por corrigir, será necessário preencher a data manualmente no formulário, sem escolher outro dia automaticamente.</p>' : '') +
+        '<div class="d-flex gap-2 flex-wrap"><button type="button" class="btn btn-primary" id="cFotoAnoCorrigir">Corrigir para o ano atual</button>' +
+        '<button type="button" class="btn btn-outline-secondary" id="cFotoAnoManter" autofocus>Manter data original</button></div>';
+      function finalizar(corrigir) {
+        var nota;
+        if (corrigir && valida) {
+          d.data = corrigida;
+          nota = 'Ano corrigido com sua confirmação: de ' + original.split('-').reverse().join('/') + ' para ' + corrigida.split('-').reverse().join('/') + '.';
+        } else if (corrigir) {
+          d.data = ''; d.dataRequerAjuste = true;
+          nota = 'A data lida (' + original.split('-').reverse().join('/') + ') não existe em ' + atual + '. Preencha a data manualmente; nenhum outro dia foi escolhido.';
+        } else {
+          nota = 'Data original mantida por sua escolha: ' + original.split('-').reverse().join('/') + '. Ano atual: ' + atual + '.';
+        }
+        dialogo.close(); dialogo.remove(); resolver(nota);
+      }
+      document.body.appendChild(dialogo);
+      dialogo.querySelector('#cFotoAnoCorrigir').onclick = function () { finalizar(true); };
+      dialogo.querySelector('#cFotoAnoManter').onclick = function () { finalizar(false); };
+      dialogo.addEventListener('cancel', function (evento) { evento.preventDefault(); finalizar(false); });
+      dialogo.showModal();
+    });
+  }
+
   /* ---------- Preencher formulário e mostrar conferência ---------- */
   function br(v, casas) { return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: casas || 2 }); }
   function preencher(d) {
@@ -408,7 +448,8 @@
     var sel = el('cveiculo'), v = escolherVeiculo(sel, d.placas);
     if (v) { sel.value = v.o.value; sel.dispatchEvent(new Event('change', { bubbles: true })); lidos.push('Veículo: ' + v.o.text); if (v.d) conferir.push('placa lida com 1 caractere diferente'); }
     else faltam.push('veículo');
-    if (d.data) { set('cdata', d.data); lidos.push('Data: ' + d.data.split('-').reverse().join('/')); } else faltam.push('data');
+    if (d.data) { set('cdata', d.data); lidos.push('Data: ' + d.data.split('-').reverse().join('/')); }
+    else { if (d.dataRequerAjuste) set('cdata', ''); faltam.push('data'); }
     if (d.tipo) { set('ctipo', d.tipo); if (el('ctipo') && el('ctipo').value !== d.tipo) conferir.push('tipo "' + d.tipo + '" não existe na lista'); else lidos.push('Combustível: ' + d.tipo); } else faltam.push('tipo de combustível');
     if (d.litros) { set('clitros', String(d.litros)); lidos.push('Litros: ' + br(d.litros, 3)); } else faltam.push('litros');
     if (d.valorLitro) { var vl = el('cvalorlitro'); if (vl) { vl.value = br(d.valorLitro, 3); vl.dispatchEvent(new Event('input', { bubbles: true })); } lidos.push('Valor/L: R$ ' + br(d.valorLitro, 3)); } else faltam.push('valor por litro');
@@ -518,9 +559,17 @@
       }).then(function (res) {
         clearInterval(relogio);
         if (!res) throw new Error('sem resultado');
-        var r = preencher(res.dados); mostrar(r, null); res.canvas = null;
-        aviso((r.faltam.length || r.conferir.length ? 'Pré-lançamento preenchido. Confira os itens marcados, complete o que falta e clique em Salvar.' : 'Pré-lançamento preenchido. Confira os dados e clique em Salvar.') + ' Tempo de leitura: ' + ((Date.now() - inicio) / 1000).toFixed(1).replace('.', ',') + ' s.');
-        var c = el('cveiculo'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        var tempo = ((Date.now() - inicio) / 1000).toFixed(1).replace('.', ',');
+        res.canvas = null;
+        aviso('Leitura concluída. Confira a data do cupom, se solicitado.');
+        return conferirAnoCupom(res.dados).then(function (notaData) {
+          var r = preencher(res.dados);
+          if (notaData) (res.dados.dataRequerAjuste ? r.conferir : r.lidos).push(notaData);
+          mostrar(r, null);
+          aviso((r.faltam.length || r.conferir.length ? 'Pré-lançamento preenchido. Confira os itens marcados, complete o que falta e clique em Salvar.' : 'Pré-lançamento preenchido. Confira os dados e clique em Salvar.') + ' Tempo de leitura: ' + tempo + ' s.');
+          var c = el(res.dados.dataRequerAjuste ? 'cdata' : 'cveiculo');
+          if (c) { c.scrollIntoView({ behavior: 'smooth', block: 'center' }); if (res.dados.dataRequerAjuste) c.focus(); }
+        });
       }).catch(function (e) {
         clearInterval(relogio);
         console.warn('Foto combustível', e);
