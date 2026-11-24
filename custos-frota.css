@@ -53,6 +53,40 @@
 .cus-payroll-summary>div:nth-last-child(-n+3){color:var(--bs-primary)}
 .cus-payroll-grid>div{min-width:0}
 
+/* Análise por veículo: seleção, comparação e composição de custos. */
+#custos #cusFiltroComparativo[hidden],#custos #cusFiltroVeiculo[hidden]{display:none!important}
+#cusFiltroComparativo{min-width:0;position:relative}
+#cusFiltroComparativo summary{cursor:pointer;list-style:none;padding-right:2rem;overflow-wrap:anywhere}
+#cusFiltroComparativo summary::-webkit-details-marker{display:none}
+#cusFiltroComparativo .cus-comparativo-opcoes{position:absolute;z-index:8;inset-inline-start:0;width:max(100%,230px);max-width:calc(100vw - 40px);margin-top:4px;padding:12px;background:#fff;color:#0f172a;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px #0f172a26}
+.cus-comparativo-opcoes>label{font-size:.76rem;font-weight:700;margin-bottom:4px}
+.cus-comparativo-lista{max-height:200px;overflow:auto;margin-top:8px}
+.cus-comparativo-lista label{display:flex;gap:8px;padding:6px;cursor:pointer}
+.cus-comparativo-lista label:hover{background:#eff6ff}
+.cus-comparativo-marcados{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.cus-comparativo-marcados:empty{display:none}
+.cus-comparativo-marcados button{border:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;border-radius:99px;padding:3px 8px;font-size:.72rem;font-weight:700}
+#cusPane-analise .cus-comparativo-tabela{min-width:680px;margin-bottom:0;font-variant-numeric:tabular-nums;white-space:nowrap}
+#cusPane-analise .cus-comparativo-tabela tr>:first-child:not([colspan]){position:sticky;left:0;z-index:1;background:var(--bs-body-bg,#fff);box-shadow:1px 0 0 var(--bs-border-color,#e2e8f0)}
+.cus-comparativo-tabela th button{background:transparent;border:0;padding:0;color:inherit;font:inherit;text-align:left}
+.cus-comparativo-tabela th button span{color:#2563eb}
+.cus-comparativo-tabela summary{cursor:pointer;color:#2563eb;font-weight:600}
+.cus-comparativo-tabela dl{margin:4px 0;font-size:.75rem}
+.cus-comparativo-tabela dl div{display:flex;justify-content:space-between;gap:12px}
+.cus-comparativo-tabela dd{margin:0}
+#cusPane-analise .cus-analise-paineis{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+.cus-comparativo-barra{margin-bottom:12px}
+.cus-comparativo-barra>div:first-child{display:flex;justify-content:space-between;gap:6px 12px;flex-wrap:wrap}
+.cus-comparativo-rosca{width:min(100%,220px);aspect-ratio:1;margin:12px auto 20px;border-radius:50%;background:var(--cus-rosca);display:grid;place-items:center}
+.cus-comparativo-rosca>div{display:flex;flex-direction:column;justify-content:center;text-align:center;width:72%;height:72%;border-radius:50%;background:var(--bs-body-bg,#fff);padding:8px;overflow-wrap:anywhere}
+.cus-comparativo-rosca strong{font-size:clamp(.8rem,2vw,1.1rem)}
+.cus-comparativo-legenda{list-style:none;padding:0;margin:0;display:grid;gap:6px}
+.cus-comparativo-legenda li{display:grid;align-items:center;grid-template-columns:10px minmax(0,1fr) auto;gap:8px}
+.cus-comparativo-legenda i{width:10px;height:10px;border-radius:50%}
+.cus-comparativo-legenda span{overflow-wrap:anywhere}
+@media(max-width:800px){#cusPane-analise .cus-analise-paineis{grid-template-columns:1fr;gap:0}}
+@media print{#cusPane-analise .cus-comparativo-tabela{min-width:0}#cusPane-analise .cus-comparativo-tabela tr>:first-child{position:static}}
+
 /* CIV/CIPP: compact entry fields; other module forms stay unchanged. */
 #licencas .licencas-form-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px 14px;width:100%}
 #licencas .licencas-form-grid>div{min-width:0}

@@ -44,8 +44,11 @@
       titulo = aba === 'relatoriomensal' ? 'Custo do relatório filtrado' : aba === 'analise' ? 'Custo da análise filtrada' : 'Custo dos lançamentos filtrados';
       valor = aba === 'relatoriomensal' && resultado ? resultado.totalGeral(f, 'competencia', base).custo : somar(lista);
     }
-    var partes = [];
-    if (f.v) partes.push(rotulo('cusFiltroVeiculo') || f.v);
+    var partes = [], comparativo = aba === 'analise' && custos.comparativo && custos.comparativo();
+    if (comparativo) {
+      valor = comparativo.total;
+      if (comparativo.placas.length) { titulo = 'Custo dos veículos selecionados'; partes.push(comparativo.placas.join(', ')); }
+    } else if (f.v) partes.push(rotulo('cusFiltroVeiculo') || f.v);
     if (f.ini && f.fim) partes.push(f.ini.split('-').reverse().join('/') + ' a ' + f.fim.split('-').reverse().join('/'));
     if (aba !== 'quilometragem' && aba !== 'terceirizacao' && aba !== 'producao') {
       if (f.tipo) partes.push(rotulo('cusFiltroTipo'));

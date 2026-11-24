@@ -35,6 +35,7 @@
   function txt(id){var e=document.getElementById(id);return e?e.options?(e.options[e.selectedIndex]||{}).text||'':e.value:''}
   function brl(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
   function ajustar(){var C=window.FMCustosAPI;if(!C||!C.filtros||!C.filtrados)return;var f=C.filtros();var card=document.getElementById('cusIndicadorCustoFrota'),lab=document.getElementById('cusPeriodoLabel');if(!card)return;var titulo=card.parentNode&&card.parentNode.querySelector('span');
+    if(aba()==='analise'){var comparativo=C.comparativo&&C.comparativo();if(titulo)titulo.textContent=comparativo&&comparativo.placas.length?'Custo dos veículos selecionados':'Custo da frota';return}
     if(GERAIS.indexOf(aba())>=0||!(f.cat||f.tipo||f.origem||f.status)){if(titulo)titulo.textContent='Custo da frota';return}
     var l=C.filtrados(undefined,f).filter(function(x){return f.v||!x.veiculo||!(window.veiculoVendido&&window.veiculoVendido(x.veiculo))});
     var total=l.reduce(function(s,x){return s+(Number(x.valor)||0)},0);

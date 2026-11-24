@@ -25,7 +25,7 @@
 <link rel="stylesheet" href="./estoque-pro.css?v=3">
     <link rel="stylesheet" href="./relatorios-ui.css?v=20261202-botoes-padrao">
     <link rel="stylesheet" href="./fretes-terceiros.css?v=4-alinhamento-rolagem">
-    <link rel="stylesheet" href="./custos-frota.css?v=20260928-6">
+    <link rel="stylesheet" href="./custos-frota.css?v=20261206-comparativo-veiculos">
     <link rel="stylesheet" href="./importar-planilha-producao.css?v=1">
     <style>
         :root{--sidebar:#0f172a;--accent:#3b82f6;--bg:#f8fafc;--danger:#ef4444;--warning:#f59e0b;--success:#10b981}
@@ -3469,7 +3469,19 @@ Criar Usuário
       <div class="cus-filter">
         <div class="cus-periods"><button onclick="aplicarPeriodoCustos('mes')">Mês atual</button><button onclick="aplicarPeriodoCustos('anterior')">Mês anterior</button><button onclick="aplicarPeriodoCustos('tri')">Últimos 3 meses</button><button onclick="aplicarPeriodoCustos('ano')">Ano atual</button></div>
         <div class="cus-filter-grid">
-          <select id="cusFiltroVeiculo" class="form-select" data-cus-filter></select><input id="cusFiltroInicio" type="date" class="form-control" data-cus-filter><input id="cusFiltroFim" type="date" class="form-control" data-cus-filter>
+          <select id="cusFiltroVeiculo" class="form-select" data-cus-filter></select>
+          <div id="cusFiltroComparativo" hidden>
+            <details>
+              <summary id="cusComparativoResumo" class="form-select">Todos os veículos</summary>
+              <div class="cus-comparativo-opcoes">
+                <label for="cusComparativoBusca">Buscar por placa</label>
+                <input type="search" id="cusComparativoBusca" class="form-control" placeholder="Ex.: ABC1D23" autocomplete="off">
+                <div id="cusComparativoLista" class="cus-comparativo-lista" role="group" aria-label="Veículos disponíveis"></div>
+              </div>
+            </details>
+            <div id="cusComparativoMarcados" class="cus-comparativo-marcados" role="group" aria-label="Veículos selecionados"></div>
+          </div>
+          <input id="cusFiltroInicio" type="date" class="form-control" data-cus-filter><input id="cusFiltroFim" type="date" class="form-control" data-cus-filter>
           <select id="cusFiltroTipo" class="form-select" data-cus-filter><option value="">Todos os tipos</option><option value="fixo">Custos fixos</option><option value="variavel">Custos variáveis</option><option value="indireto">Custos indiretos</option></select>
           <select id="cusFiltroCategoria" class="form-select" data-cus-filter></select>
           <select id="cusFiltroOrigem" class="form-select" data-cus-filter><option value="">Todas as origens</option><option value="manual">Lançamento manual</option><option value="integrado">Outros módulos</option><option value="recorrente">Recorrente / provisão</option><option value="pessoal">Folha e provisões</option><option value="implemento">Depreciação de implementos</option></select>
@@ -3482,7 +3494,6 @@ Criar Usuário
       </div>
       <div class="cus-kpis" aria-label="Indicadores da Gestão da Frota"><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Custo por km</span><strong id="cusIndicadorCustoKm">--</strong><small id="cusKmAlerta">Quilometragem do período</small></div><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Faturamento médio</span><strong id="cusIndicadorFaturamentoMedio">R$ 0,00</strong><small>Média mensal do período</small></div><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Custo da frota</span><strong id="cusIndicadorCustoFrota">R$ 0,00</strong><small id="cusPeriodoLabel">Competência selecionada</small></div><div class="cus-kpi cus-kpi-link" role="button" tabindex="0" onclick="abrirRelatorioMensalFrota()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirRelatorioMensalFrota()}"><span>Margem</span><strong id="cusIndicadorMargem">0,0%</strong><small>Resultado sobre a receita líquida</small></div></div>
       <div class="cus-filter-summary" id="cusFiltroResumo" aria-live="polite"><div><span id="cusFiltroResumoTitulo">Valor filtrado</span><strong id="cusFiltroResumoValor">R$ 0,00</strong></div><small id="cusFiltroResumoDetalhe"></small></div>
-      <div id="cusPendencias" class="cus-pendencias"></div>
       <div class="cus-tabs"><button class="cus-tab active" data-tab="lancamentos" onclick="trocarAbaCustos('lancamentos')">Lançamentos</button><button class="cus-tab" data-tab="recorrentes" onclick="trocarAbaCustos('recorrentes')">Fixos e pessoal</button><button type="button" class="cus-tab" data-tab="folha" onclick="trocarAbaCustos('folha')">Folha do motorista</button><button class="cus-tab" data-tab="implementos" onclick="trocarAbaCustos('implementos')">Implementos</button><button class="cus-tab" data-tab="quilometragem" onclick="trocarAbaCustos('quilometragem')">Quilometragem</button><button class="cus-tab" data-tab="terceirizacao" onclick="trocarAbaCustos('terceirizacao')">Próprio x Terceiro</button><button class="cus-tab" data-tab="analise" onclick="trocarAbaCustos('analise')">Análise por veículo</button></div>
       <div id="cusPane-lancamentos" class="cus-pane">
         <div class="cus-panel cus-pre-panel">
@@ -3501,7 +3512,29 @@ Criar Usuário
       <div id="cusPane-terceirizacao" class="cus-pane hidden"><div class="cus-panel"><h5>Frota própria x terceiros</h5><p class="cus-note">A comparação considera somente viagens da mesma rota e do mesmo tipo de veículo. Peso e volume são confrontados com a capacidade útil dos veículos cadastrados para indicar o menor porte compatível, sem comparar 3/4, Truck e Carreta entre si.</p><div id="cusTercResumo"></div></div><div class="cus-panel"><h5>Comparação por rota e tipo de veículo</h5><div class="cus-table-wrap"><table class="table table-hover cus-table"><thead><tr><th>Rota</th><th>Tipo utilizado</th><th>Tipo recomendado</th><th>Viagens próprias</th><th>Viagens terceiro</th><th>R$/km próprio</th><th>R$/km terceiro</th><th>Diferença</th><th>Recomendação</th></tr></thead><tbody id="cusTercLista"></tbody></table></div><div id="cusTercPaginacao"></div></div></div>
       <div id="cusPane-implementos" class="cus-pane hidden"><div class="cus-panel"><h5>Depreciação manual de implementos</h5><p class="cus-note">Cadastre carretas, baús, tanques, pranchas e demais implementos atrelados a um veículo. O sistema calcula a parcela mensal (valor de compra menos valor residual dividido pela vida útil) e lança automaticamente na categoria Depreciação do veículo, competência a competência.</p><input id="cusImpId" type="hidden"><div class="cus-form-grid"><div class="span-2"><label>Implemento</label><input id="cusImpDescricao" class="form-control" placeholder="Ex.: Carreta graneleira LC-1234"></div><div><label>Veículo vinculado</label><input id="cusImpVeiculo" list="cusVeiculosLista" class="form-control" placeholder="Selecione ou digite"></div><div><label>Data da compra</label><input id="cusImpData" type="date" class="form-control" onchange="calcularDepreciacaoImplemento()"></div><div><label>Valor de compra</label><input id="cusImpValor" class="form-control" oninput="mascaraMoeda(this);calcularDepreciacaoImplemento()"></div><div><label>Valor residual (opcional)</label><input id="cusImpResidual" class="form-control" oninput="mascaraMoeda(this);calcularDepreciacaoImplemento()"></div><div><label>Vida útil (meses)</label><input id="cusImpMeses" type="number" min="1" max="600" step="1" class="form-control" oninput="calcularDepreciacaoImplemento()"></div><div><label>Situação</label><select id="cusImpStatus" class="form-select" onchange="calcularDepreciacaoImplemento()"><option value="Ativa">Ativa</option><option value="Suspensa">Suspensa</option><option value="Encerrada">Encerrada</option></select></div><div><label>Depreciação mensal</label><input id="cusImpMensal" class="form-control" readonly></div><div class="span-2"><label>Observação</label><input id="cusImpObs" class="form-control" placeholder="Chassi, nota fiscal, fornecedor"></div></div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="cancelarImplemento()">Cancelar</button><button class="btn btn-primary" onclick="salvarImplemento()">Salvar implemento</button></div></div><div class="cus-panel"><h5>Implementos cadastrados</h5><div class="cus-table-wrap"><table class="table table-hover cus-table"><thead><tr><th>Implemento</th><th>Veículo</th><th>Compra</th><th>Valor de compra</th><th>Residual</th><th>Vida útil</th><th>Depreciação mensal</th><th>Período de apropriação</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="cusImpLista"></tbody></table></div><div id="cusImpPaginacao"></div></div></div>
       <div id="cusPane-quilometragem" class="cus-pane hidden"><div class="cus-panel"><h5>Fechamento manual de quilometragem</h5><p class="cus-note">A quilometragem dos cálculos vem somente dos fechamentos informados aqui.</p><input id="cusKmIdx" type="hidden"><div class="cus-form-grid"><div><label>Veículo</label><input id="cusKmVeiculo" list="cusVeiculosLista" class="form-control" placeholder="Selecione ou digite" oninput="atualizarOdometroInicial()" onchange="atualizarOdometroInicial()"></div><div><label>Data</label><input id="cusKmData" type="date" class="form-control"></div><div><label>Odômetro inicial</label><input id="cusKmInicial" type="number" min="0" step="1" class="form-control" oninput="calcularQuilometragem('inicial')"></div><div><label>Odômetro final</label><input id="cusKmFinal" type="number" min="0" step="1" class="form-control" oninput="calcularQuilometragem('final')"></div><div><label>KM rodado no período</label><input id="cusKmRodado" type="number" min="0" step="1" class="form-control" oninput="calcularQuilometragem('rodado')"></div><div class="span-2"><label>Observação</label><input id="cusKmObs" class="form-control"></div></div><div class="cus-form-actions"><button class="btn btn-outline-secondary" onclick="cancelarQuilometragem()">Cancelar</button><button class="btn btn-primary" onclick="salvarQuilometragem()">Salvar quilometragem</button></div></div><div class="cus-panel"><div class="cus-table-wrap"><table class="table"><thead><tr><th>Data</th><th>Veículo</th><th>KM rodado</th><th>Odômetro inicial</th><th>Odômetro final</th><th>Observação</th><th>Ações</th></tr></thead><tbody id="cusKmLista"></tbody></table></div><div id="cusKmPaginacao"></div></div></div>
-      <div id="cusPane-analise" class="cus-pane hidden"><div class="cus-grid"><div class="cus-panel"><h5>Custos por categoria</h5><div id="cusCategorias"></div></div><div class="cus-panel"><h5>Distribuição dos custos</h5><div class="cus-chart"><canvas id="cusGrafico"></canvas></div></div></div><div class="cus-panel"><h5>Análise por veículo</h5><div class="cus-table-wrap"><table class="table"><thead><tr><th>Veículo</th><th>Faturamento total</th><th>Receita líquida</th><th>Fixos</th><th>Variáveis</th><th>Indiretos</th><th>Custo total</th><th>KM no período</th><th>Custo por km</th></tr></thead><tbody id="cusPorVeiculo"></tbody></table></div><div id="cusVeiculosPaginacao"></div></div></div>
+      <div id="cusPane-analise" class="cus-pane hidden">
+        <div id="cusPendencias" class="cus-pendencias"></div>
+        <div class="cus-panel cus-comparativo">
+          <h5>Comparativo por veículo</h5>
+          <p class="cus-note">Marque as placas no filtro para comparar os veículos no mesmo período. Sem placas marcadas, a análise mostra a frota toda. Clique nos títulos das colunas para ordenar.</p>
+          <div class="cus-table-wrap" role="region" aria-label="Tabela do comparativo por veículo" tabindex="0">
+            <table class="table cus-comparativo-tabela"><thead><tr>
+              <th scope="col" aria-sort="ascending"><button type="button" data-cus-ordenar="placa">Placa <span aria-hidden="true">↑</span></button></th>
+              <th scope="col"><button type="button" data-cus-ordenar="faturamento">Faturamento <span aria-hidden="true">↕</span></button></th>
+              <th scope="col"><button type="button" data-cus-ordenar="receitaLiquida">Receita líquida <span aria-hidden="true">↕</span></button></th>
+              <th scope="col"><button type="button" data-cus-ordenar="total">Custo total <span aria-hidden="true">↕</span></button></th>
+              <th scope="col"><button type="button" data-cus-ordenar="km">Km rodados <span aria-hidden="true">↕</span></button></th>
+              <th scope="col"><button type="button" data-cus-ordenar="custoKm">Custo por km <span aria-hidden="true">↕</span></button></th>
+              <th scope="col">Detalhes</th>
+            </tr></thead><tbody id="cusPorVeiculo"></tbody></table>
+          </div>
+          <div id="cusVeiculosPaginacao"></div>
+        </div>
+        <div class="cus-grid cus-analise-paineis">
+          <div class="cus-panel"><h5>Custos por categoria</h5><div id="cusCategorias"></div></div>
+          <div class="cus-panel"><h5>Distribuição dos custos</h5><div id="cusGrafico"></div></div>
+        </div>
+      </div>
       <datalist id="cusVeiculosLista"></datalist><datalist id="cusMotoristasLista"></datalist><datalist id="cusPneusLista"></datalist>
     </div>
 
@@ -10062,14 +10095,14 @@ style="width:100%; height:400px; border:none;">
 <script src="./editar-rolar.js?v=20261202-edicao-silenciosa"></script>
 <script src="./civ-competencia.js?v=20261009-1"></script>
 <script src="./competencia-despesas.js?v=20261110-compacta"></script>
-<script src="./custos-frota.js?v=20261117-resultado-contratacoes"></script>
+<script src="./custos-frota.js?v=20261206-comparativo-veiculos"></script>
 <script src="./exclusao-vinculada.js?v=4-plantoes"></script>
 <script src="./pneus-veiculos.js?v=2-cadastro-em-uso"></script>
 <script src="./resultado-veiculos.js?v=1"></script>
 <script src="./veiculos-detran.js?v=3-observacoes-fipe"></script>
-<script src="./resultado-frota.js?v=20261114-consulta-sincronizada"></script>
-<script src="./filtros-por-aba.js?v=20261114-consulta-sincronizada"></script>
-<script src="./resumo-filtros-frota.js?v=20261114-consulta-sincronizada"></script>
+<script src="./resultado-frota.js?v=20261206-comparativo-veiculos"></script>
+<script src="./filtros-por-aba.js?v=20261206-comparativo-veiculos"></script>
+<script src="./resumo-filtros-frota.js?v=20261206-comparativo-veiculos"></script>
 <script src="./exportar-aba-frota.js?v=1"></script>
 <script src="./producao-xml.js?v=20261002-kg"></script>
 <script src="./importar-planilha-producao.js?v=20261002-kg"></script>
