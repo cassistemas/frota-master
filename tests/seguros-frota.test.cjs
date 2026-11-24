@@ -47,6 +47,55 @@ test('a página monta a consulta no módulo existente e preserva os alertas do p
     assert.match(html, /db\.seguros\.forEach\(s=>analisar\(s\.sveiculo,'Seguro',s\.svencimento\)\)/);
 });
 
+test('abrir Seguros usa a atualização do módulo dedicado', () => {
+    const paginacao = fs.readFileSync(path.join(__dirname, '..', 'paginacao.js'), 'utf8');
+    assert.match(paginacao, /if \(modulo === 'seguros'\) \{\s*window\.FMSegurosFrota\?\.render\(\);/);
+});
+
+test('a chegada dos veículos alimenta o seletor aberto sem mexer no formulário ou no histórico', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const fonte = fs.readFileSync(path.join(__dirname, '..', 'seguros-frota.js'), 'utf8');
+    const gancho = html.match(/^\s*if\(modulo === 'veiculos' && window\.fmModuloVisivel\('seguros'\)\) window\.FMSegurosFrota\?\.atualizarPlacas\(\);$/m);
+    assert.ok(gancho);
+    const vm = require('node:vm');
+    const select = { value: '', innerHTML: '' };
+    const modelo = { value: 'Modelo corrigido manualmente' };
+    const historico = [{ sveiculo: 'ABC1D23', sseguradora: 'Seguro anterior' }];
+    const db = { veiculos: [], seguros: historico };
+    let carregado = false;
+    let visivel = true;
+    const window = {
+        addEventListener() {},
+        fmModuloCarregado: () => carregado,
+        fmModuloVisivel: id => id === 'seguros' && visivel,
+    };
+    const ctx = vm.createContext({ window, db, modulo: 'veiculos', document: {
+        readyState: 'loading', addEventListener() {},
+        getElementById: id => ({ fmSeg_sveiculo: select, fmSeg_smodelo: modelo })[id],
+    } });
+    vm.runInContext(fonte, ctx);
+    window.FMSegurosFrota.atualizarPlacas();
+    assert.match(select.innerHTML, /Aguardando o cadastro de veículos/);
+
+    select.value = 'ABC1D23';
+    window.FMSegurosFrota.atualizarPlacas();
+    assert.match(select.innerHTML, /registro histórico/);
+    db.veiculos = [{ vplaca: 'ABC-1D23', vmodelo: 'Scania' }, { vplaca: 'XYZ4J56', vmodelo: 'Volvo' }];
+    carregado = true;
+    visivel = false;
+    vm.runInContext(gancho[0], ctx);
+    assert.doesNotMatch(select.innerHTML, /Volvo/);
+    visivel = true;
+    vm.runInContext(gancho[0], ctx);
+    assert.match(select.innerHTML, /ABC-1D23 · Scania/);
+    assert.match(select.innerHTML, /XYZ4J56 · Volvo/);
+    assert.doesNotMatch(select.innerHTML, /registro histórico/);
+    assert.equal(select.value, 'ABC-1D23');
+    assert.equal(modelo.value, 'Modelo corrigido manualmente');
+    assert.equal(db.seguros, historico);
+    assert.deepEqual(db.seguros, [{ sveiculo: 'ABC1D23', sseguradora: 'Seguro anterior' }]);
+});
+
 test('a chave de sincronização distingue apólice, tipo, vigência e placa', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
     const inicio = html.indexOf('function fmTextoChave(v)');

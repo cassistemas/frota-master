@@ -162,8 +162,14 @@
             return true;
         }).slice().sort((a,b) => texto(a.vplaca).localeCompare(texto(b.vplaca), 'pt-BR'));
         const cadastrado = opcoes.find(v => placa(v.vplaca) === placa(atual));
-        campo('sveiculo').innerHTML = op('','Selecione a placa') + (atual && !cadastrado ? op(atual, atual + ' · registro histórico') : '') + opcoes.map(v => op(v.vplaca,[v.vplaca,v.vmodelo].filter(Boolean).join(' · '))).join('');
+        const rotulo = opcoes.length ? 'Selecione a placa' : root.fmModuloCarregado?.('veiculos')
+            ? 'Nenhum veículo cadastrado' : 'Aguardando o cadastro de veículos…';
+        campo('sveiculo').innerHTML = op('',rotulo) + (atual && !cadastrado ? op(atual, atual + ' · registro histórico') : '') + opcoes.map(v => op(v.vplaca,[v.vplaca,v.vmodelo].filter(Boolean).join(' · '))).join('');
         campo('sveiculo').value = cadastrado ? cadastrado.vplaca : (atual || '');
+    }
+    function atualizarPlacas() {
+        const select = campo('sveiculo');
+        if (select) preencherPlacas(select.value);
     }
     function preencherCabecalho(r) {
         cabecalho.slice(1).forEach(k => { campo(k).value = texto(r?.[k]); });
@@ -404,14 +410,15 @@
     function atualizar() {
         montar();
         if (!campo('form')) return;
-        const selecionada = campo('sveiculo').value;
-        preencherPlacas(selecionada);
+        atualizarPlacas();
         atualizarEscolhas();
         ajustarForm();
         campo('salvar').disabled = ocupada;
         consultar();
     }
     api.render = atualizar;
+    api.atualizarPlacas = atualizarPlacas;
+    root.addEventListener('frota:placa-alterada', atualizarPlacas);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', atualizar, {once:true});
     else atualizar();
 })(typeof window === 'undefined' ? globalThis : window);

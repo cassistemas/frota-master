@@ -792,6 +792,11 @@ function observacaoSaidaVeiculo(registro){
 
 function renderModulo(modulo){
 
+if (modulo === 'seguros') {
+    window.FMSegurosFrota?.render();
+    return;
+}
+
 if ((modulo === 'diarias' || modulo === 'plantoes') && window.FMPlantao) window.FMPlantao.render();
 if (modulo === 'plantoes') return;
 
