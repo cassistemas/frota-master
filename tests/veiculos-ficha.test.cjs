@@ -49,7 +49,11 @@ function montar() {
 }
 
 function indiceDaLinha(get) {
-    const botoes = [...get('listaVeiculos').innerHTML.matchAll(/onclick="abrirFichaVeiculo\((\d+), this\)"/g)];
+    const linha = get('listaVeiculos').innerHTML;
+    const placa = linha.match(/<td class="veiculo-placa-ficha">([\s\S]*?)<\/td>/);
+    assert.ok(placa, 'A ficha deve estar na coluna Placa');
+    assert.match(placa[1], /<b>XYZ0A16<\/b>.*<svg\b.*<span>Ver ficha<\/span>/s);
+    const botoes = [...placa[1].matchAll(/onclick="abrirFichaVeiculo\((\d+), this\)"/g)];
     assert.equal(botoes.length, 1);
     return Number(botoes[0][1]);
 }
@@ -67,6 +71,13 @@ function conferirFicha({ ctx, get, dialogo }, indice) {
     dialogo.aoFechar();
     assert.equal(foco, true);
 }
+
+test('o cadastro carrega a ficha e inclui o diálogo de consulta', () => {
+    const ficha = html.indexOf('src="./veiculos.js?');
+    const paginacao = html.indexOf('src="./paginacao.js?');
+    assert.ok(ficha >= 0 && paginacao > ficha);
+    assert.match(html, /<dialog id="fichaVeiculo"[^>]*>[\s\S]*?<dl id="fichaVeiculoDados"><\/dl>[\s\S]*?<form method="dialog">[\s\S]*?<\/dialog>/);
+});
 
 test('abre a ficha do veículo da segunda página pelo índice original do cadastro', () => {
     const app = montar();

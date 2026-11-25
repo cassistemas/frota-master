@@ -3775,8 +3775,8 @@ function formatarDataBR(data){
 </script>
 
 <script src="./manutencao-tipos.js?v=20261009-gerenciar"></script>
-<script src="./veiculos.js?v=1-ficha"></script>
-<script src="./paginacao.js?v=20261206-ficha-veiculo"></script>
+<script src="./veiculos.js?v=3-ficha-na-placa"></script>
+<script src="./paginacao.js?v=20261207-ficha-na-placa"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -9424,6 +9424,10 @@ function carregarPermissoesAdmin(){
 
 </script>
 <style>
+#listaVeiculos .veiculo-placa-ficha{white-space:nowrap}
+#listaVeiculos .btn-ficha-veiculo{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;width:auto;min-height:32px;margin-left:.5rem;padding:0 .5rem;vertical-align:middle;white-space:nowrap;font-weight:600;border:1px solid #bfdbfe;border-radius:7px;background:#eff6ff;color:#1d4ed8}
+#listaVeiculos .btn-ficha-veiculo:hover{background:#dbeafe}
+#listaVeiculos .btn-ficha-veiculo:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 #fichaVeiculo{width:min(640px,calc(100% - 2rem));max-height:calc(100% - 2rem);padding:0;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color:#0f172a;box-shadow:0 20px 60px rgba(15,23,42,.28);overflow:auto}
 #fichaVeiculo::backdrop{background:rgba(15,23,42,.62)}
 #fichaVeiculo header{padding:1.25rem 1.25rem 1rem;background:#f8fafc;border-bottom:1px solid #e2e8f0}
@@ -9762,7 +9766,7 @@ style="width:100%; height:400px; border:none;">
     const m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
     return m ? (m[3]+'-'+m[2]+'-'+m[1]) : null;
   };
-  const acoes = (mod,i) => `<td${mod === 'veiculos' ? ' class="veiculos-acoes-celula"' : ''}><div${mod === 'veiculos' ? ' class="veiculos-acoes"' : ''}>${mod === 'veiculos' ? `${botaoFichaVeiculo(i)}<button class="btn-edit btn-km-veiculo" type="button" title="Atualizar quilometragem" aria-label="Atualizar quilometragem" onclick="atualizarKmVeiculo(${i})">🛣 <span>KM</span></button><button class="btn-edit btn-historico-km" type="button" title="Ver histórico de KM" aria-label="Ver histórico de KM" onclick="abrirHistoricoKmVeiculo(${i})">◷</button>` : ''}<button class="btn-edit" type="button" title="Editar${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Editar${mod === 'veiculos' ? ' veículo' : ''}" onclick="editar('${mod}',${i})">✎</button><button class="btn-del" type="button" title="Excluir${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Excluir${mod === 'veiculos' ? ' veículo' : ''}" onclick="deletar('${mod}',${i})">✕</button></div></td>`;
+  const acoes = (mod,i) => `<td${mod === 'veiculos' ? ' class="veiculos-acoes-celula"' : ''}><div${mod === 'veiculos' ? ' class="veiculos-acoes"' : ''}>${mod === 'veiculos' ? `<button class="btn-edit btn-km-veiculo" type="button" title="Atualizar quilometragem" aria-label="Atualizar quilometragem" onclick="atualizarKmVeiculo(${i})">🛣 <span>KM</span></button><button class="btn-edit btn-historico-km" type="button" title="Ver histórico de KM" aria-label="Ver histórico de KM" onclick="abrirHistoricoKmVeiculo(${i})">◷</button>` : ''}<button class="btn-edit" type="button" title="Editar${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Editar${mod === 'veiculos' ? ' veículo' : ''}" onclick="editar('${mod}',${i})">✎</button><button class="btn-del" type="button" title="Excluir${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Excluir${mod === 'veiculos' ? ' veículo' : ''}" onclick="deletar('${mod}',${i})">✕</button></div></td>`;
   const d = x => (x===undefined||x===null||x==='') ? '--' : x;
 
   window.atualizarKmVeiculo = function(i){
@@ -9862,7 +9866,7 @@ style="width:100%; height:400px; border:none;">
           if(kmax !== '' && num(x.vkm) > num(kmax)) return false;
           return true;
         })
-        .map(({x,i}) => `<tr><td><b>${d(x.vplaca)}</b></td><td>${d(x.vmodelo)}</td><td>${d(x.vtipo)}</td><td>${d(x.vkminicial)}</td><td>${d(x.vkm)}</td><td>${fmKmTotalVeiculo(x).toLocaleString('pt-BR')}</td><td>${d(x.vmotorista)}</td><td>${d(x.vpbt)}</td><td>${d(x.vtara)}</td><td>${d(x.vpliquido)}</td><td>${d(x.vm3)}</td><td>${d(x.vmedidas)}</td><td>${fmSeletorStatusVeiculo(x,i)}</td>${acoes(mod,i)}</tr>`)
+        .map(({x,i}) => `<tr><td class="veiculo-placa-ficha"><b>${d(x.vplaca)}</b>${window.botaoFichaVeiculo?.(i) || ''}</td><td>${d(x.vmodelo)}</td><td>${d(x.vtipo)}</td><td>${d(x.vkminicial)}</td><td>${d(x.vkm)}</td><td>${fmKmTotalVeiculo(x).toLocaleString('pt-BR')}</td><td>${d(x.vmotorista)}</td><td>${d(x.vpbt)}</td><td>${d(x.vtara)}</td><td>${d(x.vpliquido)}</td><td>${d(x.vm3)}</td><td>${d(x.vmedidas)}</td><td>${fmSeletorStatusVeiculo(x,i)}</td>${acoes(mod,i)}</tr>`)
         .join('');
     }
 
@@ -10145,5 +10149,5 @@ style="width:100%; height:400px; border:none;">
 <script src="./acoes-tabelas.js?v=1"></script>
 <script src="./terceiros-rolagem.js?v=1"></script>
 <link rel="stylesheet" href="./seguros-frota.css?v=11-dados-apolice">
-<script src="./seguros-frota.js?v=17-formato-moeda"></script>
+<script src="./seguros-frota.js?v=19-moeda-ao-digitar"></script>
 </html>

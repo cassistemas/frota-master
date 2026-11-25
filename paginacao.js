@@ -804,18 +804,18 @@ if (!PAGINACAO.paginas[modulo]) {
     PAGINACAO.paginas[modulo] = 1;
 }
 
-    const btnSet = (m,i) => `<td class="veiculos-acoes-celula"><div class="veiculos-acoes">${m === 'veiculos' ? `${botaoFichaVeiculo(i)}<button class="btn-edit btn-km-veiculo" type="button" title="Atualizar quilometragem" aria-label="Atualizar quilometragem" onclick="atualizarKmVeiculo(${i})">🛣 <span>KM</span></button><button class="btn-edit btn-historico-km" type="button" title="Ver histórico de KM" aria-label="Ver histórico de KM" onclick="abrirHistoricoKmVeiculo(${i})">◷</button>` : ''}<button class="btn-edit" type="button" title="Editar veículo" aria-label="Editar veículo" onclick="editar('${m}',${i})">✎</button><button class="btn-del" type="button" title="Excluir veículo" aria-label="Excluir veículo" onclick="deletar('${m}',${i})">✕</button></div></td>`;
+    const btnSet = (m,i) => `<td class="veiculos-acoes-celula"><div class="veiculos-acoes">${m === 'veiculos' ? `<button class="btn-edit btn-km-veiculo" type="button" title="Atualizar quilometragem" aria-label="Atualizar quilometragem" onclick="atualizarKmVeiculo(${i})">🛣 <span>KM</span></button><button class="btn-edit btn-historico-km" type="button" title="Ver histórico de KM" aria-label="Ver histórico de KM" onclick="abrirHistoricoKmVeiculo(${i})">◷</button>` : ''}<button class="btn-edit" type="button" title="Editar veículo" aria-label="Editar veículo" onclick="editar('${m}',${i})">✎</button><button class="btn-del" type="button" title="Excluir veículo" aria-label="Excluir veículo" onclick="deletar('${m}',${i})">✕</button></div></td>`;
 
     if(modulo === 'veiculos'){
         const dados = getDadosPaginados('veiculos');
 
         document.getElementById('listaVeiculos').innerHTML =
-        dados.map((v,i)=>{
+        dados.map(v=>{
             const realIndex = db.veiculos.indexOf(v);
             const kmTotal = typeof window.fmKmTotalVeiculo === 'function' ? window.fmKmTotalVeiculo(v) : 0;
             return `
             <tr>
-            <td><b>${v.vplaca}</b></td>
+            <td class="veiculo-placa-ficha"><b>${v.vplaca}</b>${window.botaoFichaVeiculo?.(realIndex) || ''}</td>
             <td>${v.vmodelo}</td>
             <td>${v.vtipo || '--'}</td>
             <td>${v.vkminicial ? v.vkminicial + ' KM' : '--'}</td>

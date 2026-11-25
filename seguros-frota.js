@@ -35,6 +35,31 @@
         const n = Number(p[1]) * 100 + Number((p[2] || '').padEnd(2, '0'));
         return Number.isSafeInteger(n) && n <= 999999999999 ? n : NaN;
     }
+    function mascararMoeda(c, evento, anterior, substituindoTudo) {
+        const bruto = c.value;
+        const digitos = s => s.replace(/[^0-9]/g, '');
+        const textoNumerico = digitos(bruto);
+        const tipoEntrada = evento?.inputType || '';
+        const colagem = ['insertFromPaste', 'insertFromDrop', 'insertReplacementText'].includes(tipoEntrada);
+        // Ao colar um valor completo, preserve a interpretação em reais do formulário.
+        if (colagem && (anterior === '' || substituindoTudo)) {
+            const valor = centavos(bruto);
+            c.value = valor == null ? '' : Number.isNaN(valor) ? anterior : moeda.format(valor / 100);
+            return;
+        }
+        const direita = digitos(bruto.slice(c.selectionEnd ?? bruto.length)).length;
+        const n = Number(textoNumerico);
+        const apagandoZero = n === 0 && anterior && centavos(anterior) === 0 && tipoEntrada.startsWith('delete');
+        c.value = !textoNumerico || apagandoZero ? '' : n > 999999999999 ? anterior : moeda.format(n / 100);
+        if (direita && c.value && c.setSelectionRange) {
+            let pos = c.value.length, faltam = direita;
+            while (pos > 0 && faltam > 0) if (/[0-9]/.test(c.value[--pos])) faltam--;
+            if (tipoEntrada === 'deleteContentBackward' && c.value === anterior) {
+                while (pos > 0 && /[.,]/.test(c.value[pos - 1])) pos--;
+            }
+            c.setSelectionRange(pos, pos);
+        }
+    }
     function total(r) {
         if (r.spremio == null && r.siof == null) return null;
         return (r.spremio || 0) + (r.siof || 0);
@@ -158,7 +183,7 @@
                     ${input('smodelo','Modelo',`maxlength="${limitesTexto.smodelo}"`)}
                     ${camposVeiculo.filter(([k]) => k in camposAno).map(([k,l]) => input(k, l, 'inputmode="numeric" maxlength="4" pattern="[1-9][0-9]{3}"')).join('')}
                     ${camposVeiculo.filter(([k]) => k !== 'smodelo' && !(k in camposAno)).map(([k,l]) => input(k, k === 'total' ? 'Total (prêmio + IOF)' : l + (dinheiro.has(k) ? ' (R$)' : ''),
-                        k === 'total' ? 'readonly' : dinheiro.has(k) || k === 'sfipePercent' ? 'inputmode="decimal" maxlength="20"' : `maxlength="${limitesTexto[k]}"`)).join('')}
+                        k === 'total' ? 'readonly' : dinheiro.has(k) ? 'inputmode="numeric" placeholder="R$ 0,00"' : k === 'sfipePercent' ? 'inputmode="decimal" maxlength="20"' : `maxlength="${limitesTexto[k]}"`)).join('')}
                 </div>
                 <div class="fm-seg-acoes">
                     <button type="button" id="fmSeg_cancelar" class="btn btn-outline-secondary" hidden>Cancelar edição</button>
@@ -199,13 +224,22 @@
         dinheiro.forEach(k => {
             if (k === 'total') return;
             const c = campo(k);
+            let anterior = '', substituindoTudo = false;
+            c.addEventListener('beforeinput', () => {
+                anterior = c.value;
+                substituindoTudo = c.selectionStart === 0 && c.selectionEnd === anterior.length;
+            });
+            c.addEventListener('input', evento => {
+                mascararMoeda(c, evento, anterior, substituindoTudo);
+                substituindoTudo = false;
+                if (k === 'spremio' || k === 'siof') preverTotal();
+            });
             c.addEventListener('blur', () => {
                 const v = centavos(c.value);
                 if (!Number.isNaN(v)) c.value = valorEditavel(k, v);
                 if (k === 'spremio' || k === 'siof') preverTotal();
             });
         });
-        ['spremio','siof'].forEach(k => campo(k).addEventListener('input', preverTotal));
         ['fPlaca','fSeguradora','fAte','fPrazo'].forEach(k => campo(k).addEventListener('input', consultar));
         campo('cancelar').addEventListener('click', cancelar);
         campo('registro').addEventListener('change', ajustarAcoesRegistro);

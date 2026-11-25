@@ -385,11 +385,16 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
         for (const k of coberturas) {
             const c = campo(k);
             assert.equal(c.disabled, false);
-            c.value = '1.234,56';
-            c.eventos.blur();
-            assert.match(c.value, /^R\$\s1\.234,56$/);
+            c.value = '';
+            for (const [digito, esperado] of [['1', '0,01'], ['2', '0,12'], ['3', '1,23'], ['4', '12,34'], ['5', '123,45'], ['6', '1.234,56']]) {
+                c.eventos.beforeinput();
+                c.value += digito;
+                c.eventos.input({ inputType: 'insertText' });
+                assert.equal(c.value.replace(/\s/g, ' '), 'R$ ' + esperado);
+            }
         }
         for (const k of ['sfipePercent', 'sguincho', 'sanoFab', 'sanoMod', 'svidro']) {
+            assert.equal(campo(k).eventos.input, undefined);
             assert.equal(campo(k).eventos.blur, undefined);
         }
         const premio = campo('spremio'), iof = campo('siof');
@@ -403,8 +408,24 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
         submeter();
         assert.match(campo('aviso').textContent, /Revise o valor de PRÊMIO/);
         assert.equal(gravacoes, i);
-        premio.value = '1234.56';
-        premio.eventos.input();
+        premio.selectionStart = 0;
+        premio.selectionEnd = premio.value.length;
+        premio.eventos.beforeinput();
+        premio.value = '1234';
+        premio.eventos.input({ inputType: 'insertFromPaste' });
+        assert.match(premio.value, /^R\$\s1\.234,00$/);
+        assert.match(campo('total').value, /^R\$\s1\.234,00$/);
+        premio.eventos.beforeinput();
+        premio.value = '';
+        premio.eventos.input({ inputType: 'deleteContentBackward' });
+        assert.equal(premio.value, '');
+        assert.equal(campo('total').value, '');
+        for (const digito of '123456') {
+            premio.eventos.beforeinput();
+            premio.value += digito;
+            premio.selectionStart = premio.selectionEnd = premio.value.length;
+            premio.eventos.input({ inputType: 'insertText' });
+        }
         assert.match(campo('total').value, /^R\$\s1\.234,56$/);
         premio.eventos.blur();
         assert.match(premio.value, /^R\$\s1\.234,56$/);
