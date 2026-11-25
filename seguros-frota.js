@@ -62,6 +62,27 @@
     const veiculos = () => typeof db === 'object' && db ? (db.veiculos || []) : [];
     const cabecalho = ['stipo','sseguradora','scorretora','sapolice','sinicio','svencimento','ssituacao'];
     let aba = 'principal', editando = null, ocupada = false, gruposEscolha = [];
+    const chaveModelo = 'fmSegModeloExcelV1';
+    let layoutsExcel = {};
+    try { layoutsExcel = JSON.parse(root.localStorage?.getItem(chaveModelo) || '{}') || {}; } catch (_) { /* Sem armazenamento local. */ }
+    function adotarModelo(modelos) {
+        if (!Object.keys(modelos).length) return;
+        // Somente os cabeçalhos da tabela ficam no dispositivo, não o arquivo nem as linhas.
+        layoutsExcel = { ...layoutsExcel, ...modelos };
+        try { root.localStorage?.setItem(chaveModelo, JSON.stringify(layoutsExcel)); } catch (_) { /* Mantém em memória. */ }
+        consultar();
+    }
+    function modelosDoTipo(t, registros) {
+        const modelos = new Map();
+        for (const m of Array.isArray(layoutsExcel[t]) ? layoutsExcel[t] : []) {
+            if (m?.cab?.length && m.campos?.length) modelos.set(JSON.stringify(m.cab), m);
+        }
+        for (const r of registros) {
+            const m = r.stipo === t && r.splanilha?.layout;
+            if (m?.cab?.length && m.campos?.length) modelos.set(JSON.stringify(m.cab), m);
+        }
+        return [...modelos.values()];
+    }
     const op = (value, label) => '<option value="' + esc(value) + '">' + esc(label) + '</option>';
     const ops = obj => Object.entries(obj).map(([v,l]) => op(v,l)).join('');
     const input = (k, label, attrs = '') => '<label>'+esc(label)+'<input id="fmSeg_'+k+'" class="form-control" '+attrs+'></label>';
@@ -145,8 +166,8 @@
         campo('cancelar').addEventListener('click', () => { limpar(); atualizar(); });
         campo('exportar').addEventListener('click', exportar);
         root.FMImportarSeguros?.montar({
-            botao: campo('importar'), painel: campo('previa'), seguros: api, veiculos, lista,
-            podeGravar: podeImportar, gravar: importar, ocupado: () => ocupada,
+            botao: campo('importar'), painel: campo('previa'), resultado: campo('resultado'), seguros: api, veiculos, lista,
+            podeGravar: podeImportar, gravar: importar, ocupado: () => ocupada, receberModelos: adotarModelo,
         });
         host.addEventListener('click', acoes);
         limpar();
@@ -323,13 +344,25 @@
         if (!novos.length) return { status: 'sem-novos', resultado };
         let prontos;
         try {
-            prontos = novos.map(l => fmPrepararRegistro('seguros', { ...l.registro }, null));
+            prontos = novos.map(l => {
+                const r = { ...l.registro };
+                if (l.layout) {
+                    const m = l.layout;
+                    r.splanilha = {
+                        layout: { cab: m.cab, campos: m.campos, chaves: m.chaves },
+                        celulas: m.campos.map((k, i) => !k || k === 'totalExcel' || !(k in r) && !['vigencia','stipo'].includes(k) ? l.celulas[i] : ''),
+                        totalCentavos: Number.isFinite(l.totalExcel) ? l.totalExcel : null,
+                    };
+                }
+                return fmPrepararRegistro('seguros', r, null);
+            });
         } catch (erro) {
             console.error(erro);
             return { status: 'erro-preparo' };
         }
         ocupada = true;
         lista().push(...prontos);
+        if (!prontos.some(r => tipo(r) === aba)) aba = tipo(prontos[0]);
         let estado = 'erro';
         try {
             atualizar();
@@ -375,20 +408,55 @@
         });
         const botaoExportar = campo('exportar');
         if (botaoExportar) botaoExportar.disabled = !registros.length;
+        const trabalho = aba !== 'legado' && root.FMImportarSeguros;
+        const modelos = trabalho ? modelosDoTipo(aba, geral) : [];
+        const vazio = root.fmModuloCarregado?.('seguros') ? 'Nenhum registro nesta aba para os filtros informados.' : 'Aguardando o carregamento dos seguros…';
         if (!registros.length) {
-            campo('resultado').textContent = root.fmModuloCarregado?.('seguros') ? 'Nenhum registro nesta aba para os filtros informados.' : 'Aguardando o carregamento dos seguros…';
+            campo('resultado').textContent = vazio;
+            if (trabalho?.gradeTrabalho) {
+                const layouts = modelos.length ? modelos : [trabalho.modeloPadrao(col)];
+                const orientacao = modelos.length ? '' : '<p class="small text-muted mb-2">Para usar os cabeçalhos, a ordem e os agrupamentos da FROTA.xlsx, selecione o arquivo em <strong>Importar Excel</strong>.</p>';
+                campo('resultado').innerHTML = orientacao + layouts.map(layout => trabalho.gradeTrabalho(layout, `<tr><td colspan="${layout.campos.length}">${esc(vazio)}</td></tr>`)).join('');
+            }
             return;
         }
         const linhas = new Map(geral.map((r,i) => [r,i]));
         const classeValor = k => dinheiro.has(k) ? ' class="fm-seg-valor"' : '';
         const th = col.map(([k,l]) => `<th scope="col"${classeValor(k)}>${esc(l)}</th>`).join('') + '<th scope="col">Ações</th>';
-        const tr = r => `<tr>${col.map(([k])=>`<td${classeValor(k)}>${tabelaValor(k,r)}</td>`).join('')}<td class="fm-seg-linha-acoes"><button type="button" class="btn-edit" data-seg-editar="${linhas.get(r)}" aria-label="Editar ${esc(r.sveiculo)}" title="Editar">✎</button> <button type="button" class="btn-del" data-seg-excluir="${linhas.get(r)}" aria-label="Excluir ${esc(r.sveiculo)}" title="Excluir">✕</button></td></tr>`;
+        const acoesLinha = r => `<td class="fm-seg-linha-acoes"><button type="button" class="btn-edit" data-seg-editar="${linhas.get(r)}" aria-label="Editar ${esc(r.sveiculo)}" title="Editar">✎</button> <button type="button" class="btn-del" data-seg-excluir="${linhas.get(r)}" aria-label="Excluir ${esc(r.sveiculo)}" title="Excluir">✕</button></td>`;
+        const tr = r => `<tr>${col.map(([k])=>`<td${classeValor(k)}>${tabelaValor(k,r)}</td>`).join('')}${acoesLinha(r)}</tr>`;
         if (aba === 'legado') {
             campo('resultado').innerHTML = `<p>Cadastros anteriores, sem identificação de apólice. Para completar um registro, edite-o e escolha Seguro principal ou 2º risco.</p><div class="table-responsive"><table class="table table-striped align-middle"><thead><tr>${th}</tr></thead><tbody>${registros.map(tr).join('')}</tbody></table></div>`;
             return;
         }
         campo('resultado').innerHTML = agrupar(registros).sort((a,b)=>texto(a.cab.svencimento).localeCompare(texto(b.cab.svencimento))).map(({cab:r,linhas:grupo}) => {
             const itens = grupo.map(x=>x.r);
+            if (trabalho?.gradeTrabalho && (modelos.length || itens.some(item => item.splanilha?.layout))) {
+                const grades = new Map();
+                for (const item of itens) {
+                    const fonte = item.splanilha?.layout;
+                    const layout = fonte || modelos[0] || trabalho.modeloPadrao(col);
+                    const id = JSON.stringify(layout.cab);
+                    if (!grades.has(id)) grades.set(id, { layout, itens: [] });
+                    grades.get(id).itens.push(item);
+                }
+                const tabelas = [...grades.values()].map(({ layout, itens }) => {
+                    const corpo = itens.map(item => `<tr>${trabalho.celulasTrabalho(layout, item, item.splanilha)}${acoesLinha(item)}</tr>`).join('');
+                    const rodape = `<tfoot><tr>${layout.campos.map(k => {
+                        const chave = k === 'totalExcel' ? 'total' : k;
+                        const comTotalOriginalInvalido = k === 'totalExcel' && itens.some(item => {
+                            const origem = item.splanilha;
+                            return origem?.layout?.campos?.some((campo, i) => campo === 'totalExcel' && texto(origem.celulas?.[i])) && !Number.isFinite(origem.totalCentavos);
+                        });
+                        const soma = k === 'totalExcel' && !comTotalOriginalInvalido
+                            ? subtotal(itens.map(item => ({ totalNaTabela: item.splanilha?.totalCentavos ?? total(item) })), 'totalNaTabela')
+                            : comTotalOriginalInvalido ? null : subtotal(itens, chave);
+                        return `<td${classeValor(chave)}>${comum.some(([c]) => c === chave) ? exMoeda(soma) : ''}</td>`;
+                    }).join('')}<th scope="row" title="Soma dos valores exibidos">Subtotal</th></tr></tfoot>`;
+                    return trabalho.gradeTrabalho(layout, corpo, `<th scope="col" rowspan="${layout.cab.length}">Ações</th>`, rodape);
+                }).join('');
+                return `<section class="fm-seg-apolice"><div class="fm-seg-cab"><div><h5>Apólice ${esc(r.sapolice || '—')} · ${esc(r.sseguradora || '—')}</h5><div>Corretora: ${esc(r.scorretora || '—')} · Vigência: ${esc(dataBR(r.sinicio) || '—')} a ${esc(dataBR(r.svencimento) || '—')}</div></div><div><span class="fm-seg-situacao">${esc(situacoes[r.ssituacao] || 'Situação não informada')}</span> ${alerta(r)}</div></div>${tabelas}</section>`;
+            }
             return `<section class="fm-seg-apolice"><div class="fm-seg-cab"><div><h5>Apólice ${esc(r.sapolice || '—')} · ${esc(r.sseguradora || '—')}</h5><div>Corretora: ${esc(r.scorretora || '—')} · Vigência: ${esc(dataBR(r.sinicio) || '—')} a ${esc(dataBR(r.svencimento) || '—')}</div></div><div><span class="fm-seg-situacao">${esc(situacoes[r.ssituacao] || 'Situação não informada')}</span> ${alerta(r)}</div></div><div class="table-responsive" role="region" tabindex="0" aria-label="Placas da apólice ${esc(r.sapolice || '—')}"><table class="table align-middle fm-seg-tabela-planilha"><thead><tr>${th}</tr></thead><tbody>${itens.map(tr).join('')}</tbody><tfoot><tr><th scope="row" colspan="${col.length - 3}">Subtotal · ${itens.length} placa(s)</th>${comum.map(([k])=>`<td${classeValor(k)}>${exMoeda(subtotal(itens,k))}</td>`).join('')}<td></td></tr></tfoot></table></div></section>`;
         }).join('');
     }

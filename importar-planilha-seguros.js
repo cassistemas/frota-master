@@ -60,10 +60,50 @@
         }
         return chave(a) === chave(b);
     }
-    function lerAbas(abas) {
+    // Keep the Excel captions and coordinates independent of the normalized insurance fields.
+    function layoutExcel(dados, mesclas, inicio, fim, mapa) {
+        const ativos = new Set(mapa.map(([, c]) => c));
+        for (let i = inicio; i <= fim; i++) dados[i].forEach((v, c) => {
+            if (!texto(v)) return;
+            const m = mesclas.find(({ s, e }) => s.r === i && s.c === c && e.r <= fim);
+            for (let j = c; j <= (m?.e.c ?? c); j++) ativos.add(j);
+        });
+        const inicioColuna = Math.min(...ativos), fimColuna = Math.max(...ativos);
+        const indices = Array.from({ length: fimColuna - inicioColuna + 1 }, (_, i) => inicioColuna + i);
+        const cab = [];
+        const ocupadas = new Set();
+        for (let i = inicio; i <= fim; i++) {
+            cab.push(indices.flatMap(c => {
+                if (ocupadas.has(`${i}:${c}`)) return [];
+                const m = mesclas.find(({ s, e }) => s.r === i && s.c === c && e.r <= fim);
+                const largura = m ? indices.filter(j => j >= c && j <= m.e.c).length : 1;
+                const altura = m ? m.e.r - i + 1 : 1;
+                for (let r = i; r < i + altura; r++) for (const j of indices.filter(j => j >= c && j <= (m?.e.c ?? c))) {
+                    if (r !== i || j !== c) ocupadas.add(`${r}:${j}`);
+                }
+                return [{ texto: texto(dados[i][c]), largura, altura }];
+            }));
+        }
+        const campos = indices.map(c => mapa.find(([, j]) => j === c)?.[0] || '');
+        const ocorrencias = new Map();
+        const chaves = indices.map(c => {
+            const nomes = [];
+            for (let i = inicio; i <= fim; i++) {
+                const m = mesclas.find(({ s, e }) => s.r >= inicio && e.r <= fim && s.r <= i && e.r >= i && s.c <= c && e.c >= c);
+                const nome = chave(m ? dados[m.s.r][m.s.c] : dados[i][c]);
+                if (nome && nomes[nomes.length - 1] !== nome) nomes.push(nome);
+            }
+            const nome = nomes.join(' / ') || `coluna ${c + 1}`;
+            const n = (ocorrencias.get(nome) || 0) + 1;
+            ocorrencias.set(nome, n);
+            return `${nome} #${n}`;
+        });
+        return { indices, campos, cab, chaves };
+    }
+    function lerAbas(abas, receberLayout) {
         const linhas = [];
-        for (const { nome, dados, primeiraLinha = 1, mesclas = [] } of abas) {
-            let colunas = null, contexto = {}, secao = tipoRisco(nome);
+        for (const { nome, dados, exibicao = dados, primeiraLinha = 1, mesclas = [] } of abas) {
+            let colunas = null, layout = null, contexto = {}, secao = tipoRisco(nome);
             const cabecalhos = dados.map(row => [...row]);
             const verticais = dados.map(() => []), depoisDaMescla = dados.map(() => []);
             for (const { s, e } of mesclas) {
@@ -74,27 +114,46 @@
                 for (let i = s.r + 1; i <= e.r; i++) verticais[i][s.c] = v;
             }
             const mapaDe = row => row.map((v, c) => [campo(v), c]).filter(([k]) => k);
+            // Colunas repetidas mantêm o próprio conteúdo na grade sem sobrescrever o cadastro.
+            const mapearCampos = pares => {
+                const vistos = new Set();
+                return pares.slice().sort((a, b) => a[1] - b[1]).filter(([k]) => {
+                    if (vistos.has(k)) return false;
+                    vistos.add(k);
+                    return true;
+                });
+            };
             const resumo = v => /^(subtotal|total|totais|resumo)\b/.test(rotulo(v));
             for (let i = 0; i < dados.length; i++) {
                 const row = dados[i], preenchidas = row.filter(v => texto(v));
                 if (!preenchidas.length) continue;
                 const titulo = preenchidas.length === 1 && tipoRisco(preenchidas[0]);
-                if (titulo) { secao = titulo; colunas = null; contexto = {}; continue; }
+                if (titulo) { secao = titulo; colunas = layout = null; contexto = {}; continue; }
                 const mapa = mapaDe(row);
                 const proxima = dados[i + 1];
                 const dupla = proxima && proxima.map((v, c) => {
                     const pai = cabecalhos[i][c];
                     return [texto(v) && (campo(`${texto(pai)} ${texto(v)}`) || campo(v)), c];
                 }).filter(([k]) => k);
-                // A segunda linha precisa ter rótulos próprios, nunca valores da primeira placa.
-                const complementar = dupla?.some(([k]) => k !== 'sveiculo') &&
-                    proxima.every((v, c) => !texto(v) || dupla.some(([, j]) => j === c));
                 const temPlaca = mapa.some(([k]) => k === 'sveiculo');
                 const temSubcoluna = dupla?.some(([k, c]) => k !== campo(proxima[c]));
+                const placaProxima = (dupla?.find(([k]) => k === 'sveiculo') || mapa.find(([k]) => k === 'sveiculo'))?.[1];
+                const mesclaCabecalho = mesclas.some(({ s, e }) => s.r === i && (e.r === i && e.c > s.c || e.r === i + 1));
+                // Não confundir a primeira linha de dados com uma sublinha de cabeçalho.
+                const complementar = dupla?.some(([k]) => k !== 'sveiculo') && !formatoPlaca.test(placa(proxima[placaProxima])) &&
+                    (mesclaCabecalho || proxima.every((v, c) => !texto(v) || dupla.some(([, j]) => j === c)));
                 if (complementar && (temPlaca || (temSubcoluna && dupla.some(([k]) => k === 'sveiculo')))) {
-                    colunas = [...mapa.filter(([, c]) => !texto(proxima[c])), ...dupla]; i++; continue;
+                    colunas = mapearCampos([...mapa.filter(([, c]) => !texto(proxima[c])), ...dupla]);
+                    layout = layoutExcel(exibicao, mesclas, i, i + 1, colunas);
+                    if (secao) receberLayout?.(secao, layout);
+                    i++; continue;
                 }
-                if (mapa.some(([k]) => k === 'sveiculo')) { colunas = mapa; continue; }
+                if (temPlaca) {
+                    colunas = mapearCampos(mapa);
+                    layout = layoutExcel(exibicao, mesclas, i, i, colunas);
+                    if (secao) receberLayout?.(secao, layout);
+                    continue;
+                }
                 const cPlaca = colunas?.find(([k]) => k === 'sveiculo')?.[1];
                 if (!formatoPlaca.test(placa(row[cPlaca]))) {
                     if (resumo(preenchidas[0]) || resumo(row[cPlaca])) { contexto = {}; continue; }
@@ -124,7 +183,14 @@
                 const r = { ...(cabDivergente ? {} : contexto), ...valoresExpandidos };
                 const explicito = texto(r.stipo);
                 const tipoLinha = explicito ? tipoRisco(explicito) : secao;
-                linhas.push({ aba: nome, linha: primeiraLinha + i, dados: r, tipo: secao && tipoLinha !== secao ? '' : tipoLinha });
+                const tipo = secao && tipoLinha !== secao ? '' : tipoLinha;
+                if (tipo && !secao) receberLayout?.(tipo, layout);
+                const celulas = layout.indices.map((c, j) => {
+                    const k = layout.campos[j];
+                    const valor = exibicao[i][c];
+                    return texto(valor) ? texto(valor) : (metadados.has(k) || k === 'vigencia' || k === 'stipo') ? texto(r[k]) : '';
+                });
+                linhas.push({ aba: nome, linha: primeiraLinha + i, dados: r, tipo, layout, celulas });
             }
         }
         return linhas;
@@ -233,7 +299,7 @@
             return { ...item, status: 'nova' };
         });
     }
-    async function lerArquivo(arquivo, x, receberLivro) {
+    async function lerArquivo(arquivo, x, receberLivro, somenteLayout = false, receberModelos) {
         if (!x?.read) throw new Error('Leitor de Excel indisponível. Recarregue a página e tente novamente.');
         if (!/\.xlsx?$/i.test(arquivo.name)) throw new Error('Selecione uma planilha .xlsx ou .xls.');
         if (arquivo.size > 15 * 1024 * 1024) throw new Error('Selecione uma planilha de até 15 MB.');
@@ -270,16 +336,52 @@
             return { nome, dados, exibicao, primeiraLinha: (faixa?.s.r ?? 0) + 1, mesclas, larguras, alturas, fundos };
         });
         if (receberLivro) receberLivro(abas);
+        const layouts = {};
+        const linhas = lerAbas(abas, (tipo, layout) => {
+            const lista = layouts[tipo] ||= [];
+            if (!lista.some(l => JSON.stringify(l.cab) === JSON.stringify(layout.cab))) lista.push(layout);
+        });
+        if (somenteLayout) return layouts;
         if (livro.Workbook?.WBProps?.date1904) throw new Error('Salve uma cópia da planilha com o sistema de datas de 1900 antes de importar.');
-        const linhas = lerAbas(abas);
-        if (!linhas.length) throw new Error('Nenhuma linha de seguro encontrada. As abas originais estão disponíveis na prévia; confira se existe uma coluna Placa abaixo dos dados da apólice.');
         if (linhas.length > 5000) throw new Error('A planilha contém mais de 5.000 linhas de seguro. Divida em arquivos menores.');
+        receberModelos?.(layouts);
+        if (!linhas.length) throw new Error(Object.keys(layouts).length
+            ? 'O modelo da tabela foi carregado. Não há linhas de seguro para importar neste arquivo.'
+            : 'Nenhuma linha de seguro encontrada. Confira se existe uma coluna Placa abaixo dos dados da apólice.');
         return linhas;
     }
     const esc = v => texto(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
     const dinheiro = v => Number.isFinite(v) ? moeda.format(v/100) : '—';
     const br = v => v ? v.split('-').reverse().join('/') : '—';
+    function modeloPadrao(colunas) {
+        return { campos: colunas.map(([k]) => k), chaves: [], cab: [colunas.map(([, l]) => ({ texto: l, largura: 1, altura: 1 }))] };
+    }
+    function gradeTrabalho(layout, corpo, extras = '', rodape = '') {
+        const cab = layout.cab.map((row, i) => `<tr>${row.map(c => {
+            const largura = Number.isInteger(c.largura) && c.largura > 1 && c.largura <= layout.campos.length ? c.largura : 1;
+            const altura = Number.isInteger(c.altura) && c.altura > 1 && c.altura <= layout.cab.length - i ? c.altura : 1;
+            return `<th scope="${largura > 1 ? 'colgroup' : 'col'}"${largura > 1 ? ` colspan="${largura}"` : ''}${altura > 1 ? ` rowspan="${altura}"` : ''}>${esc(c.texto)}</th>`;
+        }).join('')}${i === 0 ? extras : ''}</tr>`).join('');
+        return `<div class="table-responsive" role="region" tabindex="0" aria-label="Tabela de seguros"><table class="table align-middle fm-seg-tabela-planilha"><thead>${cab}</thead><tbody>${corpo}</tbody>${rodape}</table></div>`;
+    }
+    const monetario = k => valores.includes(k) || k === 'totalExcel' || k === 'total';
+    function valorTrabalho(k, r, celula = '', emRevisao = false) {
+        if (!k || k === 'totalExcel' && texto(celula)) return texto(celula) || '—';
+        if (k === 'vigencia') return r.sinicio || r.svencimento ? `${br(r.sinicio)} a ${br(r.svencimento)}` : texto(celula) || '—';
+        if (k === 'stipo') return grupos.find(([id]) => id === r.stipo)?.[1] || texto(celula) || '—';
+        if (k === 'sinicio' || k === 'svencimento') return r[k] ? br(r[k]) : texto(celula) || '—';
+        if (k === 'total' || k === 'totalExcel') return dinheiro(r.spremio == null && r.siof == null ? null : (r.spremio || 0) + (r.siof || 0));
+        if (monetario(k)) return Number.isFinite(r[k]) ? dinheiro(r[k]) : emRevisao || r[k] === undefined ? texto(celula) || '—' : '—';
+        if (k === 'ssituacao') return r[k] ? r[k].charAt(0).toUpperCase() + r[k].slice(1) : emRevisao ? texto(celula) || '—' : '—';
+        return texto(r[k]) || (emRevisao || r[k] === undefined ? texto(celula) : '') || '—';
+    }
+    function celulasTrabalho(layout, r, origem, emRevisao) {
+        return layout.campos.map((k, j) => {
+            const i = Array.isArray(origem?.layout?.chaves) ? origem.layout.chaves.indexOf(layout.chaves[j]) : -1;
+            return `<td${monetario(k) ? ' class="fm-seg-valor"' : ''}>${esc(valorTrabalho(k, r, i < 0 ? '' : origem.celulas?.[i], emRevisao))}</td>`;
+        }).join('');
+    }
     function gradeOriginal(aba, pagina, limite = 30) {
         const dados = aba.exibicao;
         const total = Math.max(1, Math.ceil(dados.length / limite));
@@ -357,9 +459,9 @@
         const marcadas = new Set(indices);
         return resultado.filter(l => l.status === 'nova' && marcadas.has(l.indice));
     };
-    function montar({ botao, painel, seguros, veiculos, lista, podeGravar, gravar, ocupado }) {
+    function montar({ botao, painel, resultado: tabelaSalva, seguros, veiculos, lista, podeGravar, gravar, ocupado, receberModelos }) {
         painel.innerHTML = `<h5>Importação de seguros</h5>
-            <p>Selecione a <strong>FROTA.xlsx</strong> para conferir as abas do Excel e importar os registros. A planilha é lida neste navegador. Só os registros que você confirmar são enviados ao banco, sem alterar o Histórico.</p>
+            <p>Selecione a <strong>FROTA.xlsx</strong> para preencher as colunas da tabela de Seguros. Revise e selecione as linhas que deseja gravar. A importação não sobrescreve registros existentes nem altera o Histórico.</p>
             <div id="fmSeg_areaArquivo" class="fm-seg-area-arquivo">
                 <label for="fmSeg_arquivo" class="form-label fw-semibold">Selecione ou arraste a planilha de seguros (.xlsx ou .xls)</label>
                 <input id="fmSeg_arquivo" type="file" accept=".xlsx,.xls" class="form-control" aria-describedby="fmSeg_nomeArquivo">
@@ -453,32 +555,29 @@
         }
         function desenhar() {
             atualizarControles();
-            tabela.innerHTML = grupos.map(([tipo, titulo]) => {
+            if (tabelaSalva) tabelaSalva.hidden = !painel.hidden && resultado.length > 0 && !enviado;
+            tabela.innerHTML = enviado ? '' : grupos.map(([tipo, titulo]) => {
                 const itens = resultado.filter(l => l.tipo === tipo);
                 if (!itens.length) return '';
                 const limite = 25, total = Math.ceil(itens.length / limite);
                 const pagina = Math.min(paginas.get(tipo) || 1, total);
                 paginas.set(tipo, pagina);
-                const tr = itens.slice((pagina - 1) * limite, pagina * limite).map(l => {
+                const grades = new Map();
+                for (const l of itens.slice((pagina - 1) * limite, pagina * limite)) {
+                    const layout = l.layout || modeloPadrao([['sveiculo', 'Placa']]);
+                    const id = JSON.stringify(layout.cab);
+                    if (!grades.has(id)) grades.set(id, { layout, linhas: [] });
                     const r = l.registro, rastro = origem(l);
                     const cab = [r.sseguradora, r.sapolice, r.scorretora].filter(Boolean).join(' · ');
-                    const coberturas = ['sfipe','smateriais','scorporais','smorais','scarroceria','svidros','sguincho','sgru']
-                        .filter(k => r[k] != null && r[k] !== '' && !Number.isNaN(r[k]))
-                        .map(k => `${esc(rotuloCampo(k))}: ${k === 'sguincho' ? esc(r[k]) : dinheiro(r[k])}`).join(' · ');
                     const inelegivel = l.status !== 'nova' || bloqueado();
-                    return `<tr>
-                        <td><input type="checkbox" class="form-check-input" data-seg-selecionar="${l.indice}" aria-label="Selecionar ${esc(r.sveiculo)} — ${rastro}" ${selecionadas.has(l.indice) ? 'checked' : ''} ${inelegivel ? 'disabled' : ''}></td>
-                        <td>${esc(r.sveiculo) || '—'}<br><small>${esc([r.smodelo, r.sano].filter(Boolean).join(' · '))}</small></td>
-                        <td><button type="button" class="btn btn-sm btn-outline-secondary" data-seg-editar-previa="${l.indice}" aria-label="Editar ${esc(r.sveiculo)} — ${rastro}" ${bloqueado() ? 'disabled' : ''}>Editar</button></td>
-                        <td>${rastro}${l.editada ? '<br><small>Editada na prévia</small>' : ''}</td>
-                        <td class="fm-seg-previa-detalhe"><strong>${estados[l.status]}</strong>${[...l.erros, ...l.avisos].map(aviso => `<div class="small">${esc(aviso)}</div>`).join('')}</td>
-                        <td>${esc(cab) || '—'}<br><small>${br(r.sinicio)} a ${br(r.svencimento)}${r.ssituacao ? ' · ' + esc(r.ssituacao) : ''}</small></td>
-                        <td class="fm-seg-previa-detalhe">${coberturas || '—'}</td>
-                        <td>${dinheiro(r.spremio)}</td><td>${dinheiro(r.siof)}</td><td>${dinheiro(l.totalExcel)}</td><td>${dinheiro(l.calculado)}</td>
-                    </tr>`;
-                }).join('');
+                    grades.get(id).linhas.push(`<tr>${celulasTrabalho(layout, r, l, true)}
+                        <td><input type="checkbox" class="form-check-input" data-seg-selecionar="${l.indice}" aria-label="Selecionar ${esc(r.sveiculo)} — ${rastro}" ${selecionadas.has(l.indice) ? 'checked' : ''} ${inelegivel ? 'disabled' : ''}>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-seg-editar-previa="${l.indice}" aria-label="Editar ${esc(r.sveiculo)} — ${rastro}" ${bloqueado() ? 'disabled' : ''}>Editar</button></td>
+                        <td class="fm-seg-previa-detalhe"><strong>${estados[l.status]}</strong><div class="small">${rastro}${l.editada ? ' · Editada na prévia' : ''}<br>${esc(cab) || '—'} · ${br(r.sinicio)} a ${br(r.svencimento)}</div>${[...l.erros, ...l.avisos].map(aviso => `<div class="small">${esc(aviso)}</div>`).join('')}</td></tr>`);
+                }
                 const paginar = total > 1 ? `<div class="fm-seg-acoes mb-2"><button type="button" class="btn btn-sm btn-outline-secondary" data-seg-previa="${tipo}" data-pagina="${pagina - 1}" ${pagina === 1 || bloqueado() ? 'disabled' : ''}>Anterior</button><span>Página ${pagina} de ${total}</span><button type="button" class="btn btn-sm btn-outline-secondary" data-seg-previa="${tipo}" data-pagina="${pagina + 1}" ${pagina === total || bloqueado() ? 'disabled' : ''}>Próxima</button></div>` : '';
-                return `<section class="fm-seg-apolice" data-seg-grupo="${tipo}"><h6 tabindex="-1">${titulo} (${itens.length})</h6>${paginar}<div class="table-responsive"><table class="table table-striped align-middle"><thead><tr>${['Selecionar','Placa / modelo','Ações','Origem','Validação','Apólice e vigência','Coberturas','Prêmio','IOF','Total do Excel','Prêmio + IOF'].map(t => `<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${tr}</tbody></table></div></section>`;
+                const tabelas = [...grades.values()].map(({ layout, linhas }) => gradeTrabalho(layout, linhas.join(''), `<th scope="col" rowspan="${layout.cab.length}">Ações</th><th scope="col" rowspan="${layout.cab.length}">Validação da importação</th>`)).join('');
+                return `<section class="fm-seg-apolice" data-seg-grupo="${tipo}"><h6 tabindex="-1">${titulo} (${itens.length})</h6>${paginar}${tabelas}</section>`;
             }).join('');
         }
         function abrirEditor(l) {
@@ -550,6 +649,7 @@
             if (emEnvio || editando !== null) return;
             painel.hidden = !painel.hidden;
             botao.setAttribute('aria-expanded', String(!painel.hidden));
+            desenhar();
             if (!painel.hidden) arquivo.focus();
         });
         function limparPrevia() {
@@ -578,8 +678,9 @@
                 const lidas = await lerArquivo(f, root.XLSX, abas => {
                     if (atual !== token) return;
                     abasOriginais = abas;
-                    originais.open = true;
                     mostrarOriginal();
+                }, false, modelos => {
+                    if (atual === token) receberModelos?.(modelos);
                 });
                 if (atual !== token) return;
                 linhas = lidas;
@@ -684,7 +785,8 @@
             }
         });
     }
-    const api = { lerAbas, validar, selecionadasValidas, lerArquivo, montar };
+    const lerModelo = (arquivo, x) => lerArquivo(arquivo, x, null, true);
+    const api = { lerAbas, validar, selecionadasValidas, lerArquivo, lerModelo, montar, modeloPadrao, gradeTrabalho, celulasTrabalho };
     if (typeof module === 'object' && module.exports) module.exports = api;
     else root.FMImportarSeguros = api;
 })(typeof window === 'undefined' ? globalThis : window);

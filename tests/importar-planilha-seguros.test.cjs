@@ -105,8 +105,27 @@ function ambiente(gravar) {
         fmPrepararRegistro: (mod, r) => ({ ...r, _rid: `${mod}-${r.sveiculo}` }), salvarNuvem: gravar,
     });
     window.FMSegurosFrota.render();
-    return { db, opcoes };
+    return { db, opcoes, campos };
 }
+
+test('a tabela de Seguros mantém o modelo com zero linhas e mostra os campos importados após gravar', async () => {
+    const { db, opcoes, campos } = ambiente(async (_, { aoEstado }) => { aoEstado('confirmado'); return true; });
+    const linhas = ler('Seguro principal', [colunas.concat('Limite especial'), linha('ABC1D23').concat('Conforme contrato')]);
+    const tabela = campos.get('fmSeg_resultado');
+    opcoes.receberModelos({ principal: [linhas[0].layout] });
+    assert.match(tabela.innerHTML, /Placa.*Seguradora.*Apólice.*Total.*Limite especial/);
+    assert.match(tabela.innerHTML, /Nenhum registro nesta aba/);
+    assert.equal(db.seguros.length, 1);
+
+    const revisao = JSON.stringify(validar(linhas));
+    assert.equal((await opcoes.gravar(linhas, [0], revisao, () => {})).status, 'confirmado');
+    assert.match(tabela.innerHTML, /Placa.*Seguradora.*Apólice.*Total.*Limite especial.*ABC-1D23.*Conforme contrato/);
+    assert.equal(db.seguros[1].splanilha.celulas.at(-1), 'Conforme contrato');
+
+    campos.get('fmSeg_fPlaca').value = 'ZZZ';
+    opcoes.receberModelos({ principal: [linhas[0].layout] });
+    assert.match(tabela.innerHTML, /Limite especial.*Nenhum registro nesta aba/);
+});
 
 test('confirma só após revalidar a prévia e chama a gravação compartilhada uma vez para o lote', async () => {
     const envios = [];
@@ -168,6 +187,29 @@ test('combina cabeçalhos em duas linhas e lê metadados mesclados sem copiar va
     assert.equal(r[1].registro.spremio, null);
     assert.equal(r[1].calculado, 1200);
     assert.match(r[1].avisos.join(' '), /Total do Excel difere/);
+});
+
+test('reutiliza os cabeçalhos mesclados e mantém colunas extras na posição do Excel', () => {
+    const mesclas = [
+        { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } },
+        { s: { r: 0, c: 1 }, e: { r: 0, c: 2 } },
+    ];
+    const dados = [
+        ['PLACA', 'RCF', '', 'Prêmio líquido', 'Total'],
+        ['', 'Danos materiais', 'Limite especial', '', ''],
+        ['ABC1D23', 250000, 'Conforme contrato', 125, 130],
+    ];
+    const modelos = [];
+    const [linha] = importador.lerAbas([{ nome: 'Seguro principal', dados, mesclas }], (_, layout) => modelos.push(layout));
+    assert.equal(modelos[0], linha.layout);
+    assert.deepEqual(linha.layout.campos, ['sveiculo', 'smateriais', '', 'spremio', 'totalExcel']);
+    assert.equal(linha.dados.smateriais, 250000);
+    const vazia = importador.gradeTrabalho(linha.layout, '');
+    assert.match(vazia, /rowspan="2">PLACA/);
+    assert.match(vazia, /colspan="2">RCF/);
+    assert.match(vazia, /Danos materiais<\/th><th scope="col">Limite especial/);
+    const corpo = importador.celulasTrabalho(linha.layout, { sveiculo: 'ABC-1D23', smateriais: 25000000, spremio: 12500 }, linha, true);
+    assert.match(corpo, /ABC-1D23.*Conforme contrato.*125,00.*130/);
 });
 
 test('lê vigência em uma célula no cabeçalho ou na tabela e mantém datas explícitas', () => {
@@ -240,7 +282,9 @@ test('a prévia seleciona todas as páginas e só envia a seleção com as ediç
         } } };
     vm.runInNewContext(fs.readFileSync(require.resolve('../importar-planilha-seguros.js'), 'utf8'), { window });
     const gravados = [], salvos = [];
+    let modelos;
     window.FMImportarSeguros.montar({ painel, botao, seguros, veiculos: () => cadastro, lista: () => salvos,
+        receberModelos: valor => { modelos = valor; },
         podeGravar: () => true, ocupado: () => false, gravar: async (linhas, indices) => {
             gravados.push({ linhas, indices });
             salvos.push(...validar(linhas).filter(l => indices.includes(l.indice)).map(l => l.registro));
@@ -250,7 +294,9 @@ test('a prévia seleciona todas as páginas e só envia a seleção com as ediç
     const arquivo = el('arquivo'), tabela = el('linhasImportacao'), editor = el('edicaoImportacao');
     arquivo.files = [{ name: 'FROTA.xlsx', size: 8, arrayBuffer: async () => new ArrayBuffer(8) }];
     await arquivo.emitir('change');
-    assert.equal(el('abasOriginais').open, true);
+    assert.equal(el('abasOriginais').open, false);
+    assert.equal(modelos.principal[0].cab[0].map(c => c.texto).join('|'), colunas.join('|'));
+    assert.match(tabela.innerHTML, /<th scope="col">Placa<\/th>/);
     assert.match(el('guiaOriginais').innerHTML, /Resumo &amp; totais/);
     el('guiaOriginais').emitir('click', { target: { closest: () => ({ dataset: { segOriginal: '1' } }) } });
     assert.match(el('gradeOriginal').innerHTML, /<col style="width:140px">/);
