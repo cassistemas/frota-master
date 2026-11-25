@@ -197,7 +197,7 @@
         campo('sveiculo').addEventListener('change', preencherVeiculo);
         ['spremio','siof'].forEach(k => campo(k).addEventListener('input', preverTotal));
         ['fPlaca','fSeguradora','fAte','fPrazo'].forEach(k => campo(k).addEventListener('input', consultar));
-        campo('cancelar').addEventListener('click', cancelarEdicao);
+        campo('cancelar').addEventListener('click', cancelar);
         campo('registro').addEventListener('change', ajustarAcoesRegistro);
         campo('exportar').addEventListener('click', exportar);
         host.addEventListener('click', acoes);
@@ -255,6 +255,9 @@
                 k in camposAno ? l : k === 'smodelo' && t === 'segundo' ? 'Descrição do veículo' :
                 (visiveis.get(k) || l) + (t === 'segundo' && dinheiro.has(k) ? ' (R$)' : '');
         });
+        const botaoCancelar = campo('cancelar');
+        botaoCancelar.hidden = !editando && !usaFichaPorPlaca(aba);
+        botaoCancelar.textContent = editando ? 'Cancelar edição' : 'Cancelar';
         if (!editando) campo('titulo').textContent = t === 'segundo' ? 'Cadastrar veículo no 2º risco' : 'Cadastrar veículo no seguro principal';
         preverTotal();
     }
@@ -271,20 +274,19 @@
         campo('stipo').value = aba === 'segundo' ? 'segundo' : 'principal';
         atualizarApolices('');
         campo('titulo').textContent = 'Cadastrar veículo na apólice';
-        campo('cancelar').hidden = true;
         preencherPlacas('');
         ajustarForm();
         aviso('');
     }
-    function cancelarEdicao() {
-        if (!editando || ocupada) return;
-        const porPlaca = usaFichaPorPlaca(tipo(editando.registro));
+    function cancelar() {
+        if (ocupada || (!editando && !usaFichaPorPlaca(aba))) return;
+        const estavaEditando = !!editando;
+        const porPlaca = estavaEditando ? usaFichaPorPlaca(tipo(editando.registro)) : usaFichaPorPlaca(aba);
         limpar();
         if (porPlaca) campo('editor').open = false;
         atualizar();
         if (porPlaca) {
-            const s = campo('registro');
-            if (!campo('gerenciar').hidden) s.focus();
+            if (estavaEditando && !campo('gerenciar').hidden) campo('registro').focus();
             else campo('titulo').focus();
         }
     }
@@ -305,7 +307,6 @@
         });
         campo('titulo').textContent = 'Editar registro · ' + r.sveiculo;
         campo('editor').open = true;
-        campo('cancelar').hidden = false;
         ajustarForm();
         campo('sveiculo').focus();
     }

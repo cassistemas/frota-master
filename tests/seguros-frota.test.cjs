@@ -129,7 +129,10 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
                     set textContent(v) { this.innerHTML = v; },
                     add() {}, addEventListener(n, fn) { this.eventos[n] = fn; },
                     focus() { foco = id; }, querySelectorAll: () => acoes,
-                    reset() { campos.get('fmSeg_smodelo').value = ''; },
+                    reset() {
+                        const form = montagem.match(/<form\b[^]*?<\/form>/)[0];
+                        for (const [, id] of form.matchAll(/<(?:input|select)\b[^>]*id="(fmSeg_\w+)"/g)) campos.get(id).value = '';
+                    },
                 });
             }
         },
@@ -209,7 +212,8 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     campos.get('fmSeg_smodelo').value = 'Alteração não salva';
     cancelar.eventos.click();
     assert.equal(editor.open, false);
-    assert.equal(cancelar.hidden, true);
+    assert.equal(cancelar.hidden, false);
+    assert.equal(cancelar.textContent, 'Cancelar');
     assert.equal(foco, 'fmSeg_registro');
     assert.equal(campos.get('fmSeg_smodelo').value, '');
     assert.equal(registro.value, '0');
@@ -339,6 +343,28 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
         submeter();
         assert.match(campo('aviso').textContent, /fim da vigência não pode ser anterior/);
         assert.equal(gravacoes, i);
+
+        assert.equal(cancelar.hidden, false);
+        assert.equal(cancelar.textContent, 'Cancelar');
+        assert.match(montagem, /<button type="button" id="fmSeg_cancelar"[^>]*>[^<]*<\/button>\s*<button type="submit" id="fmSeg_salvar"/);
+        editor.open = true;
+        campo('sveiculo').value = 'NOV1A23';
+        campo('sveiculo').eventos.change();
+        campo('spremio').value = '100';
+        campo('spremio').eventos.input();
+        const antesDeCancelar = db.seguros.slice();
+        cancelar.eventos.click();
+        assert.equal(editor.open, false);
+        assert.equal(foco, 'fmSeg_titulo');
+        assert.equal(campo('stipo').value, original.stipo);
+        assert.equal(seletor.value, '');
+        assert.deepEqual(valores(), ['', '', '', '', '']);
+        for (const k of ['sveiculo', 'smodelo', 'spremio', 'total']) assert.equal(campo(k).value, '');
+        assert.equal(campo('aviso').textContent, '');
+        assert.deepEqual(db.seguros, antesDeCancelar);
+        assert.equal(gravacoes, i);
+
+        editor.open = true;
         seletor.value = apolice(original);
         seletor.eventos.change();
         campo('sveiculo').value = 'NOV1A23';
