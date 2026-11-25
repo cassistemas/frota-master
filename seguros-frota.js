@@ -154,9 +154,10 @@
                 </div>
                 <h5 id="fmSeg_coberturas">Veículo e coberturas</h5>
                 <div class="fm-seg-grid">
-                    ${camposVeiculo.filter(([k]) => k in camposAno).map(([k,l]) => input(k, l, 'inputmode="numeric" maxlength="4" pattern="[1-9][0-9]{3}"')).join('')}
                     ${select('sveiculo','Placa',op('','Selecione'))}
-                    ${camposVeiculo.filter(([k]) => !(k in camposAno)).map(([k,l]) => input(k, k === 'total' ? 'Total (prêmio + IOF)' : l + (dinheiro.has(k) ? ' (R$)' : ''),
+                    ${input('smodelo','Modelo',`maxlength="${limitesTexto.smodelo}"`)}
+                    ${camposVeiculo.filter(([k]) => k in camposAno).map(([k,l]) => input(k, l, 'inputmode="numeric" maxlength="4" pattern="[1-9][0-9]{3}"')).join('')}
+                    ${camposVeiculo.filter(([k]) => k !== 'smodelo' && !(k in camposAno)).map(([k,l]) => input(k, k === 'total' ? 'Total (prêmio + IOF)' : l + (dinheiro.has(k) ? ' (R$)' : ''),
                         k === 'total' ? 'readonly' : dinheiro.has(k) || k === 'sfipePercent' ? 'inputmode="decimal" maxlength="20"' : `maxlength="${limitesTexto[k]}"`)).join('')}
                 </div>
                 <div class="fm-seg-acoes">

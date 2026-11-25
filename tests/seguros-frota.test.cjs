@@ -278,6 +278,8 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     assert.ok(!campos.get('fmSeg_dadosApolice').hidden);
     assert.equal(campos.get('fmSeg_sfipePercent').parentElement.hidden, true);
     assert.equal(campos.get('fmSeg_sanoFab').parentElement.hidden, false);
+    const camposDoVeiculo = [...montagem.matchAll(/id="fmSeg_(sveiculo|smodelo|sanoFab|sanoMod)"/g)].map(m => m[1]);
+    assert.deepEqual(camposDoVeiculo, ['sveiculo', 'smodelo', 'sanoFab', 'sanoMod']);
     registro.value = '0';
     registro.eventos.change();
     aoClicar({ target: acoes[0] });
