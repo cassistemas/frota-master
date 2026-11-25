@@ -122,6 +122,7 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     let carregado = false;
     const campos = new Map();
     let aoClicar, exportado, montagem, foco, exclusao;
+    const eventosFrota = new Map();
     let confirmarExclusao = false;
     const acoes = ['editar', 'excluir'].map(segGerenciar => ({
         dataset: { segGerenciar }, closest() { return this; },
@@ -151,7 +152,7 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
         },
     };
     const window = {
-        addEventListener() {}, fmModuloCarregado: () => carregado,
+        addEventListener(nome, fn) { eventosFrota.set(nome, fn); }, fmModuloCarregado: () => carregado,
         async fmExcluirVinculado(modulo, i) {
             exclusao = [modulo, i];
             if (confirmarExclusao) db.seguros.splice(i, 1);
@@ -270,6 +271,54 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     assert.equal(exportado[1][9], 'BÁSICO');
     assert.equal(db.seguros[0], importado);
     assert.equal(db.seguros[0].svidro, 'BÁSICO');
+
+    // A Consulta DETRAN pode chegar depois de Seguros e atualizar uma ficha já aberta.
+    const atualizarDetran = eventosFrota.get('frota:detran-atualizado');
+    const fipe = campos.get('fmSeg_sfipe');
+    const seletorPlaca = campos.get('fmSeg_sveiculo');
+    const dadosOriginais = { ...importado };
+    visualizarLinha(0);
+    db.detran = [{ dtPlaca: 'XYZ4J56', dtFipeValor: 'R$ 999.999,99' }, { dtPlaca: 'abc-1d23', dtFipeValor: 'R$ 312.345,67' }];
+    atualizarDetran();
+    assert.match(resultado.innerHTML, /R\$\s312\.345,67/);
+    assert.doesNotMatch(resultado.innerHTML, /999\.999,99/);
+    assert.match(fichaConteudo.innerHTML, /R\$\s312\.345,67/);
+    assert.equal(ficha.open, true);
+    campos.get('fmSeg_fecharFicha').eventos.click();
+    registro.value = '0';
+    aoClicar({ target: acoes[0] });
+    assert.equal(fipe.readOnly, true);
+    assert.match(fipe.value, /R\$\s312\.345,67/);
+    const modelo = campos.get('fmSeg_smodelo');
+    modelo.value = 'Alteração em andamento';
+    db.detran[1].dtFipeValor = 'R$ 325.678,90';
+    atualizarDetran();
+    assert.match(fipe.value, /R\$\s325\.678,90/);
+    assert.equal(modelo.value, 'Alteração em andamento');
+    excel.eventos.click();
+    assert.deepEqual(exportado[1].slice(2, 5), [100, 325678.9, null]);
+    assert.deepEqual(exportado[1].slice(11), [null, null, null]);
+    for (const invalido of ['indisponível', 'R$ 0,00', '']) {
+        db.detran[1].dtFipeValor = invalido;
+        atualizarDetran();
+        assert.equal(fipe.readOnly, false);
+        assert.match(fipe.value, /R\$\s250\.000,00/);
+    }
+    seletorPlaca.value = 'XYZ4J56';
+    seletorPlaca.eventos.change();
+    assert.equal(fipe.readOnly, true);
+    assert.match(fipe.value, /R\$\s999\.999,99/);
+    db.detran = [];
+    atualizarDetran();
+    assert.equal(fipe.readOnly, false);
+    assert.equal(fipe.value, '');
+    seletorPlaca.value = 'ABC1D23';
+    seletorPlaca.eventos.change();
+    assert.match(fipe.value, /R\$\s250\.000,00/);
+    cancelar.eventos.click();
+    assert.deepEqual(importado, dadosOriginais);
+    assert.equal(gravacoes, 0);
+    assert.equal(resumo.innerHTML, resumoGeral);
 
     // Simula a remoção do botão após a montagem, como no limpador de relatórios.
     campos.delete('fmSeg_exportar');

@@ -35,6 +35,10 @@
         const n = Number(p[1]) * 100 + Number((p[2] || '').padEnd(2, '0'));
         return Number.isSafeInteger(n) && n <= 999999999999 ? n : NaN;
     }
+    function fipeDetran(dados) {
+        const valor = centavos(dados?.dtFipeValor);
+        return valor > 0 ? valor : null;
+    }
     function mascararMoeda(c, evento, anterior, substituindoTudo) {
         const bruto = c.value;
         const digitos = s => s.replace(/[^0-9]/g, '');
@@ -114,6 +118,7 @@
         return anoValido(ano) ? ano : '';
     };
     let aba = 'principal', editando = null, ocupada = false, registrosGerenciar = [], rascunhoApolice = {};
+    let placaFipeForm = '', fipeManualForm = '', registroFicha = null;
     const op = (value, label) => '<option value="' + esc(value) + '">' + esc(label) + '</option>';
     const ops = obj => Object.entries(obj).map(([v,l]) => op(v,l)).join('');
     const input = (k, label, attrs = '') => '<label><span>'+esc(label)+'</span><input id="fmSeg_'+k+'" class="form-control" '+attrs+'></label>';
@@ -153,6 +158,7 @@
     const exMoeda = v => v == null ? '—' : moeda.format(v/100);
     function campoValor(k, r, indice) {
         if (k === 'item') return indice + 1;
+        if (k === 'sfipe' && tipo(r) === 'principal') return fipeDetran(dadosDetran(r.sveiculo)) ?? r.sfipe;
         if (k in camposAno) return r[k] ?? anoCadastrado(dadosDetran(r.sveiculo), k);
         if (k === 'total') return total(r);
         if (k === 'prazo') return prazo(r.svencimento)[1];
@@ -271,12 +277,28 @@
         limpar();
     }
     function aviso(msg) { campo('aviso').textContent = msg; }
+    function atualizarFipeForm() {
+        const c = campo('sfipe'), p = campo('sveiculo').value;
+        const vinculada = campo('stipo').value === 'principal' ? fipeDetran(dadosDetran(p)) : null;
+        if (placaFipeForm !== placa(p)) {
+            placaFipeForm = placa(p);
+            const r = editando?.registro;
+            fipeManualForm = r && placaIgual(r.sveiculo, p) ? valorEditavel('sfipe', r.sfipe) : '';
+        } else if (!c.readOnly) {
+            fipeManualForm = c.value;
+        }
+        c.readOnly = vinculada != null;
+        const valor = c.readOnly ? valorEditavel('sfipe', vinculada) : fipeManualForm;
+        if (c.value !== valor) c.value = valor;
+        c.title = c.readOnly ? 'Valor da FIPE salvo em Veículos → Consulta DETRAN' : '';
+    }
     function preencherVeiculo() {
         const p = campo('sveiculo').value;
         const v = veiculos().find(x => placaIgual(x.vplaca, p));
         const d = dadosDetran(p);
         campo('smodelo').value = texto(v?.vmodelo || d?.dtMarca);
         Object.keys(camposAno).forEach(k => { campo(k).value = anoCadastrado(d, k); });
+        atualizarFipeForm();
     }
     function preencherPlacas(atual) {
         const vistos = new Set();
@@ -326,6 +348,7 @@
         botaoCancelar.hidden = !editando && !usaFichaPorPlaca(aba);
         botaoCancelar.textContent = editando ? 'Cancelar edição' : 'Cancelar';
         if (!editando) campo('titulo').textContent = t === 'segundo' ? 'Cadastrar veículo no 2º risco' : 'Cadastrar veículo no seguro principal';
+        atualizarFipeForm();
         preverTotal();
     }
     function preverTotal() {
@@ -370,7 +393,7 @@
         preencherPlacas(r.sveiculo);
         colunas[t].forEach(([k]) => {
             if (['item','sveiculo','sseguradora','svencimento','prazo','total'].includes(k)) return;
-            campo(k).value = valorEditavel(k, campoValor(k, r));
+            campo(k).value = valorEditavel(k, k === 'sfipe' ? r.sfipe : campoValor(k, r));
         });
         campo('titulo').textContent = 'Editar registro · ' + r.sveiculo;
         campo('editor').open = true;
@@ -410,8 +433,14 @@
         const v = veiculos().find(x => placaIgual(x.vplaca, selecionada));
         if (!v && !(anterior && placaIgual(anterior.sveiculo, selecionada))) return aviso('Selecione uma placa cadastrada.');
         r.sveiculo = v ? v.vplaca : anterior.sveiculo;
+        atualizarFipeForm();
         for (const [k, nome] of colunas[t]) {
             if (!camposVeiculo.some(([c]) => c === k) || k === 'total') continue;
+            if (k === 'sfipe' && campo(k).readOnly) {
+                // A FIPE do DETRAN é dinâmica; guarde apenas o valor manual de reserva da mesma placa.
+                r.sfipe = placaIgual(anterior?.sveiculo, r.sveiculo) ? anterior.sfipe ?? null : null;
+                continue;
+            }
             const v = campo(k).value;
             const valor = k === 'sfipePercent' ? centavos(texto(v).replace(/\s*%$/, '')) : dinheiro.has(k) ? centavos(v) : texto(v);
             if (k in camposAno && valor && !anoValido(valor)) return aviso('Informe ' + (k === 'sanoFab' ? 'o ano de fabricação' : 'o ano-modelo') + ' com quatro dígitos ou deixe em branco.');
@@ -535,12 +564,14 @@
         const dadosApolice = [['sseguradora','Seguradora'], ['scorretora','Corretora'], ['sapolice','Nº da apólice'],
             ['sinicio','Início da vigência'], ['svencimento','Fim da vigência']];
         const detalhes = (campos, valor) => `<dl>${campos.map(([k, rotulo]) => `<div><dt>${esc(rotulo)}</dt><dd>${valor(k)}</dd></div>`).join('')}</dl>`;
-        const coberturas = colunas[aba].filter(([k]) => k !== 'item' && k !== 'sveiculo')
+        const t = tipo(r);
+        const coberturas = colunas[t].filter(([k]) => k !== 'item' && k !== 'sveiculo')
             .map(([k, rotulo]) => [k, k === 'smodelo' ? 'Descrição do veículo' : k === 'sanoFab' ? 'Ano de fabricação' : k === 'sanoMod' ? 'Ano-modelo' : rotulo]);
-        campo('fichaTitulo').textContent = `${tipos[aba]} — ${texto(r.sveiculo)}`;
+        campo('fichaTitulo').textContent = `${tipos[t]} — ${texto(r.sveiculo)}`;
         campo('fichaConteudo').innerHTML = `<h3>Dados da apólice</h3>${detalhes(dadosApolice, k => esc((k === 'sinicio' || k === 'svencimento' ? dataBR(r[k]) : texto(r[k])) || '—'))}
             <h3>Veículo e coberturas</h3>${detalhes(coberturas, k => tabelaValor(k, r) || '—')}`;
-        ficha.showModal();
+        registroFicha = r;
+        if (!ficha.open) ficha.showModal();
     }
     function acoes(e) {
         const b = e.target.closest('button');
@@ -618,9 +649,16 @@
         campo('salvar').disabled = ocupada;
         consultar();
     }
+    function atualizarDetran() {
+        if (!campo('form')) return;
+        atualizarFipeForm();
+        if (aba === 'principal') consultar();
+        if (campo('ficha').open && registroFicha && tipo(registroFicha) === 'principal') visualizar(registroFicha);
+    }
     api.render = atualizar;
     api.atualizarPlacas = atualizarPlacas;
     root.addEventListener('frota:placa-alterada', atualizarPlacas);
+    root.addEventListener('frota:detran-atualizado', atualizarDetran);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', atualizar, {once:true});
     else atualizar();
 })(typeof window === 'undefined' ? globalThis : window);

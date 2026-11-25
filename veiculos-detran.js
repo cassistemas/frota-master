@@ -305,6 +305,7 @@
                 try { if (typeof fmFilaRemover === "function") fmFilaRemover(["detran"]); } catch (e) {}
               }
             }
+            notificarDetran();
           },
           function () {
             escutando = false;
@@ -315,8 +316,13 @@
     }
   }
 
+  function notificarDetran() {
+    if (typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("frota:detran-atualizado"));
+  }
+
   function persistir() {
     var lista = base();
+    notificarDetran();
     var cloud = nuvem();
     if (cloud) {
       if (typeof window.fmModuloCarregado === "function" && !window.fmModuloCarregado("detran")) {
