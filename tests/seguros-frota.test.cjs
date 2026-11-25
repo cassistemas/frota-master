@@ -103,13 +103,17 @@ test('o Excel de Seguros não usa classe ou acionador de exportação legada', (
     assert.doesNotMatch(botao, /\bbtn-excel\b|\bonclick=/);
 });
 
-test('as três abas de Seguros renderizam com ou sem o botão de exportação', () => {
+test('as três abas renderizam e as ações do principal ficam fora da tabela e do Excel', async () => {
     const vm = require('node:vm');
     const fonte = fs.readFileSync(path.join(__dirname, '..', 'seguros-frota.js'), 'utf8');
     const db = { veiculos: [], seguros: [] };
     let carregado = false;
     const campos = new Map();
-    let aoClicar, exportado;
+    let aoClicar, exportado, montagem, foco, exclusao;
+    let confirmarExclusao = false;
+    const acoes = ['editar', 'excluir'].map(segGerenciar => ({
+        dataset: { segGerenciar }, closest() { return this; },
+    }));
     const abas = ['principal', 'segundo', 'legado'].map(segAba => ({
         dataset: { segAba }, closest() { return this; }, setAttribute() {},
     }));
@@ -117,18 +121,26 @@ test('as três abas de Seguros renderizam com ou sem o botão de exportação', 
         querySelectorAll: () => abas,
         addEventListener(evento, fn) { if (evento === 'click') aoClicar = fn; },
         set innerHTML(html) {
+            montagem = html;
             for (const [, id] of html.matchAll(/id="(fmSeg_\w+)"/g)) {
                 campos.set(id, {
                     value: '', parentElement: {}, selectedOptions: [], innerHTML: '', eventos: {},
                     get textContent() { return this.innerHTML.replace(/<[^>]*>/g, ''); },
                     set textContent(v) { this.innerHTML = v; },
-                    add() {}, addEventListener(n, fn) { this.eventos[n] = fn; }, reset() {},
+                    add() {}, addEventListener(n, fn) { this.eventos[n] = fn; },
+                    focus() { foco = id; }, querySelectorAll: () => acoes,
+                    reset() { campos.get('fmSeg_smodelo').value = ''; },
                 });
             }
         },
     };
     const window = {
         addEventListener() {}, fmModuloCarregado: () => carregado,
+        async fmExcluirVinculado(modulo, i) {
+            exclusao = [modulo, i];
+            if (confirmarExclusao) db.seguros.splice(i, 1);
+            return confirmarExclusao;
+        },
         XLSX: {
             utils: { aoa_to_sheet: dados => { exportado = JSON.parse(JSON.stringify(dados)); return {}; },
                 book_new: () => ({}), book_append_sheet() {}, encode_cell: () => 'A1' },
@@ -136,7 +148,8 @@ test('as três abas de Seguros renderizam com ou sem o botão de exportação', 
         },
     };
     vm.runInNewContext(fonte, {
-        window, db, Option: function (label, value) { Object.assign(this, { label, value, dataset: {} }); },
+        window, db, auth: { currentUser: {} },
+        Option: function (label, value) { Object.assign(this, { label, value, dataset: {} }); },
         document: {
             readyState: 'loading', addEventListener() {},
             getElementById: id => id === 'fmApolices' ? host : campos.get(id) || null,
@@ -166,7 +179,34 @@ test('as três abas de Seguros renderizam com ou sem o botão de exportação', 
     assert.equal([...tabela.matchAll(/<td>/g)].length, 14);
     assert.match(tabela, /<td>100<\/td>.*<td>BÁSICO<\/td>/);
     assert.doesNotMatch(tabela, /Subtotal|Ações|Apólice|<button/);
-    assert.match(resultado.innerHTML, /<\/table>[^]*Editar ou excluir registro/);
+    assert.match(montagem, /class="[^\"]*fm-acao-editar" data-seg-gerenciar="editar"/);
+    assert.match(montagem, /class="[^\"]*fm-acao-excluir" data-seg-gerenciar="excluir"/);
+    const gerenciar = campos.get('fmSeg_gerenciar');
+    const registro = campos.get('fmSeg_registro');
+    const editor = campos.get('fmSeg_editor');
+    const cancelar = campos.get('fmSeg_cancelar');
+    assert.equal(gerenciar.hidden, false);
+    assert.match(registro.innerHTML, /ABC1D23/);
+    assert.doesNotMatch(registro.innerHTML, /XYZ4J56|HIS1A23/);
+    assert.ok(acoes.every(b => b.disabled));
+    registro.value = '0';
+    registro.eventos.change();
+    assert.ok(acoes.every(b => !b.disabled));
+    aoClicar({ target: acoes[0] });
+    assert.equal(editor.open, true);
+    assert.equal(cancelar.hidden, false);
+    assert.equal(foco, 'fmSeg_sveiculo');
+    campos.get('fmSeg_smodelo').value = 'Alteração não salva';
+    cancelar.eventos.click();
+    assert.equal(editor.open, false);
+    assert.equal(cancelar.hidden, true);
+    assert.equal(foco, 'fmSeg_registro');
+    assert.equal(campos.get('fmSeg_smodelo').value, '');
+    assert.equal(registro.value, '0');
+    assert.notEqual(importado.smodelo, 'Alteração não salva');
+    await aoClicar({ target: acoes[1] });
+    assert.deepEqual(exclusao, ['seguros', 0]);
+    assert.equal(db.seguros[0], importado);
     excel.eventos.click();
     assert.deepEqual(exportado[0], cabecalhoPrincipal);
     assert.equal(exportado.length, 2);
@@ -186,6 +226,25 @@ test('as três abas de Seguros renderizam com ou sem o botão de exportação', 
         assert.match(resultado.innerHTML, /<table\b/);
         assert.ok(resultado.innerHTML.includes(`<td>${placa}</td>`));
     }
+
+    aoClicar({ target: abas[0] });
+    registro.value = '0';
+    registro.eventos.change();
+    const filtro = campos.get('fmSeg_fPlaca');
+    filtro.value = 'SEM PLACA';
+    filtro.eventos.input();
+    assert.equal(gerenciar.hidden, true);
+    assert.equal(registro.value, '');
+    filtro.value = '';
+    filtro.eventos.input();
+    assert.ok(acoes.every(b => b.disabled));
+    registro.value = '0';
+    registro.eventos.change();
+    confirmarExclusao = true;
+    await aoClicar({ target: acoes[1] });
+    assert.ok(!db.seguros.includes(importado));
+    assert.deepEqual(db.seguros.map(r => r.sveiculo), ['XYZ4J56', 'HIS1A23']);
+    assert.equal(gerenciar.hidden, true);
 
     db.seguros = [];
     for (const aba of abas) {

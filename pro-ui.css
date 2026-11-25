@@ -717,14 +717,14 @@ label, .form-label {
 .btn-edit:hover { background: #eff6ff; border-color: #bfdbfe; color: var(--pro-accent); }
 .btn-del:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
 
-/* Somente Editar/Excluir nas tabelas. Saída de Veículos não recebe estas classes.
-   Os !important isolam o padrão das dimensões e cores locais de cada módulo. */
+/* Padrão de Editar/Excluir nas tabelas e na barra do Seguro principal.
+   Saída de Veículos mantém seu próprio estilo. */
 td.fm-acoes-celula:not(#saidaVeiculos td) {
   white-space: nowrap !important;
   flex-direction: row !important;
   flex-wrap: nowrap !important;
 }
-td.fm-acoes-celula .fm-acao-tabela:not(#saidaVeiculos button) {
+:is(td.fm-acoes-celula, [id="fmSeg_gerenciar"]) .fm-acao-tabela:not(#saidaVeiculos button) {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -761,34 +761,34 @@ td.fm-acoes-celula :is(.cus-history-actions, .fixos-actions) {
   flex-direction: row !important;
   flex-wrap: nowrap !important;
 }
-td.fm-acoes-celula .fm-acao-excluir:not(#saidaVeiculos button) {
+:is(td.fm-acoes-celula, [id="fmSeg_gerenciar"]) .fm-acao-excluir:not(#saidaVeiculos button) {
   background: #fef2f2 !important;
   border-color: #fecaca !important;
   color: #b91c1c !important;
 }
-td.fm-acoes-celula .fm-acao-editar:hover:not(:disabled) {
+:is(td.fm-acoes-celula, [id="fmSeg_gerenciar"]) .fm-acao-editar:hover:not(:disabled) {
   background: #dbeafe !important;
   border-color: #93c5fd !important;
 }
-td.fm-acoes-celula .fm-acao-excluir:hover:not(:disabled) {
+:is(td.fm-acoes-celula, [id="fmSeg_gerenciar"]) .fm-acao-excluir:hover:not(:disabled) {
   background: #fee2e2 !important;
   border-color: #fca5a5 !important;
 }
-td.fm-acoes-celula .fm-acao-tabela:focus-visible {
+:is(td.fm-acoes-celula, [id="fmSeg_gerenciar"]) .fm-acao-tabela:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
-td.fm-acoes-celula .fm-acao-tabela:disabled {
+:is(td.fm-acoes-celula, [id="fmSeg_gerenciar"]) .fm-acao-tabela:disabled {
   opacity: .55;
   cursor: not-allowed;
 }
-td.fm-acoes-celula .fm-acao-tabela svg {
+:is(td.fm-acoes-celula, [id="fmSeg_gerenciar"]) .fm-acao-tabela svg {
   width: 14px !important;
   height: 14px !important;
   flex: 0 0 14px;
   pointer-events: none;
 }
-td.fm-acoes-celula .fm-acao-tabela span {
+:is(td.fm-acoes-celula, [id="fmSeg_gerenciar"]) .fm-acao-tabela span {
   pointer-events: none;
 }
 .veiculos-acoes-celula.fm-acoes-celula {

@@ -64,7 +64,7 @@
     const lista = () => typeof db === 'object' && db ? (db.seguros || []) : [];
     const veiculos = () => typeof db === 'object' && db ? (db.veiculos || []) : [];
     const cabecalho = ['stipo','sseguradora','scorretora','sapolice','sinicio','svencimento','ssituacao'];
-    let aba = 'principal', editando = null, ocupada = false, gruposEscolha = [];
+    let aba = 'principal', editando = null, ocupada = false, gruposEscolha = [], registrosGerenciar = [];
     const op = (value, label) => '<option value="' + esc(value) + '">' + esc(label) + '</option>';
     const ops = obj => Object.entries(obj).map(([v,l]) => op(v,l)).join('');
     const input = (k, label, attrs = '') => '<label><span>'+esc(label)+'</span><input id="fmSeg_'+k+'" class="form-control" '+attrs+'></label>';
@@ -96,7 +96,7 @@
         host.innerHTML = `<details id="fmSeg_editor" class="glass-container fm-seg-editor">
             <summary id="fmSeg_titulo">Cadastrar veículo na apólice</summary>
             <p id="fmSeg_instrucoes">Informe os dados da apólice e os valores por placa. Este cadastro não gera lançamentos financeiros.</p>
-            <form id="fmSeg_form" aria-labelledby="fmSeg_titulo">
+            <form id="fmSeg_form" aria-labelledby="fmSeg_titulo" data-nao-limpar>
                 <div id="fmSeg_dadosApolice" class="fm-seg-grid">
                     ${select('stipo','Tipo de seguro',ops(tipos))}
                     ${select('existente','Apólice cadastrada',op('','Nova apólice'))}
@@ -131,6 +131,11 @@
             <div class="fm-seg-acoes">
                 <button type="button" class="btn btn-outline-primary" id="fmSeg_exportar">Exportar Excel</button>
             </div>
+            <div id="fmSeg_gerenciar" class="fm-seg-acoes fm-seg-gerenciar" role="group" aria-label="Ações do seguro principal" hidden>
+                ${select('registro','Registro',op('','Selecione uma placa'))}
+                <button type="button" class="btn-edit fm-acao-tabela fm-acao-editar" data-seg-gerenciar="editar" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6Z M14 5l5 5"/></svg><span>Editar</span></button>
+                <button type="button" class="btn-del fm-acao-tabela fm-acao-excluir" data-seg-gerenciar="excluir" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12 M18 6 6 18"/></svg><span>Excluir</span></button>
+            </div>
             <div id="fmSeg_resultado"></div>
         </div>`;
         campo('form').addEventListener('submit', salvar);
@@ -149,7 +154,8 @@
         campo('sveiculo').addEventListener('change', preencherVeiculo);
         ['spremio','siof'].forEach(k => campo(k).addEventListener('input', preverTotal));
         ['fPlaca','fSeguradora','fAte','fPrazo'].forEach(k => campo(k).addEventListener('input', consultar));
-        campo('cancelar').addEventListener('click', () => { limpar(); atualizar(); });
+        campo('cancelar').addEventListener('click', cancelarEdicao);
+        campo('registro').addEventListener('change', ajustarAcoesPrincipal);
         campo('exportar').addEventListener('click', exportar);
         host.addEventListener('click', acoes);
         limpar();
@@ -240,6 +246,18 @@
         atualizarEscolhas(false);
         ajustarForm();
         aviso('');
+    }
+    function cancelarEdicao() {
+        if (!editando || ocupada) return;
+        const principal = tipo(editando.registro) === 'principal';
+        limpar();
+        if (principal) campo('editor').open = false;
+        atualizar();
+        if (principal) {
+            const s = campo('registro');
+            if (!campo('gerenciar').hidden) s.focus();
+            else campo('titulo').focus();
+        }
     }
     function editar(r) {
         if (ocupada) return;
@@ -348,6 +366,32 @@
             (aba === 'principal' || ((!s || chave(r.sseguradora).includes(s)) && (!ate || r.svencimento && r.svencimento <= ate) &&
             (!alertaPrazo || prazo(r.svencimento)[0] === alertaPrazo))));
     }
+    function registroSelecionado() {
+        const valor = campo('registro').value;
+        return valor === '' ? null : registrosGerenciar[Number(valor)];
+    }
+    function ajustarAcoesPrincipal() {
+        const selecionado = registroSelecionado();
+        const desativar = ocupada || !selecionado;
+        campo('registro').disabled = ocupada;
+        campo('gerenciar').querySelectorAll('[data-seg-gerenciar]').forEach(b => { b.disabled = desativar; });
+    }
+    function renderAcoesPrincipal(registros) {
+        const selecionado = registroSelecionado();
+        registrosGerenciar = registros;
+        campo('gerenciar').hidden = !registros.length;
+        const repetidas = new Map();
+        const opcoes = registros.map((r, i) => {
+            const p = placa(r.sveiculo), n = (repetidas.get(p) || 0) + 1;
+            repetidas.set(p, n);
+            return op(i, [r.sveiculo, r.smodelo, n > 1 ? `Registro ${n}` : ''].filter(Boolean).join(' · '));
+        }).join('');
+        const s = campo('registro');
+        s.innerHTML = op('', 'Selecione uma placa') + opcoes;
+        const i = registros.indexOf(selecionado);
+        s.value = i === -1 ? '' : String(i);
+        ajustarAcoesPrincipal();
+    }
     function consultar() {
         const registros = filtrados(), col = colunas[aba];
         const geral = lista();
@@ -358,6 +402,7 @@
         });
         const soPlaca = aba === 'principal';
         ['fSeguradora','fAte','fPrazo'].forEach(k => { campo(k).parentElement.hidden = soPlaca; });
+        renderAcoesPrincipal(soPlaca ? registros : []);
         const botaoExportar = campo('exportar');
         if (botaoExportar) botaoExportar.disabled = !registros.length;
         const vazio = root.fmModuloCarregado?.('seguros') ? 'Nenhum registro nesta aba para os filtros informados.' : 'Aguardando o carregamento dos seguros…';
@@ -365,26 +410,12 @@
             campo('resultado').textContent = vazio;
             return;
         }
-        const linhas = new Map(geral.map((r,i) => [r,i]));
         const th = col.map(([k,l]) => `<th scope="col"${!l && k === 'smodelo' ? ' aria-label="Modelo"' : ''}>${esc(l)}</th>`).join('');
         if (soPlaca) {
-            const aberto = campo('gerenciar')?.open;
-            const repetidas = new Map();
-            const opcoes = registros.map(r => {
-                const p = placa(r.sveiculo), n = (repetidas.get(p) || 0) + 1;
-                repetidas.set(p, n);
-                return op(linhas.get(r), [r.sveiculo, r.smodelo, n > 1 ? `Registro ${n}` : ''].filter(Boolean).join(' · '));
-            }).join('');
-            campo('resultado').innerHTML = `<div class="table-responsive" role="region" tabindex="0" aria-label="Seguro principal por placa"><table class="table table-striped align-middle fm-seg-principal" data-sem-relatorio><thead><tr>${th}</tr></thead><tbody>${registros.map(r => `<tr>${col.map(([k]) => `<td>${tabelaValor(k,r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-                <details id="fmSeg_gerenciar" class="fm-seg-gerenciar"${aberto ? ' open' : ''}>
-                    <summary>Editar ou excluir registro</summary>
-                    <div class="fm-seg-acoes">${select('registro','Registro',op('','Selecione uma placa')+opcoes)}
-                        <button type="button" class="btn btn-outline-primary" data-seg-gerenciar="editar">Editar</button>
-                        <button type="button" class="btn btn-outline-danger" data-seg-gerenciar="excluir">Excluir</button>
-                    </div>
-                </details>`;
+            campo('resultado').innerHTML = `<div class="table-responsive" role="region" tabindex="0" aria-label="Seguro principal por placa"><table class="table table-striped align-middle fm-seg-principal" data-sem-relatorio><thead><tr>${th}</tr></thead><tbody>${registros.map(r => `<tr>${col.map(([k]) => `<td>${tabelaValor(k,r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
             return;
         }
+        const linhas = new Map(geral.map((r,i) => [r,i]));
         const thComAcoes = th + '<th scope="col">Ações</th>';
         const acoesLinha = r => `<td class="fm-seg-linha-acoes"><button type="button" class="btn-edit" data-seg-editar="${linhas.get(r)}" aria-label="Editar ${esc(r.sveiculo)}" title="Editar">✎</button> <button type="button" class="btn-del" data-seg-excluir="${linhas.get(r)}" aria-label="Excluir ${esc(r.sveiculo)}" title="Excluir">✕</button></td>`;
         const tr = r => `<tr>${col.map(([k])=>`<td>${tabelaValor(k,r)}</td>`).join('')}${acoesLinha(r)}</tr>`;
@@ -407,14 +438,14 @@
             consultar();
         } else if (b.dataset.segGerenciar) {
             if (aba !== 'principal') return;
-            const valor = campo('registro')?.value;
-            const i = Number(valor), r = lista()[i];
-            if (!valor || !r || !filtrados().includes(r)) return aviso('Selecione um registro do seguro principal.');
+            const r = registroSelecionado();
+            const i = lista().indexOf(r);
+            if (i < 0 || !filtrados().includes(r)) return aviso('Selecione um registro do seguro principal.');
             if (b.dataset.segGerenciar === 'editar') editar(r);
             else if (b.dataset.segGerenciar === 'excluir') {
                 if (!podeGravar()) return aviso('Aguarde o carregamento dos seguros e confirme que está conectado.');
                 if (typeof root.fmExcluirVinculado !== 'function') return aviso('Recarregue a página antes de excluir.');
-                excluir(i, r);
+                return excluir(i, r);
             }
         } else if (b.dataset.segEditar != null) {
             const r = lista()[Number(b.dataset.segEditar)];
