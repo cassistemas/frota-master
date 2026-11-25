@@ -48,14 +48,14 @@ function montar() {
     return { ctx, get, dialogo };
 }
 
-function indiceDaLinha(get) {
-    const linha = get('listaVeiculos').innerHTML;
-    const placa = linha.match(/<td class="veiculo-placa-ficha">([\s\S]*?)<\/td>/);
-    assert.ok(placa, 'A ficha deve estar na coluna Placa');
-    assert.match(placa[1], /<b>XYZ0A16<\/b>.*<svg\b.*<span>Ver ficha<\/span>/s);
-    const botoes = [...placa[1].matchAll(/onclick="abrirFichaVeiculo\((\d+), this\)"/g)];
-    assert.equal(botoes.length, 1);
-    return Number(botoes[0][1]);
+function conferirLinhaSemFicha(get) {
+    const lista = get('listaVeiculos').innerHTML;
+    assert.match(lista, /<td><b>XYZ0A16<\/b><\/td>/);
+    assert.doesNotMatch(lista, /Ver ficha|abrirFichaVeiculo|btn-ficha-veiculo/i);
+    assert.match(lista, /onclick="atualizarKmVeiculo\(15\)"/);
+    assert.match(lista, /onclick="abrirHistoricoKmVeiculo\(15\)"/);
+    assert.ok(lista.includes(`onclick="editar('veiculos',15)"`));
+    assert.ok(lista.includes(`onclick="deletar('veiculos',15)"`));
 }
 
 function conferirFicha({ ctx, get, dialogo }, indice) {
@@ -79,15 +79,19 @@ test('o cadastro carrega a ficha e inclui o diálogo de consulta', () => {
     assert.match(html, /<dialog id="fichaVeiculo"[^>]*>[\s\S]*?<dl id="fichaVeiculoDados"><\/dl>[\s\S]*?<form method="dialog">[\s\S]*?<\/dialog>/);
 });
 
-test('abre a ficha do veículo da segunda página pelo índice original do cadastro', () => {
+test('a segunda página exibe a placa sem o botão Ver ficha e mantém as demais ações', () => {
     const app = montar();
     app.ctx.irUltimaPagina('veiculos');
-    conferirFicha(app, indiceDaLinha(app.get));
+    conferirLinhaSemFicha(app.get);
 });
 
-test('o olho continua abrindo o veículo correto quando a lista é filtrada', () => {
+test('a lista filtrada exibe a placa sem o botão Ver ficha e mantém as demais ações', () => {
     const app = montar();
     app.get('fvPlaca').value = 'XYZ0A16';
     app.ctx.aplicarFiltrosModulo('veiculos');
-    conferirFicha(app, indiceDaLinha(app.get));
+    conferirLinhaSemFicha(app.get);
+});
+
+test('a função de consulta da ficha mantém os dados do cadastro', () => {
+    conferirFicha(montar(), 15);
 });

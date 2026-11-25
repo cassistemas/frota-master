@@ -815,7 +815,7 @@ if (!PAGINACAO.paginas[modulo]) {
             const kmTotal = typeof window.fmKmTotalVeiculo === 'function' ? window.fmKmTotalVeiculo(v) : 0;
             return `
             <tr>
-            <td class="veiculo-placa-ficha"><b>${v.vplaca}</b>${window.botaoFichaVeiculo?.(realIndex) || ''}</td>
+            <td><b>${v.vplaca}</b></td>
             <td>${v.vmodelo}</td>
             <td>${v.vtipo || '--'}</td>
             <td>${v.vkminicial ? v.vkminicial + ' KM' : '--'}</td>
