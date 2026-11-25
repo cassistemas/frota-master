@@ -119,7 +119,9 @@ test('as três abas de Seguros renderizam com ou sem o botão de exportação', 
         set innerHTML(html) {
             for (const [, id] of html.matchAll(/id="(fmSeg_\w+)"/g)) {
                 campos.set(id, {
-                    value: '', parentElement: {}, selectedOptions: [],
+                    value: '', parentElement: {}, selectedOptions: [], innerHTML: '',
+                    get textContent() { return this.innerHTML.replace(/<[^>]*>/g, ''); },
+                    set textContent(v) { this.innerHTML = v; },
                     add() {}, addEventListener() {}, reset() {},
                 });
             }

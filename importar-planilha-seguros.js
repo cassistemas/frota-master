@@ -14,14 +14,19 @@
         vigencia: ['vigencia', 'periodo de vigencia', 'vigencia da apolice'],
         ssituacao: ['situacao', 'situacao da apolice', 'status'],
         smodelo: ['modelo', 'marca modelo', 'veiculo', 'descricao do veiculo'], sano: ['ano', 'ano modelo', 'ano fabricacao modelo', 'ano fab mod'],
-        sfipe: ['fipe', 'valor fipe', 'valor da fipe', 'tabela fipe'], smateriais: ['danos materiais', 'dm', 'rcf dm', 'rcf danos materiais'],
-        scorporais: ['danos corporais', 'dc', 'rcf dc', 'rcf danos corporais'], smorais: ['danos morais', 'rcf danos morais', 'rcf dmo', 'dmo'],
-        scarroceria: ['carroceria', 'valor carroceria'], svidros: ['vidros', 'cobertura vidros'], sguincho: ['guincho', 'guincho km', 'guincho limite ou km'],
+        sfipe: ['fipe', 'valor fipe', 'valor da fipe', 'tabela fipe'], sfipePercent: ['percentual fipe', 'fipe percentual', 'percentual da fipe', 'fipe porcentagem'],
+        sfqaVeiculo: ['fqa veiculo', 'franquia veiculo', 'franquia do veiculo'], sfqaCarroceria: ['fqa carroceria', 'franquia carroceria', 'franquia da carroceria'],
+        smateriais: ['danos materiais', 'd materiais', 'dm', 'rcf dm', 'rcf danos materiais'],
+        scorporais: ['danos corporais', 'd corporais', 'dc', 'rcf dc', 'rcf danos corporais'], smorais: ['danos morais', 'd morais', 'rcf danos morais', 'rcf dmo', 'dmo'],
+        scarroceria: ['carroceria', 'valor carroceria'], svidro: ['vidro'], svidros: ['vidros', 'cobertura vidros'], sguincho: ['guincho', 'guincho km', 'guincho limite ou km'],
         sgru: ['gru', 'valor gru', 'valor da gru'], spremio: ['premio', 'premio liquido', 'valor do premio', 'valor premio liquido'],
         siof: ['iof', 'valor do iof', 'valor iof'], totalExcel: ['total', 'valor total', 'premio total', 'premio bruto', 'total do premio', 'premio iof', 'premio mais iof']
     };
     const aliases = new Map(Object.entries(nomes).flatMap(([k, valores]) => valores.map(v => [v, k])));
-    const campo = v => aliases.get(rotulo(v).replace(/ r$/, ''));
+    const campo = v => {
+        const nome = rotulo(v).replace(/ r$/, '');
+        return nome === 'fipe' && texto(v).includes('%') ? 'sfipePercent' : aliases.get(nome);
+    };
     const tipoRisco = v => {
         const s = rotulo(v);
         const segundo = /\b(?:segundo risco|2\s*(?:o )?risco)\b/.test(s);
@@ -102,7 +107,7 @@
     }
     function lerAbas(abas, receberLayout) {
         const linhas = [];
-        for (const { nome, dados, exibicao = dados, primeiraLinha = 1, mesclas = [] } of abas) {
+        for (const { nome, dados, exibicao = dados, primeiraLinha = 1, mesclas = [], percentuais = new Map() } of abas) {
             let colunas = null, layout = null, contexto = {}, secao = tipoRisco(nome);
             const cabecalhos = dados.map(row => [...row]);
             const verticais = dados.map(() => []), depoisDaMescla = dados.map(() => []);
@@ -115,7 +120,15 @@
             }
             const mapaDe = row => row.map((v, c) => [campo(v), c]).filter(([k]) => k);
             // Colunas repetidas mantêm o próprio conteúdo na grade sem sobrescrever o cadastro.
-            const mapearCampos = pares => {
+            const mapearCampos = (pares, topo, base = topo) => {
+                const cPlaca = pares.find(([k]) => k === 'sveiculo')?.[1];
+                const cFipe = pares.find(([k]) => k === 'sfipePercent')?.[1];
+                const cModelo = pares.find(([k]) => k === 'smodelo');
+                // Na FROTA.xlsx, a descrição ocupa a célula sem título entre PLACA e FIPE %.
+                if (secao !== 'segundo' && !cModelo && cFipe === cPlaca + 2 && pares.some(([k]) => k === 'sfqaVeiculo') &&
+                    !pares.some(([, c]) => c === cPlaca + 1) && !texto(dados[topo][cPlaca + 1]) && !texto(dados[base][cPlaca + 1])) {
+                    pares = [...pares, ['smodelo', cPlaca + 1]];
+                }
                 const vistos = new Set();
                 return pares.slice().sort((a, b) => a[1] - b[1]).filter(([k]) => {
                     if (vistos.has(k)) return false;
@@ -142,16 +155,14 @@
                 // Não confundir a primeira linha de dados com uma sublinha de cabeçalho.
                 const complementar = dupla?.some(([k]) => k !== 'sveiculo') && !formatoPlaca.test(placa(proxima[placaProxima])) &&
                     (mesclaCabecalho || proxima.every((v, c) => !texto(v) || dupla.some(([, j]) => j === c)));
-                if (complementar && (temPlaca || (temSubcoluna && dupla.some(([k]) => k === 'sveiculo')))) {
-                    colunas = mapearCampos([...mapa.filter(([, c]) => !texto(proxima[c])), ...dupla]);
-                    layout = layoutExcel(exibicao, mesclas, i, i + 1, colunas);
+                const duasLinhas = complementar && (temPlaca || (temSubcoluna && dupla.some(([k]) => k === 'sveiculo')));
+                if (duasLinhas || temPlaca) {
+                    const pares = duasLinhas ? [...mapa.filter(([, c]) => !texto(proxima[c])), ...dupla] : mapa;
+                    const fim = duasLinhas ? i + 1 : i;
+                    colunas = mapearCampos(pares, i, fim);
+                    layout = layoutExcel(exibicao, mesclas, i, fim, colunas);
                     if (secao) receberLayout?.(secao, layout);
-                    i++; continue;
-                }
-                if (temPlaca) {
-                    colunas = mapearCampos(mapa);
-                    layout = layoutExcel(exibicao, mesclas, i, i, colunas);
-                    if (secao) receberLayout?.(secao, layout);
+                    i = fim;
                     continue;
                 }
                 const cPlaca = colunas?.find(([k]) => k === 'sveiculo')?.[1];
@@ -175,14 +186,16 @@
                 const valoresLinha = {};
                 for (const [k, c] of colunas) {
                     const herdavel = metadados.has(k) || k === 'stipo' || k === 'vigencia';
-                    const v = texto(row[c]) ? row[c] : herdavel ? verticais[i][c] : '';
+                    const v = k === 'sfipePercent' && percentuais.has(i * 100 + c) ? percentuais.get(i * 100 + c)
+                        : texto(row[c]) ? row[c] : herdavel ? verticais[i][c] : '';
                     if (texto(v)) valoresLinha[k] = v;
                 }
                 const valoresExpandidos = expandirVigencia(valoresLinha);
                 const cabDivergente = Object.keys(obrigatorios).some(k => texto(valoresExpandidos[k]) && texto(contexto[k]) && !mesmoMetadado(k, valoresExpandidos[k], contexto[k]));
                 const r = { ...(cabDivergente ? {} : contexto), ...valoresExpandidos };
                 const explicito = texto(r.stipo);
-                const tipoLinha = explicito ? tipoRisco(explicito) : secao;
+                const gradePrincipal = ['sfipePercent','sfqaVeiculo','sfqaCarroceria','svidro'].every(k => layout.campos.includes(k));
+                const tipoLinha = explicito ? tipoRisco(explicito) : secao || (gradePrincipal ? 'principal' : '');
                 const tipo = secao && tipoLinha !== secao ? '' : tipoLinha;
                 if (tipo && !secao) receberLayout?.(tipo, layout);
                 const celulas = layout.indices.map((c, j) => {
@@ -195,13 +208,15 @@
         }
         return linhas;
     }
-    const textos = { smodelo: 120, sano: 16, sguincho: 80 };
-    const valores = ['sfipe','smateriais','scorporais','smorais','scarroceria','svidros','sgru','spremio','siof'];
+    const textos = { smodelo: 120, sano: 16, sguincho: 80, svidro: 80 };
+    const valores = ['sfipe','sfqaVeiculo','sfqaCarroceria','smateriais','scorporais','smorais','scarroceria','svidros','sgru','spremio','siof'];
+    const numericos = [...valores, 'sfipePercent'];
     const situacoes = new Map([['pendente','pendente'],['aprovada','aprovada'],['aprovado','aprovada'],['reprovada','reprovada'],['reprovado','reprovada'],['cancelada','cancelada'],['cancelado','cancelada']]);
     const rotulosCampos = {
         sveiculo: 'Placa', sseguradora: 'Seguradora', sapolice: 'Nº da apólice', scorretora: 'Corretora',
         sinicio: 'Início da vigência', svencimento: 'Fim da vigência', ssituacao: 'Situação da apólice',
-        smodelo: 'Modelo', sano: 'Ano / modelo', sguincho: 'Guincho', sfipe: 'FIPE',
+        smodelo: 'Modelo', sano: 'Ano / modelo', sguincho: 'Guincho', sfipe: 'FIPE', sfipePercent: 'FIPE %',
+        sfqaVeiculo: 'FQA VEÍCULO', sfqaCarroceria: 'FQA CARROCERIA', svidro: 'VIDRO',
         smateriais: 'Danos materiais', scorporais: 'Danos corporais', smorais: 'Danos morais',
         scarroceria: 'Carroceria', svidros: 'Vidros', sgru: 'GRU', spremio: 'Prêmio', siof: 'IOF'
     };
@@ -218,11 +233,12 @@
     }
     function comparar(d, r, salvo, seguros) {
         const diferentes = [];
-        for (const k of ['scorretora','ssituacao', ...Object.keys(textos), ...valores]) {
+        for (const k of ['scorretora','ssituacao', ...Object.keys(textos), ...numericos]) {
             if (!texto(d[k]) || r[k] === undefined) continue;
             const antes = salvo[k], depois = r[k];
-            const igual = valores.includes(k) ? (antes ?? null) === depois : chave(antes) === chave(depois);
-            if (!igual) diferentes.push(`${rotuloCampo(k)}: ${valores.includes(k) ? dinheiro(depois) : texto(depois) || '—'} × ${valores.includes(k) ? dinheiro(antes) : texto(antes) || '—'}`);
+            const igual = numericos.includes(k) ? (antes ?? null) === depois : chave(antes) === chave(depois);
+            const mostrar = v => k === 'sfipePercent' ? seguros.formatarFipePercent(v) || '—' : valores.includes(k) ? dinheiro(v) : texto(v) || '—';
+            if (!igual) diferentes.push(`${rotuloCampo(k)}: ${mostrar(depois)} × ${mostrar(antes)}`);
         }
         const a = totalCalculado(r, seguros), b = totalCalculado(salvo, seguros);
         if ((texto(d.spremio) || texto(d.siof)) && Number.isFinite(a) && a !== b) diferentes.push(`Prêmio + IOF: ${dinheiro(a)} × ${dinheiro(b)}`);
@@ -260,17 +276,19 @@
             if (texto(d.ssituacao) && !situacoes.has(rotulo(d.ssituacao))) erros.push('Situação não reconhecida');
             for (const [k,max] of Object.entries(textos)) {
                 if (!camposDoRisco(r.stipo, k)) continue;
+                // Não mascare o valor monetário de Vidros importado de modelos anteriores.
+                if (k === 'svidro' && !texto(d[k])) continue;
                 r[k] = texto(d[k]) || (k === 'smodelo' ? texto(v?.vmodelo) : '');
                 if (r[k].length > max) erros.push(`${nomes[k][0]}: texto acima de ${max} caracteres`);
             }
-            for (const k of valores) {
+            for (const k of numericos) {
                 if (!camposDoRisco(r.stipo, k)) continue;
-                r[k] = lerCentavos(d[k], seguros);
-                if (Number.isNaN(r[k])) erros.push(`${nomes[k][0]}: valor inválido`);
+                r[k] = k === 'sfipePercent' ? seguros.lerFipePercent(d[k]) : lerCentavos(d[k], seguros);
+                if (Number.isNaN(r[k])) erros.push(`${k === 'sfipePercent' ? 'FIPE %' : nomes[k][0]}: valor inválido`);
             }
             const avisos = [], totalExcel = lerCentavos(d.totalExcel, seguros), calculado = totalCalculado(r, seguros);
             if (r.stipo === 'principal' || r.stipo === 'segundo') {
-                const semCampo = [...Object.keys(textos), ...valores]
+                const semCampo = [...Object.keys(textos), ...numericos]
                     .filter(k => texto(d[k]) && !camposDoRisco(r.stipo, k));
                 if (semCampo.length) avisos.push(`Este tipo de seguro não grava: ${semCampo.map(k => `${rotuloCampo(k)} (${texto(d[k])})`).join(', ')}.`);
             }
@@ -311,10 +329,12 @@
             if ((original || faixa)?.e.r >= 5000 || faixa?.e.c >= 100) throw new Error('Use até 5.000 linhas e 100 colunas por aba.');
             const range = faixa && { s: { r: faixa.s.r, c: 0 }, e: faixa.e };
             const dados = x.utils.sheet_to_json(aba, { header: 1, defval: '', blankrows: true, raw: true, range });
-            // Mantém zeros à esquerda em números de apólice formatados no Excel.
+            const percentuais = new Map();
+            // Mantém zeros à esquerda em apólices e identifica percentuais formatados pelo Excel.
             if (faixa) dados.forEach((row, i) => row.forEach((v, c) => {
                 const cel = aba[x.utils.encode_cell({ r: faixa.s.r + i, c })];
                 if (typeof v === 'number' && /^0\d+$/.test(cel?.w || '')) row[c] = cel.w;
+                if (typeof v === 'number' && /%\s*$/.test(cel?.w || '')) percentuais.set(i * 100 + c, `${Number((v * 100).toFixed(8))}%`);
             }));
             const deslocar = p => ({ r: p.r - (faixa?.s.r ?? 0), c: p.c });
             const mesclas = (aba['!merges'] || []).map(({ s, e }) => ({ s: deslocar(s), e: deslocar(e) }))
@@ -333,7 +353,7 @@
                 const r = aba['!rows']?.[(faixa?.s.r ?? 0) + i];
                 return r?.hpx ?? r?.hpt * 4 / 3;
             });
-            return { nome, dados, exibicao, primeiraLinha: (faixa?.s.r ?? 0) + 1, mesclas, larguras, alturas, fundos };
+            return { nome, dados, exibicao, primeiraLinha: (faixa?.s.r ?? 0) + 1, mesclas, larguras, alturas, fundos, percentuais };
         });
         if (receberLivro) receberLivro(abas);
         const layouts = {};
@@ -345,9 +365,11 @@
         if (livro.Workbook?.WBProps?.date1904) throw new Error('Salve uma cópia da planilha com o sistema de datas de 1900 antes de importar.');
         if (linhas.length > 5000) throw new Error('A planilha contém mais de 5.000 linhas de seguro. Divida em arquivos menores.');
         receberModelos?.(layouts);
-        if (!linhas.length) throw new Error(Object.keys(layouts).length
-            ? 'O modelo da tabela foi carregado. Não há linhas de seguro para importar neste arquivo.'
-            : 'Nenhuma linha de seguro encontrada. Confira se existe uma coluna Placa abaixo dos dados da apólice.');
+        if (!linhas.length) throw new Error(layouts.segundo?.length
+            ? 'O modelo da tabela do 2º risco foi carregado. Não há linhas de seguro para importar neste arquivo.'
+            : Object.keys(layouts).length
+                ? 'A planilha tem cabeçalhos, mas não contém linhas de seguro para importar.'
+                : 'Nenhuma linha de seguro encontrada. Confira se existe uma coluna Placa abaixo dos dados da apólice.');
         return linhas;
     }
     const esc = v => texto(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -372,6 +394,7 @@
         if (k === 'stipo') return grupos.find(([id]) => id === r.stipo)?.[1] || texto(celula) || '—';
         if (k === 'sinicio' || k === 'svencimento') return r[k] ? br(r[k]) : texto(celula) || '—';
         if (k === 'total' || k === 'totalExcel') return dinheiro(r.spremio == null && r.siof == null ? null : (r.spremio || 0) + (r.siof || 0));
+        if (k === 'sfipePercent') return Number.isFinite(r[k]) ? new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 2 }).format(r[k] / 10000) : texto(celula) || '—';
         if (monetario(k)) return Number.isFinite(r[k]) ? dinheiro(r[k]) : emRevisao || r[k] === undefined ? texto(celula) || '—' : '—';
         if (k === 'ssituacao') return r[k] ? r[k].charAt(0).toUpperCase() + r[k].slice(1) : emRevisao ? texto(celula) || '—' : '—';
         return texto(r[k]) || (emRevisao || r[k] === undefined ? texto(celula) : '') || '—';
@@ -454,14 +477,14 @@
     }
     const grupos = [['principal','Seguro principal'], ['segundo','2º risco'], ['', 'Tipo não identificado']];
     const estados = { nova: 'Nova', duplicada: 'Duplicada', invalida: 'Não importável' };
-    const camposEdicao = ['sveiculo','sseguradora','sapolice','scorretora','sinicio','svencimento','ssituacao', ...Object.keys(textos), ...valores];
+    const camposEdicao = ['sveiculo','sseguradora','sapolice','scorretora','sinicio','svencimento','ssituacao', ...Object.keys(textos), ...numericos];
     const selecionadasValidas = (resultado, indices) => {
         const marcadas = new Set(indices);
         return resultado.filter(l => l.status === 'nova' && marcadas.has(l.indice));
     };
     function montar({ botao, painel, resultado: tabelaSalva, seguros, veiculos, lista, podeGravar, gravar, ocupado, receberModelos }) {
         painel.innerHTML = `<h5>Importação de seguros</h5>
-            <p>Selecione a <strong>FROTA.xlsx</strong> para preencher as colunas da tabela de Seguros. Revise e selecione as linhas que deseja gravar. A importação não sobrescreve registros existentes nem altera o Histórico.</p>
+            <p>Selecione a <strong>FROTA.xlsx</strong>. As colunas do Seguro principal são reconhecidas automaticamente. Revise e selecione as linhas que deseja gravar. A importação não sobrescreve registros existentes nem altera o Histórico.</p>
             <div id="fmSeg_areaArquivo" class="fm-seg-area-arquivo">
                 <label for="fmSeg_arquivo" class="form-label fw-semibold">Selecione ou arraste a planilha de seguros (.xlsx ou .xls)</label>
                 <input id="fmSeg_arquivo" type="file" accept=".xlsx,.xls" class="form-control" aria-describedby="fmSeg_nomeArquivo">
@@ -602,7 +625,7 @@
             const tipo = editor.querySelector('[name="stipo"]').value;
             editor.querySelectorAll('[data-seg-campo]').forEach(label => {
                 const k = label.dataset.segCampo;
-                label.hidden = (k in textos || valores.includes(k)) && tipo && !camposDoRisco(tipo, k);
+                label.hidden = (k in textos || numericos.includes(k)) && tipo && !camposDoRisco(tipo, k);
             });
         }
         function fecharEditor(salvar) {

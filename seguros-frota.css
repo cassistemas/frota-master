@@ -40,3 +40,5 @@
 #fmApolices .fm-seg-tabela-planilha :is(th,td){border:1px solid var(--bs-border-color,#dbe3ef)}
 #fmApolices .fm-seg-tabela-planilha :is(thead,tfoot) :is(th,td){--bs-table-bg:var(--bs-tertiary-bg,#e9eef5)}
 #fmApolices .fm-seg-valor{font-variant-numeric:tabular-nums;text-align:right}
+#fmApolices .fm-seg-tabela-principal thead th{font-size:.78rem;letter-spacing:.02em}
+#fmApolices .fm-seg-tabela-principal thead th:nth-child(2){min-width:12rem}

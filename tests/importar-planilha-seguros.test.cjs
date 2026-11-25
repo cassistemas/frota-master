@@ -82,19 +82,21 @@ test('lê o arquivo selecionado no navegador e preserva zeros da apólice format
     assert.equal(validar(r)[0].registro.sapolice, '001');
 });
 
-function ambiente(gravar) {
+function ambiente(gravar, layouts = {}) {
     let opcoes;
     const db = { seguros: [{ ...legado }], veiculos: [...cadastro] };
     const campos = new Map();
+    const eventos = {};
     const host = {
         addEventListener() {}, querySelectorAll: () => [],
         set innerHTML(html) {
             for (const [, id] of html.matchAll(/id="(fmSeg_\w+)"/g)) campos.set(id, {
-                value: '', parentElement: {}, selectedOptions: [], add() {}, reset() {}, addEventListener() {},
+                value: '', parentElement: { firstElementChild: {} }, selectedOptions: [], add() {}, reset() {},
+                addEventListener(nome, funcao) { eventos[`${id}:${nome}`] = funcao; },
             });
         },
     };
-    const window = { fmModuloCarregado: () => true, addEventListener() {}, FMImportarSeguros: {
+    const window = { fmModuloCarregado: () => true, localStorage: { getItem: () => JSON.stringify(layouts) }, addEventListener() {}, FMImportarSeguros: {
         ...importador, montar(o) { opcoes = o; },
     } };
     vm.runInNewContext(fs.readFileSync(require.resolve('../seguros-frota.js'), 'utf8'), {
@@ -105,26 +107,66 @@ function ambiente(gravar) {
         fmPrepararRegistro: (mod, r) => ({ ...r, _rid: `${mod}-${r.sveiculo}` }), salvarNuvem: gravar,
     });
     window.FMSegurosFrota.render();
-    return { db, opcoes, campos };
+    return { db, opcoes, campos, eventos };
 }
 
-test('a tabela de Seguros mantém o modelo com zero linhas e mostra os campos importados após gravar', async () => {
-    const { db, opcoes, campos } = ambiente(async (_, { aoEstado }) => { aoEstado('confirmado'); return true; });
-    const linhas = ler('Seguro principal', [colunas.concat('Limite especial'), linha('ABC1D23').concat('Conforme contrato')]);
+test('Seguro principal usa os novos campos também no cadastro manual', async () => {
+    const envios = [];
+    const { db, campos, eventos } = ambiente(async mods => { envios.push([...mods]); return true; });
+    for (const [k, v] of Object.entries({ stipo: 'principal', sseguradora: 'Seguradora A', sapolice: '001',
+        sinicio: '2026-01-01', svencimento: '2026-12-31', sveiculo: 'ABC-1D23', smodelo: 'Scania R 450',
+        sfipePercent: '112,50%', sfqaVeiculo: '1.200,00', sfqaCarroceria: '350,00', svidro: 'BÁSICO',
+        sguincho: '600', spremio: '100,00', siof: '9,50' })) campos.get(`fmSeg_${k}`).value = v;
+    assert.equal(campos.get('fmSeg_smodelo').parentElement.firstElementChild.textContent, 'Descrição do veículo');
+    assert.equal(campos.get('fmSeg_sfipePercent').parentElement.hidden, false);
+    assert.equal(campos.get('fmSeg_sgru').parentElement.hidden, true);
+    eventos['fmSeg_form:submit']({ preventDefault() {} });
+    await Promise.resolve();
+    assert.deepEqual(envios, [['seguros']]);
+    const r = db.seguros[1];
+    assert.deepEqual([r.smodelo, r.sfipePercent, r.sfqaVeiculo, r.sfqaCarroceria, r.svidro, r.sguincho, seguros.total(r)],
+        ['Scania R 450', 11250, 120000, 35000, 'BÁSICO', '600', 10950]);
+    assert.equal(r.sfipe, undefined);
+});
+
+test('Seguro principal mantém a grade fixa e grava a descrição sem título, a FIPE % e o vidro em texto', async () => {
+    const modeloAntigo = importador.modeloPadrao([['sveiculo', 'Placa antiga'], ['sfipe', 'Valor FIPE']]);
+    const { db, opcoes, campos } = ambiente(async (_, { aoEstado }) => { aoEstado('confirmado'); return true; }, { principal: [modeloAntigo] });
+    const cab = ['PLACA', '', 'FIPE %', 'FQA VEÍCULO', 'FQA CARROCERIA', 'D. MATERIAIS', 'D. CORPORAIS', 'D. MORAIS', 'CARROCERIA', 'VIDRO', 'GUINCHO KM', 'PRÊMIO', 'IOF', 'TOTAL'];
+    const dados = [
+        ['Seguradora', 'Seguradora A'], ['Apólice', '001'], ['Vigência', '01/01/2026 a 31/12/2026'],
+        cab.concat('Valor FIPE', 'Limite especial'),
+        ['ABC1D23', 'Scania R 450', 1.125, 1200, 350, 100000, 200000, 15000, 6000, 'BÁSICO', 600, 100, 9.5, 109.5, 450000, 'Conforme contrato'],
+    ];
+    const planilha = { '!ref': 'A1:P5', '4:2': { w: '112,50%' } };
+    const x = { read: () => ({ SheetNames: ['FROTA'], Sheets: { FROTA: planilha } }), utils: {
+        decode_range: () => ({ s: { r: 0, c: 0 }, e: { r: 4, c: 15 } }),
+        sheet_to_json: () => dados, encode_cell: ({ r, c }) => `${r}:${c}`,
+    } };
     const tabela = campos.get('fmSeg_resultado');
-    opcoes.receberModelos({ principal: [linhas[0].layout] });
-    assert.match(tabela.innerHTML, /Placa.*Seguradora.*Apólice.*Total.*Limite especial/);
+    const titulos = () => [...tabela.innerHTML.matchAll(/<th scope="col"[^>]*>([^<]*)<\/th>/g)].map(m => m[1]);
+    assert.deepEqual(titulos(), [...cab, 'Ações']);
     assert.match(tabela.innerHTML, /Nenhum registro nesta aba/);
+    assert.match(tabela.innerHTML, /<tfoot>.*Subtotal · 0 placa\(s\)/);
+    const linhas = await importador.lerArquivo({ name: 'FROTA.xlsx', size: 8, arrayBuffer: async () => new ArrayBuffer(8) }, x, null, false, opcoes.receberModelos);
+    assert.deepEqual(titulos(), [...cab, 'Ações']);
     assert.equal(db.seguros.length, 1);
 
-    const revisao = JSON.stringify(validar(linhas));
-    assert.equal((await opcoes.gravar(linhas, [0], revisao, () => {})).status, 'confirmado');
-    assert.match(tabela.innerHTML, /Placa.*Seguradora.*Apólice.*Total.*Limite especial.*ABC-1D23.*Conforme contrato/);
+    const [item] = validar(linhas);
+    assert.equal(item.status, 'nova');
+    assert.equal(item.registro.sfipePercent, 11250);
+    assert.equal(item.registro.sfipe, 45000000);
+    assert.equal(item.registro.sfqaVeiculo, 120000);
+    assert.equal(item.registro.sfqaCarroceria, 35000);
+    assert.deepEqual([item.registro.smateriais, item.registro.scorporais, item.registro.smorais, item.registro.scarroceria],
+        [10000000, 20000000, 1500000, 600000]);
+    assert.equal(item.registro.svidro, 'BÁSICO');
+    assert.equal(item.registro.sguincho, '600');
+    assert.equal((await opcoes.gravar(linhas, [0], JSON.stringify([item]), () => {})).status, 'confirmado');
+    assert.deepEqual(titulos(), [...cab, 'Ações']);
+    assert.match(tabela.innerHTML, /ABC-1D23.*Scania R 450.*112,50%.*BÁSICO/);
+    assert.match(tabela.innerHTML, /<tfoot>.*100,00.*9,50.*109,50/);
     assert.equal(db.seguros[1].splanilha.celulas.at(-1), 'Conforme contrato');
-
-    campos.get('fmSeg_fPlaca').value = 'ZZZ';
-    opcoes.receberModelos({ principal: [linhas[0].layout] });
-    assert.match(tabela.innerHTML, /Limite especial.*Nenhum registro nesta aba/);
 });
 
 test('confirma só após revalidar a prévia e chama a gravação compartilhada uma vez para o lote', async () => {

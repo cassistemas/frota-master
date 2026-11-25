@@ -4,11 +4,14 @@
     const situacoes = { pendente: 'Pendente', aprovada: 'Aprovada', reprovada: 'Reprovada', cancelada: 'Cancelada' };
     const comum = [['spremio','Prêmio'], ['siof','IOF'], ['total','Total']];
     const colunas = {
-        principal: [['sveiculo','Placa'], ['smodelo','Modelo'], ['sano','Ano'], ['sfipe','FIPE'], ['smateriais','Danos materiais'], ['scorporais','Danos corporais'], ['smorais','Danos morais'], ['scarroceria','Carroceria'], ['svidros','Vidros'], ['sguincho','Guincho'], ...comum],
+        principal: [['sveiculo','PLACA'], ['smodelo',''], ['sfipePercent','FIPE %'], ['sfqaVeiculo','FQA VEÍCULO'], ['sfqaCarroceria','FQA CARROCERIA'], ['smateriais','D. MATERIAIS'], ['scorporais','D. CORPORAIS'], ['smorais','D. MORAIS'], ['scarroceria','CARROCERIA'], ['svidro','VIDRO'], ['sguincho','GUINCHO KM'], ['spremio','PRÊMIO'], ['siof','IOF'], ['total','TOTAL']],
         segundo: [['sveiculo','Placa'], ['smodelo','Modelo'], ['sgru','GRU'], ['smorais','Danos morais'], ...comum],
         legado: [['sveiculo','Placa'], ['smodelo','Modelo'], ['sseguradora','Seguradora'], ['svencimento','Vencimento'], ['prazo','Alerta']]
     };
-    const dinheiro = new Set(['sfipe','smateriais','scorporais','smorais','scarroceria','svidros','sgru','spremio','siof','total']);
+    const dinheiro = new Set(['sfipe','sfqaVeiculo','sfqaCarroceria','smateriais','scorporais','smorais','scarroceria','svidros','sgru','spremio','siof','total']);
+    const camposVeiculo = [...colunas.principal.slice(1, -3), ['sgru','GRU'], ...colunas.principal.slice(-3)];
+    const limitesTexto = { smodelo: 120, svidro: 80, sguincho: 80 };
+    const rotulosForm = { smodelo: 'Descrição do veículo', total: 'Total (prêmio + IOF)' };
     const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
     const decimal = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const texto = v => String(v == null ? '' : v).trim();
@@ -28,6 +31,13 @@
         const n = Number(p[1]) * 100 + Number((p[2] || '').padEnd(2, '0'));
         return Number.isSafeInteger(n) && n <= 999999999999 ? n : NaN;
     }
+    function lerFipePercent(v) {
+        const s = texto(v);
+        if (!s) return null;
+        if (!/^\d+(?:[,.]\d{1,2})?\s*%?$/.test(s)) return NaN;
+        return centavos(s.replace(/\s*%$/, ''));
+    }
+    const formatarFipePercent = v => Number.isFinite(v) ? decimal.format(v/100) + '%' : '';
     function total(r) {
         if (r.spremio == null && r.siof == null) return null;
         return (r.spremio || 0) + (r.siof || 0);
@@ -52,7 +62,7 @@
         });
         return [...grupos.values()];
     }
-    const api = { centavos, total, subtotal, prazo, apolice, agrupar };
+    const api = { centavos, lerFipePercent, formatarFipePercent, total, subtotal, prazo, apolice, agrupar };
     if (typeof module === 'object' && module.exports) { module.exports = api; return; }
     root.FMSegurosFrota = api;
 
@@ -66,9 +76,9 @@
     let layoutsExcel = {};
     try { layoutsExcel = JSON.parse(root.localStorage?.getItem(chaveModelo) || '{}') || {}; } catch (_) { /* Sem armazenamento local. */ }
     function adotarModelo(modelos) {
-        if (!Object.keys(modelos).length) return;
-        // Somente os cabeçalhos da tabela ficam no dispositivo, não o arquivo nem as linhas.
-        layoutsExcel = { ...layoutsExcel, ...modelos };
+        if (!modelos.segundo?.length) return;
+        // Apenas o 2º risco mantém o cabeçalho variável do Excel no dispositivo.
+        layoutsExcel = { ...layoutsExcel, segundo: modelos.segundo };
         try { root.localStorage?.setItem(chaveModelo, JSON.stringify(layoutsExcel)); } catch (_) { /* Mantém em memória. */ }
         consultar();
     }
@@ -85,17 +95,19 @@
     }
     const op = (value, label) => '<option value="' + esc(value) + '">' + esc(label) + '</option>';
     const ops = obj => Object.entries(obj).map(([v,l]) => op(v,l)).join('');
-    const input = (k, label, attrs = '') => '<label>'+esc(label)+'<input id="fmSeg_'+k+'" class="form-control" '+attrs+'></label>';
+    const input = (k, label, attrs = '') => '<label><span>'+esc(label)+'</span><input id="fmSeg_'+k+'" class="form-control" '+attrs+'></label>';
     const select = (k, label, options) => '<label>'+esc(label)+'<select id="fmSeg_'+k+'" class="form-select">'+options+'</select></label>';
     const exMoeda = v => v == null ? '—' : moeda.format(v/100);
     function campoValor(k, r) {
         if (k === 'total') return total(r);
         if (k === 'prazo') return prazo(r.svencimento)[1];
+        if (k === 'svidro' && r.svidro == null && Number.isFinite(r.svidros)) return exMoeda(r.svidros);
         return r[k];
     }
     function tabelaValor(k, r) {
         const v = campoValor(k, r);
         if (k === 'prazo') return alerta(r);
+        if (k === 'sfipePercent') return esc(formatarFipePercent(v) || '—');
         return esc(dinheiro.has(k) ? exMoeda(v) : k === 'svencimento' ? dataBR(v) || '—' : texto(v) || '—');
     }
     function alerta(r) {
@@ -122,13 +134,8 @@
                 <h5>Veículo e coberturas</h5>
                 <div class="fm-seg-grid">
                     ${select('sveiculo','Placa',op('','Selecione'))}
-                    ${input('smodelo','Modelo','maxlength="120"')}
-                    ${input('sano','Ano / modelo','maxlength="16"')}
-                    ${[['sfipe','FIPE'],['smateriais','Danos materiais'],['scorporais','Danos corporais'],['smorais','Danos morais'],['scarroceria','Carroceria'],['svidros','Vidros'],['sgru','GRU']].map(([k,l])=>input(k,l+' (R$)','inputmode="decimal" maxlength="20"')).join('')}
-                    ${input('sguincho','Guincho (limite ou km)','maxlength="80"')}
-                    ${input('spremio','Prêmio (R$)','inputmode="decimal" maxlength="20"')}
-                    ${input('siof','IOF (R$)','inputmode="decimal" maxlength="20"')}
-                    ${input('total','Total (prêmio + IOF)','readonly')}
+                    ${camposVeiculo.map(([k,l]) => input(k, rotulosForm[k] || l + (dinheiro.has(k) ? ' (R$)' : ''),
+                        k === 'total' ? 'readonly' : k === 'sfipePercent' ? 'inputmode="decimal" maxlength="20" placeholder="Ex.: 100%"' : dinheiro.has(k) ? 'inputmode="decimal" maxlength="20"' : `maxlength="${limitesTexto[k]}"`)).join('')}
                 </div>
                 <div class="fm-seg-acoes">
                     <button type="button" id="fmSeg_cancelar" class="btn btn-outline-secondary" hidden>Cancelar edição</button>
@@ -178,9 +185,6 @@
         const v = veiculos().find(x => placa(x.vplaca) === p);
         const d = typeof db === 'object' && db && Array.isArray(db.detran) ? db.detran.find(x => placa(x.dtPlaca) === p) : null;
         campo('smodelo').value = texto(v?.vmodelo || d?.dtMarca);
-        campo('sano').value = texto([d?.dtAnoFab, d?.dtAnoMod].filter(Boolean).join('/'));
-        const f = centavos(d?.dtFipeValor);
-        campo('sfipe').value = Number.isFinite(f) ? decimal.format(f/100) : '';
     }
     function preencherPlacas(atual) {
         const vistos = new Set();
@@ -229,8 +233,12 @@
             c.disabled = vinculada || c.parentElement.hidden;
         });
         campo('sapolice').required = campo('sinicio').required = t !== 'legado';
-        ['smodelo','sano','sfipe','smateriais','scorporais','smorais','scarroceria','svidros','sguincho','sgru','spremio','siof','total'].forEach(k => {
-            campo(k).parentElement.hidden = !visiveis.has(k);
+        camposVeiculo.forEach(([k]) => {
+            const c = campo(k);
+            c.parentElement.hidden = !visiveis.has(k);
+            const rotulo = c.parentElement.firstElementChild;
+            const nome = colunas[t].find(([chave]) => chave === k)?.[1];
+            if (rotulo && visiveis.has(k)) rotulo.textContent = k === 'total' || !nome ? rotulosForm[k] : nome + (dinheiro.has(k) ? ' (R$)' : '');
         });
         preverTotal();
     }
@@ -261,7 +269,8 @@
         preencherPlacas(r.sveiculo);
         colunas[t].forEach(([k]) => {
             if (['sveiculo','sseguradora','svencimento','prazo','total'].includes(k)) return;
-            campo(k).value = dinheiro.has(k) && r[k] != null ? decimal.format(r[k]/100) : texto(r[k]);
+            const v = campoValor(k, r);
+            campo(k).value = k === 'sfipePercent' ? formatarFipePercent(v) : dinheiro.has(k) && v != null ? decimal.format(v/100) : texto(v);
         });
         campo('titulo').textContent = 'Editar registro · ' + r.sveiculo;
         campo('editor').open = true;
@@ -296,11 +305,11 @@
         const v = veiculos().find(x => placa(x.vplaca) === placa(selecionada));
         if (!v && !(anterior && placa(anterior.sveiculo) === placa(selecionada))) return aviso('Selecione uma placa cadastrada.');
         r.sveiculo = v ? v.vplaca : anterior.sveiculo;
-        const camposLinha = new Set(colunas[t].map(([k]) => k));
-        for (const k of ['smodelo','sano','sfipe','smateriais','scorporais','smorais','scarroceria','svidros','sguincho','sgru','spremio','siof']) {
-            if (!camposLinha.has(k)) continue;
-            const valor = dinheiro.has(k) ? centavos(campo(k).value) : texto(campo(k).value);
-            if (Number.isNaN(valor)) return aviso('Revise o valor de ' + colunas[t].find(([c]) => c === k)[1] + '. Use um valor positivo ou zero, com até duas casas decimais.');
+        for (const [k, nome] of colunas[t]) {
+            if (!camposVeiculo.some(([c]) => c === k) || k === 'total') continue;
+            const v = campo(k).value;
+            const valor = k === 'sfipePercent' ? lerFipePercent(v) : dinheiro.has(k) ? centavos(v) : texto(v);
+            if (Number.isNaN(valor)) return aviso('Revise o valor de ' + nome + '. Use um valor positivo ou zero, com até duas casas decimais.');
             r[k] = valor;
         }
         const alvo = apolice(r);
@@ -408,10 +417,10 @@
         });
         const botaoExportar = campo('exportar');
         if (botaoExportar) botaoExportar.disabled = !registros.length;
-        const trabalho = aba !== 'legado' && root.FMImportarSeguros;
+        const trabalho = aba === 'segundo' && root.FMImportarSeguros;
         const modelos = trabalho ? modelosDoTipo(aba, geral) : [];
         const vazio = root.fmModuloCarregado?.('seguros') ? 'Nenhum registro nesta aba para os filtros informados.' : 'Aguardando o carregamento dos seguros…';
-        if (!registros.length) {
+        if (!registros.length && aba !== 'principal') {
             campo('resultado').textContent = vazio;
             if (trabalho?.gradeTrabalho) {
                 const layouts = modelos.length ? modelos : [trabalho.modeloPadrao(col)];
@@ -422,9 +431,15 @@
         }
         const linhas = new Map(geral.map((r,i) => [r,i]));
         const classeValor = k => dinheiro.has(k) ? ' class="fm-seg-valor"' : '';
-        const th = col.map(([k,l]) => `<th scope="col"${classeValor(k)}>${esc(l)}</th>`).join('') + '<th scope="col">Ações</th>';
+        const th = col.map(([k,l]) => `<th scope="col"${classeValor(k)}${!l ? ' aria-label="Descrição do veículo"' : ''}>${esc(l)}</th>`).join('') + '<th scope="col">Ações</th>';
         const acoesLinha = r => `<td class="fm-seg-linha-acoes"><button type="button" class="btn-edit" data-seg-editar="${linhas.get(r)}" aria-label="Editar ${esc(r.sveiculo)}" title="Editar">✎</button> <button type="button" class="btn-del" data-seg-excluir="${linhas.get(r)}" aria-label="Excluir ${esc(r.sveiculo)}" title="Excluir">✕</button></td>`;
         const tr = r => `<tr>${col.map(([k])=>`<td${classeValor(k)}>${tabelaValor(k,r)}</td>`).join('')}${acoesLinha(r)}</tr>`;
+        const rodapeFixo = itens => `<tfoot><tr><th scope="row" colspan="${col.length - 3}">Subtotal · ${itens.length} placa(s)</th>${comum.map(([k])=>`<td${classeValor(k)}>${exMoeda(subtotal(itens,k))}</td>`).join('')}<td></td></tr></tfoot>`;
+        const classeGrade = 'table align-middle fm-seg-tabela-planilha' + (aba === 'principal' ? ' fm-seg-tabela-principal' : '');
+        if (!registros.length) {
+            campo('resultado').innerHTML = `<div class="table-responsive" role="region" tabindex="0" aria-label="Tabela do Seguro principal"><table class="${classeGrade}"><thead><tr>${th}</tr></thead><tbody><tr><td colspan="${col.length + 1}">${esc(vazio)}</td></tr></tbody>${rodapeFixo(registros)}</table></div>`;
+            return;
+        }
         if (aba === 'legado') {
             campo('resultado').innerHTML = `<p>Cadastros anteriores, sem identificação de apólice. Para completar um registro, edite-o e escolha Seguro principal ou 2º risco.</p><div class="table-responsive"><table class="table table-striped align-middle"><thead><tr>${th}</tr></thead><tbody>${registros.map(tr).join('')}</tbody></table></div>`;
             return;
@@ -457,7 +472,7 @@
                 }).join('');
                 return `<section class="fm-seg-apolice"><div class="fm-seg-cab"><div><h5>Apólice ${esc(r.sapolice || '—')} · ${esc(r.sseguradora || '—')}</h5><div>Corretora: ${esc(r.scorretora || '—')} · Vigência: ${esc(dataBR(r.sinicio) || '—')} a ${esc(dataBR(r.svencimento) || '—')}</div></div><div><span class="fm-seg-situacao">${esc(situacoes[r.ssituacao] || 'Situação não informada')}</span> ${alerta(r)}</div></div>${tabelas}</section>`;
             }
-            return `<section class="fm-seg-apolice"><div class="fm-seg-cab"><div><h5>Apólice ${esc(r.sapolice || '—')} · ${esc(r.sseguradora || '—')}</h5><div>Corretora: ${esc(r.scorretora || '—')} · Vigência: ${esc(dataBR(r.sinicio) || '—')} a ${esc(dataBR(r.svencimento) || '—')}</div></div><div><span class="fm-seg-situacao">${esc(situacoes[r.ssituacao] || 'Situação não informada')}</span> ${alerta(r)}</div></div><div class="table-responsive" role="region" tabindex="0" aria-label="Placas da apólice ${esc(r.sapolice || '—')}"><table class="table align-middle fm-seg-tabela-planilha"><thead><tr>${th}</tr></thead><tbody>${itens.map(tr).join('')}</tbody><tfoot><tr><th scope="row" colspan="${col.length - 3}">Subtotal · ${itens.length} placa(s)</th>${comum.map(([k])=>`<td${classeValor(k)}>${exMoeda(subtotal(itens,k))}</td>`).join('')}<td></td></tr></tfoot></table></div></section>`;
+            return `<section class="fm-seg-apolice"><div class="fm-seg-cab"><div><h5>Apólice ${esc(r.sapolice || '—')} · ${esc(r.sseguradora || '—')}</h5><div>Corretora: ${esc(r.scorretora || '—')} · Vigência: ${esc(dataBR(r.sinicio) || '—')} a ${esc(dataBR(r.svencimento) || '—')}</div></div><div><span class="fm-seg-situacao">${esc(situacoes[r.ssituacao] || 'Situação não informada')}</span> ${alerta(r)}</div></div><div class="table-responsive" role="region" tabindex="0" aria-label="Placas da apólice ${esc(r.sapolice || '—')}"><table class="${classeGrade}"><thead><tr>${th}</tr></thead><tbody>${itens.map(tr).join('')}</tbody>${rodapeFixo(itens)}</table></div></section>`;
         }).join('');
     }
     function acoes(e) {
@@ -504,6 +519,7 @@
             itens.forEach(r => dados.push(col.map(([k])=>{
                 const v = campoValor(k,r);
                 if (dinheiro.has(k)) return v == null ? null : v/100;
+                if (k === 'sfipePercent') return Number.isFinite(v) ? v/10000 : null;
                 if (k === 'ssituacao') return situacoes[v] || '';
                 return v ?? '';
             })));
@@ -513,10 +529,12 @@
             }));
         }
         const x = root.XLSX, planilha = x.utils.aoa_to_sheet(dados), livro = x.utils.book_new();
-        planilha['!cols'] = col.map(([,l])=>({wch:Math.max(14,l.length + 2)}));
+        planilha['!cols'] = col.map(([,l])=>({wch:l ? Math.max(14,l.length + 2) : 28}));
         for (let i = 1; i < dados.length; i++) col.forEach(([k],j)=>{
             const c = planilha[x.utils.encode_cell({r:i,c:j})];
-            if (dinheiro.has(k) && c?.t === 'n') c.z = '"R$" #,##0.00';
+            if (c?.t !== 'n') return;
+            if (dinheiro.has(k)) c.z = '"R$" #,##0.00';
+            if (k === 'sfipePercent') c.z = '0.00%';
         });
         x.utils.book_append_sheet(livro,planilha,tipos[aba]);
         x.writeFile(livro,'seguros-'+aba+'.xlsx');
