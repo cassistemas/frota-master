@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { centavos, total, subtotal, prazo, apolice, agrupar } = require('../seguros-frota.js');
+const { centavos, total, subtotal, resumoSeguros, prazo, apolice, agrupar } = require('../seguros-frota.js');
 
 const base = { stipo: 'principal', sseguradora: 'Seguradora Á', sapolice: '001', sinicio: '2026-01-01', svencimento: '2026-12-31', sveiculo: 'ABC1D23' };
 
@@ -17,6 +17,18 @@ test('prêmio e IOF são somados em centavos, sem incluir valores de cobertura',
     assert.equal(total({ sfipe: 500000 }), null);
     assert.equal(subtotal([{ spremio: 10, siof: 20 }, { spremio: 40 }, {}], 'total'), 70);
     assert.equal(subtotal([{},{}], 'spremio'), null);
+});
+
+test('o resumo conta placas únicas e soma prêmio e IOF das duas abas, sem o Histórico', () => {
+    const registros = [
+        { ...base, sveiculo: 'ABC-1D23', spremio: 123456, siof: 25, sfipe: 9000000 },
+        { ...base, sapolice: '002', spremio: 19 },
+        { ...base, stipo: 'segundo', sveiculo: 'abc1d23', siof: 150 },
+        { ...base, stipo: 'segundo', sveiculo: 'XYZ4J56' },
+        { sveiculo: 'HIS1A23', spremio: 30000, siof: 500 },
+    ];
+    assert.deepEqual(resumoSeguros(registros), { veiculos: 2, principal: 123500, segundo: 150, total: 123650 });
+    assert.deepEqual(resumoSeguros([]), { veiculos: 0, principal: 0, segundo: 0, total: 0 });
 });
 
 test('placas diferentes compartilham a apólice, mas tipos e vigências não se misturam', () => {
@@ -178,11 +190,20 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
 
     carregado = true;
     const importado = { ...base, sfipe: 25000000, sfipePercent: 10000, svidro: 'BÁSICO', splanilha: { layout: { cab: [['PLACA', 'FIPE %', 'VIDRO']] } } };
-    db.seguros = [importado, { ...base, stipo: 'segundo', sveiculo: 'XYZ4J56' }, {
+    db.seguros = [importado, { ...base, stipo: 'segundo', sveiculo: 'XYZ4J56', spremio: 50669, siof: 3739 }, {
         sveiculo: 'HIS1A23', sseguradora: 'Seguradora anterior', svencimento: '2025-12-31',
     }];
     window.FMSegurosFrota.render();
     assert.equal(excel.disabled, false);
+    const resumo = campos.get('fmSeg_resumo');
+    assert.equal(resumo.hidden, false);
+    const cards = [...resumo.innerHTML.matchAll(/<dt>(.*?)<\/dt><dd>(.*?)<\/dd>/g)]
+        .map(([, rotulo, valor]) => [rotulo, valor.replace(/\s/g, ' ')]);
+    assert.deepEqual(cards, [
+        ['Veículos segurados', '2'], ['Seguro principal', 'R$ 0,00'],
+        ['2º risco', 'R$ 544,08'], ['Valor total', 'R$ 544,08'],
+    ]);
+    const resumoGeral = resumo.innerHTML;
     const cabecalhoPrincipal = ['PLACA', '', 'FIPE %', 'FIPE VEÍCULO', 'FIPE CARROCERIA', 'D. MATERIAIS', 'D. CORPORAIS', 'D. MORAIS', 'CARROCERIA', 'VIDROS', 'GUINCHO KM', 'PRÊMIO', 'IOF', 'TOTAL'];
     assert.equal(campos.has('fmSeg_importar'), false);
     assert.equal(campos.has('fmSeg_sano'), false);
@@ -259,6 +280,8 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
         assert.match(resultado.innerHTML, /<table\b/);
         assert.ok(resultado.innerHTML.includes(i === 2 ? `<td>${placa}</td>` : `</button>${placa}</td>`));
         assert.equal(resultado.innerHTML.includes('data-seg-visualizar='), i !== 2);
+        assert.equal(resumo.hidden, i === 2);
+        if (i !== 2) assert.equal(resumo.innerHTML, resumoGeral);
     }
 
     aoClicar({ target: abas[0] });
@@ -267,6 +290,7 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     const filtro = campos.get('fmSeg_fPlaca');
     filtro.value = 'SEM PLACA';
     filtro.eventos.input();
+    assert.equal(resumo.innerHTML, resumoGeral);
     assert.equal(gerenciar.hidden, true);
     assert.equal(registro.value, '');
     filtro.value = '';

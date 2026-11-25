@@ -68,6 +68,20 @@
         const valores = linhas.map(r => campo === 'total' ? total(r) : r[campo]).filter(v => v != null);
         return valores.length ? valores.reduce((a,b) => a+b, 0) : null;
     }
+    function resumoSeguros(registros) {
+        const placas = new Set();
+        let principal = 0, segundo = 0;
+        for (const r of registros) {
+            const t = tipo(r);
+            if (t === 'legado') continue;
+            const p = placa(r.sveiculo);
+            if (p) placas.add(p);
+            const valor = total(r) ?? 0;
+            if (t === 'principal') principal += valor;
+            else segundo += valor;
+        }
+        return { veiculos: placas.size, principal, segundo, total: principal + segundo };
+    }
     function prazo(v, ref = hoje()) {
         const dias = (Date.parse(v || '') - Date.parse(ref)) / 86400000;
         if (!Number.isFinite(dias)) return ['sem', 'Sem data'];
@@ -84,7 +98,7 @@
         });
         return [...grupos.values()];
     }
-    const api = { centavos, total, subtotal, prazo, apolice, agrupar };
+    const api = { centavos, total, subtotal, resumoSeguros, prazo, apolice, agrupar };
     if (typeof module === 'object' && module.exports) { module.exports = api; return; }
     root.FMSegurosFrota = api;
 
@@ -194,6 +208,7 @@
         <p id="fmSeg_aviso" role="status" class="mb-0"></p>
         <div class="glass-container">
             <div class="fm-seg-abas" role="group" aria-label="Tipo de seguro">${Object.entries(tipos).map(([k,v])=>`<button type="button" class="btn btn-outline-primary" data-seg-aba="${k}" aria-pressed="false">${v}</button>`).join('')}</div>
+            <dl id="fmSeg_resumo" class="fm-seg-resumo" aria-label="Resumo geral dos seguros" hidden></dl>
             <div class="fm-seg-grid fm-seg-filtros">
                 ${input('fPlaca','Filtrar placa')}
                 ${input('fSeguradora','Filtrar seguradora')}
@@ -467,9 +482,23 @@
         s.value = i === -1 ? '' : String(i);
         ajustarAcoesRegistro();
     }
+    function renderResumo(geral) {
+        const resumo = campo('resumo');
+        resumo.hidden = !usaFichaPorPlaca(aba);
+        if (resumo.hidden) return;
+        const valores = resumoSeguros(geral);
+        const indicadores = [
+            ['Veículos segurados', valores.veiculos.toLocaleString('pt-BR')],
+            [tipos.principal, exMoeda(valores.principal)],
+            [tipos.segundo, exMoeda(valores.segundo)],
+            ['Valor total', exMoeda(valores.total)],
+        ];
+        resumo.innerHTML = indicadores.map(([rotulo, valor]) => `<div class="fm-seg-card"><dt>${rotulo}</dt><dd>${valor}</dd></div>`).join('');
+    }
     function consultar() {
         const registros = filtrados(), col = colunas[aba];
         const geral = lista();
+        renderResumo(geral);
         el('fmApolices').querySelectorAll('[data-seg-aba]').forEach(b => {
             const t = b.dataset.segAba;
             b.setAttribute('aria-pressed', String(t === aba));
