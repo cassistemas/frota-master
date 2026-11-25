@@ -20,3 +20,10 @@
 #fmApolices #fmSeg_aviso:not(:empty){padding:.5rem 0;font-weight:600}
 #fmApolices .fm-seg-editor summary{cursor:pointer;font-weight:700;font-size:1rem}
 #fmApolices .fm-seg-editor[open] summary{margin-bottom:.65rem}
+#fmApolices .fm-seg-principal th,#fmApolices .fm-seg-principal td{padding:.5rem .65rem}
+#fmApolices .fm-seg-principal :is(th,td):not(:nth-child(1),:nth-child(2),:nth-child(10)){text-align:right;font-variant-numeric:tabular-nums}
+#fmApolices .fm-seg-principal th:nth-child(2){cursor:default}
+#fmApolices .fm-seg-gerenciar{margin-top:.85rem}
+#fmApolices .fm-seg-gerenciar summary{cursor:pointer;font-weight:600}
+#fmApolices .fm-seg-gerenciar .fm-seg-acoes{justify-content:flex-start;align-items:flex-end}
+#fmApolices .fm-seg-gerenciar label{display:grid;gap:.3rem;flex:0 1 24rem;min-width:0}

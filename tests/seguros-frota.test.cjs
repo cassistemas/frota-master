@@ -109,7 +109,7 @@ test('as três abas de Seguros renderizam com ou sem o botão de exportação', 
     const db = { veiculos: [], seguros: [] };
     let carregado = false;
     const campos = new Map();
-    let aoClicar;
+    let aoClicar, exportado;
     const abas = ['principal', 'segundo', 'legado'].map(segAba => ({
         dataset: { segAba }, closest() { return this; }, setAttribute() {},
     }));
@@ -119,15 +119,22 @@ test('as três abas de Seguros renderizam com ou sem o botão de exportação', 
         set innerHTML(html) {
             for (const [, id] of html.matchAll(/id="(fmSeg_\w+)"/g)) {
                 campos.set(id, {
-                    value: '', parentElement: {}, selectedOptions: [], innerHTML: '',
+                    value: '', parentElement: {}, selectedOptions: [], innerHTML: '', eventos: {},
                     get textContent() { return this.innerHTML.replace(/<[^>]*>/g, ''); },
                     set textContent(v) { this.innerHTML = v; },
-                    add() {}, addEventListener() {}, reset() {},
+                    add() {}, addEventListener(n, fn) { this.eventos[n] = fn; }, reset() {},
                 });
             }
         },
     };
-    const window = { addEventListener() {}, fmModuloCarregado: () => carregado };
+    const window = {
+        addEventListener() {}, fmModuloCarregado: () => carregado,
+        XLSX: {
+            utils: { aoa_to_sheet: dados => { exportado = JSON.parse(JSON.stringify(dados)); return {}; },
+                book_new: () => ({}), book_append_sheet() {}, encode_cell: () => 'A1' },
+            writeFile() {},
+        },
+    };
     vm.runInNewContext(fonte, {
         window, db, Option: function (label, value) { Object.assign(this, { label, value, dataset: {} }); },
         document: {
@@ -149,11 +156,24 @@ test('as três abas de Seguros renderizam com ou sem o botão de exportação', 
     }];
     window.FMSegurosFrota.render();
     assert.equal(excel.disabled, false);
+    const cabecalhoPrincipal = ['PLACA', '', 'FIPE %', 'FIPE VEÍCULO', 'FIPE CARROCERIA', 'D. MATERIAIS', 'D. CORPORAIS', 'D. MORAIS', 'CARROCERIA', 'VIDROS', 'GUINCHO KM', 'PRÊMIO', 'IOF', 'TOTAL'];
     assert.equal(campos.has('fmSeg_importar'), false);
-    assert.equal(campos.has('fmSeg_sfipePercent'), false);
-    assert.equal(campos.get('fmSeg_sfipe').parentElement.hidden, false);
-    assert.match(resultado.innerHTML, />FIPE<\/th>/);
-    assert.doesNotMatch(resultado.innerHTML, /FIPE %|BÁSICO/);
+    assert.equal(campos.has('fmSeg_sano'), false);
+    assert.equal(campos.get('fmSeg_dadosApolice').hidden, true);
+    assert.equal(campos.get('fmSeg_sfipePercent').parentElement.hidden, false);
+    const tabela = resultado.innerHTML.match(/<table\b[^]*?<\/table>/)[0];
+    assert.deepEqual([...tabela.matchAll(/<th\s[^>]*>(.*?)<\/th>/g)].map(m => m[1]), cabecalhoPrincipal);
+    assert.equal([...tabela.matchAll(/<td>/g)].length, 14);
+    assert.match(tabela, /<td>100<\/td>.*<td>BÁSICO<\/td>/);
+    assert.doesNotMatch(tabela, /Subtotal|Ações|Apólice|<button/);
+    assert.match(resultado.innerHTML, /<\/table>[^]*Editar ou excluir registro/);
+    excel.eventos.click();
+    assert.deepEqual(exportado[0], cabecalhoPrincipal);
+    assert.equal(exportado.length, 2);
+    assert.equal(exportado[1].length, 14);
+    assert.equal(exportado[1][2], 100);
+    assert.equal(exportado[1][3], 250000);
+    assert.equal(exportado[1][9], 'BÁSICO');
     assert.equal(db.seguros[0], importado);
     assert.equal(db.seguros[0].svidro, 'BÁSICO');
 

@@ -4,13 +4,14 @@
     const situacoes = { pendente: 'Pendente', aprovada: 'Aprovada', reprovada: 'Reprovada', cancelada: 'Cancelada' };
     const comum = [['spremio','Prêmio'], ['siof','IOF'], ['total','Total']];
     const colunas = {
-        principal: [['sveiculo','Placa'], ['smodelo','Modelo'], ['sano','Ano / modelo'], ['sfipe','FIPE'], ['smateriais','Danos materiais'], ['scorporais','Danos corporais'], ['smorais','Danos morais'], ['scarroceria','Carroceria'], ['svidros','Vidros'], ['sguincho','Guincho'], ...comum],
+        principal: [['sveiculo','PLACA'], ['smodelo',''], ['sfipePercent','FIPE %'], ['sfipe','FIPE VEÍCULO'], ['sfipeCarroceria','FIPE CARROCERIA'], ['smateriais','D. MATERIAIS'], ['scorporais','D. CORPORAIS'], ['smorais','D. MORAIS'], ['scarroceria','CARROCERIA'], ['svidro','VIDROS'], ['sguincho','GUINCHO KM'], ['spremio','PRÊMIO'], ['siof','IOF'], ['total','TOTAL']],
         segundo: [['sveiculo','Placa'], ['smodelo','Modelo'], ['sgru','GRU'], ['smorais','Danos morais'], ...comum],
         legado: [['sveiculo','Placa'], ['smodelo','Modelo'], ['sseguradora','Seguradora'], ['svencimento','Vencimento'], ['prazo','Alerta']]
     };
-    const dinheiro = new Set(['sfipe','smateriais','scorporais','smorais','scarroceria','svidros','sgru','spremio','siof','total']);
-    const camposVeiculo = [...colunas.principal.slice(1, -3), ['sgru','GRU'], ...comum];
-    const limitesTexto = { smodelo: 120, sano: 16, sguincho: 80 };
+    const dinheiro = new Set(['sfipe','sfipeCarroceria','smateriais','scorporais','smorais','scarroceria','sgru','spremio','siof','total']);
+    const rotulosCompartilhados = new Map(colunas.segundo);
+    const camposVeiculo = [...colunas.principal.slice(1, -3).map(([k, l]) => [k, rotulosCompartilhados.get(k) || l]), ['sgru','GRU'], ...comum];
+    const limitesTexto = { smodelo: 120, svidro: 80, sguincho: 80 };
     const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
     const decimal = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const texto = v => String(v == null ? '' : v).trim();
@@ -72,12 +73,18 @@
     function campoValor(k, r) {
         if (k === 'total') return total(r);
         if (k === 'prazo') return prazo(r.svencimento)[1];
+        if (k === 'svidro') return r.svidro ?? (r.svidros == null ? '' : exMoeda(r.svidros));
         return r[k];
+    }
+    function valorEditavel(k, v) {
+        if (dinheiro.has(k) && v != null) return decimal.format(v/100);
+        if (k === 'sfipePercent' && v != null) return decimal.format(v/100).replace(/,00$/, '');
+        return texto(v);
     }
     function tabelaValor(k, r) {
         const v = campoValor(k, r);
         if (k === 'prazo') return alerta(r);
-        return esc(dinheiro.has(k) ? exMoeda(v) : k === 'svencimento' ? dataBR(v) || '—' : texto(v) || '—');
+        return esc(dinheiro.has(k) ? exMoeda(v) : (k === 'svencimento' ? dataBR(v) : valorEditavel(k, v)) || '—');
     }
     function alerta(r) {
         const [css, rotulo] = prazo(r.svencimento);
@@ -88,9 +95,9 @@
         if (!host || campo('form')) return;
         host.innerHTML = `<details id="fmSeg_editor" class="glass-container fm-seg-editor">
             <summary id="fmSeg_titulo">Cadastrar veículo na apólice</summary>
-            <p>Informe os dados da apólice e os valores por placa. Este cadastro não gera lançamentos financeiros.</p>
+            <p id="fmSeg_instrucoes">Informe os dados da apólice e os valores por placa. Este cadastro não gera lançamentos financeiros.</p>
             <form id="fmSeg_form" aria-labelledby="fmSeg_titulo">
-                <div class="fm-seg-grid">
+                <div id="fmSeg_dadosApolice" class="fm-seg-grid">
                     ${select('stipo','Tipo de seguro',ops(tipos))}
                     ${select('existente','Apólice cadastrada',op('','Nova apólice'))}
                     ${input('sseguradora','Seguradora','required maxlength="120"')}
@@ -100,11 +107,11 @@
                     ${input('svencimento','Fim da vigência','type="date" required')}
                     ${select('ssituacao','Situação da apólice',op('','Não informada')+ops(situacoes))}
                 </div>
-                <h5>Veículo e coberturas</h5>
+                <h5 id="fmSeg_coberturas">Veículo e coberturas</h5>
                 <div class="fm-seg-grid">
                     ${select('sveiculo','Placa',op('','Selecione'))}
                     ${camposVeiculo.map(([k,l]) => input(k, k === 'total' ? 'Total (prêmio + IOF)' : l + (dinheiro.has(k) ? ' (R$)' : ''),
-                        k === 'total' ? 'readonly' : dinheiro.has(k) ? 'inputmode="decimal" maxlength="20"' : `maxlength="${limitesTexto[k]}"`)).join('')}
+                        k === 'total' ? 'readonly' : dinheiro.has(k) || k === 'sfipePercent' ? 'inputmode="decimal" maxlength="20"' : `maxlength="${limitesTexto[k]}"`)).join('')}
                 </div>
                 <div class="fm-seg-acoes">
                     <button type="button" id="fmSeg_cancelar" class="btn btn-outline-secondary" hidden>Cancelar edição</button>
@@ -128,7 +135,12 @@
         </div>`;
         campo('form').addEventListener('submit', salvar);
         campo('sveiculo').required = true;
-        campo('stipo').addEventListener('change', () => { atualizarEscolhas(false); ajustarForm(); });
+        campo('stipo').addEventListener('change', () => {
+            if (campo('stipo').value === 'principal') aba = 'principal';
+            atualizarEscolhas(false);
+            ajustarForm();
+            consultar();
+        });
         campo('existente').addEventListener('change', () => {
             const r = gruposEscolha[campo('existente').value]?.cab;
             preencherCabecalho(r);
@@ -172,6 +184,11 @@
     }
     function atualizarEscolhas(manter = true) {
         const s = campo('existente');
+        if (campo('stipo').value === 'principal') {
+            gruposEscolha = [];
+            s.innerHTML = op('', 'Nova apólice');
+            return;
+        }
         const selo = s.selectedOptions[0]?.dataset.chave;
         gruposEscolha = agrupar(lista()).filter(g => tipo(g.cab) === campo('stipo').value && tipo(g.cab) !== 'legado');
         s.innerHTML = op('', 'Nova apólice');
@@ -186,20 +203,26 @@
     }
     function ajustarForm() {
         const t = campo('stipo').value;
-        const visiveis = new Set(colunas[t].map(([k]) => k));
+        const soPlaca = t === 'principal';
+        const visiveis = new Map(colunas[t]);
         const vinculada = !editando && campo('existente').value !== '';
+        campo('dadosApolice').hidden = campo('instrucoes').hidden = campo('coberturas').hidden = soPlaca;
         campo('stipo').disabled = !!editando && tipo(editando.registro) !== 'legado';
         campo('existente').parentElement.hidden = !!editando || t === 'legado';
         cabecalho.slice(1).forEach(k => {
             const c = campo(k);
             c.parentElement.hidden = t === 'legado' && !['sseguradora','svencimento'].includes(k);
-            c.disabled = vinculada || c.parentElement.hidden;
+            c.disabled = soPlaca || vinculada || c.parentElement.hidden;
         });
-        campo('sapolice').required = campo('sinicio').required = t !== 'legado';
-        camposVeiculo.forEach(([k]) => {
+        campo('sapolice').required = campo('sinicio').required = t === 'segundo';
+        camposVeiculo.forEach(([k, l]) => {
             const c = campo(k);
             c.parentElement.hidden = !visiveis.has(k);
+            const titulo = c.parentElement.querySelector?.('span');
+            if (titulo) titulo.textContent = k === 'total' ? (soPlaca ? 'TOTAL' : 'Total (prêmio + IOF)') :
+                (visiveis.get(k) || l) + (!soPlaca && dinheiro.has(k) ? ' (R$)' : '');
         });
+        if (!editando) campo('titulo').textContent = soPlaca ? 'Cadastrar veículo no seguro principal' : 'Cadastrar veículo na apólice';
         preverTotal();
     }
     function preverTotal() {
@@ -229,8 +252,7 @@
         preencherPlacas(r.sveiculo);
         colunas[t].forEach(([k]) => {
             if (['sveiculo','sseguradora','svencimento','prazo','total'].includes(k)) return;
-            const v = campoValor(k, r);
-            campo(k).value = dinheiro.has(k) && v != null ? decimal.format(v/100) : texto(v);
+            campo(k).value = valorEditavel(k, campoValor(k, r));
         });
         campo('titulo').textContent = 'Editar registro · ' + r.sveiculo;
         campo('editor').open = true;
@@ -254,13 +276,16 @@
         if (anterior && (i < 0 || JSON.stringify(lista()[i]) !== JSON.stringify(anterior))) return aviso('O registro mudou. Cancele a edição e abra novamente.');
         const t = campo('stipo').value;
         const r = Object.assign({}, anterior || {});
-        cabecalho.forEach(k => { r[k] = texto(campo(k).value); });
-        if (t === 'legado') {
-            cabecalho.filter(k => !['sseguradora','svencimento'].includes(k)).forEach(k => { delete r[k]; });
-        } else if (!r.sapolice || !r.sinicio || r.sinicio > r.svencimento) {
-            return aviso('Informe o número da apólice e uma vigência válida (início até o vencimento).');
+        r.stipo = t;
+        if (t !== 'principal') {
+            cabecalho.slice(1).forEach(k => { r[k] = texto(campo(k).value); });
+            if (t === 'legado') {
+                cabecalho.filter(k => !['sseguradora','svencimento'].includes(k)).forEach(k => { delete r[k]; });
+            } else if (!r.sapolice || !r.sinicio || r.sinicio > r.svencimento) {
+                return aviso('Informe o número da apólice e uma vigência válida (início até o vencimento).');
+            }
+            if (!r.sseguradora || !r.svencimento) return aviso('Informe seguradora e vencimento.');
         }
-        if (!r.sseguradora || !r.svencimento) return aviso('Informe seguradora e vencimento.');
         const selecionada = campo('sveiculo').value;
         const v = veiculos().find(x => placa(x.vplaca) === placa(selecionada));
         if (!v && !(anterior && placa(anterior.sveiculo) === placa(selecionada))) return aviso('Selecione uma placa cadastrada.');
@@ -268,7 +293,7 @@
         for (const [k, nome] of colunas[t]) {
             if (!camposVeiculo.some(([c]) => c === k) || k === 'total') continue;
             const v = campo(k).value;
-            const valor = dinheiro.has(k) ? centavos(v) : texto(v);
+            const valor = k === 'sfipePercent' ? centavos(texto(v).replace(/\s*%$/, '')) : dinheiro.has(k) ? centavos(v) : texto(v);
             if (Number.isNaN(valor)) return aviso('Revise o valor de ' + nome + '. Use um valor positivo ou zero, com até duas casas decimais.');
             r[k] = valor;
         }
@@ -282,7 +307,7 @@
         if (t !== 'legado' && [...grupo,...destino].some(x => placa(x.sveiculo) === placa(r.sveiculo))) return aviso('Esta placa já consta nesta apólice. Edite o registro existente.');
         const escolhida = !anterior && gruposEscolha[campo('existente').value]?.cab;
         if (escolhida && !lista().some(x => apolice(x) === apolice(escolhida) && cabecalho.every(k => texto(x[k]) === texto(escolhida[k])))) return aviso('A apólice selecionada mudou. Atualize a seleção.');
-        if (!escolhida && !mesmaApolice && t !== 'legado' && destino.length) return aviso('Esta apólice já existe. Selecione-a no campo Apólice cadastrada.');
+        if (!escolhida && !mesmaApolice && t === 'segundo' && destino.length) return aviso('Esta apólice já existe. Selecione-a no campo Apólice cadastrada.');
         const mudouCabecalho = mesmaApolice && cabecalho.some(k => texto(r[k]) !== texto(anterior[k]));
         if (mudouCabecalho && grupo.length && !root.confirm('Aplicar os dados de identificação, vigência e situação desta apólice às demais placas vinculadas?')) return;
         const pronto = fmPrepararRegistro('seguros', r, anterior);
@@ -320,8 +345,8 @@
         const p = placa(campo('fPlaca').value), s = chave(campo('fSeguradora').value);
         const ate = campo('fAte').value, alertaPrazo = campo('fPrazo').value;
         return lista().filter(r => tipo(r) === aba && (!p || placa(r.sveiculo).includes(p)) &&
-            (!s || chave(r.sseguradora).includes(s)) && (!ate || r.svencimento && r.svencimento <= ate) &&
-            (!alertaPrazo || prazo(r.svencimento)[0] === alertaPrazo));
+            (aba === 'principal' || ((!s || chave(r.sseguradora).includes(s)) && (!ate || r.svencimento && r.svencimento <= ate) &&
+            (!alertaPrazo || prazo(r.svencimento)[0] === alertaPrazo))));
     }
     function consultar() {
         const registros = filtrados(), col = colunas[aba];
@@ -331,6 +356,8 @@
             b.setAttribute('aria-pressed', String(t === aba));
             b.textContent = `${tipos[t]} (${geral.filter(r => tipo(r) === t).length})`;
         });
+        const soPlaca = aba === 'principal';
+        ['fSeguradora','fAte','fPrazo'].forEach(k => { campo(k).parentElement.hidden = soPlaca; });
         const botaoExportar = campo('exportar');
         if (botaoExportar) botaoExportar.disabled = !registros.length;
         const vazio = root.fmModuloCarregado?.('seguros') ? 'Nenhum registro nesta aba para os filtros informados.' : 'Aguardando o carregamento dos seguros…';
@@ -339,17 +366,36 @@
             return;
         }
         const linhas = new Map(geral.map((r,i) => [r,i]));
-        const th = col.map(([,l]) => `<th scope="col">${esc(l)}</th>`).join('') + '<th scope="col">Ações</th>';
+        const th = col.map(([k,l]) => `<th scope="col"${!l && k === 'smodelo' ? ' aria-label="Modelo"' : ''}>${esc(l)}</th>`).join('');
+        if (soPlaca) {
+            const aberto = campo('gerenciar')?.open;
+            const repetidas = new Map();
+            const opcoes = registros.map(r => {
+                const p = placa(r.sveiculo), n = (repetidas.get(p) || 0) + 1;
+                repetidas.set(p, n);
+                return op(linhas.get(r), [r.sveiculo, r.smodelo, n > 1 ? `Registro ${n}` : ''].filter(Boolean).join(' · '));
+            }).join('');
+            campo('resultado').innerHTML = `<div class="table-responsive" role="region" tabindex="0" aria-label="Seguro principal por placa"><table class="table table-striped align-middle fm-seg-principal" data-sem-relatorio><thead><tr>${th}</tr></thead><tbody>${registros.map(r => `<tr>${col.map(([k]) => `<td>${tabelaValor(k,r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+                <details id="fmSeg_gerenciar" class="fm-seg-gerenciar"${aberto ? ' open' : ''}>
+                    <summary>Editar ou excluir registro</summary>
+                    <div class="fm-seg-acoes">${select('registro','Registro',op('','Selecione uma placa')+opcoes)}
+                        <button type="button" class="btn btn-outline-primary" data-seg-gerenciar="editar">Editar</button>
+                        <button type="button" class="btn btn-outline-danger" data-seg-gerenciar="excluir">Excluir</button>
+                    </div>
+                </details>`;
+            return;
+        }
+        const thComAcoes = th + '<th scope="col">Ações</th>';
         const acoesLinha = r => `<td class="fm-seg-linha-acoes"><button type="button" class="btn-edit" data-seg-editar="${linhas.get(r)}" aria-label="Editar ${esc(r.sveiculo)}" title="Editar">✎</button> <button type="button" class="btn-del" data-seg-excluir="${linhas.get(r)}" aria-label="Excluir ${esc(r.sveiculo)}" title="Excluir">✕</button></td>`;
         const tr = r => `<tr>${col.map(([k])=>`<td>${tabelaValor(k,r)}</td>`).join('')}${acoesLinha(r)}</tr>`;
         if (aba === 'legado') {
-            campo('resultado').innerHTML = `<p>Cadastros anteriores, sem identificação de apólice. Para completar um registro, edite-o e escolha Seguro principal ou 2º risco.</p><div class="table-responsive"><table class="table table-striped align-middle"><thead><tr>${th}</tr></thead><tbody>${registros.map(tr).join('')}</tbody></table></div>`;
+            campo('resultado').innerHTML = `<p>Cadastros anteriores, sem identificação de apólice. Para completar um registro, edite-o e escolha Seguro principal ou 2º risco.</p><div class="table-responsive"><table class="table table-striped align-middle"><thead><tr>${thComAcoes}</tr></thead><tbody>${registros.map(tr).join('')}</tbody></table></div>`;
             return;
         }
         campo('resultado').innerHTML = agrupar(registros).sort((a,b)=>texto(a.cab.svencimento).localeCompare(texto(b.cab.svencimento))).map(({cab:r,linhas:grupo}) => {
             const itens = grupo.map(x=>x.r);
             const rodape = `<tfoot><tr><th scope="row" colspan="${col.length - comum.length}">Subtotal · ${itens.length} placa(s)</th>${comum.map(([k])=>`<td>${exMoeda(subtotal(itens,k))}</td>`).join('')}<td></td></tr></tfoot>`;
-            return `<section class="fm-seg-apolice"><div class="fm-seg-cab"><div><h5>Apólice ${esc(r.sapolice || '—')} · ${esc(r.sseguradora || '—')}</h5><div>Corretora: ${esc(r.scorretora || '—')} · Vigência: ${esc(dataBR(r.sinicio) || '—')} a ${esc(dataBR(r.svencimento) || '—')}</div></div><div><span class="fm-seg-situacao">${esc(situacoes[r.ssituacao] || 'Situação não informada')}</span> ${alerta(r)}</div></div><div class="table-responsive" role="region" tabindex="0" aria-label="Placas da apólice ${esc(r.sapolice || '—')}"><table class="table table-striped align-middle"><thead><tr>${th}</tr></thead><tbody>${itens.map(tr).join('')}</tbody>${rodape}</table></div></section>`;
+            return `<section class="fm-seg-apolice"><div class="fm-seg-cab"><div><h5>Apólice ${esc(r.sapolice || '—')} · ${esc(r.sseguradora || '—')}</h5><div>Corretora: ${esc(r.scorretora || '—')} · Vigência: ${esc(dataBR(r.sinicio) || '—')} a ${esc(dataBR(r.svencimento) || '—')}</div></div><div><span class="fm-seg-situacao">${esc(situacoes[r.ssituacao] || 'Situação não informada')}</span> ${alerta(r)}</div></div><div class="table-responsive" role="region" tabindex="0" aria-label="Placas da apólice ${esc(r.sapolice || '—')}"><table class="table table-striped align-middle"><thead><tr>${thComAcoes}</tr></thead><tbody>${itens.map(tr).join('')}</tbody>${rodape}</table></div></section>`;
         }).join('');
     }
     function acoes(e) {
@@ -357,12 +403,19 @@
         if (!b || ocupada) return;
         if (b.dataset.segAba) {
             aba = b.dataset.segAba;
-            if (!editando && aba !== 'legado' && !campo('sveiculo').value && !campo('sseguradora').value) {
-                campo('stipo').value = aba;
-                atualizarEscolhas(false);
-                ajustarForm();
-            }
+            if (!editando && aba !== 'legado' && campo('stipo').value !== aba) limpar();
             consultar();
+        } else if (b.dataset.segGerenciar) {
+            if (aba !== 'principal') return;
+            const valor = campo('registro')?.value;
+            const i = Number(valor), r = lista()[i];
+            if (!valor || !r || !filtrados().includes(r)) return aviso('Selecione um registro do seguro principal.');
+            if (b.dataset.segGerenciar === 'editar') editar(r);
+            else if (b.dataset.segGerenciar === 'excluir') {
+                if (!podeGravar()) return aviso('Aguarde o carregamento dos seguros e confirme que está conectado.');
+                if (typeof root.fmExcluirVinculado !== 'function') return aviso('Recarregue a página antes de excluir.');
+                excluir(i, r);
+            }
         } else if (b.dataset.segEditar != null) {
             const r = lista()[Number(b.dataset.segEditar)];
             if (r) editar(r);
@@ -388,18 +441,20 @@
         if (!root.XLSX) return aviso('A exportação Excel não está disponível. Recarregue a página e tente novamente.');
         const registros = filtrados();
         if (!registros.length) return;
-        const extra = aba === 'legado' ? [] : [['sapolice','Apólice'],['sseguradora','Seguradora'],['scorretora','Corretora'],['sinicio','Início da vigência'],['svencimento','Fim da vigência'],['ssituacao','Situação'],['prazo','Alerta']];
+        const extra = aba === 'segundo' ? [['sapolice','Apólice'],['sseguradora','Seguradora'],['scorretora','Corretora'],['sinicio','Início da vigência'],['svencimento','Fim da vigência'],['ssituacao','Situação'],['prazo','Alerta']] : [];
         const col = [...extra,...colunas[aba]];
         const dados = [col.map(([,l])=>l)];
-        for (const g of agrupar(registros)) {
+        const linha = r => col.map(([k]) => {
+            const v = campoValor(k,r);
+            if (dinheiro.has(k) || k === 'sfipePercent') return v == null ? null : v/100;
+            if (k === 'ssituacao') return situacoes[v] || '';
+            return v ?? '';
+        });
+        if (aba === 'principal') registros.forEach(r => dados.push(linha(r)));
+        else for (const g of agrupar(registros)) {
             const itens = g.linhas.map(x=>x.r);
-            itens.forEach(r => dados.push(col.map(([k])=>{
-                const v = campoValor(k,r);
-                if (dinheiro.has(k)) return v == null ? null : v/100;
-                if (k === 'ssituacao') return situacoes[v] || '';
-                return v ?? '';
-            })));
-            if (aba !== 'legado') dados.push(col.map(([k],i)=>{
+            itens.forEach(r => dados.push(linha(r)));
+            if (aba === 'segundo') dados.push(col.map(([k],i)=>{
                 const v = comum.some(([c])=>c===k) ? subtotal(itens,k) : null;
                 return i === 0 ? 'Subtotal das placas exibidas · ' + g.cab.sapolice : v == null ? null : v/100;
             }));
