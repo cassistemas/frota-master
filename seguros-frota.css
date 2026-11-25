@@ -32,7 +32,7 @@
 #fmApolices .fm-seg-editor summary{cursor:pointer;font-weight:700;font-size:1rem}
 #fmApolices .fm-seg-editor[open] summary{margin-bottom:.65rem}
 #fmApolices .fm-seg-principal th,#fmApolices .fm-seg-principal td{padding:.5rem .65rem}
-#fmApolices .fm-seg-principal :is(th,td):not(:nth-child(1),:nth-child(2),:nth-child(10)){text-align:right;font-variant-numeric:tabular-nums}
+#fmApolices .fm-seg-principal :is(th,td):not(:nth-child(1),:nth-child(2),:nth-child(11)){text-align:right;font-variant-numeric:tabular-nums}
 #fmApolices .fm-seg-principal th:nth-child(2){cursor:default}
 #fmApolices .fm-seg-segundo :is(th,td){padding:.5rem .65rem}
 #fmApolices .fm-seg-segundo :is(th,td):nth-child(-n+3){text-align:center;font-variant-numeric:tabular-nums}

@@ -190,7 +190,7 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     assert.equal(excel.disabled, true);
 
     carregado = true;
-    const importado = { ...base, sfipe: 25000000, sfipePercent: 10000, svidro: 'BÁSICO', splanilha: { layout: { cab: [['PLACA', 'FIPE %', 'VIDRO']] } } };
+    const importado = { ...base, sfipe: 25000000, sfipePercent: 10000, sfipeCarroceria: 3500000, scarroceria: 150075, svidro: 'BÁSICO', splanilha: { layout: { cab: [['PLACA', 'FIPE %', 'VIDRO']] } } };
     db.seguros = [importado, { ...base, stipo: 'segundo', sveiculo: 'XYZ4J56', spremio: 50669, siof: 3739 }, {
         sveiculo: 'HIS1A23', sseguradora: 'Seguradora anterior', svencimento: '2025-12-31',
     }];
@@ -205,15 +205,17 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
         ['2º risco', 'R$ 544,08'], ['Valor total', 'R$ 544,08'],
     ]);
     const resumoGeral = resumo.innerHTML;
-    const cabecalhoPrincipal = ['PLACA', '', 'FIPE %', 'FIPE VEÍCULO', 'FIPE CARROCERIA', 'D. MATERIAIS', 'D. CORPORAIS', 'D. MORAIS', 'CARROCERIA', 'VIDROS', 'GUINCHO KM', 'PRÊMIO', 'IOF', 'TOTAL'];
+    const cabecalhoPrincipal = ['PLACA', '', 'FIPE %', 'FIPE VEÍCULO', 'FIPE CARROCERIA', 'D. MATERIAIS', 'D. CORPORAIS', 'D. MORAIS', 'FQA VEÍCULO', 'FQA CARROCERIA', 'VIDROS', 'GUINCHO KM', 'PRÊMIO', 'IOF', 'TOTAL'];
     assert.equal(campos.has('fmSeg_importar'), false);
     assert.equal(campos.has('fmSeg_sano'), false);
     assert.ok(!campos.get('fmSeg_dadosApolice').hidden);
     assert.equal(campos.get('fmSeg_sfipePercent').parentElement.hidden, false);
+    assert.match(montagem, /FQA VEÍCULO \(R\$\)<\/span><input id="fmSeg_sfqaVeiculo"[^>]*inputmode="numeric"/);
+    assert.match(montagem, /FQA CARROCERIA \(R\$\)<\/span><input id="fmSeg_scarroceria"[^>]*inputmode="numeric"/);
     const tabela = resultado.innerHTML.match(/<table\b[^]*?<\/table>/)[0];
     assert.deepEqual([...tabela.matchAll(/<th\s[^>]*>(.*?)<\/th>/g)].map(m => m[1]), cabecalhoPrincipal);
-    assert.equal([...tabela.matchAll(/<td\b/g)].length, 14);
-    assert.match(tabela, /<td>100<\/td>.*<td>BÁSICO<\/td>/);
+    assert.equal([...tabela.matchAll(/<td\b/g)].length, cabecalhoPrincipal.length);
+    assert.match(tabela, /<td>100<\/td>.*<td>—<\/td><td>R\$\s1\.500,75<\/td><td>BÁSICO<\/td>/);
     assert.match(tabela, /data-seg-visualizar="0" aria-label="Visualizar seguro de ABC1D23"[^>]*><svg[^]*?<\/button>ABC1D23<\/td>/);
     assert.doesNotMatch(tabela, /Subtotal|Ações|Apólice/);
     const ficha = campos.get('fmSeg_ficha');
@@ -226,6 +228,8 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     assert.match(fichaConteudo.innerHTML, /Seguradora Á/);
     assert.match(fichaConteudo.innerHTML, /31\/12\/2026/);
     assert.match(fichaConteudo.innerHTML, /R\$\s250\.000,00/);
+    assert.match(fichaConteudo.innerHTML, /<dt>FQA VEÍCULO<\/dt><dd>—<\/dd>/);
+    assert.match(fichaConteudo.innerHTML, /<dt>FQA CARROCERIA<\/dt><dd>R\$\s1\.500,75<\/dd>/);
     assert.equal(gravacoes, 0);
     campos.get('fmSeg_fecharFicha').eventos.click();
     assert.equal(ficha.open, false);
@@ -265,10 +269,9 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     excel.eventos.click();
     assert.deepEqual(exportado[0], cabecalhoPrincipal);
     assert.equal(exportado.length, 2);
-    assert.equal(exportado[1].length, 14);
-    assert.equal(exportado[1][2], 100);
-    assert.equal(exportado[1][3], 250000);
-    assert.equal(exportado[1][9], 'BÁSICO');
+    assert.equal(exportado[1].length, cabecalhoPrincipal.length);
+    assert.deepEqual(exportado[1].slice(2, 5), [100, 250000, 35000]);
+    assert.deepEqual(exportado[1].slice(8, 11), [null, 1500.75, 'BÁSICO']);
     assert.equal(db.seguros[0], importado);
     assert.equal(db.seguros[0].svidro, 'BÁSICO');
 
@@ -296,8 +299,8 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     assert.match(fipe.value, /R\$\s325\.678,90/);
     assert.equal(modelo.value, 'Alteração em andamento');
     excel.eventos.click();
-    assert.deepEqual(exportado[1].slice(2, 5), [100, 325678.9, null]);
-    assert.deepEqual(exportado[1].slice(11), [null, null, null]);
+    assert.deepEqual(exportado[1].slice(2, 5), [100, 325678.9, 35000]);
+    assert.deepEqual(exportado[1].slice(-3), [null, null, null]);
     for (const invalido of ['indisponível', 'R$ 0,00', '']) {
         db.detran[1].dtFipeValor = invalido;
         atualizarDetran();
@@ -424,7 +427,7 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
         { ...base, _rid: 'p', sapolice: 'PR-001', scorretora: 'Corretora principal' },
         { ...base, _rid: 's', stipo: 'segundo', sapolice: 'SR-002', scorretora: 'Corretora 2º risco' },
     ];
-    const antigo = { ...base, _rid: 'antigo', sveiculo: 'ANT1A23', sseguradora: '', sapolice: '', sinicio: '', svencimento: '' };
+    const antigo = { ...base, _rid: 'antigo', sveiculo: 'ANT1A23', sseguradora: '', sapolice: '', sinicio: '', svencimento: '', scarroceria: 150075 };
     db.seguros = [...originais, antigo, { sveiculo: 'HIS1A23', sseguradora: 'Histórico', svencimento: '2025-12-31' }];
     for (const [i, original] of originais.entries()) {
         aoClicar({ target: abas[i] });
@@ -477,8 +480,10 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
         campo('sveiculo').value = 'NOV1A23';
         campo('sveiculo').eventos.change();
         const coberturas = i === 0
-            ? ['sfipe', 'sfipeCarroceria', 'smateriais', 'scorporais', 'smorais', 'scarroceria']
+            ? ['sfipe', 'sfipeCarroceria', 'smateriais', 'scorporais', 'smorais', 'sfqaVeiculo', 'scarroceria']
             : ['sgru', 'smorais'];
+        assert.equal(campo('sfqaVeiculo').disabled, i === 1);
+        assert.equal(campo('scarroceria').disabled, i === 1);
         for (const k of coberturas) {
             const c = campo(k);
             assert.equal(c.disabled, false);
@@ -541,6 +546,15 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
         assert.equal(salvo.total, undefined);
         assert.equal(gravacoes, i + 1);
         assert.equal(db.seguros[i], original);
+        if (i === 0) {
+            excel.eventos.click();
+            const linha = exportado.find(r => r[0] === 'NOV1A23');
+            assert.deepEqual(linha.slice(8, 10), [1234.56, 1234.56]);
+            assert.deepEqual(linha.slice(-3), [1234.56, 0, 1234.56]);
+        } else {
+            assert.equal(salvo.sfqaVeiculo, undefined);
+            assert.equal(salvo.scarroceria, undefined);
+        }
 
         registro.value = '0';
         registro.eventos.change();
@@ -562,6 +576,8 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     aoClicar({ target: acoes[0] });
     assert.deepEqual(valores(), ['', '', '', '', '']);
     assert.equal(campo('apoliceExistente').value, '');
+    assert.equal(campo('sfqaVeiculo').value, '');
+    assert.match(campo('scarroceria').value, /^R\$\s1\.500,75$/);
     campo('scorretora').value = 'Corretora informada na edição';
     campo('sapolice').value = '007';
     await submeter();
@@ -569,6 +585,8 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     assert.equal(db.seguros[2].sapolice, '007');
     assert.equal(db.seguros[2].scorretora, 'Corretora informada na edição');
     assert.equal(db.seguros[2].sinicio, '');
+    assert.equal(db.seguros[2].sfqaVeiculo, null);
+    assert.equal(db.seguros[2].scarroceria, 150075);
 
     aoClicar({ target: abas[2] });
     assert.match(resultado.innerHTML, /Histórico/);

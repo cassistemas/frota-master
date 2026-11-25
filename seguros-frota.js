@@ -3,11 +3,11 @@
     const tipos = { principal: 'Seguro principal', segundo: '2º risco', legado: 'Histórico' };
     const comum = [['spremio','Prêmio'], ['siof','IOF'], ['total','Total']];
     const colunas = {
-        principal: [['sveiculo','PLACA'], ['smodelo',''], ['sfipePercent','FIPE %'], ['sfipe','FIPE VEÍCULO'], ['sfipeCarroceria','FIPE CARROCERIA'], ['smateriais','D. MATERIAIS'], ['scorporais','D. CORPORAIS'], ['smorais','D. MORAIS'], ['scarroceria','CARROCERIA'], ['svidro','VIDROS'], ['sguincho','GUINCHO KM'], ['spremio','PRÊMIO'], ['siof','IOF'], ['total','TOTAL']],
+        principal: [['sveiculo','PLACA'], ['smodelo',''], ['sfipePercent','FIPE %'], ['sfipe','FIPE VEÍCULO'], ['sfipeCarroceria','FIPE CARROCERIA'], ['smateriais','D. MATERIAIS'], ['scorporais','D. CORPORAIS'], ['smorais','D. MORAIS'], ['sfqaVeiculo','FQA VEÍCULO'], ['scarroceria','FQA CARROCERIA'], ['svidro','VIDROS'], ['sguincho','GUINCHO KM'], ['spremio','PRÊMIO'], ['siof','IOF'], ['total','TOTAL']],
         segundo: [['item','ITEM'], ['sanoFab','ANO'], ['sanoMod','MODELO'], ['sveiculo','PLACA'], ['smodelo',''], ['sgru','GRU'], ['smorais','D. MORAIS'], ['spremio','PRÊMIO'], ['siof','IOF'], ['total','TOTAL']],
         legado: [['sveiculo','Placa'], ['smodelo','Modelo'], ['sseguradora','Seguradora'], ['svencimento','Vencimento'], ['prazo','Alerta']]
     };
-    const dinheiro = new Set(['sfipe','sfipeCarroceria','smateriais','scorporais','smorais','scarroceria','sgru','spremio','siof','total']);
+    const dinheiro = new Set(['sfipe','sfipeCarroceria','smateriais','scorporais','smorais','sfqaVeiculo','scarroceria','sgru','spremio','siof','total']);
     const camposAno = { sanoFab: 'dtAnoFab', sanoMod: 'dtAnoMod' };
     const camposVeiculo = [['sanoFab','Ano de fabricação'], ['sanoMod','Ano-modelo'],
         ...colunas.principal.slice(1, -3).map(([k, l]) => [k, k === 'smodelo' ? 'Modelo' : l]), ['sgru','GRU'], ...comum];
