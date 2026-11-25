@@ -233,13 +233,12 @@
             return { ...item, status: 'nova' };
         });
     }
-    async function lerArquivo(arquivo, x) {
+    async function lerArquivo(arquivo, x, receberLivro) {
         if (!x?.read) throw new Error('Leitor de Excel indisponível. Recarregue a página e tente novamente.');
         if (!/\.xlsx?$/i.test(arquivo.name)) throw new Error('Selecione uma planilha .xlsx ou .xls.');
         if (arquivo.size > 15 * 1024 * 1024) throw new Error('Selecione uma planilha de até 15 MB.');
-        const livro = x.read(await arquivo.arrayBuffer(), { type: 'array', sheetRows: 5002 });
-        if (livro.Workbook?.WBProps?.date1904) throw new Error('Salve uma cópia da planilha com o sistema de datas de 1900 antes de importar.');
-        const linhas = lerAbas(livro.SheetNames.map(nome => {
+        const livro = x.read(await arquivo.arrayBuffer(), { type: 'array', sheetRows: 5002, cellHTML: false });
+        const abas = livro.SheetNames.map(nome => {
             const aba = livro.Sheets[nome];
             const faixa = aba['!ref'] && x.utils.decode_range(aba['!ref']);
             const original = aba['!fullref'] && x.utils.decode_range(aba['!fullref']);
@@ -254,9 +253,16 @@
             const deslocar = p => ({ r: p.r - (faixa?.s.r ?? 0), c: p.c });
             const mesclas = (aba['!merges'] || []).map(({ s, e }) => ({ s: deslocar(s), e: deslocar(e) }))
                 .filter(({ s, e }) => s.r >= 0 && s.c >= 0 && e.r < dados.length && e.c < 100);
-            return { nome, dados, primeiraLinha: (faixa?.s.r ?? 0) + 1, mesclas };
-        }));
-        if (!linhas.length) throw new Error('Nenhuma linha de seguro encontrada. Confira se existe uma coluna Placa abaixo dos dados da apólice.');
+            const exibicao = receberLivro && faixa ? dados.map((row, i) => row.map((v, c) => {
+                const cel = aba[x.utils.encode_cell({ r: faixa.s.r + i, c })];
+                return cel?.w ?? v;
+            })) : dados;
+            return { nome, dados, exibicao, primeiraLinha: (faixa?.s.r ?? 0) + 1, mesclas };
+        });
+        if (receberLivro) receberLivro(abas);
+        if (livro.Workbook?.WBProps?.date1904) throw new Error('Salve uma cópia da planilha com o sistema de datas de 1900 antes de importar.');
+        const linhas = lerAbas(abas);
+        if (!linhas.length) throw new Error('Nenhuma linha de seguro encontrada. As abas originais estão disponíveis na prévia; confira se existe uma coluna Placa abaixo dos dados da apólice.');
         if (linhas.length > 5000) throw new Error('A planilha contém mais de 5.000 linhas de seguro. Divida em arquivos menores.');
         return linhas;
     }
@@ -264,6 +270,61 @@
     const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
     const dinheiro = v => Number.isFinite(v) ? moeda.format(v/100) : '—';
     const br = v => v ? v.split('-').reverse().join('/') : '—';
+    function gradeOriginal(aba, pagina, limite = 30) {
+        const dados = aba.exibicao;
+        const total = Math.max(1, Math.ceil(dados.length / limite));
+        const inicio = (pagina - 1) * limite, fim = Math.min(inicio + limite, dados.length);
+        const largura = dados.reduce((n, row) => Math.max(n, row.length), 0);
+        if (!largura || !dados.length) return { total, html: '<p class="mb-2">Aba sem células preenchidas.</p>' };
+        const letra = c => c < 26 ? String.fromCharCode(65 + c) : letra(Math.floor(c / 26) - 1) + letra(c % 26);
+        const mescladas = new Map();
+        for (const { s, e } of aba.mesclas) {
+            const topo = Math.max(inicio, s.r), base = Math.min(fim - 1, e.r);
+            if (base < topo || s.c >= largura) continue;
+            const direita = Math.min(e.c, largura - 1);
+            for (let r = topo; r <= base; r++) for (let c = s.c; c <= direita; c++) mescladas.set(r * largura + c, null);
+            mescladas.set(topo * largura + s.c, { rows: base - topo + 1, cols: direita - s.c + 1, valor: dados[s.r]?.[s.c] });
+        }
+        const cab = Array.from({ length: largura }, (_, c) => `<th scope="col">${letra(c)}</th>`).join('');
+        const linhas = dados.slice(inicio, fim).map((row, j) => {
+            const r = inicio + j;
+            const celulas = Array.from({ length: largura }, (_, c) => {
+                const m = mescladas.get(r * largura + c);
+                if (m === null) return '';
+                return m ? `<td rowspan="${m.rows}" colspan="${m.cols}">${esc(m.valor)}</td>` : `<td>${esc(row[c])}</td>`;
+            }).join('');
+            return `<tr><th scope="row">${aba.primeiraLinha + r}</th>${celulas}</tr>`;
+        }).join('');
+        return { total, html: `<div class="fm-seg-grade-rolagem" tabindex="0" role="region" aria-label="Planilha: ${esc(aba.nome)}"><table class="fm-seg-grade"><thead><tr><th scope="col" aria-label="Linha"></th>${cab}</tr></thead><tbody>${linhas}</tbody></table></div>` };
+    }
+    function conferirTotais(resultado, salvos, seguros) {
+        const existentes = new Map(salvos.map(r => [chaveLinha(r, seguros), r]));
+        const grupos = new Map();
+        for (const l of resultado) {
+            const r = l.registro;
+            const k = JSON.stringify([l.aba, seguros.apolice(r)]);
+            if (!grupos.has(k)) grupos.set(k, { aba: l.aba, apolice: r.sapolice, seguradora: r.sseguradora,
+                tipo: l.tipo, inicio: r.sinicio, fim: r.svencimento, linhas: 0, gravadas: 0, excel: 0, sistema: 0,
+                semTotal: 0, semTotalSistema: 0, repetidas: 0, calculadas: 0, ids: new Set() });
+            const g = grupos.get(k), id = chaveLinha(r, seguros);
+            const total = Number.isFinite(l.totalExcel) ? l.totalExcel : l.calculado;
+            g.linhas++;
+            if (Number.isFinite(total)) {
+                g.excel += total;
+                if (!Number.isFinite(l.totalExcel)) g.calculadas++;
+            } else g.semTotal++;
+            if (g.ids.has(id)) { g.repetidas++; continue; }
+            g.ids.add(id);
+            const salvo = existentes.get(id);
+            if (salvo && l.tipo) {
+                g.gravadas++;
+                const totalSalvo = seguros.total(salvo);
+                if (Number.isFinite(totalSalvo)) g.sistema += totalSalvo;
+                else g.semTotalSistema++;
+            }
+        }
+        return [...grupos.values()];
+    }
     const grupos = [['principal','Seguro principal'], ['segundo','2º risco'], ['', 'Tipo não identificado']];
     const estados = { nova: 'Nova', duplicada: 'Duplicada', invalida: 'Não importável' };
     const camposEdicao = ['sveiculo','sseguradora','sapolice','scorretora','sinicio','svencimento','ssituacao', ...Object.keys(textos), ...valores];
@@ -273,11 +334,21 @@
     };
     function montar({ botao, painel, seguros, veiculos, lista, podeGravar, gravar, ocupado }) {
         painel.innerHTML = `<h5>Importação de seguros</h5>
-            <p>Selecione o Excel para conferir as placas antes de salvar. O tipo pode vir da aba, do título da seção ou da coluna Tipo de seguro. Registros existentes e o Histórico não serão alterados.</p>
-            <p class="small text-muted">Use <strong>Editar</strong> para corrigir uma linha sem gravar no banco. Em telas menores, deslize a tabela para ver todos os valores. São obrigatórios: placa cadastrada, seguradora, número da apólice e datas de início e fim da vigência.</p>
+            <p>Selecione a <strong>FROTA.xlsx</strong> ou outra planilha de seguros. O arquivo é lido neste navegador; só os registros que você confirmar são enviados ao banco. O Histórico não é alterado.</p>
+            <p class="small text-muted">Use <strong>Editar</strong> para corrigir uma linha sem gravar no banco. São obrigatórios: placa cadastrada, seguradora, número da apólice e datas de início e fim da vigência.</p>
             <label for="fmSeg_arquivo" class="form-label">Planilha de seguros (.xlsx ou .xls)</label>
             <input id="fmSeg_arquivo" type="file" accept=".xlsx,.xls" class="form-control">
+            <details id="fmSeg_abasOriginais" class="fm-seg-planilha" hidden>
+                <summary>Abas originais do Excel</summary>
+                <p class="small mb-2">Confira as células na ordem do arquivo. As edições na prévia não modificam esta visualização nem o Excel.</p>
+                <div id="fmSeg_guiaOriginais" class="fm-seg-abas" role="group" aria-label="Abas do Excel"></div>
+                <div id="fmSeg_gradeOriginal"></div>
+            </details>
             <p id="fmSeg_resumoImportacao" class="mt-2" role="status"></p>
+            <details id="fmSeg_conferenciaTotais" class="fm-seg-planilha" hidden>
+                <summary>Conferência de placas e totais por aba e apólice</summary>
+                <div id="fmSeg_quadrosTotais"></div>
+            </details>
             <div id="fmSeg_selecaoImportacao" class="fm-seg-acoes mb-2" hidden>
                 <button type="button" id="fmSeg_marcarImportacao" class="btn btn-sm btn-outline-primary">Selecionar todos</button>
                 <button type="button" id="fmSeg_limparImportacao" class="btn btn-sm btn-outline-secondary">Desmarcar todos</button>
@@ -295,10 +366,48 @@
         const revisar = buscar('revisarImportacao'), confirmar = buscar('confirmarImportacao'), fechar = buscar('fecharImportacao');
         const selecao = buscar('selecaoImportacao'), quantidade = buscar('qtdImportacao');
         const marcar = buscar('marcarImportacao'), desmarcar = buscar('limparImportacao'), editor = buscar('edicaoImportacao');
+        const originais = buscar('abasOriginais'), guias = buscar('guiaOriginais'), grade = buscar('gradeOriginal');
+        const conferencia = buscar('conferenciaTotais'), quadros = buscar('quadrosTotais');
         const paginas = new Map(), selecionadas = new Set();
         let linhas = [], resultado = [], token = 0, emEnvio = false, enviado = false, editando = null;
+        let abasOriginais = [], abaOriginal = 0, paginaOriginal = 1;
         const bloqueado = () => emEnvio || enviado || editando !== null;
         const origem = l => `${esc(l.aba)} · linha ${l.linha}`;
+        function mostrarOriginal(foco) {
+            originais.hidden = !abasOriginais.length;
+            if (originais.hidden) { guias.innerHTML = grade.innerHTML = ''; return; }
+            guias.innerHTML = abasOriginais.map((a, i) => `<button type="button" class="btn btn-sm btn-outline-primary" data-seg-original="${i}" aria-pressed="${i === abaOriginal}">${esc(a.nome)}</button>`).join('');
+            const { total, html } = gradeOriginal(abasOriginais[abaOriginal], paginaOriginal);
+            grade.innerHTML = html + (total > 1 ? `<div class="fm-seg-acoes"><button type="button" class="btn btn-sm btn-outline-secondary" data-seg-passo="-1" ${paginaOriginal <= 1 ? 'disabled' : ''}>Anterior</button><span tabindex="-1" data-seg-pagina-original>Página ${paginaOriginal} de ${total}</span><button type="button" class="btn btn-sm btn-outline-secondary" data-seg-passo="1" ${paginaOriginal >= total ? 'disabled' : ''}>Próxima</button></div>` : '');
+            if (foco === 'aba') guias.querySelector(`[data-seg-original="${abaOriginal}"]`)?.focus();
+            if (foco === 'pagina') grade.querySelector('[data-seg-pagina-original]')?.focus();
+        }
+        function mostrarTotais(abrir = false) {
+            const grupos = conferirTotais(resultado, lista(), seguros);
+            conferencia.hidden = !grupos.length;
+            if (conferencia.hidden) { quadros.innerHTML = ''; return; }
+            const corpo = grupos.map(g => {
+                const comp = g.gravadas === g.linhas && !g.semTotal && !g.semTotalSistema && !g.calculadas;
+                const titulo = [g.apolice, g.seguradora, g.tipo === 'principal' ? 'Seguro principal' : g.tipo === 'segundo' ? '2º risco' : 'Tipo não identificado'].filter(Boolean).map(esc).join(' · ');
+                const alertas = [g.repetidas && `${g.repetidas} duplicada(s) no Excel`, g.semTotal && `${g.semTotal} sem valor na prévia`, g.calculadas && `${g.calculadas} com valor de Prêmio + IOF da prévia`, g.semTotalSistema && `${g.semTotalSistema} sem valor cadastrado`].filter(Boolean);
+                return `<tr><td>${esc(g.aba)}</td><td>${titulo}<br><small>${br(g.inicio)} a ${br(g.fim)}</small></td><td>${g.gravadas} de ${g.linhas}</td><td>${g.semTotal === g.linhas ? '—' : dinheiro(g.excel)}</td><td>${g.gravadas > g.semTotalSistema ? dinheiro(g.sistema) : '—'}</td><td>${comp ? dinheiro(g.excel - g.sistema) : '—'}</td><td>${esc(alertas.join(' · ')) || '—'}</td></tr>`;
+            }).join('');
+            quadros.innerHTML = `<p class="small mb-2">O comparativo soma as linhas reconhecidas, não as linhas de subtotal. A diferença só é exibida quando todas as linhas têm total no Excel e correspondência com valor no sistema.</p><div class="table-responsive"><table class="table align-middle"><thead><tr>${['Aba do Excel','Apólice','Linhas no sistema / prévia','Total Excel / prévia','Total no sistema','Diferença','Observações'].map(t => `<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${corpo}</tbody></table></div>`;
+            if (abrir) conferencia.open = true;
+        }
+        guias.addEventListener('click', e => {
+            const b = e.target.closest('[data-seg-original]');
+            if (!b) return;
+            abaOriginal = Number(b.dataset.segOriginal);
+            paginaOriginal = 1;
+            mostrarOriginal('aba');
+        });
+        grade.addEventListener('click', e => {
+            const b = e.target.closest('[data-seg-passo]');
+            if (!b || b.disabled) return;
+            paginaOriginal += Number(b.dataset.segPasso);
+            mostrarOriginal('pagina');
+        });
         function atualizarControles() {
             const total = resultado.filter(l => l.status === 'nova').length;
             const n = selecionadas.size;
@@ -405,6 +514,7 @@
             const contar = status => resultado.filter(l => l.status === status).length;
             const msg = pronto ? `${contar('nova')} nova(s) · ${contar('duplicada')} duplicada(s) · ${contar('invalida')} não importável(is). Marque os registros que deseja importar.` : 'Aguarde o carregamento dos seguros e dos veículos, confirme que está conectado e clique em Atualizar prévia.';
             resumo.textContent = `${prefixo}${msg}`;
+            mostrarTotais();
             desenhar();
         }
         botao.addEventListener('click', () => {
@@ -415,6 +525,9 @@
         });
         function limparPrevia() {
             linhas = []; resultado = []; enviado = false; paginas.clear(); selecionadas.clear();
+            abasOriginais = []; abaOriginal = 0; paginaOriginal = 1;
+            originais.open = conferencia.open = false;
+            mostrarOriginal(); mostrarTotais();
         }
         fechar.addEventListener('click', () => {
             if (emEnvio || editando !== null) return;
@@ -430,7 +543,12 @@
             limparPrevia();
             desenhar(); resumo.textContent = 'Lendo planilha…';
             try {
-                const lidas = await lerArquivo(f, root.XLSX);
+                const lidas = await lerArquivo(f, root.XLSX, abas => {
+                    if (atual !== token) return;
+                    abasOriginais = abas;
+                    originais.open = true;
+                    mostrarOriginal();
+                });
                 if (atual !== token) return;
                 linhas = lidas;
                 revalidar();
@@ -487,7 +605,10 @@
             const mensagem = (status, qtd) => {
                 if (atual !== token) return;
                 if (status === 'enviando') resumo.textContent = 'Gravando o lote no banco…';
-                else if (status === 'confirmado') resumo.textContent = `${qtd} registro(s) importado(s) e confirmado(s) no banco. Confira nas abas de Seguros.`;
+                else if (status === 'confirmado') {
+                    resumo.textContent = `${qtd} registro(s) importado(s) e confirmado(s) no banco. Confira os totais abaixo e as apólices nas abas de Seguros.`;
+                    mostrarTotais(true);
+                }
                 else if (status === 'pendente') resumo.textContent = 'O lote aguarda a confirmação do banco. Não repita a importação; acompanhe o status da sincronização.';
                 else if (status === 'erro' || status === 'fila') resumo.textContent = 'O banco não confirmou a importação. O lote pode estar na fila de sincronização; confira o status antes de tentar novamente.';
             };

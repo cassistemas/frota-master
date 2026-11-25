@@ -84,8 +84,8 @@
     function montar() {
         const host = el('fmApolices');
         if (!host || campo('form')) return;
-        host.innerHTML = `<div class="glass-container fm-seg-editor">
-            <h4 id="fmSeg_titulo">Cadastrar veículo na apólice</h4>
+        host.innerHTML = `<details id="fmSeg_editor" class="glass-container fm-seg-editor">
+            <summary id="fmSeg_titulo">Cadastrar veículo na apólice</summary>
             <p>Informe os dados da apólice e os valores por placa. Este cadastro não gera lançamentos financeiros.</p>
             <form id="fmSeg_form" aria-labelledby="fmSeg_titulo">
                 <div class="fm-seg-grid">
@@ -113,9 +113,9 @@
                     <button type="button" id="fmSeg_cancelar" class="btn btn-outline-secondary" hidden>Cancelar edição</button>
                     <button type="submit" id="fmSeg_salvar" class="btn btn-primary">Salvar registro</button>
                 </div>
-                <p id="fmSeg_aviso" role="status" class="mb-0"></p>
             </form>
-        </div>
+        </details>
+        <p id="fmSeg_aviso" role="status" class="mb-0"></p>
         <div class="glass-container">
             <div class="fm-seg-abas" role="group" aria-label="Tipo de seguro">${Object.entries(tipos).map(([k,v])=>`<button type="button" class="btn btn-outline-primary" data-seg-aba="${k}" aria-pressed="false">${v}</button>`).join('')}</div>
             <div class="fm-seg-grid fm-seg-filtros">
@@ -243,6 +243,7 @@
             campo(k).value = dinheiro.has(k) && r[k] != null ? decimal.format(r[k]/100) : texto(r[k]);
         });
         campo('titulo').textContent = 'Editar registro · ' + r.sveiculo;
+        campo('editor').open = true;
         campo('cancelar').hidden = false;
         ajustarForm();
         campo('sveiculo').focus();
@@ -379,15 +380,16 @@
             return;
         }
         const linhas = new Map(geral.map((r,i) => [r,i]));
-        const th = col.map(([,l]) => `<th scope="col">${esc(l)}</th>`).join('') + '<th scope="col">Ações</th>';
-        const tr = r => `<tr>${col.map(([k])=>`<td>${tabelaValor(k,r)}</td>`).join('')}<td class="fm-seg-linha-acoes"><button type="button" class="btn-edit" data-seg-editar="${linhas.get(r)}" aria-label="Editar ${esc(r.sveiculo)}" title="Editar">✎</button> <button type="button" class="btn-del" data-seg-excluir="${linhas.get(r)}" aria-label="Excluir ${esc(r.sveiculo)}" title="Excluir">✕</button></td></tr>`;
+        const classeValor = k => dinheiro.has(k) ? ' class="fm-seg-valor"' : '';
+        const th = col.map(([k,l]) => `<th scope="col"${classeValor(k)}>${esc(l)}</th>`).join('') + '<th scope="col">Ações</th>';
+        const tr = r => `<tr>${col.map(([k])=>`<td${classeValor(k)}>${tabelaValor(k,r)}</td>`).join('')}<td class="fm-seg-linha-acoes"><button type="button" class="btn-edit" data-seg-editar="${linhas.get(r)}" aria-label="Editar ${esc(r.sveiculo)}" title="Editar">✎</button> <button type="button" class="btn-del" data-seg-excluir="${linhas.get(r)}" aria-label="Excluir ${esc(r.sveiculo)}" title="Excluir">✕</button></td></tr>`;
         if (aba === 'legado') {
             campo('resultado').innerHTML = `<p>Cadastros anteriores, sem identificação de apólice. Para completar um registro, edite-o e escolha Seguro principal ou 2º risco.</p><div class="table-responsive"><table class="table table-striped align-middle"><thead><tr>${th}</tr></thead><tbody>${registros.map(tr).join('')}</tbody></table></div>`;
             return;
         }
         campo('resultado').innerHTML = agrupar(registros).sort((a,b)=>texto(a.cab.svencimento).localeCompare(texto(b.cab.svencimento))).map(({cab:r,linhas:grupo}) => {
             const itens = grupo.map(x=>x.r);
-            return `<section class="fm-seg-apolice"><div class="fm-seg-cab"><div><h5>Apólice ${esc(r.sapolice || '—')} · ${esc(r.sseguradora || '—')}</h5><div>Corretora: ${esc(r.scorretora || '—')} · Vigência: ${esc(dataBR(r.sinicio) || '—')} a ${esc(dataBR(r.svencimento) || '—')}</div></div><div><span class="fm-seg-situacao">${esc(situacoes[r.ssituacao] || 'Situação não informada')}</span> ${alerta(r)}</div></div><div class="table-responsive"><table class="table table-striped align-middle"><thead><tr>${th}</tr></thead><tbody>${itens.map(tr).join('')}</tbody><tfoot><tr><th scope="row" colspan="${col.length - 3}">Subtotal das placas exibidas</th>${comum.map(([k])=>`<td>${exMoeda(subtotal(itens,k))}</td>`).join('')}<td></td></tr></tfoot></table></div></section>`;
+            return `<section class="fm-seg-apolice"><div class="fm-seg-cab"><div><h5>Apólice ${esc(r.sapolice || '—')} · ${esc(r.sseguradora || '—')}</h5><div>Corretora: ${esc(r.scorretora || '—')} · Vigência: ${esc(dataBR(r.sinicio) || '—')} a ${esc(dataBR(r.svencimento) || '—')}</div></div><div><span class="fm-seg-situacao">${esc(situacoes[r.ssituacao] || 'Situação não informada')}</span> ${alerta(r)}</div></div><div class="table-responsive" role="region" tabindex="0" aria-label="Placas da apólice ${esc(r.sapolice || '—')}"><table class="table align-middle fm-seg-tabela-planilha"><thead><tr>${th}</tr></thead><tbody>${itens.map(tr).join('')}</tbody><tfoot><tr><th scope="row" colspan="${col.length - 3}">Subtotal · ${itens.length} placa(s)</th>${comum.map(([k])=>`<td${classeValor(k)}>${exMoeda(subtotal(itens,k))}</td>`).join('')}<td></td></tr></tfoot></table></div></section>`;
         }).join('');
     }
     function acoes(e) {

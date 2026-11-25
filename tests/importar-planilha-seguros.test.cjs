@@ -223,19 +223,34 @@ test('a prévia seleciona todas as páginas e só envia a seleção com as ediç
         row[2] = `A${i}`;
         return row;
     }), linha('XYZ4567', '-1')];
-    const window = { XLSX: { read: () => ({ SheetNames: ['Seguro principal'], Sheets: { 'Seguro principal': {} } }),
-        utils: { sheet_to_json: () => dados } } };
+    const original = [['<img src=x onerror=alert(1)>', ''], ['Total geral', 50]];
+    const janelaOriginal = { '!ref': 'A4:B5', '!merges': [{ s: { r: 3, c: 0 }, e: { r: 3, c: 1 } }], '4:1': { w: 'R$ 50,00' } };
+    const window = { XLSX: { read: () => ({ SheetNames: ['Seguro principal', 'Resumo & totais'],
+        Sheets: { 'Seguro principal': {}, 'Resumo & totais': janelaOriginal } }),
+        utils: {
+            decode_range: () => ({ s: { r: 3, c: 0 }, e: { r: 4, c: 1 } }),
+            encode_cell: ({ r, c }) => `${r}:${c}`,
+            sheet_to_json: aba => aba === janelaOriginal ? original : dados,
+        } } };
     vm.runInNewContext(fs.readFileSync(require.resolve('../importar-planilha-seguros.js'), 'utf8'), { window });
-    const gravados = [];
-    window.FMImportarSeguros.montar({ painel, botao, seguros, veiculos: () => cadastro, lista: () => [],
+    const gravados = [], salvos = [];
+    window.FMImportarSeguros.montar({ painel, botao, seguros, veiculos: () => cadastro, lista: () => salvos,
         podeGravar: () => true, ocupado: () => false, gravar: async (linhas, indices) => {
             gravados.push({ linhas, indices });
+            salvos.push(...validar(linhas).filter(l => indices.includes(l.indice)).map(l => l.registro));
             return { status: 'confirmado', quantidade: indices.length };
         },
     });
     const arquivo = el('arquivo'), tabela = el('linhasImportacao'), editor = el('edicaoImportacao');
     arquivo.files = [{ name: 'FROTA.xlsx', size: 8, arrayBuffer: async () => new ArrayBuffer(8) }];
     await arquivo.emitir('change');
+    assert.equal(el('abasOriginais').open, true);
+    assert.match(el('guiaOriginais').innerHTML, /Resumo &amp; totais/);
+    el('guiaOriginais').emitir('click', { target: { closest: () => ({ dataset: { segOriginal: '1' } }) } });
+    assert.match(el('gradeOriginal').innerHTML, /scope="row">4<\/th>.*colspan="2">&lt;img/);
+    assert.match(el('gradeOriginal').innerHTML, /R\$ 50,00/);
+    assert.doesNotMatch(el('gradeOriginal').innerHTML, /<img/);
+    assert.match(el('quadrosTotais').innerHTML, /<td>0 de 1<\/td>/);
     assert.equal(el('confirmarImportacao').disabled, true);
     el('marcarImportacao').emitir('click');
     assert.match(el('qtdImportacao').textContent, /^26 de 26/);
@@ -269,4 +284,10 @@ test('a prévia seleciona todas as páginas e só envia a seleção com as ediç
     assert.deepEqual(Array.from(gravados[0].indices), [26]);
     assert.equal(gravados[0].linhas[26].dados.siof, '8,50');
     assert.equal(gravados[0].linhas[26].dados.totalExcel, 999999);
+    assert.equal(el('conferenciaTotais').open, true);
+    assert.match(el('quadrosTotais').innerHTML, /<td>1 de 1<\/td>/);
+    el('fecharImportacao').emitir('click');
+    assert.equal(el('abasOriginais').hidden, true);
+    assert.equal(el('gradeOriginal').innerHTML, '');
+    assert.equal(el('conferenciaTotais').hidden, true);
 });
