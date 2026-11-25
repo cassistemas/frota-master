@@ -209,7 +209,15 @@
                 <button type="button" class="btn-del fm-acao-tabela fm-acao-excluir" data-seg-gerenciar="excluir" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12 M18 6 6 18"/></svg><span>Excluir</span></button>
             </div>
             <div id="fmSeg_resultado"></div>
-        </div>`;
+        </div>
+        <dialog id="fmSeg_ficha" class="fm-seg-ficha" aria-labelledby="fmSeg_fichaTitulo">
+            <header class="fm-seg-ficha-cab">
+                <h2 id="fmSeg_fichaTitulo"></h2>
+                <button type="button" id="fmSeg_fecharFicha" class="btn btn-outline-primary" autofocus>Fechar</button>
+            </header>
+            <div id="fmSeg_fichaConteudo"></div>
+        </dialog>`;
+        campo('fecharFicha').addEventListener('click', () => campo('ficha').close());
         campo('form').addEventListener('submit', salvar);
         campo('sveiculo').required = true;
         campo('stipo').addEventListener('change', () => {
@@ -479,7 +487,12 @@
         }
         const th = col.map(([k,l]) => `<th scope="col"${!l && k === 'smodelo' ? ` aria-label="${aba === 'segundo' ? 'Descrição do veículo' : 'Modelo'}"` : ''}>${esc(l)}</th>`).join('');
         if (porPlaca) {
-            campo('resultado').innerHTML = `<div class="table-responsive" role="region" tabindex="0" aria-label="${tipos[aba]} por placa"><table class="table table-striped align-middle fm-seg-${aba}" data-sem-relatorio><thead><tr>${th}</tr></thead><tbody>${registros.map((r, i) => `<tr>${col.map(([k]) => `<td>${tabelaValor(k,r,i)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+            const linhas = registros.map((r, i) => `<tr>${col.map(([k]) => {
+                const valor = tabelaValor(k, r, i);
+                if (k !== 'sveiculo') return `<td>${valor}</td>`;
+                return `<td class="text-nowrap"><button type="button" class="btn btn-sm btn-outline-primary p-1 me-1 lh-1" data-seg-visualizar="${i}" aria-label="Visualizar seguro de ${esc(r.sveiculo)}" title="Visualizar seguro"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>${valor}</td>`;
+            }).join('')}</tr>`).join('');
+            campo('resultado').innerHTML = `<div class="table-responsive" role="region" tabindex="0" aria-label="${tipos[aba]} por placa"><table class="table table-striped align-middle fm-seg-${aba}" data-sem-relatorio><thead><tr>${th}</tr></thead><tbody>${linhas}</tbody></table></div>`;
             return;
         }
         const linhas = new Map(geral.map((r,i) => [r,i]));
@@ -488,10 +501,25 @@
         const tr = r => `<tr>${col.map(([k])=>`<td>${tabelaValor(k,r)}</td>`).join('')}${acoesLinha(r)}</tr>`;
         campo('resultado').innerHTML = `<p>Cadastros anteriores, sem identificação de apólice. Para completar um registro, edite-o e escolha Seguro principal ou 2º risco.</p><div class="table-responsive"><table class="table table-striped align-middle"><thead><tr>${thComAcoes}</tr></thead><tbody>${registros.map(tr).join('')}</tbody></table></div>`;
     }
+    function visualizar(r) {
+        const ficha = campo('ficha');
+        const dadosApolice = [['sseguradora','Seguradora'], ['scorretora','Corretora'], ['sapolice','Nº da apólice'],
+            ['sinicio','Início da vigência'], ['svencimento','Fim da vigência']];
+        const detalhes = (campos, valor) => `<dl>${campos.map(([k, rotulo]) => `<div><dt>${esc(rotulo)}</dt><dd>${valor(k)}</dd></div>`).join('')}</dl>`;
+        const coberturas = colunas[aba].filter(([k]) => k !== 'item' && k !== 'sveiculo')
+            .map(([k, rotulo]) => [k, k === 'smodelo' ? 'Descrição do veículo' : k === 'sanoFab' ? 'Ano de fabricação' : k === 'sanoMod' ? 'Ano-modelo' : rotulo]);
+        campo('fichaTitulo').textContent = `${tipos[aba]} — ${texto(r.sveiculo)}`;
+        campo('fichaConteudo').innerHTML = `<h3>Dados da apólice</h3>${detalhes(dadosApolice, k => esc((k === 'sinicio' || k === 'svencimento' ? dataBR(r[k]) : texto(r[k])) || '—'))}
+            <h3>Veículo e coberturas</h3>${detalhes(coberturas, k => tabelaValor(k, r) || '—')}`;
+        ficha.showModal();
+    }
     function acoes(e) {
         const b = e.target.closest('button');
         if (!b || ocupada) return;
-        if (b.dataset.segAba) {
+        if (b.dataset.segVisualizar != null) {
+            const r = registrosGerenciar[Number(b.dataset.segVisualizar)];
+            if (r && usaFichaPorPlaca(aba) && filtrados().includes(r)) visualizar(r);
+        } else if (b.dataset.segAba) {
             const destino = b.dataset.segAba;
             if (editando && destino !== aba) return aviso('Salve ou cancele a edição antes de trocar de aba.');
             if (destino !== aba) {

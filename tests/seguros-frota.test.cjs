@@ -129,6 +129,7 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
                     set textContent(v) { this.innerHTML = v; },
                     add() {}, addEventListener(n, fn) { this.eventos[n] = fn; },
                     focus() { foco = id; }, querySelectorAll: () => acoes,
+                    showModal() { this.open = true; }, close() { this.open = false; },
                     reset() {
                         const form = montagem.match(/<form\b[^]*?<\/form>/)[0];
                         for (const [, id] of form.matchAll(/<(?:input|select)\b[^>]*id="(fmSeg_\w+)"/g)) campos.get(id).value = '';
@@ -189,9 +190,23 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     assert.equal(campos.get('fmSeg_sfipePercent').parentElement.hidden, false);
     const tabela = resultado.innerHTML.match(/<table\b[^]*?<\/table>/)[0];
     assert.deepEqual([...tabela.matchAll(/<th\s[^>]*>(.*?)<\/th>/g)].map(m => m[1]), cabecalhoPrincipal);
-    assert.equal([...tabela.matchAll(/<td>/g)].length, 14);
+    assert.equal([...tabela.matchAll(/<td\b/g)].length, 14);
     assert.match(tabela, /<td>100<\/td>.*<td>BÁSICO<\/td>/);
-    assert.doesNotMatch(tabela, /Subtotal|Ações|Apólice|<button/);
+    assert.match(tabela, /data-seg-visualizar="0" aria-label="Visualizar seguro de ABC1D23"[^>]*><svg[^]*?<\/button>ABC1D23<\/td>/);
+    assert.doesNotMatch(tabela, /Subtotal|Ações|Apólice/);
+    const ficha = campos.get('fmSeg_ficha');
+    const fichaTitulo = campos.get('fmSeg_fichaTitulo');
+    const fichaConteudo = campos.get('fmSeg_fichaConteudo');
+    const visualizarLinha = i => aoClicar({ target: { closest: () => ({ dataset: { segVisualizar: String(i) } }) } });
+    visualizarLinha(0);
+    assert.equal(ficha.open, true);
+    assert.equal(fichaTitulo.textContent, 'Seguro principal — ABC1D23');
+    assert.match(fichaConteudo.innerHTML, /Seguradora Á/);
+    assert.match(fichaConteudo.innerHTML, /31\/12\/2026/);
+    assert.match(fichaConteudo.innerHTML, /R\$\s250\.000,00/);
+    assert.equal(gravacoes, 0);
+    campos.get('fmSeg_fecharFicha').eventos.click();
+    assert.equal(ficha.open, false);
     assert.match(montagem, /class="[^\"]*fm-acao-editar" data-seg-gerenciar="editar"/);
     assert.match(montagem, /class="[^\"]*fm-acao-excluir" data-seg-gerenciar="excluir"/);
     const gerenciar = campos.get('fmSeg_gerenciar');
@@ -242,7 +257,8 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
         aoClicar({ target: abas[i] });
         assert.match(abas[i].textContent, /\(1\)$/);
         assert.match(resultado.innerHTML, /<table\b/);
-        assert.ok(resultado.innerHTML.includes(`<td>${placa}</td>`));
+        assert.ok(resultado.innerHTML.includes(i === 2 ? `<td>${placa}</td>` : `</button>${placa}</td>`));
+        assert.equal(resultado.innerHTML.includes('data-seg-visualizar='), i !== 2);
     }
 
     aoClicar({ target: abas[0] });
@@ -272,9 +288,17 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     const cabecalhoSegundo = ['ITEM', 'ANO', 'MODELO', 'PLACA', '', 'GRU', 'D. MORAIS', 'PRÊMIO', 'IOF', 'TOTAL'];
     const tabelaSegundo = resultado.innerHTML.match(/<table\b[^]*?<\/table>/)[0];
     assert.deepEqual([...tabelaSegundo.matchAll(/<th\s[^>]*>(.*?)<\/th>/g)].map(m => m[1]), cabecalhoSegundo);
-    assert.match(tabelaSegundo, /<td>1<\/td><td>2024<\/td><td><\/td><td>XYZ4J56<\/td><td>VW DELIVERY<\/td>/);
+    assert.match(tabelaSegundo, /<td>1<\/td><td>2024<\/td><td><\/td><td[^>]*><button[^>]*data-seg-visualizar="0"[^>]*aria-label="Visualizar seguro de XYZ4J56"[^]*?<\/button>XYZ4J56<\/td><td>VW DELIVERY<\/td>/);
     assert.match(tabelaSegundo, /544,08<\/td>/);
-    assert.doesNotMatch(resultado.innerHTML, /Subtotal|Apólice|<button|<tfoot/);
+    assert.doesNotMatch(resultado.innerHTML, /Subtotal|Apólice|<tfoot/);
+    visualizarLinha(0);
+    assert.equal(ficha.open, true);
+    assert.equal(fichaTitulo.textContent, '2º risco — XYZ4J56');
+    assert.match(fichaConteudo.innerHTML, /Ano de fabricação<\/dt><dd>2024<\/dd>/);
+    assert.match(fichaConteudo.innerHTML, /R\$\s544,08/);
+    assert.doesNotMatch(fichaConteudo.innerHTML, /FIPE/);
+    assert.equal(gravacoes, 0);
+    campos.get('fmSeg_fecharFicha').eventos.click();
     excel.eventos.click();
     assert.deepEqual(exportado, [cabecalhoSegundo, [1, 2024, '', 'XYZ4J56', 'VW DELIVERY', 1500000, 200000, 506.69, 37.39, 544.08]]);
     assert.equal(segundo.sanoFab, undefined);

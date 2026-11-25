@@ -32,3 +32,11 @@
 #fmApolices .fm-seg-segundo th:nth-child(5){cursor:default}
 #fmApolices .fm-seg-gerenciar{justify-content:flex-start;align-items:flex-end}
 #fmApolices .fm-seg-gerenciar label{display:grid;gap:.3rem;flex:0 1 24rem;min-width:0;font-weight:600}
+#fmApolices .fm-seg-ficha{width:min(46rem,calc(100% - 2rem));max-height:calc(100% - 2rem);overflow:auto;padding:1.25rem;color:var(--bs-body-color,#1e293b);background:var(--bs-body-bg,#fff);border:1px solid var(--bs-border-color,#dbe3ef);border-radius:.75rem}
+#fmApolices .fm-seg-ficha::backdrop{background:rgba(15,23,42,.58)}
+#fmApolices .fm-seg-ficha-cab{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem}
+#fmApolices .fm-seg-ficha h2{font-size:1.25rem;margin:0;overflow-wrap:anywhere}
+#fmApolices .fm-seg-ficha h3{font-size:1rem;margin:0 0 .6rem}
+#fmApolices .fm-seg-ficha dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:.75rem;margin:0 0 1rem}
+#fmApolices .fm-seg-ficha dl:last-child,#fmApolices .fm-seg-ficha dd{margin-bottom:0}
+#fmApolices .fm-seg-ficha dd{overflow-wrap:anywhere}
