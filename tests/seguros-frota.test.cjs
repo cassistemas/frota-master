@@ -103,7 +103,7 @@ test('o Excel de Seguros não usa classe ou acionador de exportação legada', (
     assert.doesNotMatch(botao, /\bbtn-excel\b|\bonclick=/);
 });
 
-test('as três abas renderizam e as ações do principal ficam fora da tabela e do Excel', async () => {
+test('as três abas renderizam e as ações do principal e do 2º risco ficam fora da tabela e do Excel', async () => {
     const vm = require('node:vm');
     const fonte = fs.readFileSync(path.join(__dirname, '..', 'seguros-frota.js'), 'utf8');
     const db = { veiculos: [], seguros: [] };
@@ -245,6 +245,44 @@ test('as três abas renderizam e as ações do principal ficam fora da tabela e 
     assert.ok(!db.seguros.includes(importado));
     assert.deepEqual(db.seguros.map(r => r.sveiculo), ['XYZ4J56', 'HIS1A23']);
     assert.equal(gerenciar.hidden, true);
+
+    campos.set('fmSeg_exportar', excel);
+    const segundo = db.seguros[0];
+    Object.assign(segundo, { smodelo: 'VW DELIVERY', sgru: 150000000, smorais: 20000000, spremio: 50669, siof: 3739 });
+    db.detran = [{ dtPlaca: 'XYZ-4J56', dtAnoFab: '2024' }];
+    aoClicar({ target: abas[1] });
+    const cabecalhoSegundo = ['ITEM', 'ANO', 'MODELO', 'PLACA', '', 'GRU', 'D. MORAIS', 'PRÊMIO', 'IOF', 'TOTAL'];
+    const tabelaSegundo = resultado.innerHTML.match(/<table\b[^]*?<\/table>/)[0];
+    assert.deepEqual([...tabelaSegundo.matchAll(/<th\s[^>]*>(.*?)<\/th>/g)].map(m => m[1]), cabecalhoSegundo);
+    assert.match(tabelaSegundo, /<td>1<\/td><td>2024<\/td><td><\/td><td>XYZ4J56<\/td><td>VW DELIVERY<\/td>/);
+    assert.match(tabelaSegundo, /544,08<\/td>/);
+    assert.doesNotMatch(resultado.innerHTML, /Subtotal|Apólice|<button|<tfoot/);
+    excel.eventos.click();
+    assert.deepEqual(exportado, [cabecalhoSegundo, [1, 2024, '', 'XYZ4J56', 'VW DELIVERY', 1500000, 200000, 506.69, 37.39, 544.08]]);
+    assert.equal(segundo.sanoFab, undefined);
+    assert.equal(gerenciar.hidden, false);
+    assert.equal(campos.get('fmSeg_dadosApolice').hidden, true);
+    assert.equal(campos.get('fmSeg_sfipePercent').parentElement.hidden, true);
+    assert.equal(campos.get('fmSeg_sanoFab').parentElement.hidden, false);
+    registro.value = '0';
+    registro.eventos.change();
+    aoClicar({ target: acoes[0] });
+    assert.equal(editor.open, true);
+    assert.equal(campos.get('fmSeg_sanoFab').value, '2024');
+    assert.equal(campos.get('fmSeg_sanoMod').value, '');
+    assert.match(campos.get('fmSeg_total').value, /544,08/);
+    campos.get('fmSeg_smodelo').value = 'Não deve salvar';
+    cancelar.eventos.click();
+    assert.equal(editor.open, false);
+    assert.equal(foco, 'fmSeg_registro');
+    assert.equal(segundo.smodelo, 'VW DELIVERY');
+    confirmarExclusao = false;
+    await aoClicar({ target: acoes[1] });
+    assert.deepEqual(exclusao, ['seguros', 0]);
+    assert.ok(db.seguros.includes(segundo));
+    confirmarExclusao = true;
+    await aoClicar({ target: acoes[1] });
+    assert.deepEqual(db.seguros.map(r => r.sveiculo), ['HIS1A23']);
 
     db.seguros = [];
     for (const aba of abas) {
