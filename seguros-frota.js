@@ -118,7 +118,7 @@
         return anoValido(ano) ? ano : '';
     };
     let aba = 'principal', editando = null, ocupada = false, registrosGerenciar = [], rascunhoApolice = {};
-    let placaFipeForm = '', fipeManualForm = '', registroFicha = null;
+    let placaFipeForm = '', fipeManualForm = '', fipeSugeridaForm = '', registroFicha = null;
     const op = (value, label) => '<option value="' + esc(value) + '">' + esc(label) + '</option>';
     const ops = obj => Object.entries(obj).map(([v,l]) => op(v,l)).join('');
     const input = (k, label, attrs = '') => '<label><span>'+esc(label)+'</span><input id="fmSeg_'+k+'" class="form-control" '+attrs+'></label>';
@@ -149,16 +149,21 @@
         s.value = opcoes.some(p => p.chave === atual) ? atual : '';
     }
     function escolherApolice() {
-        if (!campo('sseguradora').readOnly) rascunhoApolice = lerApolice();
         const escolhida = apolicesCadastradas().find(p => p.chave === campo('apoliceExistente').value);
         if (!escolhida) campo('apoliceExistente').value = '';
-        preencherApolice(escolhida?.dados || rascunhoApolice);
+        if (editando) {
+            if (escolhida) preencherApolice(escolhida.dados);
+        } else {
+            if (!campo('sseguradora').readOnly) rascunhoApolice = lerApolice();
+            preencherApolice(escolhida?.dados || rascunhoApolice);
+        }
         ajustarForm();
     }
     const exMoeda = v => v == null ? '—' : moeda.format(v/100);
     function campoValor(k, r, indice) {
         if (k === 'item') return indice + 1;
-        if (k === 'sfipe' && tipo(r) === 'principal') return fipeDetran(dadosDetran(r.sveiculo)) ?? r.sfipe;
+        if (k === 'sfipe' && tipo(r) === 'principal') return r.sfipeManual === true && r.sfipe != null
+            ? r.sfipe : fipeDetran(dadosDetran(r.sveiculo)) ?? r.sfipe;
         if (k in camposAno) return r[k] ?? anoCadastrado(dadosDetran(r.sveiculo), k);
         if (k === 'total') return total(r);
         if (k === 'prazo') return prazo(r.svencimento)[1];
@@ -195,7 +200,7 @@
                     ${input('sapolice','Nº da apólice','maxlength="120"')}
                     ${input('sinicio','Início da vigência','type="date"')}
                     ${input('svencimento','Fim da vigência','type="date"')}
-                    <p id="fmSeg_ajudaApolice" class="fm-seg-ajuda-apolice mb-0" hidden>Para alterar os dados da apólice neste registro, selecione Nova apólice.</p>
+                    <p id="fmSeg_ajudaApolice" class="fm-seg-ajuda-apolice mb-0" hidden></p>
                 </div>
                 <h5 id="fmSeg_coberturas">Veículo e coberturas</h5>
                 <div class="fm-seg-grid">
@@ -204,6 +209,7 @@
                     ${camposVeiculo.filter(([k]) => k in camposAno).map(([k,l]) => input(k, l, 'inputmode="numeric" maxlength="4" pattern="[1-9][0-9]{3}"')).join('')}
                     ${camposVeiculo.filter(([k]) => k !== 'smodelo' && !(k in camposAno)).map(([k,l]) => input(k, k === 'total' ? 'Total (prêmio + IOF)' : l + (dinheiro.has(k) ? ' (R$)' : ''),
                         k === 'total' ? 'readonly' : dinheiro.has(k) ? 'inputmode="numeric" placeholder="R$ 0,00"' : k === 'sfipePercent' ? 'inputmode="decimal" maxlength="20"' : `maxlength="${limitesTexto[k]}"`)).join('')}
+                    <p id="fmSeg_ajudaFipe" class="fm-seg-ajuda-apolice mb-0" hidden></p>
                 </div>
                 <div class="fm-seg-acoes">
                     <button type="button" id="fmSeg_cancelar" class="btn btn-outline-secondary" hidden>Cancelar edição</button>
@@ -242,11 +248,13 @@
         campo('form').addEventListener('submit', salvar);
         campo('sveiculo').required = true;
         campo('stipo').addEventListener('change', () => {
-            if (campo('apoliceExistente').value) preencherApolice(rascunhoApolice);
-            aba = campo('stipo').value;
+            if (!editando) {
+                if (campo('apoliceExistente').value) preencherApolice(rascunhoApolice);
+                aba = campo('stipo').value;
+            }
             atualizarApolices('');
             ajustarForm();
-            consultar();
+            if (!editando) consultar();
         });
         campo('apoliceExistente').addEventListener('change', escolherApolice);
         campo('sveiculo').addEventListener('change', preencherVeiculo);
@@ -280,13 +288,30 @@
     function atualizarFipeForm() {
         const c = campo('sfipe'), p = campo('sveiculo').value;
         const vinculada = campo('stipo').value === 'principal' ? fipeDetran(dadosDetran(p)) : null;
-        if (placaFipeForm !== placa(p)) {
-            placaFipeForm = placa(p);
-            const r = editando?.registro;
-            fipeManualForm = r && placaIgual(r.sveiculo, p) ? valorEditavel('sfipe', r.sfipe) : '';
-        } else if (!c.readOnly) {
-            fipeManualForm = c.value;
+        const mudouPlaca = placaFipeForm !== placa(p);
+        placaFipeForm = placa(p);
+        const ajuda = campo('ajudaFipe');
+        ajuda.hidden = !editando || vinculada == null;
+        if (!ajuda.hidden) ajuda.textContent = 'FIPE de referência do DETRAN: ' + exMoeda(vinculada) + '. Apague o valor no campo FIPE VEÍCULO para usar essa referência novamente.';
+        if (editando) {
+            const r = editando.registro;
+            const mesmaPlaca = placaIgual(r.sveiculo, p);
+            const reserva = mesmaPlaca ? r.sfipe : null;
+            const manual = mesmaPlaca && r.sfipeManual === true && reserva != null;
+            const sugestao = valorEditavel('sfipe', vinculada ?? reserva);
+            if (mudouPlaca) {
+                c.value = manual ? valorEditavel('sfipe', reserva) : sugestao;
+                fipeSugeridaForm = manual ? null : sugestao;
+            } else if (fipeSugeridaForm !== null && c.value === fipeSugeridaForm) {
+                c.value = fipeSugeridaForm = sugestao;
+            }
+            c.readOnly = false;
+            c.title = vinculada == null ? 'Valor da FIPE deste seguro' :
+                'Referência DETRAN: ' + exMoeda(vinculada) + '. Apague o valor para voltar a usar o DETRAN.';
+            return;
         }
+        if (mudouPlaca) fipeManualForm = '';
+        else if (!c.readOnly) fipeManualForm = c.value;
         c.readOnly = vinculada != null;
         const valor = c.readOnly ? valorEditavel('sfipe', vinculada) : fipeManualForm;
         if (c.value !== valor) c.value = valor;
@@ -321,20 +346,22 @@
     function ajustarForm() {
         const t = campo('stipo').value;
         const porPlaca = usaFichaPorPlaca(t);
-        const podeMudarTipo = editando && tipo(editando.registro) === 'legado';
         const visiveis = new Map(colunas[t]);
         campo('editor').hidden = aba === 'legado' && !editando;
         campo('instrucoes').hidden = campo('coberturas').hidden = porPlaca;
-        campo('stipo').disabled = !podeMudarTipo;
+        campo('stipo').disabled = !editando;
         const apoliceExistente = campo('apoliceExistente');
-        const reutilizaApolice = porPlaca && !!apoliceExistente.value;
+        const bloqueiaApolice = !editando && porPlaca && !!apoliceExistente.value;
         apoliceExistente.parentElement.hidden = apoliceExistente.disabled = !porPlaca;
-        campo('ajudaApolice').hidden = !reutilizaApolice;
+        const ajuda = campo('ajudaApolice');
+        ajuda.hidden = !porPlaca || (!editando && !bloqueiaApolice);
+        ajuda.textContent = editando ? 'Você pode usar uma apólice cadastrada para preencher os campos. As alterações valem apenas para este registro.' :
+            'Para informar outros dados no cadastro, selecione Nova apólice.';
         camposApolice.forEach(k => {
             const c = campo(k), historico = camposHistorico.includes(k);
             c.parentElement.hidden = c.disabled = !porPlaca && !historico;
             c.required = !porPlaca && historico;
-            c.readOnly = reutilizaApolice;
+            c.readOnly = bloqueiaApolice;
         });
         camposVeiculo.forEach(([k, l]) => {
             const c = campo(k);
@@ -358,6 +385,8 @@
     function limpar() {
         editando = null;
         campo('form').reset();
+        placaFipeForm = null;
+        fipeSugeridaForm = '';
         rascunhoApolice = {};
         preencherApolice(rascunhoApolice);
         campo('stipo').innerHTML = ops({ principal: tipos.principal, segundo: tipos.segundo });
@@ -388,12 +417,11 @@
         if (t === 'legado') campo('stipo').add(new Option(tipos.legado, 'legado'));
         campo('stipo').value = t;
         preencherApolice(r);
-        rascunhoApolice = lerApolice();
         atualizarApolices(usaFichaPorPlaca(t) ? apolice(r) : '');
         preencherPlacas(r.sveiculo);
-        colunas[t].forEach(([k]) => {
-            if (['item','sveiculo','sseguradora','svencimento','prazo','total'].includes(k)) return;
-            campo(k).value = valorEditavel(k, k === 'sfipe' ? r.sfipe : campoValor(k, r));
+        placaFipeForm = null;
+        camposVeiculo.forEach(([k]) => {
+            if (k !== 'total' && k !== 'sfipe') campo(k).value = valorEditavel(k, campoValor(k, r));
         });
         campo('titulo').textContent = 'Editar registro · ' + r.sveiculo;
         campo('editor').open = true;
@@ -436,21 +464,37 @@
         atualizarFipeForm();
         for (const [k, nome] of colunas[t]) {
             if (!camposVeiculo.some(([c]) => c === k) || k === 'total') continue;
-            if (k === 'sfipe' && campo(k).readOnly) {
-                // A FIPE do DETRAN é dinâmica; guarde apenas o valor manual de reserva da mesma placa.
-                r.sfipe = placaIgual(anterior?.sveiculo, r.sveiculo) ? anterior.sfipe ?? null : null;
-                continue;
-            }
-            const v = campo(k).value;
+            const c = campo(k);
+            const v = c.value;
             const valor = k === 'sfipePercent' ? centavos(texto(v).replace(/\s*%$/, '')) : dinheiro.has(k) ? centavos(v) : texto(v);
             if (k in camposAno && valor && !anoValido(valor)) return aviso('Informe ' + (k === 'sanoFab' ? 'o ano de fabricação' : 'o ano-modelo') + ' com quatro dígitos ou deixe em branco.');
             if (Number.isNaN(valor)) return aviso('Revise o valor de ' + nome + '. Use um valor positivo ou zero, com até duas casas decimais.');
-            r[k] = valor;
+            if (k === 'sfipe') {
+                const mesmaPlaca = placaIgual(anterior?.sveiculo, r.sveiculo);
+                if (c.readOnly || (anterior && fipeSugeridaForm !== null && valor === centavos(fipeSugeridaForm))) {
+                    // Não congele a referência do DETRAN ao salvar uma edição de outro campo.
+                    r.sfipe = mesmaPlaca ? anterior.sfipe ?? null : null;
+                    delete r.sfipeManual;
+                } else {
+                    r.sfipe = valor;
+                    if (anterior && valor != null) r.sfipeManual = true;
+                    else delete r.sfipeManual;
+                }
+            } else r[k] = valor;
+        }
+        if (anterior && t !== 'principal' && !placaIgual(anterior.sveiculo, r.sveiculo)) {
+            delete r.sfipe;
+            delete r.sfipeManual;
         }
         const alvo = apolice(r);
-        const mesmaFichaSegundo = t === 'segundo' && anterior && tipo(anterior) === t && placaIgual(anterior.sveiculo, r.sveiculo);
-        if (t !== 'legado' && !mesmaFichaSegundo && lista().some((x, j) => j !== i && placaIgual(x.sveiculo, r.sveiculo) &&
-            (t === 'segundo' ? tipo(x) === t : apolice(x) === alvo))) {
+        const mesmaPlacaSegundo = t === 'segundo' && anterior && tipo(anterior) === t && placaIgual(anterior.sveiculo, r.sveiculo);
+        if (t !== 'legado' && lista().some((x, j) => {
+            if (j === i || !placaIgual(x.sveiculo, r.sveiculo)) return false;
+            if (t === 'principal') return apolice(x) === alvo;
+            if (!mesmaPlacaSegundo) return tipo(x) === t;
+            // Permita corrigir fichas antigas do 2º risco, sem fundir duas fichas na mesma apólice.
+            return apolice(anterior) !== alvo && apolice(x) === alvo;
+        })) {
             return aviso(t === 'segundo' ? 'Esta placa já consta no 2º risco. Edite o registro existente.' : 'Esta placa já consta nesta apólice. Edite o registro existente.');
         }
         const pronto = fmPrepararRegistro('seguros', r, anterior);

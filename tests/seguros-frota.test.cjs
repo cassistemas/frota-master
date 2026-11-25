@@ -290,8 +290,9 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     campos.get('fmSeg_fecharFicha').eventos.click();
     registro.value = '0';
     aoClicar({ target: acoes[0] });
-    assert.equal(fipe.readOnly, true);
+    assert.equal(fipe.readOnly, false);
     assert.match(fipe.value, /R\$\s312\.345,67/);
+    assert.match(fipe.title, /Referência DETRAN/);
     const modelo = campos.get('fmSeg_smodelo');
     modelo.value = 'Alteração em andamento';
     db.detran[1].dtFipeValor = 'R$ 325.678,90';
@@ -309,7 +310,7 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     }
     seletorPlaca.value = 'XYZ4J56';
     seletorPlaca.eventos.change();
-    assert.equal(fipe.readOnly, true);
+    assert.equal(fipe.readOnly, false);
     assert.match(fipe.value, /R\$\s999\.999,99/);
     db.detran = [];
     atualizarDetran();
@@ -596,6 +597,117 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     assert.equal(campo('sseguradora').value, 'Histórico');
     assert.equal(campo('svencimento').required, true);
     assert.equal(campo('sapolice').parentElement.hidden, true);
+    cancelar.eventos.click();
+
+    const alvo = { ...base, _rid: 'alvo', sfipe: 25000000 };
+    const outraPlaca = { ...base, _rid: 'outra', sveiculo: 'XYZ4J56', scorretora: 'Corretora compartilhada' };
+    const modeloApolice = { ...outraPlaca, _rid: 'modelo', sapolice: 'MODELO', sseguradora: 'Seguradora modelo' };
+    const outroSeguro = { ...base, _rid: 'risco', stipo: 'segundo', sapolice: 'RISCO' };
+    const intactos = JSON.stringify([outraPlaca, modeloApolice, outroSeguro]);
+    db.seguros = [alvo, outraPlaca, modeloApolice, outroSeguro];
+    db.veiculos = [{ vplaca: base.sveiculo, vmodelo: 'Scania' }, { vplaca: outraPlaca.sveiculo, vmodelo: 'Volvo' }];
+    db.detran = [{ dtPlaca: base.sveiculo, dtFipeValor: 'R$ 300.000,00', dtAnoFab: '2020' }];
+    aoClicar({ target: abas[0] });
+    const editarAlvo = () => {
+        registro.value = '0';
+        registro.eventos.change();
+        aoClicar({ target: acoes[0] });
+    };
+    editarAlvo();
+    const seletor = campo('apoliceExistente');
+    assert.equal(campo('stipo').disabled, false);
+    assert.equal(seletor.disabled, false);
+    assert.equal(seletor.value, apolice(alvo));
+    assert.ok(chaves.every(k => !campo(k).readOnly));
+    seletor.value = apolice(modeloApolice);
+    seletor.eventos.change();
+    assert.deepEqual(valores(), chaves.map(k => modeloApolice[k]));
+    assert.ok(chaves.every(k => !campo(k).readOnly));
+    campo('sseguradora').value = 'Seguradora corrigida';
+    campo('scorretora').value = 'Corretora corrigida';
+    campo('sapolice').value = 'CORRIGIDA';
+    campo('sinicio').value = '2027-01-01';
+    campo('svencimento').value = '2026-12-31';
+    submeter();
+    assert.match(campo('aviso').textContent, /fim da vigência não pode ser anterior/);
+    assert.equal(gravacoes, 3);
+    assert.equal(db.seguros[0], alvo);
+
+    campo('svencimento').value = '2027-12-31';
+    campo('smodelo').value = 'Scania revisado';
+    campo('sfqaVeiculo').value = '1500,75';
+    campo('spremio').value = '120,00';
+    campo('siof').value = '8,30';
+    campo('siof').eventos.blur();
+    assert.match(campo('total').value, /R\$\s128,30/);
+    fipe.value = 'R$ 275.000,00';
+    db.detran[0].dtFipeValor = 'R$ 310.000,00';
+    atualizarDetran();
+    assert.match(fipe.value, /275\.000,00/);
+    assert.equal(seletor.value, apolice(modeloApolice));
+    await submeter();
+    assert.equal(gravacoes, 4);
+    assert.equal(db.seguros[0]._rid, 'alvo');
+    assert.deepEqual(chaves.map(k => db.seguros[0][k]), ['Seguradora corrigida', 'Corretora corrigida', 'CORRIGIDA', '2027-01-01', '2027-12-31']);
+    assert.equal(db.seguros[0].smodelo, 'Scania revisado');
+    assert.equal(db.seguros[0].sfqaVeiculo, 150075);
+    assert.equal(db.seguros[0].sfipe, 27500000);
+    assert.equal(db.seguros[0].sfipeManual, true);
+    assert.equal(total(db.seguros[0]), 12830);
+    assert.equal(db.detran[0].dtFipeValor, 'R$ 310.000,00');
+    assert.equal(JSON.stringify(db.seguros.slice(1)), intactos);
+    assert.match(resultado.innerHTML, /275\.000,00/);
+    visualizarLinha(0);
+    assert.match(fichaConteudo.innerHTML, /275\.000,00/);
+    campos.get('fmSeg_fecharFicha').eventos.click();
+    excel.eventos.click();
+    assert.equal(exportado[1][3], 275000);
+
+    editarAlvo();
+    assert.match(fipe.value, /275\.000,00/);
+    fipe.value = '';
+    await submeter();
+    assert.equal(gravacoes, 5);
+    assert.equal(db.seguros[0].sfipeManual, undefined);
+    assert.match(resultado.innerHTML, /310\.000,00/);
+
+    editarAlvo();
+    const stipo = campo('stipo');
+    stipo.value = 'segundo';
+    stipo.eventos.change();
+    assert.equal(campo('sanoFab').disabled, false);
+    assert.equal(fipe.disabled, true);
+    assert.match(seletor.innerHTML, /RISCO/);
+    assert.doesNotMatch(seletor.innerHTML, /CORRIGIDA/);
+    assert.equal(campo('sapolice').value, 'CORRIGIDA');
+    submeter();
+    assert.match(campo('aviso').textContent, /placa já consta no 2º risco/);
+    assert.equal(gravacoes, 5);
+    assert.equal(db.seguros[0].stipo, 'principal');
+    seletorPlaca.value = outraPlaca.sveiculo;
+    seletorPlaca.eventos.change();
+    campo('sanoFab').value = '2024';
+    await submeter();
+    assert.equal(gravacoes, 6);
+    assert.equal(db.seguros[0]._rid, 'alvo');
+    assert.equal(db.seguros[0].stipo, 'segundo');
+    assert.equal(db.seguros[0].sveiculo, outraPlaca.sveiculo);
+    assert.equal(db.seguros[0].sanoFab, '2024');
+    assert.equal(JSON.stringify(db.seguros.slice(1)), intactos);
+
+    aoClicar({ target: abas[0] });
+    db.detran.push({ dtPlaca: outraPlaca.sveiculo, dtFipeValor: 'R$ 210.000,00' });
+    editarAlvo(); // Agora a primeira linha do seguro principal é a outra placa.
+    assert.match(fipe.value, /210\.000,00/);
+    campo('scorretora').value = 'Somente a corretora mudou';
+    await submeter();
+    assert.equal(gravacoes, 7);
+    assert.equal(db.seguros[1]._rid, 'outra');
+    assert.equal(db.seguros[1].sfipe, null);
+    assert.equal(db.seguros[1].sfipeManual, undefined);
+    db.detran[1].dtFipeValor = 'R$ 220.000,00';
+    atualizarDetran();
+    assert.match(resultado.innerHTML, /220\.000,00/);
 });
 
 test('a chave de sincronização distingue apólice, tipo, vigência e placa', () => {
