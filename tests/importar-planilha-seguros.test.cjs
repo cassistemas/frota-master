@@ -224,7 +224,13 @@ test('a prévia seleciona todas as páginas e só envia a seleção com as ediç
         return row;
     }), linha('XYZ4567', '-1')];
     const original = [['<img src=x onerror=alert(1)>', ''], ['Total geral', 50]];
-    const janelaOriginal = { '!ref': 'A4:B5', '!merges': [{ s: { r: 3, c: 0 }, e: { r: 3, c: 1 } }], '4:1': { w: 'R$ 50,00' } };
+    const janelaOriginal = {
+        '!ref': 'A4:B5', '!merges': [{ s: { r: 3, c: 0 }, e: { r: 3, c: 1 } }],
+        '!cols': [{ wpx: 140 }, { wch: 15 }], '!rows': { 3: { hpt: 30 } },
+        '3:0': { s: { patternType: 'solid', fgColor: { rgb: 'FF193D8E' } } },
+        '4:0': { s: { patternType: 'solid', fgColor: { rgb: 'invalid' } } },
+        '4:1': { w: 'R$ 50,00' },
+    };
     const window = { XLSX: { read: () => ({ SheetNames: ['Seguro principal', 'Resumo & totais'],
         Sheets: { 'Seguro principal': {}, 'Resumo & totais': janelaOriginal } }),
         utils: {
@@ -247,7 +253,9 @@ test('a prévia seleciona todas as páginas e só envia a seleção com as ediç
     assert.equal(el('abasOriginais').open, true);
     assert.match(el('guiaOriginais').innerHTML, /Resumo &amp; totais/);
     el('guiaOriginais').emitir('click', { target: { closest: () => ({ dataset: { segOriginal: '1' } }) } });
-    assert.match(el('gradeOriginal').innerHTML, /scope="row">4<\/th>.*colspan="2">&lt;img/);
+    assert.match(el('gradeOriginal').innerHTML, /<col style="width:140px">/);
+    assert.match(el('gradeOriginal').innerHTML, /<tr style="height:40px"><th scope="row">4<\/th>.*colspan="2" style="background-color:#193D8E;color:#fff">&lt;img/);
+    assert.doesNotMatch(el('gradeOriginal').innerHTML, /background-color:#invalid/);
     assert.match(el('gradeOriginal').innerHTML, /R\$ 50,00/);
     assert.doesNotMatch(el('gradeOriginal').innerHTML, /<img/);
     assert.match(el('quadrosTotais').innerHTML, /<td>0 de 1<\/td>/);
@@ -290,4 +298,20 @@ test('a prévia seleciona todas as páginas e só envia a seleção com as ediç
     assert.equal(el('abasOriginais').hidden, true);
     assert.equal(el('gradeOriginal').innerHTML, '');
     assert.equal(el('conferenciaTotais').hidden, true);
+    assert.equal(el('nomeArquivo').hidden, true);
+
+    const area = el('areaArquivo');
+    area.classList = new Set();
+    area.classList.remove = classe => area.classList.delete(classe);
+    const dataTransfer = { files: arquivo.files };
+    const arraste = { dataTransfer, preventDefault() {} };
+    botao.emitir('click');
+    area.emitir('dragover', arraste);
+    assert.equal(dataTransfer.dropEffect, 'copy');
+    assert.equal(area.classList.has('fm-seg-arrastando'), true);
+    await area.emitir('drop', arraste);
+    assert.equal(area.classList.has('fm-seg-arrastando'), false);
+    assert.match(el('nomeArquivo').textContent, /FROTA\.xlsx/);
+    assert.equal(el('abasOriginais').hidden, false);
+    assert.equal(gravados.length, 1);
 });

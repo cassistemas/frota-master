@@ -237,7 +237,7 @@
         if (!x?.read) throw new Error('Leitor de Excel indisponível. Recarregue a página e tente novamente.');
         if (!/\.xlsx?$/i.test(arquivo.name)) throw new Error('Selecione uma planilha .xlsx ou .xls.');
         if (arquivo.size > 15 * 1024 * 1024) throw new Error('Selecione uma planilha de até 15 MB.');
-        const livro = x.read(await arquivo.arrayBuffer(), { type: 'array', sheetRows: 5002, cellHTML: false });
+        const livro = x.read(await arquivo.arrayBuffer(), { type: 'array', sheetRows: 5002, cellHTML: false, cellStyles: true });
         const abas = livro.SheetNames.map(nome => {
             const aba = livro.Sheets[nome];
             const faixa = aba['!ref'] && x.utils.decode_range(aba['!ref']);
@@ -253,11 +253,21 @@
             const deslocar = p => ({ r: p.r - (faixa?.s.r ?? 0), c: p.c });
             const mesclas = (aba['!merges'] || []).map(({ s, e }) => ({ s: deslocar(s), e: deslocar(e) }))
                 .filter(({ s, e }) => s.r >= 0 && s.c >= 0 && e.r < dados.length && e.c < 100);
+            const fundos = new Map();
             const exibicao = receberLivro && faixa ? dados.map((row, i) => row.map((v, c) => {
                 const cel = aba[x.utils.encode_cell({ r: faixa.s.r + i, c })];
+                const cor = cel?.s?.fgColor?.rgb;
+                if (cel?.s?.patternType === 'solid' && typeof cor === 'string' && /^(?:[a-f\d]{2})?[a-f\d]{6}$/i.test(cor)) {
+                    fundos.set(i * 100 + c, cor.slice(-6));
+                }
                 return cel?.w ?? v;
             })) : dados;
-            return { nome, dados, exibicao, primeiraLinha: (faixa?.s.r ?? 0) + 1, mesclas };
+            const larguras = (aba['!cols'] || []).slice(0, 100).map(c => c?.wpx ?? (c?.wch ?? c?.width) * 7);
+            const alturas = dados.map((_, i) => {
+                const r = aba['!rows']?.[(faixa?.s.r ?? 0) + i];
+                return r?.hpx ?? r?.hpt * 4 / 3;
+            });
+            return { nome, dados, exibicao, primeiraLinha: (faixa?.s.r ?? 0) + 1, mesclas, larguras, alturas, fundos };
         });
         if (receberLivro) receberLivro(abas);
         if (livro.Workbook?.WBProps?.date1904) throw new Error('Salve uma cópia da planilha com o sistema de datas de 1900 antes de importar.');
@@ -276,6 +286,11 @@
         const inicio = (pagina - 1) * limite, fim = Math.min(inicio + limite, dados.length);
         const largura = dados.reduce((n, row) => Math.max(n, row.length), 0);
         if (!largura || !dados.length) return { total, html: '<p class="mb-2">Aba sem células preenchidas.</p>' };
+        const dimensao = (n, min, max) => Number.isFinite(n) && n > 0 ? Math.min(max, Math.max(min, Math.round(n))) : 0;
+        const medidas = Array.from({ length: largura }, (_, c) => dimensao(aba.larguras?.[c], 32, 600));
+        const colunas = medidas.some(Boolean) ? [48, ...medidas.map(n => n || 96)] : [];
+        const larguraTabela = colunas.length ? ` style="width:${colunas.reduce((a, b) => a + b, 0)}px"` : '';
+        const colgroup = colunas.length ? `<colgroup>${colunas.map(n => `<col style="width:${n}px">`).join('')}</colgroup>` : '';
         const letra = c => c < 26 ? String.fromCharCode(65 + c) : letra(Math.floor(c / 26) - 1) + letra(c % 26);
         const mescladas = new Map();
         for (const { s, e } of aba.mesclas) {
@@ -283,19 +298,29 @@
             if (base < topo || s.c >= largura) continue;
             const direita = Math.min(e.c, largura - 1);
             for (let r = topo; r <= base; r++) for (let c = s.c; c <= direita; c++) mescladas.set(r * largura + c, null);
-            mescladas.set(topo * largura + s.c, { rows: base - topo + 1, cols: direita - s.c + 1, valor: dados[s.r]?.[s.c] });
+            mescladas.set(topo * largura + s.c, { rows: base - topo + 1, cols: direita - s.c + 1, origem: s.r });
         }
+        const estiloCelula = (r, c) => {
+            const cor = aba.fundos?.get(r * 100 + c);
+            if (!cor) return '';
+            const canais = [0, 2, 4].map(i => parseInt(cor.slice(i, i + 2), 16) / 255)
+                .map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
+            const luminosidade = .2126 * canais[0] + .7152 * canais[1] + .0722 * canais[2];
+            return ` style="background-color:#${cor};color:${luminosidade > .179 ? '#000' : '#fff'}"`;
+        };
         const cab = Array.from({ length: largura }, (_, c) => `<th scope="col">${letra(c)}</th>`).join('');
         const linhas = dados.slice(inicio, fim).map((row, j) => {
             const r = inicio + j;
             const celulas = Array.from({ length: largura }, (_, c) => {
                 const m = mescladas.get(r * largura + c);
                 if (m === null) return '';
-                return m ? `<td rowspan="${m.rows}" colspan="${m.cols}">${esc(m.valor)}</td>` : `<td>${esc(row[c])}</td>`;
+                const estilo = estiloCelula(m?.origem ?? r, c);
+                return m ? `<td rowspan="${m.rows}" colspan="${m.cols}"${estilo}>${esc(dados[m.origem]?.[c])}</td>` : `<td${estilo}>${esc(row[c])}</td>`;
             }).join('');
-            return `<tr><th scope="row">${aba.primeiraLinha + r}</th>${celulas}</tr>`;
+            const altura = dimensao(aba.alturas?.[r], 20, 240);
+            return `<tr${altura ? ` style="height:${altura}px"` : ''}><th scope="row">${aba.primeiraLinha + r}</th>${celulas}</tr>`;
         }).join('');
-        return { total, html: `<div class="fm-seg-grade-rolagem" tabindex="0" role="region" aria-label="Planilha: ${esc(aba.nome)}"><table class="fm-seg-grade"><thead><tr><th scope="col" aria-label="Linha"></th>${cab}</tr></thead><tbody>${linhas}</tbody></table></div>` };
+        return { total, html: `<div class="fm-seg-grade-rolagem" tabindex="0" role="region" aria-label="Planilha: ${esc(aba.nome)}"><table class="fm-seg-grade${colunas.length ? ' fm-seg-grade-medida' : ''}"${larguraTabela}>${colgroup}<thead><tr><th scope="col" aria-label="Linha"></th>${cab}</tr></thead><tbody>${linhas}</tbody></table></div>` };
     }
     function conferirTotais(resultado, salvos, seguros) {
         const existentes = new Map(salvos.map(r => [chaveLinha(r, seguros), r]));
@@ -334,10 +359,13 @@
     };
     function montar({ botao, painel, seguros, veiculos, lista, podeGravar, gravar, ocupado }) {
         painel.innerHTML = `<h5>Importação de seguros</h5>
-            <p>Selecione a <strong>FROTA.xlsx</strong> ou outra planilha de seguros. O arquivo é lido neste navegador; só os registros que você confirmar são enviados ao banco. O Histórico não é alterado.</p>
-            <p class="small text-muted">Use <strong>Editar</strong> para corrigir uma linha sem gravar no banco. São obrigatórios: placa cadastrada, seguradora, número da apólice e datas de início e fim da vigência.</p>
-            <label for="fmSeg_arquivo" class="form-label">Planilha de seguros (.xlsx ou .xls)</label>
-            <input id="fmSeg_arquivo" type="file" accept=".xlsx,.xls" class="form-control">
+            <p>Selecione a <strong>FROTA.xlsx</strong> para conferir as abas do Excel e importar os registros. A planilha é lida neste navegador. Só os registros que você confirmar são enviados ao banco, sem alterar o Histórico.</p>
+            <div id="fmSeg_areaArquivo" class="fm-seg-area-arquivo">
+                <label for="fmSeg_arquivo" class="form-label fw-semibold">Selecione ou arraste a planilha de seguros (.xlsx ou .xls)</label>
+                <input id="fmSeg_arquivo" type="file" accept=".xlsx,.xls" class="form-control" aria-describedby="fmSeg_nomeArquivo">
+                <div id="fmSeg_nomeArquivo" class="small mt-2" hidden></div>
+            </div>
+            <p class="small text-muted mt-2">Use <strong>Editar</strong> para corrigir uma linha sem gravar no banco. São obrigatórios: placa cadastrada, seguradora, número da apólice e datas de início e fim da vigência.</p>
             <details id="fmSeg_abasOriginais" class="fm-seg-planilha" hidden>
                 <summary>Abas originais do Excel</summary>
                 <p class="small mb-2">Confira as células na ordem do arquivo. As edições na prévia não modificam esta visualização nem o Excel.</p>
@@ -363,6 +391,7 @@
             </div>`;
         const buscar = id => painel.querySelector('#fmSeg_' + id);
         const arquivo = buscar('arquivo'), resumo = buscar('resumoImportacao'), tabela = buscar('linhasImportacao');
+        const nomeArquivo = buscar('nomeArquivo');
         const revisar = buscar('revisarImportacao'), confirmar = buscar('confirmarImportacao'), fechar = buscar('fecharImportacao');
         const selecao = buscar('selecaoImportacao'), quantidade = buscar('qtdImportacao');
         const marcar = buscar('marcarImportacao'), desmarcar = buscar('limparImportacao'), editor = buscar('edicaoImportacao');
@@ -526,6 +555,8 @@
         function limparPrevia() {
             linhas = []; resultado = []; enviado = false; paginas.clear(); selecionadas.clear();
             abasOriginais = []; abaOriginal = 0; paginaOriginal = 1;
+            nomeArquivo.hidden = true;
+            nomeArquivo.textContent = '';
             originais.open = conferencia.open = false;
             mostrarOriginal(); mostrarTotais();
         }
@@ -536,11 +567,12 @@
             botao.setAttribute('aria-expanded', 'false');
             desenhar(); botao.focus();
         });
-        arquivo.addEventListener('change', async () => {
-            const f = arquivo.files[0];
+        async function carregar(f) {
             if (!f || emEnvio || editando !== null) return;
             const atual = ++token;
             limparPrevia();
+            nomeArquivo.textContent = `Arquivo em conferência: ${f.name}`;
+            nomeArquivo.hidden = false;
             desenhar(); resumo.textContent = 'Lendo planilha…';
             try {
                 const lidas = await lerArquivo(f, root.XLSX, abas => {
@@ -555,8 +587,25 @@
             } catch (erro) {
                 if (atual !== token) return;
                 resumo.textContent = erro?.message || 'Não foi possível ler a planilha.';
-                arquivo.value = '';
+            } finally {
+                if (atual === token) arquivo.value = '';
             }
+        }
+        arquivo.addEventListener('change', () => carregar(arquivo.files[0]));
+        const area = buscar('areaArquivo');
+        area.addEventListener('dragover', e => {
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = arquivo.disabled ? 'none' : 'copy';
+            if (!arquivo.disabled) area.classList.add('fm-seg-arrastando');
+        });
+        area.addEventListener('dragleave', e => {
+            if (!e.relatedTarget || !area.contains(e.relatedTarget)) area.classList.remove('fm-seg-arrastando');
+        });
+        area.addEventListener('drop', e => {
+            e.preventDefault();
+            area.classList.remove('fm-seg-arrastando');
+            const arquivos = e.dataTransfer?.files;
+            if (!arquivo.disabled && arquivos?.length === 1) return carregar(arquivos[0]);
         });
         revisar.addEventListener('click', () => { if (!bloqueado()) revalidar(); });
         marcar.addEventListener('click', () => {
