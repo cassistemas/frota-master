@@ -3775,7 +3775,8 @@ function formatarDataBR(data){
 </script>
 
 <script src="./manutencao-tipos.js?v=20261009-gerenciar"></script>
-<script src="./paginacao.js?v=20261206-seguros-placas"></script>
+<script src="./veiculos.js?v=1-ficha"></script>
+<script src="./paginacao.js?v=20261206-ficha-veiculo"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -9422,6 +9423,26 @@ function carregarPermissoesAdmin(){
 }
 
 </script>
+<style>
+#fichaVeiculo{width:min(640px,calc(100% - 2rem));max-height:calc(100% - 2rem);padding:0;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color:#0f172a;box-shadow:0 20px 60px rgba(15,23,42,.28);overflow:auto}
+#fichaVeiculo::backdrop{background:rgba(15,23,42,.62)}
+#fichaVeiculo header{padding:1.25rem 1.25rem 1rem;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+#fichaVeiculo h2{font-size:1.125rem;font-weight:800;margin:0 0 .25rem;overflow-wrap:anywhere}
+#fichaVeiculo header p{margin:0;color:#475569}
+#fichaVeiculoDados{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:.75rem;margin:0;padding:1.25rem}
+#fichaVeiculoDados>div{min-width:0;padding:.65rem .75rem;border:1px solid #e2e8f0;border-radius:.55rem}
+#fichaVeiculoDados dt{font-size:.75rem;color:#475569}
+#fichaVeiculoDados dd{font-weight:600;margin:.2rem 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+#fichaVeiculo form{margin:0;padding:0 1.25rem 1.25rem;text-align:right}
+</style>
+<dialog id="fichaVeiculo" aria-labelledby="fichaVeiculoTitulo" aria-describedby="fichaVeiculoModo">
+    <header>
+        <h2 id="fichaVeiculoTitulo">Ficha do veículo</h2>
+        <p id="fichaVeiculoModo">Registro somente para consulta</p>
+    </header>
+    <dl id="fichaVeiculoDados"></dl>
+    <form method="dialog"><button type="submit" class="btn btn-secondary" autofocus>Fechar</button></form>
+</dialog>
 <div id="modalHistoricoKm" class="fm-historico-km-modal" role="dialog" aria-modal="true" aria-labelledby="historicoKmTitulo" onclick="if(event.target===this) fecharHistoricoKmVeiculo()">
     <div class="fm-historico-km-dialog">
         <div class="fm-historico-km-cabecalho">
@@ -9709,7 +9730,6 @@ style="width:100%; height:400px; border:none;">
 <script src="./veiculos-detran.js?v=20261019&o=20261016c"></script>
 <script src="./revisoes.js?v=20261109-competencia-despesas"></script>
 <script src="./motoristas.js"></script>
-<script src="./veiculos.js"></script>
 
 <script>
 /* ===== FILTROS AVANÇADOS (Fornecedores / Motoristas / Veículos / Combustível) ===== */
@@ -9742,7 +9762,7 @@ style="width:100%; height:400px; border:none;">
     const m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
     return m ? (m[3]+'-'+m[2]+'-'+m[1]) : null;
   };
-  const acoes = (mod,i) => `<td${mod === 'veiculos' ? ' class="veiculos-acoes-celula"' : ''}><div${mod === 'veiculos' ? ' class="veiculos-acoes"' : ''}>${mod === 'veiculos' ? `<button class="btn-edit btn-km-veiculo" type="button" title="Atualizar quilometragem" aria-label="Atualizar quilometragem" onclick="atualizarKmVeiculo(${i})">🛣 <span>KM</span></button><button class="btn-edit btn-historico-km" type="button" title="Ver histórico de KM" aria-label="Ver histórico de KM" onclick="abrirHistoricoKmVeiculo(${i})">◷</button>` : ''}<button class="btn-edit" type="button" title="Editar${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Editar${mod === 'veiculos' ? ' veículo' : ''}" onclick="editar('${mod}',${i})">✎</button><button class="btn-del" type="button" title="Excluir${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Excluir${mod === 'veiculos' ? ' veículo' : ''}" onclick="deletar('${mod}',${i})">✕</button></div></td>`;
+  const acoes = (mod,i) => `<td${mod === 'veiculos' ? ' class="veiculos-acoes-celula"' : ''}><div${mod === 'veiculos' ? ' class="veiculos-acoes"' : ''}>${mod === 'veiculos' ? `${botaoFichaVeiculo(i)}<button class="btn-edit btn-km-veiculo" type="button" title="Atualizar quilometragem" aria-label="Atualizar quilometragem" onclick="atualizarKmVeiculo(${i})">🛣 <span>KM</span></button><button class="btn-edit btn-historico-km" type="button" title="Ver histórico de KM" aria-label="Ver histórico de KM" onclick="abrirHistoricoKmVeiculo(${i})">◷</button>` : ''}<button class="btn-edit" type="button" title="Editar${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Editar${mod === 'veiculos' ? ' veículo' : ''}" onclick="editar('${mod}',${i})">✎</button><button class="btn-del" type="button" title="Excluir${mod === 'veiculos' ? ' veículo' : ''}" aria-label="Excluir${mod === 'veiculos' ? ' veículo' : ''}" onclick="deletar('${mod}',${i})">✕</button></div></td>`;
   const d = x => (x===undefined||x===null||x==='') ? '--' : x;
 
   window.atualizarKmVeiculo = function(i){
@@ -9842,7 +9862,7 @@ style="width:100%; height:400px; border:none;">
           if(kmax !== '' && num(x.vkm) > num(kmax)) return false;
           return true;
         })
-        .map(({x,i}) => `<tr><td><b>${d(x.vplaca)}</b></td><td>${d(x.vmodelo)}</td><td>${d(x.vkminicial)}</td><td>${d(x.vkm)}</td><td>${fmKmTotalVeiculo(x).toLocaleString('pt-BR')}</td><td>${d(x.vmotorista)}</td><td>${d(x.vpbt)}</td><td>${d(x.vtara)}</td><td>${d(x.vpliquido)}</td><td>${d(x.vm3)}</td><td>${d(x.vmedidas)}</td><td>${fmSeletorStatusVeiculo(x,i)}</td>${acoes(mod,i)}</tr>`)
+        .map(({x,i}) => `<tr><td><b>${d(x.vplaca)}</b></td><td>${d(x.vmodelo)}</td><td>${d(x.vtipo)}</td><td>${d(x.vkminicial)}</td><td>${d(x.vkm)}</td><td>${fmKmTotalVeiculo(x).toLocaleString('pt-BR')}</td><td>${d(x.vmotorista)}</td><td>${d(x.vpbt)}</td><td>${d(x.vtara)}</td><td>${d(x.vpliquido)}</td><td>${d(x.vm3)}</td><td>${d(x.vmedidas)}</td><td>${fmSeletorStatusVeiculo(x,i)}</td>${acoes(mod,i)}</tr>`)
         .join('');
     }
 
