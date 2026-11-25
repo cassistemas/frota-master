@@ -22,6 +22,8 @@
     const esc = v => texto(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const tipo = r => r.stipo === 'principal' || r.stipo === 'segundo' ? r.stipo : 'legado';
     const apolice = r => JSON.stringify([tipo(r), chave(r.sseguradora), chave(r.sapolice), r.sinicio || '', r.svencimento || '']);
+    const camposApolice = ['sseguradora', 'scorretora', 'sapolice', 'sinicio', 'svencimento'];
+    const camposHistorico = ['sseguradora', 'svencimento'];
     const hoje = () => { const d = new Date(); return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-'); };
     const dataBR = v => /^\d{4}-\d\d-\d\d$/.test(v || '') ? v.split('-').reverse().join('/') : '';
     function centavos(v) {
@@ -72,11 +74,43 @@
         const ano = texto(d?.[camposAno[k]]);
         return anoValido(ano) ? ano : '';
     };
-    let aba = 'principal', editando = null, ocupada = false, registrosGerenciar = [];
+    let aba = 'principal', editando = null, ocupada = false, registrosGerenciar = [], rascunhoApolice = {};
     const op = (value, label) => '<option value="' + esc(value) + '">' + esc(label) + '</option>';
     const ops = obj => Object.entries(obj).map(([v,l]) => op(v,l)).join('');
     const input = (k, label, attrs = '') => '<label><span>'+esc(label)+'</span><input id="fmSeg_'+k+'" class="form-control" '+attrs+'></label>';
     const select = (k, label, options) => '<label>'+esc(label)+'<select id="fmSeg_'+k+'" class="form-select">'+options+'</select></label>';
+    function apolicesCadastradas() {
+        const t = campo('stipo').value;
+        if (!usaFichaPorPlaca(t)) return [];
+        return agrupar(lista().filter(r => tipo(r) === t &&
+            (texto(r.sapolice) || texto(r.sseguradora)))).map(({ cab, linhas }) => {
+            const vigencia = [dataBR(cab.sinicio), dataBR(cab.svencimento)].filter(Boolean).join(' a ');
+            return {
+                chave: apolice(cab),
+                rotulo: [texto(cab.sseguradora), texto(cab.sapolice) && 'Nº ' + texto(cab.sapolice), vigencia].filter(Boolean).join(' · '),
+                dados: { ...cab, scorretora: linhas.find(({ r }) => texto(r.scorretora))?.r.scorretora },
+            };
+        }).sort((a,b) => a.rotulo.localeCompare(b.rotulo, 'pt-BR'));
+    }
+    function lerApolice() {
+        return Object.fromEntries(camposApolice.map(k => [k, texto(campo(k).value)]));
+    }
+    function preencherApolice(dados) {
+        camposApolice.forEach(k => { campo(k).value = texto(dados[k]); });
+    }
+    function atualizarApolices(atual = campo('apoliceExistente').value) {
+        const s = campo('apoliceExistente');
+        const opcoes = apolicesCadastradas();
+        s.innerHTML = op('', 'Nova apólice') + opcoes.map(p => op(p.chave, p.rotulo)).join('');
+        s.value = opcoes.some(p => p.chave === atual) ? atual : '';
+    }
+    function escolherApolice() {
+        if (!campo('sseguradora').readOnly) rascunhoApolice = lerApolice();
+        const escolhida = apolicesCadastradas().find(p => p.chave === campo('apoliceExistente').value);
+        if (!escolhida) campo('apoliceExistente').value = '';
+        preencherApolice(escolhida?.dados || rascunhoApolice);
+        ajustarForm();
+    }
     const exMoeda = v => v == null ? '—' : moeda.format(v/100);
     function campoValor(k, r, indice) {
         if (k === 'item') return indice + 1;
@@ -108,10 +142,15 @@
             <summary id="fmSeg_titulo">Cadastrar veículo na apólice</summary>
             <p id="fmSeg_instrucoes">Informe os dados da apólice e os valores por placa. Este cadastro não gera lançamentos financeiros.</p>
             <form id="fmSeg_form" aria-labelledby="fmSeg_titulo" data-nao-limpar>
-                <div id="fmSeg_dadosApolice" class="fm-seg-grid">
+                <div id="fmSeg_dadosApolice" class="fm-seg-grid fm-seg-dados-apolice">
                     ${select('stipo','Tipo de seguro',ops(tipos))}
-                    ${input('sseguradora','Seguradora','required maxlength="120"')}
-                    ${input('svencimento','Fim da vigência','type="date" required')}
+                    ${select('apoliceExistente','Apólice cadastrada',op('', 'Nova apólice'))}
+                    ${input('sseguradora','Seguradora','maxlength="120"')}
+                    ${input('scorretora','Corretora','maxlength="120"')}
+                    ${input('sapolice','Nº da apólice','maxlength="120"')}
+                    ${input('sinicio','Início da vigência','type="date"')}
+                    ${input('svencimento','Fim da vigência','type="date"')}
+                    <p id="fmSeg_ajudaApolice" class="fm-seg-ajuda-apolice mb-0" hidden>Para alterar os dados da apólice neste registro, selecione Nova apólice.</p>
                 </div>
                 <h5 id="fmSeg_coberturas">Veículo e coberturas</h5>
                 <div class="fm-seg-grid">
@@ -148,10 +187,13 @@
         campo('form').addEventListener('submit', salvar);
         campo('sveiculo').required = true;
         campo('stipo').addEventListener('change', () => {
-            if (usaFichaPorPlaca(campo('stipo').value)) aba = campo('stipo').value;
+            if (campo('apoliceExistente').value) preencherApolice(rascunhoApolice);
+            aba = campo('stipo').value;
+            atualizarApolices('');
             ajustarForm();
             consultar();
         });
+        campo('apoliceExistente').addEventListener('change', escolherApolice);
         campo('sveiculo').addEventListener('change', preencherVeiculo);
         ['spremio','siof'].forEach(k => campo(k).addEventListener('input', preverTotal));
         ['fPlaca','fSeguradora','fAte','fPrazo'].forEach(k => campo(k).addEventListener('input', consultar));
@@ -192,12 +234,18 @@
         const porPlaca = usaFichaPorPlaca(t);
         const podeMudarTipo = editando && tipo(editando.registro) === 'legado';
         const visiveis = new Map(colunas[t]);
-        campo('dadosApolice').hidden = porPlaca && !podeMudarTipo;
+        campo('editor').hidden = aba === 'legado' && !editando;
         campo('instrucoes').hidden = campo('coberturas').hidden = porPlaca;
         campo('stipo').disabled = !podeMudarTipo;
-        ['sseguradora','svencimento'].forEach(k => {
-            const c = campo(k);
-            c.parentElement.hidden = c.disabled = porPlaca;
+        const apoliceExistente = campo('apoliceExistente');
+        const reutilizaApolice = porPlaca && !!apoliceExistente.value;
+        apoliceExistente.parentElement.hidden = apoliceExistente.disabled = !porPlaca;
+        campo('ajudaApolice').hidden = !reutilizaApolice;
+        camposApolice.forEach(k => {
+            const c = campo(k), historico = camposHistorico.includes(k);
+            c.parentElement.hidden = c.disabled = !porPlaca && !historico;
+            c.required = !porPlaca && historico;
+            c.readOnly = reutilizaApolice;
         });
         camposVeiculo.forEach(([k, l]) => {
             const c = campo(k);
@@ -217,8 +265,11 @@
     function limpar() {
         editando = null;
         campo('form').reset();
+        rascunhoApolice = {};
+        preencherApolice(rascunhoApolice);
         campo('stipo').innerHTML = ops({ principal: tipos.principal, segundo: tipos.segundo });
         campo('stipo').value = aba === 'segundo' ? 'segundo' : 'principal';
+        atualizarApolices('');
         campo('titulo').textContent = 'Cadastrar veículo na apólice';
         campo('cancelar').hidden = true;
         preencherPlacas('');
@@ -244,7 +295,9 @@
         const t = tipo(r);
         if (t === 'legado') campo('stipo').add(new Option(tipos.legado, 'legado'));
         campo('stipo').value = t;
-        ['sseguradora','svencimento'].forEach(k => { campo(k).value = texto(r[k]); });
+        preencherApolice(r);
+        rascunhoApolice = lerApolice();
+        atualizarApolices(usaFichaPorPlaca(t) ? apolice(r) : '');
         preencherPlacas(r.sveiculo);
         colunas[t].forEach(([k]) => {
             if (['item','sveiculo','sseguradora','svencimento','prazo','total'].includes(k)) return;
@@ -274,9 +327,16 @@
         const r = Object.assign({}, anterior || {});
         r.stipo = t;
         if (t === 'legado') {
-            ['sseguradora','svencimento'].forEach(k => { r[k] = texto(campo(k).value); });
+            camposHistorico.forEach(k => { r[k] = texto(campo(k).value); });
             ['stipo','scorretora','sapolice','sinicio','ssituacao'].forEach(k => { delete r[k]; });
             if (!r.sseguradora || !r.svencimento) return aviso('Informe seguradora e vencimento.');
+        } else {
+            const dados = lerApolice();
+            if (dados.sinicio && dados.svencimento && dados.sinicio > dados.svencimento) {
+                campo('svencimento').focus();
+                return aviso('O fim da vigência não pode ser anterior ao início.');
+            }
+            camposApolice.forEach(k => { if (dados[k] !== texto(r[k])) r[k] = dados[k]; });
         }
         const selecionada = campo('sveiculo').value;
         const v = veiculos().find(x => placaIgual(x.vplaca, selecionada));
@@ -300,7 +360,7 @@
         if (i < 0) lista().push(pronto); else lista()[i] = pronto;
         aba = t;
         limpar();
-        persistir('Registro salvo no banco.');
+        return persistir('Registro salvo no banco.');
     }
     function gravarSeguros() {
         root.fmPularSincronizacaoPreUmaVez = true;
@@ -387,8 +447,12 @@
         const b = e.target.closest('button');
         if (!b || ocupada) return;
         if (b.dataset.segAba) {
-            aba = b.dataset.segAba;
-            if (!editando && aba !== 'legado' && campo('stipo').value !== aba) limpar();
+            const destino = b.dataset.segAba;
+            if (editando && destino !== aba) return aviso('Salve ou cancele a edição antes de trocar de aba.');
+            if (destino !== aba) {
+                aba = destino;
+                limpar();
+            }
             consultar();
         } else if (b.dataset.segGerenciar) {
             if (!usaFichaPorPlaca(aba)) return;
@@ -447,6 +511,7 @@
         montar();
         if (!campo('form')) return;
         atualizarPlacas();
+        atualizarApolices();
         ajustarForm();
         campo('salvar').disabled = ocupada;
         consultar();

@@ -103,7 +103,7 @@ test('o Excel de Seguros não usa classe ou acionador de exportação legada', (
     assert.doesNotMatch(botao, /\bbtn-excel\b|\bonclick=/);
 });
 
-test('as três abas renderizam e as ações do principal e do 2º risco ficam fora da tabela e do Excel', async () => {
+test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólices do tipo ativo', async () => {
     const vm = require('node:vm');
     const fonte = fs.readFileSync(path.join(__dirname, '..', 'seguros-frota.js'), 'utf8');
     const db = { veiculos: [], seguros: [] };
@@ -147,8 +147,18 @@ test('as três abas renderizam e as ações do principal e do 2º risco ficam fo
             writeFile() {},
         },
     };
+    let gravacoes = 0;
     vm.runInNewContext(fonte, {
         window, db, auth: { currentUser: {} },
+        fmPrepararRegistro: (modulo, registro) => {
+            assert.equal(modulo, 'seguros');
+            return registro;
+        },
+        salvarNuvem: async modulos => {
+            assert.equal(modulos.join(','), 'seguros');
+            gravacoes++;
+            return true;
+        },
         Option: function (label, value) { Object.assign(this, { label, value, dataset: {} }); },
         document: {
             readyState: 'loading', addEventListener() {},
@@ -172,7 +182,7 @@ test('as três abas renderizam e as ações do principal e do 2º risco ficam fo
     const cabecalhoPrincipal = ['PLACA', '', 'FIPE %', 'FIPE VEÍCULO', 'FIPE CARROCERIA', 'D. MATERIAIS', 'D. CORPORAIS', 'D. MORAIS', 'CARROCERIA', 'VIDROS', 'GUINCHO KM', 'PRÊMIO', 'IOF', 'TOTAL'];
     assert.equal(campos.has('fmSeg_importar'), false);
     assert.equal(campos.has('fmSeg_sano'), false);
-    assert.equal(campos.get('fmSeg_dadosApolice').hidden, true);
+    assert.ok(!campos.get('fmSeg_dadosApolice').hidden);
     assert.equal(campos.get('fmSeg_sfipePercent').parentElement.hidden, false);
     const tabela = resultado.innerHTML.match(/<table\b[^]*?<\/table>/)[0];
     assert.deepEqual([...tabela.matchAll(/<th\s[^>]*>(.*?)<\/th>/g)].map(m => m[1]), cabecalhoPrincipal);
@@ -261,7 +271,7 @@ test('as três abas renderizam e as ações do principal e do 2º risco ficam fo
     assert.deepEqual(exportado, [cabecalhoSegundo, [1, 2024, '', 'XYZ4J56', 'VW DELIVERY', 1500000, 200000, 506.69, 37.39, 544.08]]);
     assert.equal(segundo.sanoFab, undefined);
     assert.equal(gerenciar.hidden, false);
-    assert.equal(campos.get('fmSeg_dadosApolice').hidden, true);
+    assert.ok(!campos.get('fmSeg_dadosApolice').hidden);
     assert.equal(campos.get('fmSeg_sfipePercent').parentElement.hidden, true);
     assert.equal(campos.get('fmSeg_sanoFab').parentElement.hidden, false);
     registro.value = '0';
@@ -291,6 +301,93 @@ test('as três abas renderizam e as ações do principal e do 2º risco ficam fo
         assert.match(aba.textContent, /\(0\)$/);
         assert.match(resultado.textContent, /Nenhum registro/);
     }
+
+    const campo = k => campos.get('fmSeg_' + k);
+    const chaves = ['sseguradora', 'scorretora', 'sapolice', 'sinicio', 'svencimento'];
+    const valores = () => chaves.map(k => campo(k).value);
+    const submeter = () => campo('form').eventos.submit({ preventDefault() {} });
+    assert.deepEqual([...montagem.match(/id="fmSeg_dadosApolice"[^>]*>([^]*?)<\/div>/)[1].matchAll(/id="fmSeg_(\w+)"/g)].map(m => m[1]).slice(0, 7),
+        ['stipo', 'apoliceExistente', ...chaves]);
+    db.veiculos = [{ vplaca: 'NOV1A23', vmodelo: 'Veículo novo' }];
+    const originais = [
+        { ...base, _rid: 'p', sapolice: 'PR-001', scorretora: 'Corretora principal' },
+        { ...base, _rid: 's', stipo: 'segundo', sapolice: 'SR-002', scorretora: 'Corretora 2º risco' },
+    ];
+    const antigo = { ...base, _rid: 'antigo', sveiculo: 'ANT1A23', sseguradora: '', sapolice: '', sinicio: '', svencimento: '' };
+    db.seguros = [...originais, antigo, { sveiculo: 'HIS1A23', sseguradora: 'Histórico', svencimento: '2025-12-31' }];
+    for (const [i, original] of originais.entries()) {
+        aoClicar({ target: abas[i] });
+        assert.equal(campo('stipo').value, original.stipo);
+        assert.equal(campo('stipo').disabled, true);
+        assert.ok(['apoliceExistente', ...chaves].every(k => !campo(k).parentElement.hidden));
+        const seletor = campo('apoliceExistente');
+        assert.match(seletor.innerHTML, /Nova apólice/);
+        assert.ok(seletor.innerHTML.includes(original.sapolice));
+        assert.ok(!seletor.innerHTML.includes(originais[1 - i].sapolice));
+        assert.deepEqual(valores(), ['', '', '', '', '']);
+        campo('sseguradora').value = 'Rascunho manual';
+        seletor.value = apolice(original);
+        seletor.eventos.change();
+        assert.deepEqual(valores(), chaves.map(k => original[k]));
+        assert.ok(chaves.every(k => campo(k).readOnly));
+        seletor.value = '';
+        seletor.eventos.change();
+        assert.deepEqual(valores(), ['Rascunho manual', '', '', '', '']);
+        assert.ok(chaves.every(k => !campo(k).readOnly));
+        campo('sinicio').value = '2027-01-01';
+        campo('svencimento').value = '2026-12-31';
+        submeter();
+        assert.match(campo('aviso').textContent, /fim da vigência não pode ser anterior/);
+        assert.equal(gravacoes, i);
+        seletor.value = apolice(original);
+        seletor.eventos.change();
+        campo('sveiculo').value = 'NOV1A23';
+        campo('sveiculo').eventos.change();
+        await submeter();
+        const salvo = db.seguros.at(-1);
+        assert.equal(salvo.stipo, original.stipo);
+        assert.equal(salvo.sveiculo, 'NOV1A23');
+        assert.equal(salvo.smodelo, 'Veículo novo');
+        assert.deepEqual(chaves.map(k => salvo[k]), chaves.map(k => original[k]));
+        assert.equal(gravacoes, i + 1);
+        assert.equal(db.seguros[i], original);
+
+        registro.value = '0';
+        registro.eventos.change();
+        aoClicar({ target: acoes[0] });
+        assert.equal(seletor.value, apolice(original));
+        assert.deepEqual(valores(), chaves.map(k => original[k]));
+        seletor.value = '';
+        seletor.eventos.change();
+        assert.deepEqual(valores(), chaves.map(k => original[k]));
+        assert.ok(chaves.every(k => !campo(k).readOnly));
+        campo('scorretora').value = 'Alteração não salva';
+        cancelar.eventos.click();
+        assert.equal(db.seguros[i].scorretora, original.scorretora);
+    }
+
+    aoClicar({ target: abas[0] });
+    registro.value = '1';
+    registro.eventos.change();
+    aoClicar({ target: acoes[0] });
+    assert.deepEqual(valores(), ['', '', '', '', '']);
+    assert.equal(campo('apoliceExistente').value, '');
+    campo('scorretora').value = 'Corretora informada na edição';
+    campo('sapolice').value = '007';
+    await submeter();
+    assert.equal(gravacoes, 3);
+    assert.equal(db.seguros[2].sapolice, '007');
+    assert.equal(db.seguros[2].scorretora, 'Corretora informada na edição');
+    assert.equal(db.seguros[2].sinicio, '');
+
+    aoClicar({ target: abas[2] });
+    assert.match(resultado.innerHTML, /Histórico/);
+    aoClicar({ target: { dataset: { segEditar: '3' }, closest() { return this; } } });
+    assert.equal(campo('stipo').value, 'legado');
+    assert.equal(campo('apoliceExistente').parentElement.hidden, true);
+    assert.equal(campo('sseguradora').value, 'Histórico');
+    assert.equal(campo('svencimento').required, true);
+    assert.equal(campo('sapolice').parentElement.hidden, true);
 });
 
 test('a chave de sincronização distingue apólice, tipo, vigência e placa', () => {
