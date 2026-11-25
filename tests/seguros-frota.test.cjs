@@ -143,11 +143,19 @@ test('as três abas de Seguros renderizam com ou sem o botão de exportação', 
     assert.equal(excel.disabled, true);
 
     carregado = true;
-    db.seguros = [base, { ...base, stipo: 'segundo', sveiculo: 'XYZ4J56' }, {
+    const importado = { ...base, sfipe: 25000000, sfipePercent: 10000, svidro: 'BÁSICO', splanilha: { layout: { cab: [['PLACA', 'FIPE %', 'VIDRO']] } } };
+    db.seguros = [importado, { ...base, stipo: 'segundo', sveiculo: 'XYZ4J56' }, {
         sveiculo: 'HIS1A23', sseguradora: 'Seguradora anterior', svencimento: '2025-12-31',
     }];
     window.FMSegurosFrota.render();
     assert.equal(excel.disabled, false);
+    assert.equal(campos.has('fmSeg_importar'), false);
+    assert.equal(campos.has('fmSeg_sfipePercent'), false);
+    assert.equal(campos.get('fmSeg_sfipe').parentElement.hidden, false);
+    assert.match(resultado.innerHTML, />FIPE<\/th>/);
+    assert.doesNotMatch(resultado.innerHTML, /FIPE %|BÁSICO/);
+    assert.equal(db.seguros[0], importado);
+    assert.equal(db.seguros[0].svidro, 'BÁSICO');
 
     // Simula a remoção do botão após a montagem, como no limpador de relatórios.
     campos.delete('fmSeg_exportar');
