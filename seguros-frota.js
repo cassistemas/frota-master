@@ -121,7 +121,7 @@
         return r[k];
     }
     function valorEditavel(k, v) {
-        if (dinheiro.has(k) && v != null) return decimal.format(v/100);
+        if (dinheiro.has(k)) return v == null ? '' : exMoeda(v);
         if (k === 'sfipePercent' && v != null) return decimal.format(v/100).replace(/,00$/, '');
         return texto(v);
     }
@@ -196,6 +196,15 @@
         });
         campo('apoliceExistente').addEventListener('change', escolherApolice);
         campo('sveiculo').addEventListener('change', preencherVeiculo);
+        dinheiro.forEach(k => {
+            if (k === 'total') return;
+            const c = campo(k);
+            c.addEventListener('blur', () => {
+                const v = centavos(c.value);
+                if (!Number.isNaN(v)) c.value = valorEditavel(k, v);
+                if (k === 'spremio' || k === 'siof') preverTotal();
+            });
+        });
         ['spremio','siof'].forEach(k => campo(k).addEventListener('input', preverTotal));
         ['fPlaca','fSeguradora','fAte','fPrazo'].forEach(k => campo(k).addEventListener('input', consultar));
         campo('cancelar').addEventListener('click', cancelar);

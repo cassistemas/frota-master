@@ -209,6 +209,10 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     assert.equal(editor.open, true);
     assert.equal(cancelar.hidden, false);
     assert.equal(foco, 'fmSeg_sveiculo');
+    assert.match(campos.get('fmSeg_sfipe').value, /^R\$\s250\.000,00$/);
+    assert.equal(campos.get('fmSeg_spremio').value, '');
+    assert.equal(campos.get('fmSeg_sfipePercent').value, '100');
+    assert.equal(campos.get('fmSeg_svidro').value, 'BÁSICO');
     campos.get('fmSeg_smodelo').value = 'Alteração não salva';
     cancelar.eventos.click();
     assert.equal(editor.open, false);
@@ -286,7 +290,11 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     assert.equal(editor.open, true);
     assert.equal(campos.get('fmSeg_sanoFab').value, '2024');
     assert.equal(campos.get('fmSeg_sanoMod').value, '');
-    assert.match(campos.get('fmSeg_total').value, /544,08/);
+    assert.match(campos.get('fmSeg_sgru').value, /^R\$\s1\.500\.000,00$/);
+    assert.match(campos.get('fmSeg_smorais').value, /^R\$\s200\.000,00$/);
+    assert.match(campos.get('fmSeg_spremio').value, /^R\$\s506,69$/);
+    assert.match(campos.get('fmSeg_siof').value, /^R\$\s37,39$/);
+    assert.match(campos.get('fmSeg_total').value, /^R\$\s544,08$/);
     campos.get('fmSeg_smodelo').value = 'Não deve salvar';
     cancelar.eventos.click();
     assert.equal(editor.open, false);
@@ -371,12 +379,48 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
         seletor.eventos.change();
         campo('sveiculo').value = 'NOV1A23';
         campo('sveiculo').eventos.change();
+        const coberturas = i === 0
+            ? ['sfipe', 'sfipeCarroceria', 'smateriais', 'scorporais', 'smorais', 'scarroceria']
+            : ['sgru', 'smorais'];
+        for (const k of coberturas) {
+            const c = campo(k);
+            assert.equal(c.disabled, false);
+            c.value = '1.234,56';
+            c.eventos.blur();
+            assert.match(c.value, /^R\$\s1\.234,56$/);
+        }
+        for (const k of ['sfipePercent', 'sguincho', 'sanoFab', 'sanoMod', 'svidro']) {
+            assert.equal(campo(k).eventos.blur, undefined);
+        }
+        const premio = campo('spremio'), iof = campo('siof');
+        iof.eventos.blur();
+        assert.equal(iof.value, '');
+        assert.equal(campo('total').value, '');
+        premio.value = '12,345';
+        premio.eventos.blur();
+        assert.equal(premio.value, '12,345');
+        assert.equal(campo('total').value, '');
+        submeter();
+        assert.match(campo('aviso').textContent, /Revise o valor de PRÊMIO/);
+        assert.equal(gravacoes, i);
+        premio.value = '1234.56';
+        premio.eventos.input();
+        assert.match(campo('total').value, /^R\$\s1\.234,56$/);
+        premio.eventos.blur();
+        assert.match(premio.value, /^R\$\s1\.234,56$/);
+        iof.value = '0';
+        iof.eventos.blur();
+        assert.match(iof.value, /^R\$\s0,00$/);
+        assert.match(campo('total').value, /^R\$\s1\.234,56$/);
         await submeter();
         const salvo = db.seguros.at(-1);
         assert.equal(salvo.stipo, original.stipo);
         assert.equal(salvo.sveiculo, 'NOV1A23');
         assert.equal(salvo.smodelo, 'Veículo novo');
         assert.deepEqual(chaves.map(k => salvo[k]), chaves.map(k => original[k]));
+        for (const k of [...coberturas, 'spremio']) assert.equal(salvo[k], 123456);
+        assert.equal(salvo.siof, 0);
+        assert.equal(salvo.total, undefined);
         assert.equal(gravacoes, i + 1);
         assert.equal(db.seguros[i], original);
 
