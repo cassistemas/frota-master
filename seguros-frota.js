@@ -374,7 +374,7 @@
         const botaoCancelar = campo('cancelar');
         botaoCancelar.hidden = !editando && !usaFichaPorPlaca(aba);
         botaoCancelar.textContent = editando ? 'Cancelar edição' : 'Cancelar';
-        if (!editando) campo('titulo').textContent = t === 'segundo' ? 'Cadastrar veículo no 2º risco' : 'Cadastrar veículo no seguro principal';
+        if (!editando) campo('titulo').textContent = t === 'segundo' ? 'Cadastrar Veículo No 2º Risco' : 'Cadastrar veículo no seguro principal';
         atualizarFipeForm();
         preverTotal();
     }
@@ -569,7 +569,8 @@
         resumo.innerHTML = indicadores.map(([rotulo, valor]) => `<div class="fm-seg-card"><dt>${rotulo}</dt><dd>${valor}</dd></div>`).join('');
     }
     function consultar() {
-        const registros = filtrados(), col = colunas[aba];
+        const registros = filtrados();
+        const col = aba === 'segundo' ? colunas.segundo.filter(([k]) => k !== 'item' && !(k in camposAno)) : colunas[aba];
         const geral = lista();
         renderResumo(geral);
         el('fmApolices').querySelectorAll('[data-seg-aba]').forEach(b => {

@@ -362,10 +362,12 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     Object.assign(segundo, { smodelo: 'VW DELIVERY', sgru: 150000000, smorais: 20000000, spremio: 50669, siof: 3739 });
     db.detran = [{ dtPlaca: 'XYZ-4J56', dtAnoFab: '2024' }];
     aoClicar({ target: abas[1] });
-    const cabecalhoSegundo = ['ITEM', 'ANO', 'MODELO', 'PLACA', '', 'GRU', 'D. MORAIS', 'PRÊMIO', 'IOF', 'TOTAL'];
+    assert.equal(campos.get('fmSeg_titulo').textContent, 'Cadastrar Veículo No 2º Risco');
+    const cabecalhoSegundo = ['PLACA', '', 'GRU', 'D. MORAIS', 'PRÊMIO', 'IOF', 'TOTAL'];
     const tabelaSegundo = resultado.innerHTML.match(/<table\b[^]*?<\/table>/)[0];
     assert.deepEqual([...tabelaSegundo.matchAll(/<th\s[^>]*>(.*?)<\/th>/g)].map(m => m[1]), cabecalhoSegundo);
-    assert.match(tabelaSegundo, /<td>1<\/td><td>2024<\/td><td><\/td><td[^>]*><button[^>]*data-seg-visualizar="0"[^>]*aria-label="Visualizar seguro de XYZ4J56"[^]*?<\/button>XYZ4J56<\/td><td>VW DELIVERY<\/td>/);
+    assert.equal([...tabelaSegundo.matchAll(/<td\b/g)].length, cabecalhoSegundo.length);
+    assert.match(tabelaSegundo, /<tbody><tr><td[^>]*><button[^>]*data-seg-visualizar="0"[^>]*aria-label="Visualizar seguro de XYZ4J56"[^]*?<\/button>XYZ4J56<\/td><td>VW DELIVERY<\/td>/);
     assert.match(tabelaSegundo, /544,08<\/td>/);
     assert.doesNotMatch(resultado.innerHTML, /Subtotal|Apólice|<tfoot/);
     visualizarLinha(0);
@@ -377,7 +379,7 @@ test('as abas mantêm as tabelas e ações e permitem cadastrar e editar apólic
     assert.equal(gravacoes, 0);
     campos.get('fmSeg_fecharFicha').eventos.click();
     excel.eventos.click();
-    assert.deepEqual(exportado, [cabecalhoSegundo, [1, 2024, '', 'XYZ4J56', 'VW DELIVERY', 1500000, 200000, 506.69, 37.39, 544.08]]);
+    assert.deepEqual(exportado, [['ITEM', 'ANO', 'MODELO', ...cabecalhoSegundo], [1, 2024, '', 'XYZ4J56', 'VW DELIVERY', 1500000, 200000, 506.69, 37.39, 544.08]]);
     assert.equal(segundo.sanoFab, undefined);
     assert.equal(gerenciar.hidden, false);
     assert.ok(!campos.get('fmSeg_dadosApolice').hidden);

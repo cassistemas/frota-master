@@ -35,9 +35,8 @@
 #fmApolices .fm-seg-principal :is(th,td):not(:nth-child(1),:nth-child(2),:nth-child(11)){text-align:right;font-variant-numeric:tabular-nums}
 #fmApolices .fm-seg-principal th:nth-child(2){cursor:default}
 #fmApolices .fm-seg-segundo :is(th,td){padding:.5rem .65rem}
-#fmApolices .fm-seg-segundo :is(th,td):nth-child(-n+3){text-align:center;font-variant-numeric:tabular-nums}
-#fmApolices .fm-seg-segundo :is(th,td):nth-child(n+6){text-align:right;font-variant-numeric:tabular-nums}
-#fmApolices .fm-seg-segundo th:nth-child(5){cursor:default}
+#fmApolices .fm-seg-segundo :is(th,td):nth-child(n+3){text-align:right;font-variant-numeric:tabular-nums}
+#fmApolices .fm-seg-segundo th:nth-child(2){cursor:default}
 #fmApolices .fm-seg-gerenciar{justify-content:flex-start;align-items:flex-end}
 #fmApolices .fm-seg-gerenciar label{display:grid;gap:.3rem;flex:0 1 24rem;min-width:0;font-weight:600}
 #fmApolices .fm-seg-ficha{width:min(46rem,calc(100% - 2rem));max-height:calc(100% - 2rem);overflow:auto;padding:1.25rem;color:var(--bs-body-color,#1e293b);background:var(--bs-body-bg,#fff);border:1px solid var(--bs-border-color,#dbe3ef);border-radius:.75rem}
